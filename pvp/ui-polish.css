@@ -1,0 +1,60 @@
+/* PvP okunabilirlik, eylem hiyerarşisi ve klavye odağı. */
+#pvp-root{--ui-focus:#a6f2ff;--ui-text:#f4f0ff}
+#pvp-root button,#pvp-root summary,#pvp-root select,#pvp-root input{font-family:inherit}
+#pvp-root button:focus-visible,#pvp-root summary:focus-visible,#pvp-root select:focus-visible,#pvp-root input:focus-visible,#pvp-root a:focus-visible{
+  outline:3px solid var(--ui-focus);outline-offset:3px;position:relative;z-index:5
+}
+#pvp-root button[disabled]{opacity:.58;cursor:not-allowed}
+#pvp-root .ui-button-primary,#pvp-root .pvp15-rematch{background:#ffd177;color:#241307;border:1px solid #ffe4a8;font-weight:850}
+#pvp-root .ui-button-secondary{background:#273363;color:#f4f0ff;border:1px solid #8aa5f3;font-weight:750}
+#pvp-root .ui-button-ghost,#pvp-root .pvp15-exit{background:transparent;color:#e4ddff;border:1px solid #8277af}
+#pvp-root .pvp5-network-controls{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+#pvp-root .pvp-status-group{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:4px 6px;border:1px solid #6b6495;border-radius:9px;background:#151432}
+#pvp-root .pvp-status-group>span{margin:0}
+#pvp-root .pvp5-connect-status,#pvp-root .pvp24-chip,#pvp-root .pvp12-ping,#pvp-root .pvp2-network{
+  font-size:12px;line-height:1.25;white-space:normal
+}
+#pvp-root .pvp5-connect-status[data-online="false"]{color:#e5d4b4}
+#pvp-root .pvp6-panel{max-width:min(100%,760px)}
+#pvp-root .pvp6-before,#pvp-root .pvp6-after{min-width:0}
+#pvp-root .pvp24-practice{border:1px solid #9a83d7;border-radius:12px;padding:12px;background:#17133acc}
+#pvp-root .ui-panel-intro{margin:0 0 10px;color:#e2d9ff;font-size:13px;line-height:1.45}
+#pvp-root .pvp24-practice-start,#pvp-root .pvp6-primary,#pvp-root .pvp6-join button,#pvp-root .pvp6-share button{min-height:42px;padding:8px 12px}
+#pvp-root .pvp6-help{line-height:1.45}
+#pvp-root .pvp6-head p,#pvp-root .pvp6-before>label{font-size:12px}
+#pvp-root .pvp6-log:empty::before{content:'Henüz olay yok. Oda oluştur veya bir mod seçip bot maçını başlat.';color:#c8bfe7;font-size:12px}
+#pvp-root .pvp12-ping[data-quality="unknown"]{color:#c8bfe7}
+#pvp-root .pvp15-buttons{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+#pvp-root .pvp15-buttons button{min-height:44px;min-width:150px;font-size:14px}
+#pvp-root .pvp15-card{max-width:min(94vw,760px)}
+#pvp-root .pvp15-backdrop{backdrop-filter:none}
+#pvp-root .pvp15-eyebrow,#pvp-root .pvp15-reason,#pvp-root .pvp15-player-name small,#pvp-root .pvp15-figures small,#pvp-root .pvp15-detail,#pvp-root .pvp15-meta{font-size:12px}
+#pvp-root [data-arena-result] .aui-res-mvp{display:block;padding:8px 12px;border-radius:9px;background:#3c2a13;color:#ffe2a7;font-size:15px;text-align:center}
+#pvp-root [data-arena-result] .aui-res-hp{display:block;font-size:20px}
+#pvp-root .pvp15-card[data-arena-result] .pvp15-rematch{background:#ffd177;color:#241307;border:2px solid #ffe4a8;font-weight:900}
+#pvp-root .pvp15-card[data-arena-result] .pvp15-exit{background:#273363;color:#f4f0ff;border:1px solid #8aa5f3}
+#pvp-root .pvp15-card[data-arena-result] .pvp15-detail{display:none}
+#pvp-root .pvp2-skill[aria-disabled="true"]{opacity:1;border-style:dashed;cursor:default}
+#pvp-root .pvp2-skill[aria-disabled="true"] .pvp2-skill-copy{opacity:.9}
+#pvp-root .pvp4-icon-btn{cursor:pointer}
+#pvp-root .pvp2-actions{flex-wrap:wrap}
+#pvp-root [data-arena-ui] small,#pvp-root [data-arena-stage] small,#pvp-root [data-rounds-ui] small{font-size:12px}
+#pvp-root .rui-you,#pvp-root .rui-time-badge,#pvp-root .rui-done,#pvp-root .rui-meter-meta,#pvp-root .rui-tick,#pvp-root .rui-secs-unit,#pvp-root .rui-title,#pvp-root .rui-lastcall,#pvp-root .rui-sum-reason,#pvp-root .rui-sum-table thead th,#pvp-root .rui-sum-foot,#pvp-root .rui-picker-note,#pvp-root .rui-res-len,#pvp-root .rui-res-round,#pvp-root .rui-res-round .rui-ko{font-size:12px}
+#pvp-root .rui-secs-unit{line-height:1.1}
+@media(max-width:800px){#pvp-root .pvp5-network-controls{justify-content:center}#pvp-root .pvp6-panel{width:min(96vw,760px)}}
+@media(max-width:820px){
+  #pvp-root button,#pvp-root summary,#pvp-root .rui-seg button{min-height:44px}
+  #pvp-root .pvp4-settings-pop .pvp4-toggle{min-height:44px}
+  #pvp-root .pvp2-shell{min-width:0;overflow-x:hidden}
+  #pvp-root .pvp2-toolbar{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:5px 8px}
+  #pvp-root .pvp2-brand{min-width:0;justify-content:center}
+  #pvp-root .pvp2-brand-logo{display:none}
+  #pvp-root .pvp2-brand{display:none}
+  #pvp-root .pvp24-chip{display:none}
+  #pvp-root .pvp2-actions{width:100%;justify-content:center;gap:5px}
+  #pvp-root .pvp5-network-controls{width:100%;gap:4px}
+  #pvp-root .pvp2-duel{min-width:0}
+  #pvp-root .pvp2-side{min-width:0}
+  #pvp-root .pvp15-card{width:min(100%,calc(100vw - 16px));max-height:calc(100dvh - 16px);overflow:auto}
+  #pvp-root .pvp15-buttons button{flex:1 1 140px}
+}

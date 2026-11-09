@@ -1,0 +1,13 @@
+/* Work package 14: server-confirmed ultimate beats, lightweight CSS only. */
+.pvp14-ultimate-beat{position:absolute;top:38%;left:50%;transform:translate(-50%,-50%);z-index:13;pointer-events:none;white-space:nowrap;font:950 clamp(11px,1.5vw,24px)/1.1 system-ui;letter-spacing:.045em;padding:9px 15px;border-radius:999px;border:1px solid currentColor;background:#060b26df;animation:pvp14-burst .78s cubic-bezier(.12,.6,.26,1) both}
+.pvp14-beat-fire{color:#ffd082;text-shadow:0 0 14px #ff5c10,0 0 25px #f83}
+.pvp14-beat-rune{color:#a8eeff;text-shadow:0 0 14px #45a7ff,0 0 25px #5ad8ff}
+.pvp14-beat-3{font-size:clamp(14px,2vw,30px);box-shadow:0 0 34px currentColor}
+@keyframes pvp14-burst{0%{opacity:0;transform:translate(-50%,-10%) scale(.48)}22%{opacity:1;transform:translate(-50%,-50%) scale(1.16)}78%{opacity:1;transform:translate(-50%,-68%) scale(1)}100%{opacity:0;transform:translate(-50%,-115%) scale(.91)}}
+/* Different silhouettes and attack tempo for fire and rune ultimates */
+.pvp3-rig-fire[data-motion='ultimate'] .pvp3-weapon{animation:pvp14-fire-whirl .46s ease-in-out infinite alternate}
+.pvp3-rig-rune[data-motion='ultimate'] .pvp3-weapon{animation:pvp14-rune-slam .82s cubic-bezier(.2,.55,.31,1) infinite}
+@keyframes pvp14-fire-whirl{0%{transform:rotate(-70deg) translateY(-2%)}50%{transform:rotate(106deg) translateY(-7%)}100%{transform:rotate(-35deg) translateY(5%)}}
+@keyframes pvp14-rune-slam{0%,20%{transform:rotate(-20deg) translateY(-7%)}47%{transform:rotate(65deg) translateY(6%)}70%{transform:rotate(76deg) translateY(9%)}100%{transform:rotate(-20deg) translateY(-7%)}}
+.pvp4-reduced .pvp14-ultimate-beat{animation:none;opacity:1;transform:translate(-50%,-50%);box-shadow:none;text-shadow:none}
+@media(prefers-reduced-motion:reduce){.pvp14-ultimate-beat,.pvp3-rig-fire[data-motion='ultimate'] .pvp3-weapon,.pvp3-rig-rune[data-motion='ultimate'] .pvp3-weapon{animation:none!important}}

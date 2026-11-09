@@ -1,0 +1,21 @@
+TUŞLAB — PVP / İŞ PAKETİ 21 — SAVAŞ KOREOGRAFI
+Tarih: 2026-10-31
+
+Node otomatik testleri: 168 / 168 başarılı (önceki 161 + 7 yeni)
+Cloudflare statik ön dağıtım: 48 / 48 başarılı
+JavaScript sözdizimi: pvp/index.js ve pvp/choreography21.js denetimi başarılı
+Chromium bağımsız arena önizlemeleri:
+  1366x768: scroll taşması yok; iki rig, altı parça görsel yüklendi; JS hata 0
+  1920x1080: scroll taşması yok; iki rig, altı parça görsel yüklendi; JS hata 0
+  Gerçek koreografi fonksiyonuyla Q ve S görsel olayları tetiklendi.
+
+Test edilmeyenler:
+  - Gerçek Cloudflare deployment ve iki uzak cihazda canlı WebSocket maç akışı
+  - Gerçek donanımda uzun süreli FPS / VRAM / bellek kıyaslaması
+  - Eksik gerçek 3D/sprite eklem animasyonu varlıkları
+
+Değiştirilen: index.html, pvp/index.js, README.md
+Yeni: pvp/choreography21.js, pvp/choreography21.css,
+     tests/pvp-choreography21.test.mjs, bu test dosyası ve ekran görüntüleri.
+
+İş Paketi 20'nin Cloudflare sunucu mantığı ve tek oyunculu app.js değiştirilmedi.

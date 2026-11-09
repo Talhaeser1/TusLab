@@ -1,0 +1,24 @@
+/* TuşLab PvP — offline "Bota Karşı Antrenman" lobby block and status chip.
+ * Loaded at runtime by pvp/practice.js (ensurePracticeStyles), so index.html
+ * does not need to link it. Colours follow pvp/lobby.css. */
+
+/* Lobby block inside [data-lobby-before] */
+.pvp24-practice{margin-top:4px;padding:12px;border:1px solid #3fd7b27a;border-radius:12px;
+  background:linear-gradient(135deg,#0f3a3ccc,#141a3dd9)}
+.pvp24-practice-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.pvp24-practice label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:#afcced;margin:0}
+.pvp24-practice select{color:#fff;background:#090f27;border:1px solid #576dae;border-radius:9px;
+  padding:9px 10px;font-size:12px;min-width:0;width:100%;outline:0}
+.pvp24-practice select:focus-visible{border-color:#4cdaff;box-shadow:0 0 0 2px #4cdaff37}
+.pvp6-panel button.pvp24-practice-start{width:100%;min-height:40px;font-size:14px;
+  background:linear-gradient(110deg,#0f7c74,#1b6fa0);border-color:#6ff0d8;box-shadow:0 2px 13px #2fe0c033}
+.pvp6-panel button.pvp24-practice-stop{width:100%;margin-top:8px;background:#22243b;border-color:#7a5f8e}
+.pvp24-practice .pvp6-help{margin-top:8px}
+
+/* "ANTRENMAN · çevrimdışı" chip in the toolbar */
+.pvp24-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;
+  border:1px solid #6ff0d8;background:#0f3a3c;color:#b9fff0;font-size:10px;font-weight:900;
+  letter-spacing:.08em;white-space:nowrap}
+.pvp24-chip[hidden]{display:none}
+
+@media (max-width:520px){.pvp24-practice-row{grid-template-columns:1fr}}

@@ -1,0 +1,83 @@
+/* TuşLab | Hafif boss animasyonları: yalnızca compositor dostu transform/opacity.
+   Yeni görsel veya kütüphane gerektirmez. Orijinal boss-full-body.png değişmez. */
+#panel-arena .arena-backdrop { isolation: isolate; }
+#panel-arena .arena-backdrop > img {
+  transform-origin: 50% 58%;
+  animation: boss-float-breath 4.2s ease-in-out infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+@keyframes boss-float-breath {
+  0%,100% { transform: translate3d(0,3px,0) scale(1.012); }
+  50% { transform: translate3d(0,-5px,0) scale(1.025); }
+}
+/* Camgöbeği-mavi büyü: boss'un çevresinde yavaşça canlanan güç dalgası. */
+#panel-arena .arena-backdrop::before {
+  content:"";
+  position:absolute;inset:0;
+  z-index:1;
+  pointer-events:none;
+  background:
+    radial-gradient(ellipse 30% 28% at 55% 56%,rgba(36,188,255,.29),transparent 75%),
+    radial-gradient(ellipse 28% 30% at 49% 20%,rgba(72,118,255,.21),transparent 85%),
+    radial-gradient(ellipse 10% 45% at 81% 62%,rgba(50,217,255,.23),transparent 90%);
+  mix-blend-mode:screen;
+  opacity:.32;
+  animation:boss-cyan-aura 3.2s ease-in-out infinite;
+}
+@keyframes boss-cyan-aura {
+  0%,100% { opacity:.24; transform:scale(1); }
+  50% { opacity:.84; transform:scale(1.025); }
+}
+/* Üç sabit elementle düşük maliyetli kayan parçacıklar. */
+#panel-arena .boss-ambient-particles {
+  position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;
+}
+#panel-arena .boss-ambient-particles i {
+  position:absolute;display:block;width:5px;height:5px;border-radius:50%;
+  background:#a5e4ff;
+  box-shadow:0 0 13px 3px rgba(86,164,255,.62),0 0 28px rgba(112,77,255,.42);
+  animation:boss-ember-rise 3.8s linear infinite;
+  opacity:0;
+}
+#panel-arena .boss-ambient-particles i:nth-child(1){left:28%;top:76%;animation-duration:3.8s;animation-delay:-1.8s}
+#panel-arena .boss-ambient-particles i:nth-child(2){left:74%;top:89%;animation-duration:4.9s;animation-delay:-2.6s}
+#panel-arena .boss-ambient-particles i:nth-child(3){left:55%;top:67%;animation-duration:5.4s;animation-delay:-3.9s}
+@keyframes boss-ember-rise {
+  0%{opacity:0;transform:translate3d(0,0,0) scale(.5)}
+  15%{opacity:.82}
+  75%{opacity:.5}
+  100%{opacity:0;transform:translate3d(10px,-135px,0) scale(1.3)}
+}
+/* İkinci/üçüncü boss aşamasında aura değişimi; mevcut savaş stateleriyle eşleşir. */
+#panel-arena .arena-backdrop[data-stage="2"]::before {
+  filter:hue-rotate(46deg) saturate(1.3);
+  animation-duration:2.8s;
+}
+#panel-arena .arena-backdrop[data-stage="3"]::before {
+  filter:hue-rotate(94deg) saturate(1.7);
+  animation-duration:1.9s;
+}
+#panel-arena .arena-backdrop[data-stage="3"] > img { animation-duration:2.8s; }
+/* Her moddan erişilebilen mevcut ayarlara saygı duyar. */
+html.reduced-motion #panel-arena .arena-backdrop > img,
+html.reduced-motion #panel-arena .arena-backdrop::before,
+html.reduced-motion #panel-arena .boss-ambient-particles i,
+html.effects-reduced #panel-arena .arena-backdrop > img,
+html.effects-reduced #panel-arena .arena-backdrop::before,
+html.effects-reduced #panel-arena .boss-ambient-particles i {
+  animation:none!important;
+  will-change:auto!important;
+}
+html.reduced-motion #panel-arena .boss-ambient-particles,
+html.effects-reduced #panel-arena .boss-ambient-particles {display:none!important}
+@media (prefers-reduced-motion:reduce) {
+  #panel-arena .arena-backdrop > img,
+  #panel-arena .arena-backdrop::before,
+  #panel-arena .boss-ambient-particles i {animation:none!important;will-change:auto!important}
+  #panel-arena .boss-ambient-particles{display:none!important}
+}
+
+#panel-arena .arena-backdrop.boss-paused > img,
+#panel-arena .arena-backdrop.boss-paused::before,
+#panel-arena .arena-backdrop.boss-paused .boss-ambient-particles i{animation-play-state:paused!important;}

@@ -1,0 +1,53 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "tuslab-neon-pvp",
+  "main": "./src/index.js",
+  "compatibility_date": "2026-10-31",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "PVP_ROOMS",
+        "class_name": "PvPRoom"
+      },
+      {
+        "name": "PVP_PROFILES",
+        "class_name": "PvPProfiles"
+      },
+      {
+        "name": "PVP_GUARD",
+        "class_name": "PvPGuard"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "PvPRoom"
+      ]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": [
+        "PvPProfiles"
+      ]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": [
+        "PvPGuard"
+      ]
+    }
+  ],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*"
+    ]
+  },
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  }
+}

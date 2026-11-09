@@ -1,0 +1,26 @@
+{
+  "name": "tuslab-pvp-production-ready",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm run cf:dev",
+    "build": "npm run cf:build",
+    "preview": "npm run cf:dev",
+    "serve": "python -m http.server 5176 --bind 127.0.0.1",
+    "test": "node --test tests/*.test.mjs",
+    "cf:build": "node cloudflare/build-assets.mjs",
+    "cf:dev": "npm run cf:build && node node_modules/wrangler/bin/wrangler.js dev --config cloudflare/wrangler.jsonc --port 8787",
+    "test:performance": "node --test tests/pvp-performance19.test.mjs",
+    "cf:validate": "npm run cf:build && node scripts/predeploy-check.mjs",
+    "cf:dry-run": "npm run cf:validate && node node_modules/wrangler/bin/wrangler.js deploy --config cloudflare/wrangler.staging.jsonc --dry-run --outdir .wrangler-dry-run",
+    "cf:deploy:staging": "npm run cf:validate && node node_modules/wrangler/bin/wrangler.js deploy --config cloudflare/wrangler.staging.jsonc",
+    "cf:deploy:production": "npm run cf:validate && node node_modules/wrangler/bin/wrangler.js deploy --config cloudflare/wrangler.production.jsonc",
+    "cf:smoke": "node scripts/smoke-deployment.mjs",
+    "cf:dev:lan": "npm run cf:build && node node_modules/wrangler/bin/wrangler.js dev --config cloudflare/wrangler.jsonc --ip 0.0.0.0 --port 8787"
+  },
+  "description": "TuşLab PvP — iş paketi 24: güvenli ilk yayın hazırlığı",
+  "devDependencies": {
+    "wrangler": "^4.156.0"
+  }
+}

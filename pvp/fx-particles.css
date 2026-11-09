@@ -1,0 +1,13 @@
+/* Paket 24 — canvas parçacık katmanı. Arena (.pvp2-duel, position:relative) üzerini kaplar. */
+.pvp24-particles{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  z-index:7;              /* sahnelerin ve orta çizginin (z:4) üstünde */
+  pointer-events:none;    /* yazma alanı ve düğmeler tıklanabilir kalır */
+  contain:strict;
+}
+@media (prefers-reduced-motion: reduce){
+  .pvp24-particles{display:none}
+}

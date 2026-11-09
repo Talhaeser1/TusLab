@@ -1,0 +1,25 @@
+/* PvP work package 05: connection diagnostics as a nonblocking slide panel */
+.pvp5-network-controls{display:flex;align-items:center;gap:8px}
+.pvp5-net-button{border:1px solid #51c7f9;border-radius:9px;background:linear-gradient(120deg,#143a64,#243c75);color:#e5faff;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:800;white-space:nowrap}
+.pvp5-net-button:hover{box-shadow:0 0 12px #27bbff99}
+.pvp5-connect-status{font-weight:700;color:#feb8a1;font-size:10px;white-space:nowrap}
+.pvp5-connect-status[data-online="true"]{color:#8bffcc}
+.pvp5-network-panel[hidden]{display:none!important}
+.pvp5-network-panel{position:absolute;z-index:100;top:80px;right:clamp(12px,2vw,32px);width:min(525px,calc(100% - 24px));max-height:calc(100% - 92px);overflow-y:auto;padding:18px;border:1px solid #49c4fca8;border-radius:15px;color:#f0f4ff;background:linear-gradient(140deg,#14102cf7,#09243af7);box-shadow:0 10px 50px #000e,0 0 25px #347deb66;backdrop-filter:blur(16px)}
+.pvp5-network-panel>header{display:flex;align-items:start;justify-content:space-between;gap:14px}
+.pvp5-network-panel>header strong{font-size:16px;color:#acecff}
+.pvp5-network-panel>header small{display:block;font-size:11px;margin-top:4px;color:#bdb6dc}
+.pvp5-network-panel>header button{font-size:18px;flex:none}
+.pvp5-network-panel>p{font-size:11px;color:#adbadf;margin:14px 0}
+.pvp5-network-panel button{border:1px solid #5788bd;border-radius:7px;background:#182e5e;color:#e7f7ff;cursor:pointer;padding:8px 9px;font-weight:750}
+.pvp5-network-panel button:disabled{opacity:.4;cursor:default}
+.pvp5-network-panel input{min-width:0;width:100%;background:#0c142d;border:1px solid #42679d;border-radius:6px;color:white;padding:9px;font-size:12px}
+.pvp5-net-actions{display:flex;gap:5px;flex-wrap:wrap}
+.pvp5-room-copy,.pvp5-room-join{display:flex;gap:8px;align-items:center;margin-top:10px}
+.pvp5-room-copy{justify-content:space-between;border:1px solid #346a93;border-radius:8px;padding:7px 9px}
+.pvp5-room-copy label{font-size:11px}.pvp5-room-copy output{font:800 12px Consolas,monospace;letter-spacing:.06em;color:#a8ffce}
+.pvp5-room-join button{flex:none;white-space:nowrap}
+.pvp5-net-log{margin-top:12px;min-height:90px;max-height:145px;overflow:auto;padding:9px 10px;border-radius:9px;border:1px solid #234a72;background:#050d22;font:11px/1.8 Consolas,monospace;color:#c1ddfc;overflow-wrap:anywhere}
+.pvp5-network-panel>small{display:block;margin-top:11px;color:#abaed0;font-size:10px;line-height:1.45}
+@media(max-width:1550px){.pvp5-connect-status{display:none}.pvp5-net-button{padding:6px 9px;font-size:10px}}
+@media(max-width:900px){.pvp5-network-panel{top:65px}}

@@ -1,0 +1,23 @@
+/* Work package 10 — original SFX UI + lightweight cross-stage spell travel. */
+#pvp-root .pvp10-audio-controls{display:flex;align-items:center;gap:5px;min-width:0}
+#pvp-root .pvp10-sound-toggle{color:#bceaff;border-color:#39b9fd88}
+#pvp-root .pvp10-sound-toggle[aria-pressed="true"]{color:#ffb2c1;border-color:#f3697b80}
+#pvp-root .pvp10-volume{width:67px;accent-color:#56d5ff;cursor:pointer}
+#pvp-root .pvp10-volume-label{font:800 10px system-ui,sans-serif;color:#b3dfff;min-width:30px}
+#pvp-root .pvp10-projectile,#pvp-root .pvp10-cross-impact{position:absolute;z-index:25;pointer-events:none;will-change:transform,opacity;}
+#pvp-root .pvp10-projectile{left:27%;top:47%;width:84px;height:14px;border-radius:90%;background:linear-gradient(90deg,transparent,#fff7cc,#f96036,transparent);filter:drop-shadow(0 0 9px #ff6c33);transform:translate(-50%,-50%) rotate(-20deg);animation:pvp10-fly-right .56s cubic-bezier(.09,.6,.47,1) forwards}
+#pvp-root .pvp10-projectile.pvp10-rune{background:linear-gradient(90deg,transparent,#f1fdff,#36baff,transparent);filter:drop-shadow(0 0 10px #2bb5ff)}
+#pvp-root .pvp10-projectile.pvp10-e{height:28px;width:110px;border:3px solid currentColor;color:#ffd1a0;box-shadow:0 0 13px #ff7b45,inset 0 0 17px #ff8d3c}
+#pvp-root .pvp10-projectile.pvp10-rune.pvp10-e{color:#6adfff;box-shadow:0 0 13px #23c2ff,inset 0 0 17px #268cff}
+#pvp-root .pvp10-projectile.pvp10-r{width:133px;height:22px;box-shadow:0 0 25px currentColor;animation-duration:1s}
+#pvp-root .pvp10-projectile[data-from="2"]{left:73%;animation-name:pvp10-fly-left}
+#pvp-root .pvp10-cross-impact{top:47%;left:75%;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,#fffcd9bb 0%,#fc6a36a5 18%,#ff7c3c33 35%,transparent 65%);mix-blend-mode:screen;animation:pvp10-impact .5s ease-out both}
+#pvp-root .pvp10-cross-impact[data-to="1"]{left:25%}
+#pvp-root .pvp10-cross-impact.pvp10-cross-block{background:radial-gradient(circle,#e1faffde 0%,#15b4ffe5 20%,#3382f944 40%,transparent 68%)}
+@keyframes pvp10-fly-right{0%{opacity:0;transform:translate(-50%,-50%) rotate(-20deg) scale(.45)}20%{opacity:1}100%{opacity:0;transform:translate(calc(46vw - 50%),-50%) rotate(25deg) scale(1.65)}}
+@keyframes pvp10-fly-left{0%{opacity:0;transform:translate(-50%,-50%) rotate(20deg) scale(.45)}20%{opacity:1}100%{opacity:0;transform:translate(calc(-46vw - 50%),-50%) rotate(-25deg) scale(1.65)}}
+@keyframes pvp10-impact{0%{opacity:.95;transform:translate(-50%,-50%) scale(.15)}38%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.8)}}
+@media(max-width:1450px){#pvp-root .pvp10-volume{width:53px}#pvp-root .pvp10-volume-label{display:none}}
+@media(max-width:1050px){#pvp-root .pvp10-volume{display:none}}
+@media(prefers-reduced-motion:reduce){#pvp-root .pvp10-projectile,#pvp-root .pvp10-cross-impact{display:none!important}}
+#pvp-root.pvp4-reduced .pvp10-projectile,#pvp-root.pvp4-reduced .pvp10-cross-impact{display:none!important}

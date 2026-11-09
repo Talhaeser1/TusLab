@@ -1,0 +1,195 @@
+/* Ortak üst yazma paneli + araç çubuğu sadeleştirmesi + %80 yakınlaştırma okunaklılığı (Ajan 4a).
+ * Tüm PvP modlarında (klasik, Zamana Karşı/tur, arena) yazma alanı sayfanın üst-ortasında TEK kutudur;
+ * iki oyuncu aynı yerleşimi görür, rakip yalnız kısa ilerleme satırıyla gösterilir.
+ * Brave %80 (1920×1080 → ~2400×1350 CSS px): hiçbir metin 12px altına inmez, hedef kelime ≥20px, giriş ≥44px.
+ * Hareket: yalnız transform/opacity; azaltılmış harekette anında yer değişimi. */
+
+#pvp-root{--tt-ink:#f4f0ff;--tt-muted:#b9b3da;--tt-line:#7b5cc0;--tt-panel:rgba(10,9,34,.95);--tt-gold:#ffc87a;
+  --tt-good:#6ff5b8;--tt-bad:#ff8ea2;--tt-fire:#ff8a4c;--tt-rune:#5ccbff;--tt-focus:#7fd7ff;
+  --tt-mono:ui-monospace,Consolas,"Cascadia Code","Courier New",monospace;--tt-ease:cubic-bezier(.16,1,.3,1)}
+
+/* Kabuk: araç çubuğu · duyuru/HUD · ÜST YAZMA PANELİ · arena · alt bilgi */
+#pvp-root .pvp2-shell{grid-template-rows:auto auto auto minmax(0,1fr) auto}
+/* Taraf panellerindeki eski çift yazma kutusu gizlenir (DOM'da kalır: eski testler/odak geri dönüşü). */
+#pvp-root .pvp2-side .pvp2-typebox{display:none}
+
+/* ---------------- panel (Ajan F, 2. dalga) ----------------
+ * Yerleşim: [mod etiketi · Senin kelimen ........ pencere geri sayımı · sıfırla]
+ *           [            HEDEF KELİME  sıradaki  sıradaki  sıradaki            ]
+ *           [ giriş (≥52 px)                                                    ]
+ *           [ tek yardım satırı: ipucu / kilit / Harf Kaosu                     ]
+ *           [ Sen 3/10 kelime · %96 · 54 WPM ▬▬▬       Bot · Orta 0/5 kelime ▬ ]
+ * Ağırlıklar 400/500/600; hareket yalnız transform/opacity, sonsuz animasyon yok. */
+.tt{position:relative;z-index:25;justify-self:center;width:min(1180px,100%);display:grid;gap:8px;padding:12px 20px 12px;
+  border:1px solid #8a6bd6aa;border-radius:16px;background:linear-gradient(180deg,rgba(14,12,46,.97),var(--tt-panel));
+  box-shadow:0 10px 32px #02000bb3,inset 0 1px 0 #ffffff12;color:var(--tt-ink);
+  transform:translateY(0);transition:transform 300ms var(--tt-ease),opacity 200ms var(--tt-ease)}
+.tt,.tt-type,.tt-meta{min-width:0;grid-template-columns:minmax(0,1fr)}
+.tt-input{max-width:100%}
+.tt.is-input-focused{border-color:#58c5ff;box-shadow:0 10px 32px #02000bb3,0 0 0 1px #58c5ff66}
+.tt [hidden]{display:none!important}
+.tt-type{display:grid;gap:8px}
+
+/* Baş satır: mod/faz etiketi (girişin görünür etiketi) + değiş tokuş geri sayımı + sıfırla */
+.tt-head{display:flex;align-items:center;gap:12px;min-height:32px;min-width:0}
+.tt-label{display:inline-flex;align-items:baseline;gap:10px;min-width:0;white-space:nowrap;cursor:text}
+.tt-mode{display:inline-block;padding:4px 10px;border-radius:999px;border:1px solid #58c5ff80;background:#123a6a66;color:#bfe6ff;
+  font:600 12px/1.2 system-ui,"Segoe UI",sans-serif;letter-spacing:.08em}
+#pvp-root[data-pvp-mode="rounds"] .tt-mode{border-color:#ffc87a99;background:#5a3a1066;color:#ffe0b0}
+#pvp-root[data-pvp-mode="arena"] .tt-mode{border-color:#c9a6ff99;background:#3d1f7a66;color:#e6d6ff}
+.tt-label-text{font:500 14px/1.3 system-ui,"Segoe UI",sans-serif;color:var(--tt-muted);overflow:hidden;text-overflow:ellipsis}
+.tt-xchg{margin-inline-start:auto;display:inline-flex;align-items:center;gap:10px;min-height:32px;padding:4px 12px;border-radius:999px;
+  border:1px solid #ffc87a99;background:#2a1d0c99;color:#ffe3b8;font:600 14px/1.2 system-ui,"Segoe UI",sans-serif;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.tt-xchg-bar{display:block;width:72px;height:4px;border-radius:4px;background:#ffffff1f;overflow:hidden}
+.tt-xchg-bar i{display:block;width:100%;height:100%;background:var(--tt-gold);transform-origin:left center;transform:scaleX(1);transition:transform 200ms linear}
+.tt-xchg[data-phase="resolve"]{border-color:#c9a6ffaa;background:#2b1a52aa;color:#efe4ff}
+.tt-xchg[data-phase="resolve"] .tt-xchg-bar{display:none}
+.tt-head .tt-reset{margin-inline-start:auto}
+.tt-xchg:not([hidden])+.tt-reset{margin-inline-start:0}
+.tt-reset{flex:none;min-height:32px;padding:4px 12px;border-radius:8px;border:1px solid #9978d88c;background:#50338c6e;color:#f4e9ff;font:500 13px/1 system-ui,"Segoe UI",sans-serif;cursor:pointer}
+.tt-reset:hover{background:#8b50d1aa}
+
+/* Hedef kelime: ekranın en büyük yazısı; sağında sıradaki kelimeler aynı taban çizgisinde soluklaşır. */
+.tt-word{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:baseline;column-gap:24px;min-height:1.3em;min-width:0}
+.tt-target{grid-column:2;min-width:0;text-align:center;font:600 clamp(30px,2.3vw,48px)/1.2 var(--tt-mono);letter-spacing:.06em;color:#ece9ff;
+  overflow-wrap:anywhere}
+.tt-target.is-sentence{grid-column:1/-1;text-align:left;font-size:clamp(16px,1.05vw,22px);font-weight:500;letter-spacing:.01em;line-height:1.5;
+  max-height:3.1em;overflow:hidden;color:#d6dcf6}
+.tt-target .pvp2-char-good{color:var(--tt-good)}
+.tt-target .pvp2-char-bad{color:#ffb3c0;background:#ff4d6d38;border-radius:3px;text-decoration:underline 2px #ff5b78;text-underline-offset:4px}
+.tt-target .pvp2-char-next{color:#fff;background:#2c4bb8;border-radius:3px;box-shadow:inset 0 -3px 0 #8ef7ff}
+.tt-target.is-scrambled{color:#efe2ff;letter-spacing:.14em}
+.tt-done{color:var(--tt-good)}
+.tt-next{grid-column:3;display:flex;align-items:baseline;gap:16px;min-width:0;overflow:hidden;white-space:nowrap;
+  font:500 clamp(16px,1.1vw,22px)/1.2 var(--tt-mono);letter-spacing:.03em}
+.tt-next span{color:#a9a6d2}
+.tt-next span+span{color:#8a87b4}
+.tt-next span+span+span{color:#75729e}
+.tt.is-locked .tt-target{opacity:.55}
+/* Arena: aynı paneldeki kelime şeridi (arena-ui) sıradakileri zaten gösterir; tekrar etme. */
+#pvp-root[data-pvp-mode="arena"] .tt-next{display:none}
+
+/* Giriş: kalın ve net odak (oyun sırasında hep odaklı) */
+.tt-input{width:100%;min-height:52px;padding:8px 16px;border-radius:10px;border:1px solid #4a64b0;background:#121b47;color:#edf7ff;
+  font:500 clamp(20px,1.3vw,28px)/1.2 var(--tt-mono);letter-spacing:.03em;caret-color:#8ef7ff}
+.tt-input::placeholder{color:#8d9cc3;font-size:16px;letter-spacing:0;font-family:system-ui,"Segoe UI",sans-serif}
+.tt-input:focus{outline:0;border-color:#58c5ff;box-shadow:0 0 0 3px #58c5ff33}
+.tt-input:focus-visible{outline:2px solid var(--tt-focus);outline-offset:2px}
+.tt-input:disabled{opacity:.75;cursor:not-allowed;background:#161a3a;border-style:dashed}
+
+/* Tek yardım satırı: ipucu (soluk) · kilit (altın) · Harf Kaosu (mor) · bekleme */
+.tt-status{margin:0;min-height:1.45em;padding-inline-start:12px;border-inline-start:3px solid #ffffff26;
+  font:400 14px/1.45 system-ui,"Segoe UI",sans-serif;color:#c4c0e6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt-status[data-kind="lock"]{border-color:var(--tt-gold);color:#ffe0b0;font-weight:500}
+.tt-status[data-kind="chaos"]{border-color:#c9a6ff;color:#ead9ff;font-weight:500}
+.tt-status[data-kind="wait"]{border-color:#58c5ff80;color:#a9c8e8}
+
+/* Sen ve rakip: satır + kompakt ilerleme çubuğu */
+.tt-meta{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:end;gap:24px;font:400 14px/1.4 system-ui,"Segoe UI",sans-serif;
+  color:var(--tt-muted);font-variant-numeric:tabular-nums}
+.tt-who{display:grid;gap:4px;min-width:0}
+.tt-who-line{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt-who b{color:var(--tt-ink);font-weight:600}
+.tt-opp{text-align:right}
+.tt-bar{display:block;height:6px;border-radius:6px;background:#24345e;overflow:hidden}
+.tt-bar i{display:block;width:100%;height:100%;border-radius:6px;transform-origin:left center;transform:scaleX(0);transition:transform 200ms var(--tt-ease)}
+.tt-bar-me i{background:linear-gradient(90deg,#34bfff,#7c6cff)}
+.tt-bar-opp i{background:linear-gradient(270deg,#ff8a4c,#ffc87a);transform-origin:right center}
+
+/* ---------------- arena: panel inişi (RAUND SONRASI) ---------------- */
+/* Panel arenanın ALTINA iner: arena yukarı genişler, dövüş ve hasar sayıları açıkta kalır. */
+#pvp-root[data-arena-phase="resolve"] .pvp2-shell,#pvp-root[data-arena-phase="summary"] .pvp2-shell{grid-template-rows:auto auto minmax(0,1fr) auto auto}
+#pvp-root[data-arena-phase="resolve"] .tt,#pvp-root[data-arena-phase="summary"] .tt{order:1;opacity:.92}
+#pvp-root[data-arena-phase="resolve"] .pvp2-footer,#pvp-root[data-arena-phase="summary"] .pvp2-footer{order:2}
+#pvp-root[data-arena-phase="resolve"] .tt-word,#pvp-root[data-arena-phase="summary"] .tt-word,
+#pvp-root[data-arena-phase="resolve"] .tt-input,#pvp-root[data-arena-phase="summary"] .tt-input{display:none}
+#pvp-root[data-arena-phase="prep"] .tt-type{display:none}
+@media(prefers-reduced-motion:reduce){.tt{transition:opacity 100ms linear}.tt-bar i,.tt-xchg-bar i{transition:none}}
+#pvp-root.pvp4-reduced .tt,#pvp-root.pvp4-reduced .tt-bar i,#pvp-root.pvp4-reduced .tt-xchg-bar i{transition:none}
+
+/* Arena maçında savaş paneli sadeleşir: Q/E/R, rün, savunma, eski seri/istatistik satırları gizli. */
+#pvp-root[data-pvp-mode="arena"] .pvp2-skillrow,#pvp-root[data-pvp-mode="arena"] .pvp22-passive,
+#pvp-root[data-pvp-mode="arena"] .pvp13-defense,#pvp-root[data-pvp-mode="arena"] .pvp7-combo,
+#pvp-root[data-pvp-mode="arena"] .pvp8-score{display:none}
+#pvp-root[data-pvp-mode="arena"] .pvp2-vs{opacity:.35}
+/* WPM/doğruluk artık üst panelde; tur HUD'u seriyi gösterir. Kısa ekranda bilgi satırları sahneye yer açar. */
+#pvp-root .pvp8-score{display:none}
+#pvp-root[data-pvp-mode="rounds"] .pvp7-combo{display:none}
+@media(max-height:940px){#pvp-root .pvp22-passive,#pvp-root .pvp13-defense{display:none}}
+/* Araç çubuğu tek satır: marka alt yazısı ve uzun durum metinleri sıkışınca kısalır. */
+#pvp-root .pvp2-toolbar{flex-wrap:nowrap}
+#pvp-root .pvp2-actions{gap:8px}
+@media(max-width:1700px){#pvp-root .pvp2-brand small{display:none}#pvp-root .pvp2-brand strong em{display:none}}
+
+/* ---------------- araç çubuğu: ayarlar açılır kutusu ---------------- */
+.pvp4-settings{position:relative;flex:none}
+.pvp4-settings>summary{list-style:none}
+.pvp4-settings>summary::-webkit-details-marker{display:none}
+.pvp4-icon-btn{position:relative;display:grid;place-items:center;width:44px;height:44px;border-radius:11px;border:1px solid #9978d88c;
+  background:#2a1b55cc;color:#f4e9ff;font-size:21px;line-height:1;cursor:pointer;user-select:none}
+.pvp4-icon-btn:hover{background:#4b2f8c}
+.pvp4-settings[open]>.pvp4-icon-btn{background:#5a3aa6;border-color:#c9a6ff}
+.pvp4-tip{position:absolute;top:calc(100% + 8px);right:0;z-index:270;padding:6px 10px;border-radius:8px;background:#0d0a2a;border:1px solid #7b5cc0;
+  color:#f3eeff;font:600 12px/1.3 system-ui,"Segoe UI",sans-serif;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 120ms}
+.pvp4-icon-btn:hover .pvp4-tip,.pvp4-icon-btn:focus-visible .pvp4-tip{opacity:1}
+.pvp4-settings[open] .pvp4-tip{opacity:0}
+#pvp-root .pvp4-settings-pop{position:absolute;top:calc(100% + 8px);right:0;z-index:260;display:grid;gap:10px;min-width:300px;padding:14px;
+  border:1px solid #56daff9f;border-radius:14px;background:#130b2cf7;box-shadow:0 16px 48px #000c}
+#pvp-root .pvp4-settings-pop>*{width:100%}
+#pvp-root .pvp4-settings-pop .pvp23-audio,#pvp-root .pvp4-settings-pop .pvp10-audio-controls{display:grid;grid-template-columns:auto minmax(80px,1fr) 44px;gap:10px;align-items:center;padding:6px 8px}
+#pvp-root .pvp4-settings-pop input[type=range]{width:100%}
+#pvp-root .pvp4-settings-pop .pvp4-toggle{min-height:40px;padding:8px 12px;font-size:13px;text-align:left;white-space:nowrap}
+#pvp-root .pvp4-settings-pop small,#pvp-root .pvp4-settings-pop .pvp10-volume-label{display:inline;font-size:12px;color:#d7c2f8}
+#pvp-root .pvp4-settings-pop .pvp4-perf{font-size:12px;color:#aaaec9}
+/* Teslim ol yıkıcıdır: yalnız maçta görünür ve ayrık durur. */
+#pvp-root .pvp15-surrender{margin-inline-start:6px;border-color:#ff6b81}
+#pvp-root .pvp2-back{font-size:13px;min-height:44px;padding:10px 16px;border-color:#c9a6ff}
+
+/* ---------------- odak halkaları (lobi, segmentler, araç çubuğu) ---------------- */
+#pvp-root .pvp6-panel button:focus-visible,#pvp-root .pvp5-net-button:focus-visible,#pvp-root .rui-seg button:focus-visible,
+#pvp-root .pvp4-toggle:focus-visible,#pvp-root .pvp4-icon-btn:focus-visible,#pvp-root .pvp15-surrender:focus-visible,
+#pvp-root .tt-reset:focus-visible,#pvp-root .pvp6-panel input:focus-visible,#pvp-root .pvp6-panel select:focus-visible{outline:2px solid var(--tt-focus);outline-offset:2px}
+
+/* ---------------- okunaklılık tabanı: 12px altı metin yok ---------------- */
+#pvp-root .pvp2-identity small,#pvp-root .pvp2-hero-tag,#pvp-root .pvp2-health-meta,#pvp-root .pvp2-role,#pvp-root .pvp2-announce-right,
+#pvp-root .pvp2-footer,#pvp-root .pvp2-footer-chip,#pvp-root .pvp2-network,#pvp-root .pvp4-perf,#pvp-root .pvp12-ping,#pvp-root .pvp7-combo,
+#pvp-root .pvp8-score,#pvp-root .pvp22-passive,#pvp-root .pvp13-defense,#pvp-root .pvp2-skill-copy small,#pvp-root .pvp2-skill-copy strong,
+#pvp-root .pvp2-brand small,#pvp-root .pvp5-connect-status,#pvp-root .pvp24-chip,#pvp-root .pvp3-motion-label,#pvp-root .pvp2-announce,
+#pvp-root .pvp2-health-meta strong{font-size:12px}
+#pvp-root .pvp4-toggle,#pvp-root .pvp5-net-button,#pvp-root .pvp15-surrender{font-size:13px}
+#pvp-root .pvp6-panel small,#pvp-root .pvp6-panel em,#pvp-root .pvp6-help,#pvp-root .pvp6-eyebrow,#pvp-root .pvp6-or,#pvp-root .pvp6-label,
+#pvp-root .pvp6-player-tag,#pvp-root .pvp6-charlabel,#pvp-root .pvp6-log,#pvp-root .pvp24-practice label,#pvp-root .rui-picker-note,
+#pvp-root .rui-picker-label{font-size:12px}
+/* Tur HUD'u (rounds-ui) — küçük çentik ve birimler */
+#pvp-root .rui-tick,#pvp-root .rui-secs-unit,#pvp-root .rui-you,#pvp-root .rui-meter-meta,#pvp-root .rui-done,#pvp-root .rui-title,
+#pvp-root .rui-lastcall,#pvp-root .rui-progress,#pvp-root .rui-sum-reason,#pvp-root .rui-sum-title{font-size:12px}
+#pvp-root .rui-tick{line-height:12px;color:#ffffffb3}
+#pvp-root .rui-meter{padding-bottom:13px}#pvp-root .rui-ticks{height:12px}
+#pvp-root .rui-name{font-size:14px}
+#pvp-root .rui-word{font-size:14px}
+#pvp-root .rui-clock{width:64px;height:64px}
+/* Mod seçici ipucu satırı */
+#pvp-root .aui-modes .rui-seg button small{display:block;font-size:12px;font-weight:600;color:#c9c2ea;margin-top:2px}
+
+/* Kısa ekran (≤820 px yükseklik): panel sıkışır ama tabanlar korunur. */
+@media(max-height:820px){
+  .tt{padding:8px 14px;gap:6px}
+  .tt-type{gap:6px}
+  .tt-target{font-size:clamp(28px,1.9vw,36px)}
+  .tt-input{min-height:44px;padding:6px 12px}
+}
+@media(max-width:720px){
+  .tt{padding:10px 12px;border-radius:12px}
+  .tt-head{flex-wrap:wrap;row-gap:6px}
+  .tt-label-text{display:none}
+  .tt-word{grid-template-columns:minmax(0,1fr);row-gap:4px;justify-items:center}
+  .tt-target,.tt-next{grid-column:1}
+  .tt-next{font-size:16px;max-width:100%}
+  .tt-status{white-space:normal}
+  .tt-meta{grid-template-columns:minmax(0,1fr);gap:8px;font-size:13px}
+  .tt-opp{text-align:left}
+  .tt-bar-opp i{transform-origin:left center}
+}
+/* Tur uzunluğu seçicisi yalnız "Zamana Karşı" modunda anlamlıdır. */
+#pvp-root .aui-modes:not([data-mode="rounds"]) + .rui-picker{display:none}

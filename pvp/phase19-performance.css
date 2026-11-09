@@ -1,0 +1,10 @@
+/* Phase 19: containment and reduced-cost motion. No gameplay changes. */
+#pvp-root .pvp2-duel { isolation:isolate; }
+#pvp-root .pvp4-effects,#pvp-root .pvp2-stage { contain:layout paint; }
+#pvp-root .pvp9-damage-float,#pvp-root .pvp14-ultimate-beat,
+#pvp-root .pvp10-projectile,#pvp-root .pvp10-cross-impact { pointer-events:none; }
+/* Paused/non-visible pages should not spend GPU cycles on looping idle effects. */
+@media(prefers-reduced-motion:reduce){
+ #pvp-root .pvp10-projectile,#pvp-root .pvp10-cross-impact,
+ #pvp-root .pvp14-ultimate-beat {animation:none!important;transition:none!important;}
+}

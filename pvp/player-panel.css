@@ -1,0 +1,43 @@
+/* Oyuncu kimliği ve sunucu HP göstergesi. Son CSS bağlantısı olarak yüklenir. */
+#pvp-root .pvp2-player-top{display:flex;align-items:center;gap:12px;min-width:0;min-height:66px;padding:7px 10px;border:1px solid #a95b4999;border-radius:12px;background:linear-gradient(105deg,#57251cba,#1b112cca 68%);color:#fff}
+#pvp-root .pvp2-rune .pvp2-player-top{border-color:#528ac199;background:linear-gradient(105deg,#163b65c9,#101a3bcc 68%)}
+#pvp-root .pvp2-player-mark{flex:none;width:48px;height:48px;border:2px solid #ffc084;border-radius:12px;background:linear-gradient(145deg,#963d27,#481822);color:#ffe1ae;font-size:28px;line-height:1;box-shadow:inset 0 0 0 3px #2a1223}
+#pvp-root .pvp2-rune .pvp2-player-mark{border-color:#91dfff;background:linear-gradient(145deg,#245e9a,#182451);color:#c5f5ff;box-shadow:inset 0 0 0 3px #112849}
+#pvp-root .pvp2-identity{display:flex;flex-direction:column;justify-content:center;min-width:0;line-height:1.18}
+#pvp-root .pvp2-identity small{font-size:15px;font-weight:850;letter-spacing:.055em;color:#ffd2a8}
+#pvp-root .pvp2-rune .pvp2-identity small{color:#b5e6ff}
+#pvp-root .pvp2-identity strong{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:clamp(18px,1.35vw,25px);line-height:1.18;color:#fff;text-shadow:none}
+#pvp-root .pvp2-character-name{display:block;font-size:15px;font-weight:650;color:#efd0c6}
+#pvp-root .pvp2-rune .pvp2-character-name{color:#c5def6}
+#pvp-root .pvp2-player-end{display:flex;flex:none;flex-direction:column;align-items:flex-end;justify-content:center;gap:5px;margin-left:auto}
+#pvp-root .pvp2-hero-tag{margin:0;padding:3px 9px;border-radius:7px;font-size:15px;letter-spacing:.08em;line-height:1.1;color:#ffe4ba;border-color:#e3966c;background:#823f2c80}
+#pvp-root .pvp2-rune .pvp2-hero-tag{color:#d5f1ff;border-color:#72b6ed;background:#28558780}
+#pvp-root .pvp2-connection{display:flex;align-items:center;gap:5px;max-width:110px;color:#d4cbd6;font-size:15px;line-height:1.1;white-space:nowrap}
+#pvp-root .pvp2-connection i{display:block;flex:none;width:7px;height:7px;border-radius:50%;background:#a8a4b4}
+#pvp-root .pvp2-connection[data-quality="good"] i{background:#6be4a3}
+#pvp-root .pvp2-connection[data-quality="medium"] i{background:#ffd27b}
+#pvp-root .pvp2-connection[data-quality="poor"] i{background:#ff777b}
+#pvp-root .pvp2-health{padding:8px 10px 9px;border:1px solid #a95b496e;border-radius:10px;background:#120c24c9}
+#pvp-root .pvp2-rune .pvp2-health{border-color:#528ac16e}
+#pvp-root .pvp2-health-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 7px;color:#e4cbd0;font-size:15px;font-weight:800;letter-spacing:.035em;line-height:1.2}
+#pvp-root .pvp2-health-meta>span{min-width:0}
+#pvp-root .pvp2-health-meta strong{color:#fff;font-size:17px;font-variant-numeric:tabular-nums;letter-spacing:0;white-space:nowrap}
+#pvp-root .pvp2-heart{font-size:17px;color:#ff8290}
+#pvp-root [data-server-shield]{color:#9ee6ff;font-size:15px;font-style:normal;white-space:nowrap}
+#pvp-root [data-server-shield][hidden]{display:none}
+#pvp-root .pvp2-health-track{position:relative;isolation:isolate;height:22px;overflow:hidden;padding:0;border:1px solid #b85f6d;border-radius:6px;background:#211729;box-shadow:inset 0 2px 4px #0007}
+#pvp-root .pvp2-rune .pvp2-health-track{border-color:#5c9cd1;background:#14223c}
+#pvp-root .pvp2-health-track>span{position:absolute;inset:0;display:block;width:100%;height:100%;border-radius:0;box-shadow:none}
+#pvp-root .pvp2-health-track>.pvp2-health-trail{z-index:1;background:#ffe2a4;transform:scaleX(0);transform-origin:left center;transition:transform 550ms 220ms ease-out}
+#pvp-root .pvp2-rune .pvp2-health-track>.pvp2-health-trail{background:#b6eaff}
+#pvp-root .pvp2-health-track>.pvp2-health-fill{z-index:2;background:linear-gradient(90deg,#db354d,#f56d44 70%,#ffb16a);transform:scaleX(0);transform-origin:left center;transition:transform 170ms ease-out}
+#pvp-root .pvp2-rune .pvp2-health-track>.pvp2-health-fill{background:linear-gradient(90deg,#2778d7,#36b1e4 70%,#79def5)}
+#pvp-root .pvp2-health[data-low="true"] .pvp2-health-track>.pvp2-health-fill,#pvp-root .pvp2-rune .pvp2-health[data-low="true"] .pvp2-health-track>.pvp2-health-fill{background:linear-gradient(90deg,#ad1942,#f04b6a)}
+#pvp-root .pvp2-health[data-low="true"] .pvp2-health-meta strong{color:#ff9eaf}
+#pvp-root .pvp2-health-track>.pvp2-health-shield{z-index:3;background:linear-gradient(180deg,#8fe9ff66,transparent 53%,#b1f4ff8c);border-top:2px solid #c6f5ff;opacity:0;transition:opacity 140ms ease-out;pointer-events:none}
+#pvp-root .pvp2-health-track>.pvp2-health-shield[data-active="true"]{opacity:1}
+#pvp-root .pvp2-health-track>.pvp2-health-segments{z-index:4;background:linear-gradient(90deg,transparent calc(100% - 1px),#08101fa8 calc(100% - 1px)) left top/10% 100% repeat-x;pointer-events:none}
+@media(max-width:800px){#pvp-root .pvp2-player-top{gap:7px;padding:5px}#pvp-root .pvp2-player-mark{width:38px;height:38px;font-size:23px}#pvp-root .pvp2-health-meta{flex-wrap:wrap}#pvp-root .pvp2-health-meta strong{font-size:15px}}
+@media(max-height:820px){#pvp-root .pvp2-player-top{min-height:54px}#pvp-root .pvp2-health{padding:5px 8px}#pvp-root .pvp2-health-track{height:19px}}
+@media(prefers-reduced-motion:reduce){#pvp-root .pvp2-health-track>.pvp2-health-trail,#pvp-root .pvp2-health-track>.pvp2-health-fill,#pvp-root .pvp2-health-track>.pvp2-health-shield{transition:none}}
+#pvp-root.pvp4-reduced .pvp2-health-track>.pvp2-health-trail,#pvp-root.pvp4-reduced .pvp2-health-track>.pvp2-health-fill,#pvp-root.pvp4-reduced .pvp2-health-track>.pvp2-health-shield{transition:none}

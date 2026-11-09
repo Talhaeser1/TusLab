@@ -1,0 +1,167 @@
+/* Sinematik katman (pvp/cinematic.js). Özgün TuşLab neon tasarımı.
+   Yalnız transform + opacity animasyonu; sonsuz animasyon yok; blur/filter yok (80% yakınlaştırmada akıcılık). */
+#pvp-root .cin{position:fixed;inset:0;z-index:45;pointer-events:none;overflow:hidden;contain:layout paint}
+#pvp-root .cin[hidden]{display:none}
+#pvp-root .cin-flash{position:absolute;inset:0;background:#fff;opacity:0;animation:cin-flash 260ms ease-out both}
+@keyframes cin-flash{0%{opacity:.42}100%{opacity:0}}
+
+/* ---------- Raund bandı ---------- */
+#pvp-root .cin-band{position:absolute;left:-4%;right:-4%;top:46%;height:clamp(118px,17vh,168px);
+  display:grid;place-content:center;justify-items:center;gap:2px;transform:translateY(-50%) skewY(-4deg);
+  background:linear-gradient(90deg,#07031400 0%,#0b0620f2 12%,#160a36f7 50%,#0b0620f2 88%,#07031400 100%);
+  border-block:2px solid #ffc87a;box-shadow:0 0 0 1px #00000088,0 18px 40px #000a;
+  animation:cin-band-in 200ms cubic-bezier(.2,.9,.25,1.2) both}
+#pvp-root .cin-band.cin-tone-ko{border-color:#ff3b5c}
+#pvp-root .cin-band.cin-tone-time{border-color:#5ad8ff}
+#pvp-root .cin-band.cin-tone-draw{border-color:#c9b6ff}
+#pvp-root .cin-sweep{position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,#ffffff33 46%,#ffffff66 50%,#ffffff33 54%,transparent 70%);
+  transform:translateX(-100%);animation:cin-sweep 620ms 120ms ease-out both}
+#pvp-root .cin-title{position:relative;transform:skewY(4deg);font:italic 1000 clamp(52px,7vw,104px)/.95 system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:.04em;color:#fff;
+  -webkit-text-stroke:2px #1a0b3a;paint-order:stroke fill;text-shadow:0 0 22px #b77bffaa,0 4px 0 #2b1263;
+  animation:cin-slam 300ms 60ms cubic-bezier(.2,1.4,.3,1) both}
+#pvp-root .cin-tone-ko .cin-title{color:#ffd1d9;text-shadow:0 0 26px #ff3b5ccc,0 4px 0 #4a0716}
+#pvp-root .cin-tone-time .cin-title{color:#dff7ff;text-shadow:0 0 24px #5ad8ffbb,0 4px 0 #062a44}
+#pvp-root .cin-sub{position:relative;transform:skewY(4deg);font:850 clamp(16px,1.4vw,22px)/1.2 system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:.14em;color:#ffd98a;
+  animation:cin-rise 260ms 220ms ease-out both}
+@keyframes cin-band-in{from{transform:translateY(-50%) skewY(-4deg) scaleX(0)}to{transform:translateY(-50%) skewY(-4deg) scaleX(1)}}
+@keyframes cin-sweep{to{transform:translateX(100%)}}
+@keyframes cin-slam{0%{opacity:0;transform:skewY(4deg) translateX(-70px) scale(1.7)}70%{opacity:1}100%{opacity:1;transform:skewY(4deg) translateX(0) scale(1)}}
+@keyframes cin-rise{from{opacity:0;transform:skewY(4deg) translateY(10px)}to{opacity:1;transform:skewY(4deg) translateY(0)}}
+
+/* ---------- VS girişi ---------- */
+#pvp-root .cin-vs{background:#05020fcc}
+#pvp-root .cin-half{position:absolute;top:0;bottom:0;width:58%;display:flex;align-items:flex-end;overflow:hidden}
+#pvp-root .cin-half.cin-seat-1{left:0;clip-path:polygon(0 0,100% 0,82% 100%,0 100%);
+  background:linear-gradient(115deg,#3a0716 0%,#7a1424 45%,#e2482f 100%);animation:cin-from-left 340ms cubic-bezier(.15,.9,.25,1) both}
+#pvp-root .cin-half.cin-seat-2{right:0;justify-content:flex-end;clip-path:polygon(18% 0,100% 0,100% 100%,0 100%);
+  background:linear-gradient(245deg,#061a3a 0%,#123f7a 45%,#2ea8e6 100%);animation:cin-from-right 340ms cubic-bezier(.15,.9,.25,1) both}
+#pvp-root .cin-fighter{position:absolute;bottom:-4%;height:96%;width:auto;max-width:none;opacity:.95;
+  filter:none;animation:cin-fighter-in 520ms 120ms cubic-bezier(.2,.9,.3,1) both}
+#pvp-root .cin-seat-1 .cin-fighter{left:14%}
+#pvp-root .cin-seat-2 .cin-fighter{right:14%;transform:scaleX(-1)}
+#pvp-root .cin-tag{position:relative;z-index:1;display:grid;gap:2px;margin:0 6% 9%;padding:10px 18px;border-radius:10px;background:#07031ad9;border:1px solid #ffffff2e}
+#pvp-root .cin-seat-1 .cin-tag{margin-left:6%;margin-right:auto;text-align:left;animation:cin-from-left 300ms 260ms ease-out both}
+#pvp-root .cin-seat-2 .cin-tag{margin-right:6%;margin-left:auto;text-align:right;animation:cin-from-right 300ms 260ms ease-out both}
+#pvp-root .cin-player{font:800 14px/1 system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:.2em;color:#ffd98a}
+#pvp-root .cin-name{font:italic 1000 clamp(30px,3.4vw,52px)/1 system-ui,-apple-system,'Segoe UI',sans-serif;color:#fff;text-shadow:0 3px 0 #0008}
+#pvp-root .cin-char{font:700 clamp(15px,1.2vw,19px)/1.2 system-ui,-apple-system,'Segoe UI',sans-serif;color:#e8defa}
+#pvp-root .cin-vs-text{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);
+  font:italic 1000 clamp(90px,12vw,190px)/1 system-ui,-apple-system,'Segoe UI',sans-serif;color:#fff;-webkit-text-stroke:4px #1a0b3a;paint-order:stroke fill;
+  text-shadow:0 0 30px #ffc87acc,0 8px 0 #2b1263;animation:cin-vs-slam 280ms 320ms cubic-bezier(.2,1.5,.3,1) both}
+#pvp-root .cin-vs .cin-flash{animation-delay:320ms}
+@keyframes cin-from-left{from{transform:translateX(-105%)}to{transform:translateX(0)}}
+@keyframes cin-from-right{from{transform:translateX(105%)}to{transform:translateX(0)}}
+@keyframes cin-fighter-in{from{opacity:0;translate:0 8%}to{opacity:.95;translate:0 0}}
+@keyframes cin-vs-slam{0%{opacity:0;transform:translate(-50%,-50%) scale(3) rotate(-8deg)}100%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-4deg)}}
+
+/* ---------- Çıkış ---------- */
+#pvp-root .cin.cin-out{animation:cin-fade-out 240ms ease-in both}
+#pvp-root .cin-vs.cin-out .cin-seat-1{animation:cin-out-left 240ms ease-in both}
+#pvp-root .cin-vs.cin-out .cin-seat-2{animation:cin-out-right 240ms ease-in both}
+@keyframes cin-fade-out{to{opacity:0}}
+@keyframes cin-out-left{to{transform:translateX(-105%)}}
+@keyframes cin-out-right{to{transform:translateX(105%)}}
+
+/* ---------- Zamana Karşı raund sonu sıralaması ---------- */
+/* 1) Bant oynarken yazma paneli aşağı iner ve söner; tur arası paneli bekler. */
+#pvp-root.cin-round-end .tt-type{transform:translateY(34px);opacity:0;transition:transform 320ms cubic-bezier(.4,0,1,1),opacity 260ms ease-in}
+#pvp-root.cin-round-end.rui-inter-open .tt-type{visibility:visible}
+#pvp-root.cin-round-end .rui-inter{visibility:hidden}
+/* 2) Tur arası paneli yukarıdan perde gibi açılır. */
+#pvp-root.rui-inter-open:not(.cin-round-end) .rui-inter:not(.is-floating){animation:cin-curtain 360ms cubic-bezier(.2,.9,.3,1) both}
+@keyframes cin-curtain{from{opacity:0;transform:translateY(-18px) scaleY(.92)}to{opacity:1;transform:none}}
+/* 3) Tur arasında arena öne çıkar (yalnız scale; yerleşim kaymaz). */
+#pvp-root .pvp2-duel{transition:scale 520ms cubic-bezier(.2,.9,.3,1)}
+#pvp-root.rui-inter-open .pvp2-duel{scale:1.012}
+/* 4) Yeni raund: yazma paneli yukarıdan geri iner. */
+#pvp-root.cin-round-start .tt-type{animation:cin-drop-in 420ms cubic-bezier(.2,.9,.3,1.1) both}
+@keyframes cin-drop-in{from{opacity:0;transform:translateY(-26px)}to{opacity:1;transform:none}}
+
+/* ---------- Var olan "RAUND n · BAŞLA!" yazısına çarpma hissi ---------- */
+#pvp-root .rui-flash strong{display:inline-block;font-style:italic;animation:cin-slam-plain 300ms cubic-bezier(.2,1.4,.3,1) both}
+#pvp-root .rui-flash span{display:inline-block;animation:cin-rise-plain 240ms 160ms ease-out both}
+@keyframes cin-slam-plain{0%{opacity:0;transform:translateX(-50px) scale(1.6)}100%{opacity:1;transform:none}}
+@keyframes cin-rise-plain{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---------- Hareket azaltma: yalnız kısa solma ---------- */
+#pvp-root .cin.cin-still *,#pvp-root.pvp4-reduced .cin *{animation:none!important}
+#pvp-root .cin.cin-still,#pvp-root.pvp4-reduced .cin{animation:cin-still-in 160ms ease-out both}
+#pvp-root .cin.cin-still .cin-flash,#pvp-root.pvp4-reduced .cin .cin-flash{display:none}
+@keyframes cin-still-in{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  #pvp-root .cin *,#pvp-root .rui-flash *{animation:none!important}
+  #pvp-root .cin-flash{display:none}
+  #pvp-root.cin-round-end .tt-type,#pvp-root .pvp2-duel{transition:none}
+  #pvp-root.rui-inter-open .pvp2-duel{scale:none}
+  #pvp-root.rui-inter-open:not(.cin-round-end) .rui-inter,#pvp-root.cin-round-start .tt-type{animation:none}
+}
+@media (max-width:767.98px){
+  #pvp-root .cin-half{width:62%}
+  #pvp-root .cin-fighter{height:70%}
+  #pvp-root .cin-tag{margin-bottom:18%}
+}
+
+/* Kutulu VS (maç saati çalışırken): yalnız arena alanı; yazı alanına dokunmaz. */
+#pvp-root .cin.cin-boxed{inset:auto;border-radius:16px}
+#pvp-root .cin-boxed .cin-fighter{height:118%;bottom:-22%}
+#pvp-root .cin-boxed .cin-vs-text{top:50%;font-size:clamp(70px,8vw,130px)}
+#pvp-root .cin-boxed .cin-tag{margin-bottom:5%}
+
+/* ---------- Arena odağı (stage-focus.js) ---------- */
+/* Saldırı sırasında yazma paneli katlanır → arena ekranı doldurur. */
+#pvp-root.stage-focus .tt{display:none}
+/* Odaktan çıkış: arena aşağı kayarken yazma paneli (üstte çizilir) HP panellerini kapatmasın; kayma bitince belirir. */
+#pvp-root .tt{transition:opacity 180ms ease-out}
+#pvp-root.stage-focus-out .tt{opacity:0;pointer-events:none;transition:none}
+/* Izgara 5 satırdı (araç·sayaç·yazma·arena·alt); yazma gizlenince arena esnek satıra otursun, alt şerit şişmesin. */
+#pvp-root.stage-focus .pvp2-shell{grid-template-rows:auto auto minmax(0,1fr) auto}
+/* Tur arası paneli yazma panelinin kutusuna oturur: panel açıkken odak yazma panelini katlamaz
+   (yoksa panel "yüzer" moda geçip ekranın soluna kayıyor, HP panellerinin üstüne biniyordu). stage-focus.js odağı FLIP ile kapatır. */
+#pvp-root.stage-focus.rui-inter-open .tt{display:grid}
+#pvp-root.stage-focus.rui-inter-open .pvp2-shell{grid-template-rows:auto auto auto minmax(0,1fr) auto}
+#pvp-root.stage-focus .pvp2-duel>.rsv-banner{top:clamp(150px,30%,230px);font-size:clamp(16px,1.1vw,20px);padding:9px 22px}
+/* Tur arası: kelime şeridi gizlenir, panel ince şeride iner → arena büyür. */
+#pvp-root.rui-inter-open .rui-words{display:none}
+#pvp-root.rui-inter-open .tt{height:clamp(150px,20vh,190px);overflow:hidden}
+#pvp-root.rui-inter-open .tt-type{display:none}
+#pvp-root .rui-inter>.rui-summary{padding:8px 12px}
+#pvp-root .rui-inter>.rui-summary .rui-sum-winner{font-size:18px;margin:2px 0 4px}
+#pvp-root .rui-inter>.rui-summary .rui-sum-table th,#pvp-root .rui-inter>.rui-summary .rui-sum-table td{padding:1px 6px;line-height:1.25}
+/* 1920×940'ta özet 198 px, kutu 186 px idi (son satır "Tur skoru" kayıyordu). */
+#pvp-root .rui-inter>.rui-summary{padding-top:6px;padding-bottom:6px}
+#pvp-root .rui-inter>.rui-skill-picker{padding:8px 12px}
+#pvp-root .rui-inter .rui-skill-picker>strong{margin-bottom:4px}
+/* "Rakip: …" bildirimi raund başında yazma alanını kapatıyordu: arenanın orta çizgisine (dövüşçülerin arası). */
+#pvp-root .rui-skill-reveal{top:68%}
+
+/* ---------- Güçlü vuruş: patlama ışığı, şok dalgası, kıvılcımlar, sarsıntı (tek seferlik) ---------- */
+#pvp-root .cin-impact{position:absolute;left:50%;top:46%;width:0;height:0;pointer-events:none;--c1:#ffd98a;--c2:#ff7a3c}
+#pvp-root .cin-vs .cin-impact{top:44%}
+#pvp-root .cin-impact.cin-tone-ko{--c1:#ffd1d9;--c2:#ff3b5c}
+#pvp-root .cin-impact.cin-tone-time{--c1:#dff7ff;--c2:#38b6ff}
+#pvp-root .cin-impact.cin-tone-draw{--c1:#ece4ff;--c2:#9b7bff}
+#pvp-root .cin-impact.cin-tone-start{--c1:#fff3c4;--c2:#ffb02e}
+#pvp-root .cin-burst{position:absolute;left:-360px;top:-360px;width:720px;height:720px;border-radius:50%;
+  background:radial-gradient(circle,var(--c1) 0%,var(--c2) 22%,transparent 62%);opacity:0;
+  animation:cin-burst 520ms var(--cin-delay,0ms) cubic-bezier(.1,.8,.3,1) both}
+#pvp-root .cin-ring{position:absolute;left:-90px;top:-90px;width:180px;height:180px;border-radius:50%;border:6px solid var(--c1);
+  box-shadow:0 0 18px var(--c2);opacity:0;animation:cin-ring 560ms var(--cin-delay,0ms) cubic-bezier(.15,.8,.3,1) both}
+#pvp-root .cin-ring-2{border-width:3px;animation-duration:760ms;animation-delay:calc(var(--cin-delay,0ms) + 90ms)}
+#pvp-root .cin-spark{position:absolute;left:-14px;top:-2px;width:28px;height:4px;border-radius:3px;
+  background:linear-gradient(90deg,transparent,var(--c1) 40%,#fff);opacity:0;transform:rotate(var(--rot));
+  animation:cin-spark 620ms var(--cin-delay,0ms) cubic-bezier(.15,.75,.3,1) both}
+@keyframes cin-burst{0%{opacity:.95;transform:scale(.15)}100%{opacity:0;transform:scale(1.25)}}
+@keyframes cin-ring{0%{opacity:1;transform:scale(.2)}100%{opacity:0;transform:scale(3.4)}}
+@keyframes cin-spark{0%{opacity:1;transform:translate(0,0) rotate(var(--rot)) scaleX(.4)}
+  60%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scaleX(1.4)}}
+/* Ekran sarsıntısı: yalnız translate (transform'dan bağımsız), 340 ms. */
+#pvp-root.cin-shake .pvp2-shell{animation:cin-shake 340ms cubic-bezier(.36,.07,.19,.97) both}
+@keyframes cin-shake{0%,100%{translate:0 0}15%{translate:-9px 4px}30%{translate:8px -5px}45%{translate:-6px 3px}60%{translate:5px -2px}80%{translate:-2px 1px}}
+@media (prefers-reduced-motion:reduce){#pvp-root .cin-impact{display:none}#pvp-root.cin-shake .pvp2-shell{animation:none}}
+#pvp-root.pvp4-reduced .cin-impact{display:none}
+#pvp-root.pvp4-reduced.cin-shake .pvp2-shell{animation:none}
+/* "RAUND n · BAŞLA!" raund saati çalışırken ilk kelimeyi kapatıyordu: arenanın ortasına (dövüşçülerin arası). */
+#pvp-root .rui-flash{top:66%}
+/* Arena odağında karakterler büyür: atılışa yer kalsın diye merkezden biraz dışarıda dururlar. */
+#pvp-root.stage-focus .pvp2-side.pvp2-fire .pvp3-rig{left:40%}
+#pvp-root.stage-focus .pvp2-side:not(.pvp2-fire) .pvp3-rig{left:60%}

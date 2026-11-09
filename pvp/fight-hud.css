@@ -1,0 +1,133 @@
+/* paket 29 — fight-hud: maç girişi, büyük kombo sayacı, süper bar, anons yazıları.
+   Özgün TuşLab neon dili: ateş (oyuncu 1, sol) turuncu/kırmızı · rün (oyuncu 2, sağ) mavi.
+   Hiçbir katman tıklamayı/yazmayı engellemez (pointer-events:none); merkez katman yalnız arena alanını kaplar.
+   Yalnız transform/opacity animasyonu; sonsuz animasyon yok; hareket azaltmada animasyon yok. */
+
+#pvp-root{
+  --fhud-fire:#ff6a2b;--fhud-fire-hot:#ffd2a8;--fhud-fire-deep:#5a1204;
+  --fhud-rune:#4aa8ff;--fhud-rune-hot:#d6ecff;--fhud-rune-deep:#071c4a;
+  --fhud-gold:#ffd45a;--fhud-gold-deep:#4a2a00;
+  --fhud-lose:#b9a6ff;--fhud-lose-deep:#1a0f3a;
+  --fhud-ink:#07031a;
+}
+/* Tek kombo sayacı: fx-damage.js'in küçük "KOMBO xN · toplam" yazısı HUD açıkken gizlenir. */
+#pvp-root.fhud-on .pxd-combo{display:none}
+
+/* ---- Merkez katman (anons + giriş) ---- */
+#pvp-root .fhud-layer{position:fixed;z-index:46;pointer-events:none;display:grid;place-items:center;overflow:hidden;contain:layout paint}
+#pvp-root .fhud-layer > *{grid-area:1/1}
+#pvp-root .fhud-call-text,#pvp-root .fhud-intro-word{
+  position:relative;z-index:1;margin:0;font:italic 900 clamp(40px,6.2vw,104px)/.95 system-ui,"Segoe UI",sans-serif;
+  letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;color:#fff;
+  transform:skewX(-8deg);-webkit-text-stroke:2px var(--fhud-ink);paint-order:stroke fill;
+  text-shadow:0 0 18px var(--fhud-glow,#ffffff80),0 4px 0 var(--fhud-deep,#000);
+  animation:fhud-call-in var(--fhud-dur,700ms) cubic-bezier(.16,1,.3,1) both
+}
+#pvp-root .fhud-tone-fire{--fhud-glow:var(--fhud-fire);--fhud-deep:var(--fhud-fire-deep);--fhud-hot:var(--fhud-fire-hot);--fhud-accent:var(--fhud-fire)}
+#pvp-root .fhud-tone-rune{--fhud-glow:var(--fhud-rune);--fhud-deep:var(--fhud-rune-deep);--fhud-hot:var(--fhud-rune-hot);--fhud-accent:var(--fhud-rune)}
+#pvp-root .fhud-tone-neutral,#pvp-root .fhud-tone-win{--fhud-glow:var(--fhud-gold);--fhud-deep:var(--fhud-gold-deep);--fhud-hot:#fff6c8;--fhud-accent:var(--fhud-gold)}
+#pvp-root .fhud-tone-ko{--fhud-glow:#ff3b4f;--fhud-deep:#3a0010;--fhud-hot:#ffd0d6;--fhud-accent:#ff3b4f}
+#pvp-root .fhud-tone-lose{--fhud-glow:var(--fhud-lose);--fhud-deep:var(--fhud-lose-deep);--fhud-hot:#ece6ff;--fhud-accent:var(--fhud-lose)}
+#pvp-root .fhud-call-text.fhud-tone-fire,#pvp-root .fhud-call-text.fhud-tone-rune,#pvp-root .fhud-call-text.fhud-tone-ko{color:var(--fhud-hot)}
+#pvp-root .fhud-call-text.fhud-tone-win,#pvp-root .fhud-call-text.fhud-tone-neutral{color:#fff3b8}
+#pvp-root .fhud-call-text.fhud-tone-lose{color:#ece6ff}
+/* Çapraz neon şerit: yazının arkasında kısa bir kesik. */
+#pvp-root .fhud-call-slash{
+  display:block;width:min(92%,980px);height:clamp(54px,9vh,104px);
+  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--fhud-accent,#fff) 55%,transparent) 18%,#07031ae6 50%,color-mix(in srgb,var(--fhud-accent,#fff) 55%,transparent) 82%,transparent);
+  border-block:2px solid var(--fhud-accent,#fff);transform:skewY(-4deg);
+  animation:fhud-slash var(--fhud-dur,700ms) cubic-bezier(.16,1,.3,1) both
+}
+@keyframes fhud-call-in{
+  0%{opacity:0;transform:skewX(-8deg) scale(1.9)}
+  16%{opacity:1;transform:skewX(-8deg) scale(.94)}
+  26%{transform:skewX(-8deg) scale(1.04)}
+  78%{opacity:1;transform:skewX(-8deg) scale(1)}
+  100%{opacity:0;transform:skewX(-8deg) scale(1.06) translateY(-6px)}
+}
+@keyframes fhud-slash{
+  0%{opacity:0;transform:skewY(-4deg) scaleX(.1)}
+  18%{opacity:1;transform:skewY(-4deg) scaleX(1)}
+  80%{opacity:1}
+  100%{opacity:0;transform:skewY(-4deg) scaleX(1.04)}
+}
+
+/* ---- Giriş: VS → RAUND 1 → SAVAŞ! ---- */
+#pvp-root .fhud-intro{background:radial-gradient(ellipse at center,#07031a99 0%,#07031a40 55%,transparent 80%)}
+#pvp-root .fhud-step-vs{display:flex;align-items:center;justify-content:center;gap:clamp(16px,3vw,56px)}
+#pvp-root .fhud-vs-side{display:grid;gap:4px;min-width:0;max-width:38%;padding:12px 22px;border-radius:12px;
+  background:#07031ad9;border:1px solid var(--fhud-accent);box-shadow:0 0 22px color-mix(in srgb,var(--fhud-accent) 45%,transparent)}
+#pvp-root .fhud-vs-side.fhud-tone-fire{text-align:right;animation:fhud-from-left 1000ms cubic-bezier(.16,1,.3,1) both}
+#pvp-root .fhud-vs-side.fhud-tone-rune{text-align:left;animation:fhud-from-right 1000ms cubic-bezier(.16,1,.3,1) both}
+#pvp-root .fhud-vs-seat{font:800 12px/1.2 system-ui,sans-serif;letter-spacing:.14em;color:var(--fhud-accent)}
+#pvp-root .fhud-vs-name{font:italic 900 clamp(22px,2.6vw,40px)/1.05 system-ui,sans-serif;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pvp-root .fhud-vs-char{font:700 clamp(13px,1.1vw,16px)/1.2 system-ui,sans-serif;color:var(--fhud-hot)}
+#pvp-root .fhud-vs-mark{font:italic 900 clamp(44px,5.4vw,88px)/1 system-ui,sans-serif;color:#fff;-webkit-text-stroke:2px var(--fhud-ink);paint-order:stroke fill;
+  text-shadow:-6px 0 18px var(--fhud-fire),6px 0 18px var(--fhud-rune);animation:fhud-vs-slam 1000ms cubic-bezier(.16,1,.3,1) both}
+#pvp-root .fhud-step-round .fhud-intro-word{--fhud-glow:var(--fhud-gold);--fhud-deep:var(--fhud-gold-deep);color:#fff3b8;animation-duration:500ms}
+#pvp-root .fhud-step-fight .fhud-intro-word{--fhud-glow:#ff3b4f;--fhud-deep:#3a0010;color:#fff;animation-duration:550ms}
+#pvp-root .fhud-step-fight .fhud-call-slash{animation-duration:550ms}
+@keyframes fhud-from-left{0%{opacity:0;transform:translateX(-60px)}22%{opacity:1;transform:none}82%{opacity:1}100%{opacity:0;transform:translateX(-10px)}}
+@keyframes fhud-from-right{0%{opacity:0;transform:translateX(60px)}22%{opacity:1;transform:none}82%{opacity:1}100%{opacity:0;transform:translateX(10px)}}
+@keyframes fhud-vs-slam{0%{opacity:0;transform:scale(2.4)}24%{opacity:1;transform:scale(.92)}34%{transform:scale(1)}82%{opacity:1}100%{opacity:0;transform:scale(1.1)}}
+
+/* ---- Büyük kombo sayacı (saldıranın sahnesinde, üst köşe) ---- */
+#pvp-root .fhud-combo{position:absolute;top:48px;z-index:8;pointer-events:none;display:grid;grid-template-columns:auto auto;align-items:end;column-gap:8px;row-gap:0;
+  padding:6px 12px 7px;border-radius:10px;background:linear-gradient(180deg,#07031ae0,#07031aa8);border:1px solid var(--fhud-accent);
+  box-shadow:0 0 18px color-mix(in srgb,var(--fhud-accent) 40%,transparent)}
+#pvp-root .fhud-combo.fhud-seat-1{left:12px;transform-origin:left center}
+#pvp-root .fhud-combo.fhud-seat-2{right:12px;transform-origin:right center}
+#pvp-root .fhud-combo-n{grid-row:1/3;font:italic 900 clamp(34px,3.4vw,58px)/.9 system-ui,sans-serif;color:var(--fhud-hot);-webkit-text-stroke:1.5px var(--fhud-ink);paint-order:stroke fill;
+  text-shadow:0 0 14px var(--fhud-accent),0 3px 0 var(--fhud-deep)}
+#pvp-root .fhud-combo-w{font:italic 900 clamp(14px,1.2vw,20px)/1 system-ui,sans-serif;letter-spacing:.08em;color:#fff}
+#pvp-root .fhud-combo-dmg{font:800 clamp(12px,.95vw,15px)/1.2 system-ui,sans-serif;color:var(--fhud-accent);font-variant-numeric:tabular-nums}
+#pvp-root .fhud-combo.fhud-bump-a{animation:fhud-bump-a 260ms cubic-bezier(.16,1,.3,1)}
+#pvp-root .fhud-combo.fhud-bump-b{animation:fhud-bump-b 260ms cubic-bezier(.16,1,.3,1)}
+#pvp-root .fhud-combo.fhud-out{opacity:0;transition:opacity 180ms ease-out}
+@keyframes fhud-bump-a{0%{transform:scale(1.28) translateY(-4px)}100%{transform:none}}
+@keyframes fhud-bump-b{0%{transform:scale(1.28) translateY(-4px)}100%{transform:none}}
+
+/* ---- Süper bar (oyuncu sahnesinin alt kenarı, dış köşe; beceri kartlarının üstünde, sahnenin içinde) ---- */
+#pvp-root .fhud-super{position:absolute;bottom:8px;z-index:7;pointer-events:none;display:flex;align-items:center;gap:8px;
+  width:min(32%,250px);padding:4px 8px;border-radius:8px;background:#07031acc;border:1px solid color-mix(in srgb,var(--fhud-accent) 55%,transparent)}
+#pvp-root .fhud-super[hidden]{display:none}
+#pvp-root .fhud-super.fhud-seat-1{left:12px}
+#pvp-root .fhud-super.fhud-seat-2{right:12px;flex-direction:row-reverse}
+#pvp-root .fhud-super-label{flex:none;font:900 12px/1.1 system-ui,sans-serif;letter-spacing:.1em;color:var(--fhud-hot);white-space:nowrap}
+#pvp-root .fhud-super-track{position:relative;flex:1;min-width:40px;height:8px;border-radius:4px;overflow:hidden;background:#ffffff1f;box-shadow:inset 0 0 0 1px #ffffff26}
+#pvp-root .fhud-super-fill{position:absolute;inset:0;transform:scaleX(0);transform-origin:left center;transition:transform 220ms cubic-bezier(.16,1,.3,1);
+  background:linear-gradient(90deg,var(--fhud-deep),var(--fhud-accent) 60%,var(--fhud-hot))}
+#pvp-root .fhud-super.fhud-seat-2 .fhud-super-fill{transform-origin:right center;background:linear-gradient(270deg,var(--fhud-deep),var(--fhud-accent) 60%,var(--fhud-hot))}
+#pvp-root .fhud-super.fhud-ready{border-color:var(--fhud-gold);box-shadow:0 0 16px color-mix(in srgb,var(--fhud-gold) 55%,transparent)}
+#pvp-root .fhud-super.fhud-ready .fhud-super-label{color:var(--fhud-gold)}
+#pvp-root .fhud-super.fhud-ready .fhud-super-fill{background:linear-gradient(90deg,var(--fhud-accent),var(--fhud-gold),#fff)}
+#pvp-root .fhud-super.fhud-ready:not(.fhud-reduced){animation:fhud-ready 600ms ease-in-out 3}
+@keyframes fhud-ready{0%,100%{opacity:1}50%{opacity:.62}}
+
+/* ---- Hareket azaltma: animasyon yok, sade ---- */
+#pvp-root .fhud-reduced .fhud-call-text,#pvp-root .fhud-reduced .fhud-intro-word,#pvp-root .fhud-reduced .fhud-call-slash,
+#pvp-root .fhud-reduced .fhud-vs-side,#pvp-root .fhud-reduced .fhud-vs-mark,#pvp-root .fhud-combo.fhud-reduced,#pvp-root .fhud-super.fhud-reduced{animation:none;transition:none}
+#pvp-root .fhud-reduced.fhud-intro{background:none}
+#pvp-root.pvp4-reduced .fhud-layer *,#pvp-root.pvp4-reduced .fhud-combo,#pvp-root.pvp4-reduced .fhud-super,#pvp-root.pvp4-reduced .fhud-super-fill{animation:none !important;transition:none !important}
+@media (prefers-reduced-motion:reduce){
+  #pvp-root .fhud-layer *,#pvp-root .fhud-combo,#pvp-root .fhud-super,#pvp-root .fhud-super-fill{animation:none !important;transition:none !important}
+}
+
+/* Kısa ekranlar: sayaç ve süper bar küçülür (yazı yine ≥ 12 px). */
+@media (max-height:700px){
+  #pvp-root .fhud-combo{top:38px;padding:4px 9px 5px}
+  #pvp-root .fhud-combo-n{font-size:32px}
+  #pvp-root .fhud-super{bottom:5px;padding:3px 6px}
+}
+@media (max-width:640px){
+  #pvp-root .fhud-super{width:min(44%,200px)}
+  #pvp-root .fhud-super-label{letter-spacing:.04em}
+}
+
+/* Nakavt kartının alt satırı (ZAFER / YENİLGİ). */
+#pvp-root .fhud-call-stack{position:relative;z-index:1;display:grid;justify-items:center;gap:clamp(6px,1.2vh,14px)}
+#pvp-root .fhud-call-sub{position:relative;z-index:1;
+  font:italic 900 clamp(22px,2.6vw,40px)/1 system-ui,"Segoe UI",sans-serif;letter-spacing:.12em;color:var(--fhud-hot,#fff);
+  -webkit-text-stroke:1px var(--fhud-ink);paint-order:stroke fill;text-shadow:0 0 14px var(--fhud-glow,#fff);
+  animation:fhud-call-in calc(var(--fhud-dur,1000ms) - 120ms) cubic-bezier(.16,1,.3,1) 120ms both}
+#pvp-root .fhud-reduced .fhud-call-sub{animation:none}

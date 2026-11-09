@@ -1,0 +1,7 @@
+/* Package 22: clear, compact, accessible rune selection */
+.pvp22-runes{margin-top:10px;border:1px solid #7859a867;border-radius:10px;padding:8px;background:#120f2e98}
+.pvp22-rune-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.pvp6-panel .pvp22-rune-grid button{font-size:10px;padding:7px 4px;min-height:32px;white-space:normal}
+.pvp6-panel .pvp22-rune-grid button[aria-pressed="true"]{border-color:#ffd57e;background:linear-gradient(100deg,#834c27,#452e74);box-shadow:0 0 12px #eac16d62}
+.pvp22-passive{text-align:center;font:700 10px/1.35 system-ui;color:#e6c1ff;background:#120b29c9;border:1px solid #9e64dc44;border-radius:7px;padding:4px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-height:800px){.pvp22-runes{margin-top:5px;padding:5px}.pvp6-panel .pvp22-rune-grid button{padding:4px 3px;min-height:26px}.pvp22-passive{font-size:9px}}

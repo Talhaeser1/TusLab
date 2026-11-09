@@ -1,0 +1,33 @@
+/* TuşLab — Fight Motion (dövüş animasyonları)
+ * Motion itself is WAAPI in pvp/fight-motion.js and uses only the individual
+ * `translate` / `rotate` / `scale` properties, so it composes with the existing
+ * `transform` keyframes of .pvp3-rig / .pvp3-model / .pvp2-stage.
+ */
+
+/* Hint the compositor for the layers we move. */
+#pvp-root .pvp3-rig { will-change: transform, translate, rotate, scale; }
+#pvp-root .pvp2-duel { transform-origin: 50% 55%; }
+
+/* Knockout slow-motion beat: dark vignette that breathes in and out. */
+#pvp-root .pvp2-duel.pvpfm-ko::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  border-radius: 17px;
+  background: radial-gradient(ellipse at 50% 50%, transparent 42%, #05030fcc 100%);
+  animation: pvpfm-ko-vignette 1.3s cubic-bezier(.1, .9, .2, 1) both;
+}
+
+@keyframes pvpfm-ko-vignette {
+  0% { opacity: 0; }
+  14% { opacity: 1; }
+  72% { opacity: .85; }
+  100% { opacity: 0; }
+}
+
+#pvp-root.pvp4-reduced .pvp2-duel.pvpfm-ko::after { animation: none; opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  #pvp-root .pvp2-duel.pvpfm-ko::after { animation: none; opacity: 0; }
+}

@@ -1,0 +1,28 @@
+/* Maç sonu ekranı v2: simetrik skor satırı, eşit raund çipleri, okunur ayrıntılar (≥12 px). Blur/sonsuz animasyon yok. */
+#pvp-root .pvp15-card{width:min(940px,96vw)}
+#pvp-root .pvp15-reason{font-size:13px;letter-spacing:.14em}
+/* Skor satırı: adlar skora simetrik yaslanır (sağ ad önceden kartın ortalamasını miras alıp uzağa kayıyordu). */
+#pvp-root .rui-result{gap:10px;margin:6px 0 14px}
+#pvp-root .rui-res-len{font-size:13px}
+#pvp-root .rui-res-score{gap:18px;max-width:720px;margin-inline:auto}
+#pvp-root .rui-res-name{font-size:clamp(17px,1.5vw,22px)}
+#pvp-root .rui-res-name.rui-col-1{text-align:right}
+#pvp-root .rui-res-name.rui-col-2{text-align:left}
+#pvp-root .rui-res-line{font-size:clamp(40px,5vw,60px);letter-spacing:.02em}
+/* Raund çipleri: eşit sütunlu ızgara (dördüncü raund tek başına alt satırda kalmasın). */
+#pvp-root .rui-res-rounds{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,190px));justify-content:center;gap:8px;width:100%;max-width:880px}
+#pvp-root .rui-res-round{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"label rp" "winner winner";align-items:baseline;gap:2px 8px;
+  padding:7px 10px;border-radius:10px;font-size:13px;text-align:left;min-width:0}
+#pvp-root .rui-res-label{grid-area:label;font-weight:800;letter-spacing:.04em}
+#pvp-root .rui-res-round small{grid-area:rp;justify-self:end;font-size:12px}
+#pvp-root .rui-res-round b{grid-area:winner;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pvp-root .rui-res-round.is-seat-1{background:#ff8a4c14}
+#pvp-root .rui-res-round.is-seat-2{background:#5ccbff14}
+#pvp-root .rui-res-round.is-seat-1 b{color:#ffb98a}
+#pvp-root .rui-res-round.is-seat-2 b{color:#a5e6ff}
+/* Oyuncu kartları: ayrıntı satırları okunur. */
+#pvp-root .pvp15-detail{font-size:13px;gap:6px;line-height:1.35}
+#pvp-root .pvp15-meta,#pvp-root .pvp15-votes{font-size:13px}
+#pvp-root .pvp15-eyebrow{font-size:12px}
+#pvp-root .pvp15-buttons button{min-height:44px;font-size:15px}
+@media (max-width:650px){#pvp-root .rui-res-rounds{grid-template-columns:repeat(2,minmax(0,1fr))}}

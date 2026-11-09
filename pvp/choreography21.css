@@ -1,0 +1,63 @@
+/* TuşLab PvP — 21/25 / Original choreographic layer, visual-only. */
+#pvp-root .pvp2-stage{--pvp21-accent:#ff9d41;--pvp21-spark:#ffe6b8;--pvp21-dark:#ad261b}
+#pvp-root .pvp2-rune .pvp2-stage{--pvp21-accent:#42cafa;--pvp21-spark:#c6faff;--pvp21-dark:#2853b4}
+.pvp21-layer{position:absolute;inset:0;z-index:5;overflow:hidden;pointer-events:none;contain:layout style paint;isolation:isolate}
+.pvp21-burst{position:absolute;pointer-events:none;display:block;left:50%;top:48%;will-change:transform,opacity;transform:translate(-50%,-50%);background:transparent}
+.pvp21-slash,.pvp21-cut{width:68%;height:74%;border-radius:50%;border:9px solid transparent;border-right-color:var(--pvp21-accent);border-top-color:var(--pvp21-spark);box-shadow:9px -7px 22px -15px var(--pvp21-accent);filter:drop-shadow(0 0 12px var(--pvp21-accent));animation:pvp21-slash .54s cubic-bezier(.19,.91,.35,1) both}
+.pvp2-rune .pvp21-slash,.pvp2-rune .pvp21-cut{border-right-color:transparent;border-left-color:var(--pvp21-accent);animation-name:pvp21-rune-cut}
+.pvp21-crack,.pvp21-shock{top:82%;width:90%;height:28%;background:repeating-conic-gradient(from 90deg at 50% 50%,transparent 0deg 21deg,var(--pvp21-accent) 23deg 25deg,transparent 27deg 46deg);clip-path:ellipse(48% 43% at 50% 50%);filter:drop-shadow(0 0 10px var(--pvp21-accent));animation:pvp21-ground .68s ease-out both}
+.pvp21-ward,.pvp21-aegis{height:74%;width:60%;top:45%;border-radius:45%;border:4px solid var(--pvp21-spark);box-shadow:inset 0 0 30px var(--pvp21-accent),0 0 24px var(--pvp21-accent);background:radial-gradient(ellipse,#ffffff15,transparent 70%);animation:pvp21-ward .68s ease-out both}
+.pvp21-surge,.pvp21-prelude{width:75%;height:90%;border-radius:50%;border:4px dashed var(--pvp21-accent);box-shadow:0 0 38px var(--pvp21-accent);animation:pvp21-surge .65s ease-out both}
+.pvp21-assault{width:82%;height:80%;border:11px double var(--pvp21-accent);border-radius:50%;animation:pvp21-assault .62s ease-out both}
+.pvp21-finisher{width:125%;height:115%;background:radial-gradient(circle,#fff9d6 0%,var(--pvp21-accent) 9%,var(--pvp21-dark) 20%,transparent 55%);mix-blend-mode:screen;animation:pvp21-finisher .95s ease-out both}
+.pvp21-parry,.pvp21-counter{width:68%;height:68%;border-radius:50%;border:7px solid var(--pvp21-spark);box-shadow:0 0 24px var(--pvp21-accent);animation:pvp21-parry .68s ease-out both}
+.pvp21-fracture{height:85%;width:80%;background:repeating-conic-gradient(from 18deg,transparent 0deg 18deg,var(--pvp21-accent) 20deg 22deg,transparent 23deg 45deg);clip-path:ellipse(46% 47%);animation:pvp21-fracture .72s ease-in both}
+/* Timeline poses are character-specific; attack animation is never a mirrored generic PNG sway. */
+.pvp3-rig-fire[data-motion='attack'] .pvp3-weapon{animation:pvp21-fire-q .38s cubic-bezier(.12,.9,.28,1) both}
+.pvp3-rig-rune[data-motion='attack'] .pvp3-weapon{animation:pvp21-rune-q .38s cubic-bezier(.23,.78,.35,1) both}
+.pvp3-rig-fire[data-motion='heavy'] .pvp3-weapon{animation:pvp21-fire-e .58s cubic-bezier(.18,.68,.28,1) both}
+.pvp3-rig-rune[data-motion='heavy'] .pvp3-weapon{animation:pvp21-rune-e .58s cubic-bezier(.22,.56,.34,1) both}
+.pvp3-rig-fire[data-motion='shield'] .pvp3-guard{animation:pvp21-fire-guard .78s ease-in-out both}
+.pvp3-rig-rune[data-motion='shield'] .pvp3-guard{animation:pvp21-rune-guard .78s ease-in-out both}
+.pvp3-rig-fire[data-motion='ultimate'] .pvp3-model{animation:pvp21-fire-storm .58s ease-in-out infinite alternate}
+.pvp3-rig-rune[data-motion='ultimate'] .pvp3-model{animation:pvp21-rune-gravity .85s ease-in-out infinite alternate}
+.pvp3-rig-fire[data-motion='ultimate'] .pvp3-weapon{animation:pvpH-fire-storm 1.43s cubic-bezier(.2,.7,.3,1) both}
+.pvp3-rig-rune[data-motion='ultimate'] .pvp3-weapon{animation:pvpH-rune-seal 1.43s cubic-bezier(.2,.7,.3,1) both}
+.pvp2-stage.pvp21-hitstop .pvp3-model,.pvp2-stage.pvp21-hitstop .pvp3-piece{animation-play-state:paused!important}
+/* Shake only the battle visual — not the player HUD or typing controls. */
+.pvp21-layer .pvp21-burst{backface-visibility:hidden}
+.pvp2-stage.pvp21-bump .pvp3-model{filter:brightness(1.23)}
+@keyframes pvp21-fire-q{0%{transform:rotate(-34deg) translate(-2%,-2%)}27%{transform:rotate(-39deg)}48%{transform:rotate(76deg) translate(7%,3%)}67%{transform:rotate(46deg)}100%{transform:rotate(7deg)}}
+@keyframes pvp21-rune-q{0%{transform:rotate(18deg) translate(0,-4%)}37%{transform:rotate(38deg) translate(0,-4%)}62%{transform:rotate(-62deg) translate(-6%,4%)}100%{transform:rotate(-6deg)}}
+@keyframes pvp21-fire-e{0%,19%{transform:rotate(-50deg) translateY(-7%)}47%{transform:rotate(-62deg) translateY(-10%)}65%{transform:rotate(91deg) translateY(5%)}100%{transform:rotate(15deg)}}
+@keyframes pvp21-rune-e{0%,25%{transform:rotate(41deg) translateY(-11%)}53%{transform:rotate(54deg) translateY(-17%)}69%{transform:rotate(-73deg) translateY(13%)}100%{transform:rotate(0deg)}}
+@keyframes pvp21-fire-guard{0%,100%{transform:rotate(0)}18%,72%{transform:rotate(-48deg) translate(3%,-2%)}}
+@keyframes pvp21-rune-guard{0%,100%{transform:rotate(0)}23%,78%{transform:rotate(40deg) translate(-2%,-4%)}}
+@keyframes pvp21-fire-storm{from{transform:rotate(-2deg) translateY(0)}to{transform:rotate(3deg) translateY(-5px)}}
+@keyframes pvp21-rune-gravity{from{transform:translateY(3px) scale(1)}to{transform:translateY(-9px) scale(1.04)}}
+@keyframes pvpH-fire-storm{0%{transform:rotate(-36deg)}18%{transform:rotate(79deg)}32%{transform:rotate(-43deg)}48%{transform:rotate(91deg)}65%{transform:rotate(-58deg)}82%{transform:rotate(104deg)}100%{transform:rotate(8deg)}}
+@keyframes pvpH-rune-seal{0%{transform:rotate(35deg) translateY(-8%)}20%{transform:rotate(-42deg)}39%{transform:rotate(49deg) translateY(-12%)}59%{transform:rotate(-62deg)}80%{transform:rotate(76deg) translateY(8%)}100%{transform:rotate(0deg)}}
+@keyframes pvp21-slash{0%{opacity:0;transform:translate(-50%,-50%) rotate(-95deg) scale(.3)}30%{opacity:1}to{opacity:0;transform:translate(-50%,-50%) rotate(82deg) scale(1.1)}}
+@keyframes pvp21-rune-cut{0%{opacity:0;transform:translate(-50%,-50%) rotate(89deg) scale(.38)}28%{opacity:1}to{opacity:0;transform:translate(-50%,-50%) rotate(-83deg) scale(1.1)}}
+@keyframes pvp21-ground{0%{opacity:0;transform:translate(-50%,-45%) scale(.15)}23%{opacity:1}to{opacity:0;transform:translate(-50%,-45%) scale(1.35)}}
+@keyframes pvp21-ward{0%{opacity:0;transform:translate(-50%,-50%) scale(.52)}23%,70%{opacity:.92}to{opacity:0;transform:translate(-50%,-50%) scale(1.24)}}
+@keyframes pvp21-surge{0%{opacity:0;transform:translate(-50%,-50%) rotate(-45deg) scale(1.4)}55%{opacity:1}to{opacity:0;transform:translate(-50%,-50%) rotate(20deg) scale(.7)}}
+@keyframes pvp21-assault{0%{opacity:0;transform:translate(-50%,-50%) rotate(-70deg) scale(.25)}30%{opacity:.9}to{opacity:0;transform:translate(-50%,-50%) rotate(75deg) scale(1.3)}}
+@keyframes pvp21-finisher{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}24%{opacity:.95}to{opacity:0;transform:translate(-50%,-50%) scale(1.52)}}
+@keyframes pvp21-parry{0%{opacity:0;transform:translate(-50%,-50%) scale(.25)}25%{opacity:1}to{opacity:0;transform:translate(-50%,-50%) scale(1.48)}}
+@keyframes pvp21-fracture{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}30%{opacity:.9}to{opacity:0;transform:translate(-50%,-50%) scale(1.3) rotate(18deg)}}
+/* Safe fallback for reduced motion, including OS preference and in-game setting. */
+#pvp-root.pvp4-reduced .pvp21-burst,#pvp-root.pvp4-reduced .pvp3-rig *,#pvp-root.pvp4-reduced .pvp3-rig{animation:none!important;transition:none!important}
+@media(prefers-reduced-motion:reduce){#pvp-root .pvp21-burst,#pvp-root .pvp3-rig *{animation:none!important;transition:none!important}}
+
+/* Cross arena skill silhouettes: Q cuts quickly, E travels on the floor, R has three visible beats. */
+#pvp-root .pvp10-projectile.pvp10-q{height:12px;width:90px;animation-duration:.45s}
+#pvp-root .pvp10-projectile.pvp10-fire.pvp10-q{border-radius:90% 12% 70% 10%;background:linear-gradient(90deg,transparent,#fff4c2 28%,#ff982f 53%,#d52a19 78%,transparent)}
+#pvp-root .pvp10-projectile.pvp10-rune.pvp10-q{height:24px;width:42px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#ecffff,#4de5ff 43%,#385cda 82%)}
+#pvp-root .pvp10-projectile.pvp10-e{top:73%;height:22px;width:95px;border-radius:50%;animation-duration:.45s}
+#pvp-root .pvp10-projectile.pvp10-fire.pvp10-e{background:linear-gradient(90deg,transparent,#fff1a9,#ff6823 45%,#9b1d16 80%,transparent);clip-path:polygon(0 70%,25% 43%,42% 65%,60% 18%,75% 55%,100% 38%,100% 100%,0 100%)}
+#pvp-root .pvp10-projectile.pvp10-rune.pvp10-e{background:repeating-linear-gradient(90deg,#75eaff 0 12px,#334ec8 12px 21px,#d0ffff 21px 24px);clip-path:polygon(0 60%,20% 38%,40% 61%,60% 24%,80% 54%,100% 32%,100% 100%,0 100%)}
+#pvp-root .pvp10-projectile.pvp10-r{height:32px;animation-duration:.9s}
+#pvp-root .pvp10-projectile.pvp10-fire.pvp10-r{background:linear-gradient(90deg,transparent,#ffdc8b,#ff4725 55%,#9f1621,transparent);clip-path:polygon(0 35%,24% 0,48% 45%,75% 10%,100% 52%,72% 100%,42% 58%,15% 100%)}
+#pvp-root .pvp10-projectile.pvp10-rune.pvp10-r{background:repeating-linear-gradient(90deg,#b7ffff 0 9px,#577af6 9px 17px,#342571 17px 24px);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+#pvp-root.pvp4-reduced .pvp10-projectile{display:none!important}

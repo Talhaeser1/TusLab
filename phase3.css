@@ -1,0 +1,43 @@
+/* FAZ 3 — isolated, compositor-friendly combat layer. */
+#boss-battle .health-track{position:relative;overflow:hidden;isolation:isolate;background:rgba(11,12,35,.76)}
+#boss-battle .health-track #boss-meter-lag,
+#boss-battle .health-track #boss-meter{position:absolute;inset:0 auto 0 0;height:100%;border-radius:inherit}
+#boss-battle .health-track #boss-meter-lag{width:100%;background:linear-gradient(90deg,#f9e4e4,#fff);opacity:.92;transition:width .62s cubic-bezier(.2,.8,.2,1);z-index:1}
+#boss-battle .health-track #boss-meter{z-index:2;transition:width .3s cubic-bezier(.2,.8,.2,1)}
+#boss-battle[data-stage="2"] .boss-art-layer{filter:sepia(.18) saturate(1.48) hue-rotate(-8deg) contrast(1.08)!important}
+#boss-battle[data-stage="3"] .boss-art-layer{filter:sepia(.36) saturate(1.8) hue-rotate(-19deg) contrast(1.18)!important}
+#boss-battle[data-stage="2"] .boss-shade{background:linear-gradient(180deg,transparent,rgba(83,17,51,.48) 46%,rgba(10,6,27,.9))}
+#boss-battle[data-stage="3"] .boss-shade{background:linear-gradient(180deg,rgba(100,10,30,.08),rgba(149,23,32,.35) 45%,rgba(29,5,28,.94))}
+#boss-battle .boss-figure,#boss-battle .boss-art-layer{will-change:transform}
+#boss-battle .boss-flash{z-index:6!important;pointer-events:none!important;background:radial-gradient(ellipse at 49% 46%,rgba(255,255,255,.93) 0%,rgba(255,70,85,.5) 33%,transparent 70%)!important;opacity:0}
+#boss-effect-anchor{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:8}
+.faz3-damage{position:absolute;color:#ffac46;font-size:clamp(22px,1.8vw,35px);font-weight:1000;line-height:1;white-space:nowrap;text-shadow:0 2px 2px #561309,0 0 16px rgba(255,123,23,.72);z-index:12;pointer-events:none;animation:faz3-float .8s ease-out forwards}
+.faz3-damage.faz3-critical{color:#ffdd5d;font-size:clamp(26px,2.2vw,42px);text-shadow:0 0 8px #f63eb7,0 0 22px #ffaf44,0 2px #421133}
+@keyframes faz3-float{0%{opacity:0;transform:translate3d(0,12px,0) scale(.75)}18%{opacity:1;transform:translate3d(0,-5px,0) scale(1.1)}70%{opacity:1}100%{opacity:0;transform:translate3d(0,-55px,0) scale(.93)}}
+.faz3-shield{position:absolute;left:50%;top:53%;width:clamp(90px,11vw,180px);height:clamp(90px,11vw,180px);border:6px solid #7ed9ff;border-radius:50%;box-shadow:0 0 19px #32b3ff,inset 0 0 25px #5bbdff88;z-index:10;pointer-events:none;animation:faz3-shield .45s ease-out forwards}
+@keyframes faz3-shield{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}35%{opacity:.85}100%{opacity:0;transform:translate(-50%,-50%) scale(1.48)}}
+.faz3-stage-banner{position:absolute;z-index:14;left:50%;top:52%;transform:translate(-50%,-50%);padding:14px 24px;border-radius:14px;color:#fff;font-size:clamp(21px,2vw,40px);font-weight:1000;letter-spacing:.08em;white-space:nowrap;background:linear-gradient(110deg,rgba(236,61,89,.94),rgba(137,66,254,.95));border:2px solid rgba(255,214,151,.9);box-shadow:0 0 30px rgba(255,70,102,.68);pointer-events:none;animation:faz3-stage-appear .9s ease-out both}
+@keyframes faz3-stage-appear{0%{opacity:0;transform:translate(-50%,-50%) scale(.55)}25%,65%{opacity:1;transform:translate(-50%,-50%) scale(1.05)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.2)}}
+#target-damage{font-variant-numeric:tabular-nums;color:#fff}
+.faz3-results{text-align:center;color:#f2edff}
+.faz3-result-icon{font-size:62px;color:#ffc46b;text-shadow:0 0 30px rgba(255,128,46,.6)}
+.faz3-results h3{font-size:24px;margin:6px 0 4px;color:#fff}
+.faz3-results p{font-size:14px;color:#c8c9e7;max-width:500px;margin:0 auto 16px}
+.faz3-results.lost .faz3-result-icon{color:#89c7ff}
+.faz3-result-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin:15px 0}
+.faz3-result-grid>div{display:flex;flex-direction:column;gap:5px;align-items:center;justify-content:center;background:rgba(22,30,68,.8);padding:14px 6px;border:1px solid rgba(128,137,255,.3);border-radius:12px}
+.faz3-result-grid b{font-size:21px;color:#fff;font-variant-numeric:tabular-nums}
+.faz3-result-grid small{font-size:11px;color:#c4c7e7}
+.faz3-result-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px}
+.faz3-result-actions .btn{font-size:13px;padding:12px 16px}
+@media(max-width:750px){.faz3-result-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){
+ #boss-battle .health-track #boss-meter-lag,#boss-battle .health-track #boss-meter{transition:none!important}
+ .faz3-damage,.faz3-shield,.faz3-stage-banner{animation:none!important;opacity:0!important}
+}
+.reduced-motion #boss-battle .health-track #boss-meter-lag,
+.reduced-motion #boss-battle .health-track #boss-meter{transition:none!important}
+.reduced-motion .faz3-damage,.reduced-motion .faz3-shield,.reduced-motion .faz3-stage-banner{animation:none!important;opacity:0!important}
+
+.effects-reduced .faz3-stage-banner{animation:none!important;opacity:1!important}
+.effects-reduced .faz3-damage,.effects-reduced .faz3-shield{animation:none!important;opacity:0!important}

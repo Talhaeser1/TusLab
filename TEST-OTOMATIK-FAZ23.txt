@@ -1,0 +1,1082 @@
+
+> tuslab-pvp-production-ready@1.0.0 test
+> node --test tests/*.test.mjs
+
+TAP version 13
+# Subtest: all script and stylesheet refs from index.html exist
+ok 1 - all script and stylesheet refs from index.html exist
+  ---
+  duration_ms: 2.886577
+  type: 'test'
+  ...
+# Subtest: PvP artwork is shipped and the network backend is not falsely bundled
+ok 2 - PvP artwork is shipped and the network backend is not falsely bundled
+  ---
+  duration_ms: 0.754763
+  type: 'test'
+  ...
+# Subtest: phase 2 arena has two isolated sides, four skills, and per-player typing areas
+ok 3 - phase 2 arena has two isolated sides, four skills, and per-player typing areas
+  ---
+  duration_ms: 0.972895
+  type: 'test'
+  ...
+# Subtest: typing preview counts Turkish characters and accurate word streaks
+ok 4 - typing preview counts Turkish characters and accurate word streaks
+  ---
+  duration_ms: 0.89458
+  type: 'test'
+  ...
+# Subtest: incorrect character prevents ready streak and reduces accuracy
+ok 5 - incorrect character prevents ready streak and reduces accuracy
+  ---
+  duration_ms: 0.123382
+  type: 'test'
+  ...
+# Subtest: local preview never grants damage or online connection
+ok 6 - local preview never grants damage or online connection
+  ---
+  duration_ms: 0.281786
+  type: 'test'
+  ...
+# Subtest: typing preview handles zero elapsed without NaN and clamps to target
+ok 7 - typing preview handles zero elapsed without NaN and clamps to target
+  ---
+  duration_ms: 0.251692
+  type: 'test'
+  ...
+# Subtest: all 9 animation states are covered by phases
+ok 8 - all 9 animation states are covered by phases
+  ---
+  duration_ms: 1.041015
+  type: 'test'
+  ...
+# Subtest: Q animation transitions through anticipation, attack, recovery and idle
+ok 9 - Q animation transitions through anticipation, attack, recovery and idle
+  ---
+  duration_ms: 1.454225
+  type: 'test'
+  ...
+# Subtest: queued moves execute in order with maximum of 3 pending
+ok 10 - queued moves execute in order with maximum of 3 pending
+  ---
+  duration_ms: 0.332811
+  type: 'test'
+  ...
+# Subtest: hit interrupt cancels queued attack; defeat persists until idle or new action
+ok 11 - hit interrupt cancels queued attack; defeat persists until idle or new action
+  ---
+  duration_ms: 0.228037
+  type: 'test'
+  ...
+# Subtest: dispose prevents timers and actions; invalid id and action are rejected
+ok 12 - dispose prevents timers and actions; invalid id and action are rejected
+  ---
+  duration_ms: 0.521119
+  type: 'test'
+  ...
+# Subtest: characters use distinct art layers, and ability cards trigger real motion previews
+ok 13 - characters use distinct art layers, and ability cards trigger real motion previews
+  ---
+  duration_ms: 0.548729
+  type: 'test'
+  ...
+# Subtest: phase21: independent choreography profiles and strict argument validation
+ok 14 - phase21: independent choreography profiles and strict argument validation
+  ---
+  duration_ms: 2.127808
+  type: 'test'
+  ...
+# Subtest: phase21: Q choreography sets motion and self-cleans effects
+ok 15 - phase21: Q choreography sets motion and self-cleans effects
+  ---
+  duration_ms: 0.921559
+  type: 'test'
+  ...
+# Subtest: phase21: 52ms hit stop never freezes typing UI or lingers
+ok 16 - phase21: 52ms hit stop never freezes typing UI or lingers
+  ---
+  duration_ms: 0.370036
+  type: 'test'
+  ...
+# Subtest: phase21: 3 distinct server ult phases have effects and cleanup
+ok 17 - phase21: 3 distinct server ult phases have effects and cleanup
+  ---
+  duration_ms: 0.429453
+  type: 'test'
+  ...
+# Subtest: phase21: parry, shield break and perfect block triggers are cosmetic only
+ok 18 - phase21: parry, shield break and perfect block triggers are cosmetic only
+  ---
+  duration_ms: 0.408082
+  type: 'test'
+  ...
+# Subtest: phase21: overload bounded and no delayed animations after dispose/reduced
+ok 19 - phase21: overload bounded and no delayed animations after dispose/reduced
+  ---
+  duration_ms: 0.315605
+  type: 'test'
+  ...
+# Subtest: phase21: integration keeps keyboard and server-owned damage separate
+ok 20 - phase21: integration keeps keyboard and server-owned damage separate
+  ---
+  duration_ms: 0.676127
+  type: 'test'
+  ...
+# Subtest: room ids, origin checks and invitation URL
+ok 21 - room ids, origin checks and invitation URL
+  ---
+  duration_ms: 8.648634
+  type: 'test'
+  ...
+# Subtest: HTTP endpoints handle health, room creation, status and malformed IDs
+ok 22 - HTTP endpoints handle health, room creation, status and malformed IDs
+  ---
+  duration_ms: 4.295224
+  type: 'test'
+  ...
+# Subtest: two authenticated players join with names and separate seats
+ok 23 - two authenticated players join with names and separate seats
+  ---
+  duration_ms: 12.980162
+  type: 'test'
+  ...
+# Subtest: third player cannot join, including after temporary disconnect inside grace
+ok 24 - third player cannot join, including after temporary disconnect inside grace
+  ---
+  duration_ms: 4.477202
+  type: 'test'
+  ...
+# Subtest: both players must be ready before countdown and can cancel it
+ok 25 - both players must be ready before countdown and can cancel it
+  ---
+  duration_ms: 4.678049
+  type: 'test'
+  ...
+# Subtest: countdown alarm produces authoritative initial match with fixed HP
+ok 26 - countdown alarm produces authoritative initial match with fixed HP
+  ---
+  duration_ms: 4.258941
+  type: 'test'
+  ...
+# Subtest: a player can select a new character but it clears ready status
+ok 27 - a player can select a new character but it clears ready status
+  ---
+  duration_ms: 3.667608
+  type: 'test'
+  ...
+# Subtest: resume token reclaims same seat after reload, without exposing token to peer
+ok 28 - resume token reclaims same seat after reload, without exposing token to peer
+  ---
+  duration_ms: 2.200555
+  type: 'test'
+  ...
+# Subtest: intentional leave frees a seat for the next friend
+ok 29 - intentional leave frees a seat for the next friend
+  ---
+  duration_ms: 2.483422
+  type: 'test'
+  ...
+# Subtest: invalid envelope, rate limits and untrusted damage are rejected
+ok 30 - invalid envelope, rate limits and untrusted damage are rejected
+  ---
+  duration_ms: 3.34993
+  type: 'test'
+  ...
+# Subtest: WebSocket must JOIN before setting ready or accessing other player data
+ok 31 - WebSocket must JOIN before setting ready or accessing other player data
+  ---
+  duration_ms: 0.616539
+  type: 'test'
+  ...
+# Subtest: alarm removes fully empty rooms and retains active room state
+ok 32 - alarm removes fully empty rooms and retains active room state
+  ---
+  duration_ms: 5.848345
+  type: 'test'
+  ...
+# Subtest: parallel JOIN messages are serialized and cannot steal the same seat
+ok 33 - parallel JOIN messages are serialized and cannot steal the same seat
+  ---
+  duration_ms: 7.085339
+  type: 'test'
+  ...
+# Subtest: 2 words cast Q, no damage before 250ms, then exactly one server damage
+ok 34 - 2 words cast Q, no damage before 250ms, then exactly one server damage
+  ---
+  duration_ms: 3.65482
+  type: 'test'
+  ...
+# Subtest: Q/E/R spells are auto-cast once at each cycle threshold with character-specific damage
+ok 35 - Q/E/R spells are auto-cast once at each cycle threshold with character-specific damage
+  ---
+  duration_ms: 1.263834
+  type: 'test'
+  ...
+# Subtest: cooldown suppresses a skill if typing faster than cooldown
+ok 36 - cooldown suppresses a skill if typing faster than cooldown
+  ---
+  duration_ms: 1.051451
+  type: 'test'
+  ...
+# Subtest: perfect block if defender writes within ±250ms and RNG passes; HP is unchanged
+ok 37 - perfect block if defender writes within ±250ms and RNG passes; HP is unchanged
+  ---
+  duration_ms: 0.368534
+  type: 'test'
+  ...
+# Subtest: same typing window with unsuccessful chance deals damage; no shield
+ok 38 - same typing window with unsuccessful chance deals damage; no shield
+  ---
+  duration_ms: 0.313743
+  type: 'test'
+  ...
+# Subtest: nearby word outside window or wrong answer never grants reactive shield
+ok 39 - nearby word outside window or wrong answer never grants reactive shield
+  ---
+  duration_ms: 0.35928
+  type: 'test'
+  ...
+# Subtest: shield holds for shortly following projectile but not indefinitely
+ok 40 - shield holds for shortly following projectile but not indefinitely
+  ---
+  duration_ms: 0.395052
+  type: 'test'
+  ...
+# Subtest: attack at 0 HP ends match and clears queued attacks, cannot score after KO
+ok 41 - attack at 0 HP ends match and clears queued attacks, cannot score after KO
+  ---
+  duration_ms: 0.216829
+  type: 'test'
+  ...
+# Subtest: invalid/replayed words and forged skills cannot modify match state
+ok 42 - invalid/replayed words and forged skills cannot modify match state
+  ---
+  duration_ms: 0.501609
+  type: 'test'
+  ...
+# Subtest: server chamber alarm resolves persistent attack and broadcasts HP to both sockets
+ok 43 - server chamber alarm resolves persistent attack and broadcasts HP to both sockets
+  ---
+  duration_ms: 67.612768
+  type: 'test'
+  ...
+# Subtest: perfect block window is 150ms; one correct defensive word prevents Q damage
+ok 44 - perfect block window is 150ms; one correct defensive word prevents Q damage
+  ---
+  duration_ms: 3.796068
+  type: 'test'
+  ...
+# Subtest: normal reactive block uses 250ms window and increments only normal blocks
+ok 45 - normal reactive block uses 250ms window and increments only normal blocks
+  ---
+  duration_ms: 0.627805
+  type: 'test'
+  ...
+# Subtest: parry requires precise timing AND both successful server random draws
+ok 46 - parry requires precise timing AND both successful server random draws
+  ---
+  duration_ms: 0.996609
+  type: 'test'
+  ...
+# Subtest: parry roll fails => perfect block only, never grants free counterstrike
+ok 47 - parry roll fails => perfect block only, never grants free counterstrike
+  ---
+  duration_ms: 0.722125
+  type: 'test'
+  ...
+# Subtest: parry cannot be repeated while S cooldown is active
+ok 48 - parry cannot be repeated while S cooldown is active
+  ---
+  duration_ms: 0.826809
+  type: 'test'
+  ...
+# Subtest: E breaks existing ordinary shield and deals 40% damage then expires the ward
+ok 49 - E breaks existing ordinary shield and deals 40% damage then expires the ward
+  ---
+  duration_ms: 0.342945
+  type: 'test'
+  ...
+# Subtest: R shatters guard with 70% penetration; a perfect block still saves its defender
+ok 50 - R shatters guard with 70% penetration; a perfect block still saves its defender
+  ---
+  duration_ms: 0.45474
+  type: 'test'
+  ...
+# Subtest: counter damage can KO but cannot trigger a counter-on-counter loop
+ok 51 - counter damage can KO but cannot trigger a counter-on-counter loop
+  ---
+  duration_ms: 0.286052
+  type: 'test'
+  ...
+# Subtest: pause/resume shifts pending counter, cooldown, and parry stun without time loss
+ok 52 - pause/resume shifts pending counter, cooldown, and parry stun without time loss
+  ---
+  duration_ms: 1.744833
+  type: 'test'
+  ...
+# Subtest: browser cannot forge perfect block, parry, counterattack or shield break events
+ok 53 - browser cannot forge perfect block, parry, counterattack or shield break events
+  ---
+  duration_ms: 0.749986
+  type: 'test'
+  ...
+# Subtest: phase20: local, staging and production configs preserve three SQLite class migrations
+ok 54 - phase20: local, staging and production configs preserve three SQLite class migrations
+  ---
+  duration_ms: 4.522238
+  type: 'test'
+  ...
+# Subtest: phase20: public build includes frontend and excludes server entrypoint
+ok 55 - phase20: public build includes frontend and excludes server entrypoint
+  ---
+  duration_ms: 3.780375
+  type: 'test'
+  ...
+# Subtest: phase20: protocol/health and same-origin rejection are enforced in the worker
+ok 56 - phase20: protocol/health and same-origin rejection are enforced in the worker
+  ---
+  duration_ms: 21.447749
+  type: 'test'
+  ...
+# Subtest: phase20: invitation link retains deployment host and uses HTTPS
+ok 57 - phase20: invitation link retains deployment host and uses HTTPS
+  ---
+  duration_ms: 0.350317
+  type: 'test'
+  ...
+# Subtest: each attack includes visual cues with timestamps within timeline, and ultimate has >= 3 distinct hits
+ok 58 - each attack includes visual cues with timestamps within timeline, and ultimate has >= 3 distinct hits
+  ---
+  duration_ms: 2.86859
+  type: 'test'
+  ...
+# Subtest: Q cue order follows anticipation/attack/impact/recovery
+ok 59 - Q cue order follows anticipation/attack/impact/recovery
+  ---
+  duration_ms: 0.572925
+  type: 'test'
+  ...
+# Subtest: interruption cancels delayed attack cues before they fire
+ok 60 - interruption cancels delayed attack cues before they fire
+  ---
+  duration_ms: 0.505916
+  type: 'test'
+  ...
+# Subtest: queued Q E R cues start only after preceding motion ends
+ok 61 - queued Q E R cues start only after preceding motion ends
+  ---
+  duration_ms: 0.346661
+  type: 'test'
+  ...
+# Subtest: VFX bounds never exceed six effects; bad values rejected
+ok 62 - VFX bounds never exceed six effects; bad values rejected
+  ---
+  duration_ms: 0.569049
+  type: 'test'
+  ...
+# Subtest: new FX is independent of multiplayer, HP and existing single-player engine
+ok 63 - new FX is independent of multiplayer, HP and existing single-player engine
+  ---
+  duration_ms: 1.262061
+  type: 'test'
+  ...
+# Subtest: initial match has independent, server-owned stats and a monotonic identity
+ok 64 - initial match has independent, server-owned stats and a monotonic identity
+  ---
+  duration_ms: 2.316456
+  type: 'test'
+  ...
+# Subtest: invalid players and duplicate seats cannot start
+ok 65 - invalid players and duplicate seats cannot start
+  ---
+  duration_ms: 2.181297
+  type: 'test'
+  ...
+# Subtest: client snapshots are detached copies and cannot change authority
+ok 66 - client snapshots are detached copies and cannot change authority
+  ---
+  duration_ms: 0.439968
+  type: 'test'
+  ...
+# Subtest: match timeout is idempotent and a tie is explicit
+ok 67 - match timeout is idempotent and a tie is explicit
+  ---
+  duration_ms: 0.334944
+  type: 'test'
+  ...
+# Subtest: time limit adjudicates based on server HP rather than client claims
+ok 68 - time limit adjudicates based on server HP rather than client claims
+  ---
+  duration_ms: 0.301304
+  type: 'test'
+  ...
+# Subtest: all gameplay result events are server-only
+ok 69 - all gameplay result events are server-only
+  ---
+  duration_ms: 0.158043
+  type: 'test'
+  ...
+# Subtest: two players receive same match id; duplicate alarm never creates a second match
+ok 70 - two players receive same match id; duplicate alarm never creates a second match
+  ---
+  duration_ms: 2.118074
+  type: 'test'
+  ...
+# Subtest: state requests are identical for two clients and idempotent
+ok 71 - state requests are identical for two clients and idempotent
+  ---
+  duration_ms: 1.232577
+  type: 'test'
+  ...
+# Subtest: injected damage, match result and skills cannot alter HP
+ok 72 - injected damage, match result and skills cannot alter HP
+  ---
+  duration_ms: 0.755414
+  type: 'test'
+  ...
+# Subtest: both players receive terminal snapshot exactly once at expiration
+ok 73 - both players receive terminal snapshot exactly once at expiration
+  ---
+  duration_ms: 2.410785
+  type: 'test'
+  ...
+# Subtest: hibernation constructor restores snapshots from storage
+ok 74 - hibernation constructor restores snapshots from storage
+  ---
+  duration_ms: 0.541859
+  type: 'test'
+  ...
+# Subtest: 6 original PCM tracks are 8s at 24kHz, valid and distinct
+ok 75 - 6 original PCM tracks are 8s at 24kHz, valid and distinct
+  ---
+  duration_ms: 3.508365
+  type: 'test'
+  ...
+# Subtest: autoplay disabled before unlock, levels persisted, invalid scenes rejected
+ok 76 - autoplay disabled before unlock, levels persisted, invalid scenes rejected
+  ---
+  duration_ms: 1.11935
+  type: 'test'
+  ...
+# Subtest: music remains optional if AudioContext unavailable; no server commands
+ok 77 - music remains optional if AudioContext unavailable; no server commands
+  ---
+  duration_ms: 0.449232
+  type: 'test'
+  ...
+# Subtest: 30/100/200 ms RTT NTP-style clock synchronization gives correct unbiased time
+ok 78 - 30/100/200 ms RTT NTP-style clock synchronization gives correct unbiased time
+  ---
+  duration_ms: 1.345845
+  type: 'test'
+  ...
+# Subtest: clock sync selects lowest RTT packets amid queueing and rejects invalid probe replies
+ok 79 - clock sync selects lowest RTT packets amid queueing and rejects invalid probe replies
+  ---
+  duration_ms: 0.181808
+  type: 'test'
+  ...
+# Subtest: never accept stale snapshots and detect missing sequence numbers
+ok 80 - never accept stale snapshots and detect missing sequence numbers
+  ---
+  duration_ms: 0.79342
+  type: 'test'
+  ...
+# Subtest: network emulation 30ms RTT / 1% application-message loss converges on server HP
+ok 81 - network emulation 30ms RTT / 1% application-message loss converges on server HP
+  ---
+  duration_ms: 3.158968
+  type: 'test'
+  ...
+# Subtest: network emulation 30ms RTT / 5% application-message loss converges on server HP
+ok 82 - network emulation 30ms RTT / 5% application-message loss converges on server HP
+  ---
+  duration_ms: 0.169981
+  type: 'test'
+  ...
+# Subtest: network emulation 30ms RTT / 10% application-message loss converges on server HP
+ok 83 - network emulation 30ms RTT / 10% application-message loss converges on server HP
+  ---
+  duration_ms: 0.194337
+  type: 'test'
+  ...
+# Subtest: network emulation 100ms RTT / 1% application-message loss converges on server HP
+ok 84 - network emulation 100ms RTT / 1% application-message loss converges on server HP
+  ---
+  duration_ms: 0.133837
+  type: 'test'
+  ...
+# Subtest: network emulation 100ms RTT / 5% application-message loss converges on server HP
+ok 85 - network emulation 100ms RTT / 5% application-message loss converges on server HP
+  ---
+  duration_ms: 0.126347
+  type: 'test'
+  ...
+# Subtest: network emulation 100ms RTT / 10% application-message loss converges on server HP
+ok 86 - network emulation 100ms RTT / 10% application-message loss converges on server HP
+  ---
+  duration_ms: 1.940262
+  type: 'test'
+  ...
+# Subtest: network emulation 200ms RTT / 1% application-message loss converges on server HP
+ok 87 - network emulation 200ms RTT / 1% application-message loss converges on server HP
+  ---
+  duration_ms: 1.420835
+  type: 'test'
+  ...
+# Subtest: network emulation 200ms RTT / 5% application-message loss converges on server HP
+ok 88 - network emulation 200ms RTT / 5% application-message loss converges on server HP
+  ---
+  duration_ms: 0.371638
+  type: 'test'
+  ...
+# Subtest: network emulation 200ms RTT / 10% application-message loss converges on server HP
+ok 89 - network emulation 200ms RTT / 10% application-message loss converges on server HP
+  ---
+  duration_ms: 0.137503
+  type: 'test'
+  ...
+# Subtest: server ping replies with server-side receive and send timestamps and throttles abusive probes
+ok 90 - server ping replies with server-side receive and send timestamps and throttles abusive probes
+  ---
+  duration_ms: 1.193961
+  type: 'test'
+  ...
+# Subtest: phase 19 DOM setters perform no writes on identical values
+ok 91 - phase 19 DOM setters perform no writes on identical values
+  ---
+  duration_ms: 2.202728
+  type: 'test'
+  ...
+# Subtest: phase 19 projectile spam caps combined transients and clears timers
+ok 92 - phase 19 projectile spam caps combined transients and clears timers
+  ---
+  duration_ms: 5.530836
+  type: 'test'
+  ...
+# Subtest: phase 19 VFX burst cap on both particles and transient effects
+ok 93 - phase 19 VFX burst cap on both particles and transient effects
+  ---
+  duration_ms: 1.401357
+  type: 'test'
+  ...
+# Subtest: phase 19 reduced motion removes active effects and allocates only compact flashes
+ok 94 - phase 19 reduced motion removes active effects and allocates only compact flashes
+  ---
+  duration_ms: 0.367402
+  type: 'test'
+  ...
+# Subtest: phase 19 scope: no combat values edited, static publication references performance files
+ok 95 - phase 19 scope: no combat values edited, static publication references performance files
+  ---
+  duration_ms: 0.980916
+  type: 'test'
+  ...
+# Subtest: phase 19 PvP entry initializes phase-15 timers before first show
+ok 96 - phase 19 PvP entry initializes phase-15 timers before first show
+  ---
+  duration_ms: 0.878555
+  type: 'test'
+  ...
+# Subtest: guest profile and public board persist, have no duplicate awards
+ok 97 - guest profile and public board persist, have no duplicate awards
+  ---
+  duration_ms: 26.151224
+  type: 'test'
+  ...
+# Subtest: completed match updates weekly aggregate even with >20 total matches
+ok 98 - completed match updates weekly aggregate even with >20 total matches
+  ---
+  duration_ms: 1.13951
+  type: 'test'
+  ...
+# Subtest: cancelled games do not increase match or win totals
+ok 99 - cancelled games do not increase match or win totals
+  ---
+  duration_ms: 0.177582
+  type: 'test'
+  ...
+# Subtest: Elo accounts for draw, victory, defeat but casual rooms never count as ranked
+ok 100 - Elo accounts for draw, victory, defeat but casual rooms never count as ranked
+  ---
+  duration_ms: 0.116262
+  type: 'test'
+  ...
+# Subtest: profile UI safely escapes server display names and exposes working controls
+ok 101 - profile UI safely escapes server display names and exposes working controls
+  ---
+  duration_ms: 12.401008
+  type: 'test'
+  ...
+# Subtest: public API never provides a score-write route or accepts guest secret in URL
+ok 102 - public API never provides a score-write route or accepts guest secret in URL
+  ---
+  duration_ms: 10.952341
+  type: 'test'
+  ...
+# Subtest: server room result sends trusted unranked result once to global profiles DO
+ok 103 - server room result sends trusted unranked result once to global profiles DO
+  ---
+  duration_ms: 4.810484
+  type: 'test'
+  ...
+# Subtest: duplicate guest identity within one match rejected
+ok 104 - duplicate guest identity within one match rejected
+  ---
+  duration_ms: 1.179449
+  type: 'test'
+  ...
+# Subtest: server projectiles stay cosmetic, have bounded active count and remove stale elements
+ok 105 - server projectiles stay cosmetic, have bounded active count and remove stale elements
+  ---
+  duration_ms: 1.196755
+  type: 'test'
+  ...
+# Subtest: reduced-motion honors user setting and does not allocate projectile DOM
+ok 106 - reduced-motion honors user setting and does not allocate projectile DOM
+  ---
+  duration_ms: 0.227055
+  type: 'test'
+  ...
+# Subtest: pause/resume freezes match clock, cooldown, attack deadlines, and WPM origin
+ok 107 - pause/resume freezes match clock, cooldown, attack deadlines, and WPM origin
+  ---
+  duration_ms: 2.106917
+  type: 'test'
+  ...
+# Subtest: one dropped websocket pauses authoritative match and preserves combat state
+ok 108 - one dropped websocket pauses authoritative match and preserves combat state
+  ---
+  duration_ms: 15.736297
+  type: 'test'
+  ...
+# Subtest: resuming on the same verified token restores seat and preserved HP/word index, even after hibernation
+ok 109 - resuming on the same verified token restores seat and preserved HP/word index, even after hibernation
+  ---
+  duration_ms: 8.555808
+  type: 'test'
+  ...
+# Subtest: word requests cannot mutate a paused duel and fake resume events are server-only
+ok 110 - word requests cannot mutate a paused duel and fake resume events are server-only
+  ---
+  duration_ms: 4.861719
+  type: 'test'
+  ...
+# Subtest: only one player offline at deadline -> forfeit awarded once to connected opponent
+ok 111 - only one player offline at deadline -> forfeit awarded once to connected opponent
+  ---
+  duration_ms: 4.317777
+  type: 'test'
+  ...
+# Subtest: both players disconnect -> cancellation instead of a free win
+ok 112 - both players disconnect -> cancellation instead of a free win
+  ---
+  duration_ms: 3.8789
+  type: 'test'
+  ...
+# Subtest: explicit leave during active duel is immediate surrender
+ok 113 - explicit leave during active duel is immediate surrender
+  ---
+  duration_ms: 9.748196
+  type: 'test'
+  ...
+# Subtest: duplicate close notifications do not restart the grace deadline
+ok 114 - duplicate close notifications do not restart the grace deadline
+  ---
+  duration_ms: 2.059718
+  type: 'test'
+  ...
+# Subtest: server-only scoreboard counts three Q/E/R skill casts, damage, accurate WPM and length
+ok 115 - server-only scoreboard counts three Q/E/R skill casts, damage, accurate WPM and length
+  ---
+  duration_ms: 4.981876
+  type: 'test'
+  ...
+# Subtest: equal HP on time produces draw; surrender handles running and paused only
+ok 116 - equal HP on time produces draw; surrender handles running and paused only
+  ---
+  duration_ms: 0.737287
+  type: 'test'
+  ...
+# Subtest: HTML scorecard escapes server-sourced player name and never exposes injected markup
+ok 117 - HTML scorecard escapes server-sourced player name and never exposes injected markup
+  ---
+  duration_ms: 18.567121
+  type: 'test'
+  ...
+# Subtest: surrender yields one authoritative MATCH_END and one archived result; no repeat awards
+ok 118 - surrender yields one authoritative MATCH_END and one archived result; no repeat awards
+  ---
+  duration_ms: 17.853959
+  type: 'test'
+  ...
+# Subtest: rematch takes two approvals and generates fresh match id, full HP and cleared stats
+ok 119 - rematch takes two approvals and generates fresh match id, full HP and cleared stats
+  ---
+  duration_ms: 6.759639
+  type: 'test'
+  ...
+# Subtest: rematch cancellation prevents unexpected new match
+ok 120 - rematch cancellation prevents unexpected new match
+  ---
+  duration_ms: 3.801817
+  type: 'test'
+  ...
+# Subtest: cannot start a new match via forged MATCH_START, MATCH_END, or from an unauthenticated seat
+ok 121 - cannot start a new match via forged MATCH_START, MATCH_END, or from an unauthenticated seat
+  ---
+  duration_ms: 3.968762
+  type: 'test'
+  ...
+# Subtest: rune catalog validated and never accepts injected enum
+ok 122 - rune catalog validated and never accepts injected enum
+  ---
+  duration_ms: 2.034089
+  type: 'test'
+  ...
+# Subtest: legacy match has no rune perks
+ok 123 - legacy match has no rune perks
+  ---
+  duration_ms: 2.989439
+  type: 'test'
+  ...
+# Subtest: fire ember rune adds 8 to Q; bonus is not supplied by client
+ok 124 - fire ember rune adds 8 to Q; bonus is not supplied by client
+  ---
+  duration_ms: 1.520822
+  type: 'test'
+  ...
+# Subtest: fire passive requires 3 correct words and is bounded
+ok 125 - fire passive requires 3 correct words and is bounded
+  ---
+  duration_ms: 0.706802
+  type: 'test'
+  ...
+# Subtest: rune energy stacks only on correct words and resets on mistakes
+ok 126 - rune energy stacks only on correct words and resets on mistakes
+  ---
+  duration_ms: 0.75286
+  type: 'test'
+  ...
+# Subtest: R rune bonus applies once across three hits
+ok 127 - R rune bonus applies once across three hits
+  ---
+  duration_ms: 1.249243
+  type: 'test'
+  ...
+# Subtest: last-stand one use reduces a hit under 30% HP
+ok 128 - last-stand one use reduces a hit under 30% HP
+  ---
+  duration_ms: 1.157307
+  type: 'test'
+  ...
+# Subtest: guard rate counts atomically, per route, and retains state across actor instances
+ok 129 - guard rate counts atomically, per route, and retains state across actor instances
+  ---
+  duration_ms: 23.601506
+  type: 'test'
+  ...
+# Subtest: edge room creation restricts one network client, while other client can create
+ok 130 - edge room creation restricts one network client, while other client can create
+  ---
+  duration_ms: 15.955879
+  type: 'test'
+  ...
+# Subtest: edge limiter fails safely when bound security service is unavailable
+ok 131 - edge limiter fails safely when bound security service is unavailable
+  ---
+  duration_ms: 1.139851
+  type: 'test'
+  ...
+# Subtest: JSON reader limits bytes even when Content-Length is absent
+ok 132 - JSON reader limits bytes even when Content-Length is absent
+  ---
+  duration_ms: 2.084374
+  type: 'test'
+  ...
+# Subtest: JSON body parser distinguishes invalid syntax from oversized payload
+ok 133 - JSON body parser distinguishes invalid syntax from oversized payload
+  ---
+  duration_ms: 1.142365
+  type: 'test'
+  ...
+# Subtest: cross-origin socket handshake cannot access rooms
+ok 134 - cross-origin socket handshake cannot access rooms
+  ---
+  duration_ms: 0.37268
+  type: 'test'
+  ...
+# Subtest: 1000+ WPM burst is rejected using server time and state remains unchanged
+ok 135 - 1000+ WPM burst is rejected using server time and state remains unchanged
+  ---
+  duration_ms: 0.989869
+  type: 'test'
+  ...
+# Subtest: bulk invalid ping frames are throttled even before JOIN
+ok 136 - bulk invalid ping frames are throttled even before JOIN
+  ---
+  duration_ms: 1.291084
+  type: 'test'
+  ...
+# Subtest: invalid JSON spam has the same raw frame cap as valid envelopes
+ok 137 - invalid JSON spam has the same raw frame cap as valid envelopes
+  ---
+  duration_ms: 1.28774
+  type: 'test'
+  ...
+# Subtest: fake HP/skill/terminal event packets are never accepted from clients
+ok 138 - fake HP/skill/terminal event packets are never accepted from clients
+  ---
+  duration_ms: 0.651731
+  type: 'test'
+  ...
+# Subtest: new guest gets unique friend code and empty social lists
+ok 139 - new guest gets unique friend code and empty social lists
+  ---
+  duration_ms: 33.194862
+  type: 'test'
+  ...
+# Subtest: friend request -> accept is symmetric and does not trust display names
+ok 140 - friend request -> accept is symmetric and does not trust display names
+  ---
+  duration_ms: 11.369877
+  type: 'test'
+  ...
+# Subtest: reject/cancel/remove are symmetric; strangers cannot accept
+ok 141 - reject/cancel/remove are symmetric; strangers cannot accept
+  ---
+  duration_ms: 15.519222
+  type: 'test'
+  ...
+# Subtest: blocking deletes pending and friends and prevents further contacts
+ok 142 - blocking deletes pending and friends and prevents further contacts
+  ---
+  duration_ms: 10.973708
+  type: 'test'
+  ...
+# Subtest: no self-friending, invalid identities or unrestricted request flood
+ok 143 - no self-friending, invalid identities or unrestricted request flood
+  ---
+  duration_ms: 15.382244
+  type: 'test'
+  ...
+# Subtest: invite from a real room member only, to accepted friend, with dismissal
+ok 144 - invite from a real room member only, to accepted friend, with dismissal
+  ---
+  duration_ms: 16.168263
+  type: 'test'
+  ...
+# Subtest: social view escapes untrusted player and invite names
+ok 145 - social view escapes untrusted player and invite names
+  ---
+  duration_ms: 0.41322
+  type: 'test'
+  ...
+# Subtest: pure social state refuses blocked users, self code is not a secret
+ok 146 - pure social state refuses blocked users, self code is not a secret
+  ---
+  duration_ms: 0.130372
+  type: 'test'
+  ...
+# Subtest: room owner authorization: non-host cannot kick or close; host can kick
+ok 147 - room owner authorization: non-host cannot kick or close; host can kick
+  ---
+  duration_ms: 0.88798
+  type: 'test'
+  ...
+# Subtest: verify-inviter denies unknown or offline guests
+ok 148 - verify-inviter denies unknown or offline guests
+  ---
+  duration_ms: 0.693042
+  type: 'test'
+  ...
+# Subtest: 17 original stereo PCM assets are present, well-formed and include fire/rune ultimates
+ok 149 - 17 original stereo PCM assets are present, well-formed and include fire/rune ultimates
+  ---
+  duration_ms: 2.494098
+  type: 'test'
+  ...
+# Subtest: two fighters have different Q/E/R sounds and shield is shared
+ok 150 - two fighters have different Q/E/R sounds and shield is shared
+  ---
+  duration_ms: 0.19659
+  type: 'test'
+  ...
+# Subtest: muting, level, WebAudio unlocking, stereo pan and voice limit are enforced
+ok 151 - muting, level, WebAudio unlocking, stereo pan and voice limit are enforced
+  ---
+  duration_ms: 1.473933
+  type: 'test'
+  ...
+# Subtest: sound engine is optional and does not require AudioContext or fetch
+ok 152 - sound engine is optional and does not require AudioContext or fetch
+  ---
+  duration_ms: 0.146426
+  type: 'test'
+  ...
+# Subtest: sound event integration is cosmetic and never sends damage
+ok 153 - sound event integration is cosmetic and never sends damage
+  ---
+  duration_ms: 0.612112
+  type: 'test'
+  ...
+# Subtest: initial state is offline without fictitious room, opponent or match
+ok 154 - initial state is offline without fictitious room, opponent or match
+  ---
+  duration_ms: 0.959435
+  type: 'test'
+  ...
+# Subtest: opening / closing PvP preserves room and single-player separation
+ok 155 - opening / closing PvP preserves room and single-player separation
+  ---
+  duration_ms: 1.654941
+  type: 'test'
+  ...
+# Subtest: store notifies subscribers only when state actually changes
+ok 156 - store notifies subscribers only when state actually changes
+  ---
+  duration_ms: 0.355514
+  type: 'test'
+  ...
+# Subtest: invalid network messages are rejected at contract boundary
+ok 157 - invalid network messages are rejected at contract boundary
+  ---
+  duration_ms: 1.159099
+  type: 'test'
+  ...
+# Subtest: both fighters have same five-word cycle damage budget of 585
+ok 158 - both fighters have same five-word cycle damage budget of 585
+  ---
+  duration_ms: 1.50508
+  type: 'test'
+  ...
+# Subtest: fire R delivers 3 distinct server-authorized hits totaling 305 and is not replayed
+ok 159 - fire R delivers 3 distinct server-authorized hits totaling 305 and is not replayed
+  ---
+  duration_ms: 2.554567
+  type: 'test'
+  ...
+# Subtest: rune ultimate has distinct rune/shockwave/finisher beats, equal total damage
+ok 160 - rune ultimate has distinct rune/shockwave/finisher beats, equal total damage
+  ---
+  duration_ms: 1.159259
+  type: 'test'
+  ...
+# Subtest: ultimate phase alarms each resolve only once when reaching server clock
+ok 161 - ultimate phase alarms each resolve only once when reaching server clock
+  ---
+  duration_ms: 0.95553
+  type: 'test'
+  ...
+# Subtest: ultimate blocked once is blocked on all three hits, without additional RNG rolls
+ok 162 - ultimate blocked once is blocked on all three hits, without additional RNG rolls
+  ---
+  duration_ms: 1.700748
+  type: 'test'
+  ...
+# Subtest: shield break ultimate: penetration applies to all phases, one break event
+ok 163 - shield break ultimate: penetration applies to all phases, one break event
+  ---
+  duration_ms: 0.756216
+  type: 'test'
+  ...
+# Subtest: KO on ultimate phase 1 clears remaining two hits
+ok 164 - KO on ultimate phase 1 clears remaining two hits
+  ---
+  duration_ms: 0.634625
+  type: 'test'
+  ...
+# Subtest: pause/resume shifts pending ultimate due time without free damage
+ok 165 - pause/resume shifts pending ultimate due time without free damage
+  ---
+  duration_ms: 0.751828
+  type: 'test'
+  ...
+# Subtest: wrong word resets combo and does not issue an extra ultimate
+ok 166 - wrong word resets combo and does not issue an extra ultimate
+  ---
+  duration_ms: 0.507338
+  type: 'test'
+  ...
+# Subtest: client-side character cue schedules align with three server impact times
+ok 167 - client-side character cue schedules align with three server impact times
+  ---
+  duration_ms: 0.345019
+  type: 'test'
+  ...
+# Subtest: expected first word and text belong to each seat, no token leaked
+ok 168 - expected first word and text belong to each seat, no token leaked
+  ---
+  duration_ms: 1.420465
+  type: 'test'
+  ...
+# Subtest: valid first word increments only sender combo, charge and sequence, never HP
+ok 169 - valid first word increments only sender combo, charge and sequence, never HP
+  ---
+  duration_ms: 0.558274
+  type: 'test'
+  ...
+# Subtest: wrong word is accepted as an attempt, breaks combo, penalizes accuracy
+ok 170 - wrong word is accepted as an attempt, breaks combo, penalizes accuracy
+  ---
+  duration_ms: 0.351868
+  type: 'test'
+  ...
+# Subtest: consecutive 2/4/5 correct words auto-cast Q/E/R and restart charge after R
+ok 171 - consecutive 2/4/5 correct words auto-cast Q/E/R and restart charge after R
+  ---
+  duration_ms: 1.219519
+  type: 'test'
+  ...
+# Subtest: rounds change active phrase automatically after sentence ends
+ok 172 - rounds change active phrase automatically after sentence ends
+  ---
+  duration_ms: 1.197966
+  type: 'test'
+  ...
+# Subtest: Unicode NFC accepts composition-equivalent Turkish word, not case-insensitive
+ok 173 - Unicode NFC accepts composition-equivalent Turkish word, not case-insensitive
+  ---
+  duration_ms: 0.253344
+  type: 'test'
+  ...
+# Subtest: replayed index, wrong identity, huge value and invalid match cannot mutate
+ok 174 - replayed index, wrong identity, huge value and invalid match cannot mutate
+  ---
+  duration_ms: 0.249709
+  type: 'test'
+  ...
+# Subtest: expired match rejects even the correct word
+ok 175 - expired match rejects even the correct word
+  ---
+  duration_ms: 0.188337
+  type: 'test'
+  ...
+# Subtest: two players can submit at same time without changing each other scores
+ok 176 - two players can submit at same time without changing each other scores
+  ---
+  duration_ms: 0.37294
+  type: 'test'
+  ...
+# Subtest: server broadcasts accepted words to both clients, never accepts fake HP, ignores spoofed playerId
+ok 177 - server broadcasts accepted words to both clients, never accepts fake HP, ignores spoofed playerId
+  ---
+  duration_ms: 3.395848
+  type: 'test'
+  ...
+# Subtest: parallel WebSocket submissions serialized and single match sequence
+ok 178 - parallel WebSocket submissions serialized and single match sequence
+  ---
+  duration_ms: 0.925064
+  type: 'test'
+  ...
+1..178
+# tests 178
+# suites 0
+# pass 178
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 744.327324

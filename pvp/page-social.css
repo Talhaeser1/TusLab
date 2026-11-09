@@ -1,0 +1,582 @@
+/* TuşLab Neon Arena — P11 sayfa düzeni katmanı.
+   Kapsam: Profil / Sıralama (phase16-ui) ve Arkadaşlar (phase17-social) panelleri.
+   İşaretlemeye dokunmaz; mevcut sınıfları yalnızca yeniden biçimlendirir.
+   index.html'de diğer stillerden SONRA yüklenir (en sona bağlanır):
+   <link rel="stylesheet" href="./pvp/page-social.css" />
+   İlkeler: 12 px altı yazı yok · 400/500/600 kalınlık · 4/8 px boşluk ritmi ·
+   60-30-10 (lacivert zemin %60, kart yüzeyi %30, camur vurgu %10) ·
+   animasyonda yalnız transform/opacity · blur/backdrop-filter yok · sonsuz animasyon yok. */
+
+/* ========== Ortak panel çerçevesi ========== */
+#pvp-root .pvp16-modal,
+#pvp-root .pvp17-modal{
+  --pg-ink:#e9efff;
+  --pg-muted:#a8b5da;
+  --pg-faint:#93a2c9;
+  --pg-accent:#7cd7ff;
+  --pg-gold:#ffd98c;
+  --pg-surface:#161d42;
+  --pg-surface-2:#1c2452;
+  --pg-line:rgba(158,180,255,.16);
+  --pg-line-strong:rgba(124,215,255,.42);
+  top:80px;
+  right:clamp(12px,3vw,42px);
+  width:min(680px,calc(100% - 24px));
+  max-height:calc(100% - 104px);
+  padding:16px;
+  border:1px solid var(--pg-line-strong);
+  border-radius:16px;
+  background:linear-gradient(180deg,#141a3f,#0f142f);
+  box-shadow:0 18px 48px rgba(3,5,18,.6),inset 0 1px 0 rgba(255,255,255,.05);
+  color:var(--pg-ink);
+  font:400 14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+  scrollbar-width:thin;
+  scrollbar-color:#2c3765 transparent;
+}
+#pvp-root .pvp16-modal::-webkit-scrollbar,
+#pvp-root .pvp17-modal::-webkit-scrollbar{width:10px}
+#pvp-root .pvp16-modal::-webkit-scrollbar-thumb,
+#pvp-root .pvp17-modal::-webkit-scrollbar-thumb{
+  background:#2c3765;border-radius:8px;border:2px solid transparent;background-clip:content-box;
+}
+
+/* Açılış: tek seferlik, yalnız transform/opacity (sonsuz değil). */
+@keyframes pgsc-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+#pvp-root .pvp16-modal:not([hidden]),
+#pvp-root .pvp17-modal:not([hidden]){animation:pgsc-in .16s ease-out both}
+
+/* ========== Düğme sistemi (iki panel ortak) ========== */
+#pvp-root .pvp16-modal button,
+#pvp-root .pvp17-modal button{
+  min-height:36px;
+  padding:8px 12px;
+  border:1px solid var(--pg-line);
+  border-radius:8px;
+  background:var(--pg-surface-2);
+  color:#d5e2f8;
+  font-family:inherit;
+  font-size:14px;
+  font-weight:500;
+  line-height:1.2;
+  cursor:pointer;
+  transition:background-color .12s ease,border-color .12s ease,color .12s ease,transform .12s ease;
+}
+#pvp-root .pvp16-modal button:hover,
+#pvp-root .pvp17-modal button:hover{
+  border-color:rgba(124,215,255,.5);
+  background:#22305e;
+  color:#eaf4ff;
+}
+/* Birincil eylem: kod kopyala, istek gönder, davete katıl, satır ana eylemi. */
+#pvp-root .pvp17-mycode button,
+#pvp-root .pvp17-add button,
+#pvp-root .pvp17-invite button:first-of-type,
+#pvp-root .pvp17-person button:first-of-type{
+  background:#0e5378;
+  border-color:#4db9e2;
+  color:#eaf9ff;
+}
+#pvp-root .pvp17-mycode button:hover,
+#pvp-root .pvp17-add button:hover,
+#pvp-root .pvp17-invite button:first-of-type:hover,
+#pvp-root .pvp17-person button:first-of-type:hover{
+  background:#12688f;
+  border-color:var(--pg-accent);
+  transform:translateY(-1px);
+}
+
+/* Kapat düğmeleri: kare ikon düğmesi. */
+#pvp-root .pvp16-head button,
+#pvp-root .pvp17-heading button{
+  flex:none;
+  display:grid;
+  place-items:center;
+  width:36px;
+  min-height:36px;
+  padding:0;
+  font-size:15px;
+  line-height:1;
+  background:rgba(28,36,82,.6);
+}
+
+/* ========== Profil / Sıralama paneli (pvp16) ========== */
+#pvp-root .pvp16-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding-bottom:12px;
+  border-bottom:1px solid var(--pg-line);
+}
+#pvp-root .pvp16-head>div{min-width:0}
+#pvp-root .pvp16-head small{
+  font-size:12px;
+  font-weight:500;
+  letter-spacing:.1em;
+  color:#8fdcff;
+}
+#pvp-root .pvp16-head h2{
+  margin:4px 0 0;
+  font-size:20px;
+  font-weight:600;
+  line-height:1.2;
+  color:#f4f7ff;
+}
+#pvp-root .pvp16-note{
+  margin:12px 0;
+  font-size:14px;
+  line-height:1.5;
+  color:var(--pg-muted);
+}
+#pvp-root .pvp16-note b{font-weight:600;color:#dfe8ff}
+
+/* Sekmeler: Profil / Sıralama + sağda Yenile. */
+#pvp-root .pvp16-tabs{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:0 0 12px;
+}
+#pvp-root .pvp16-tabs button{
+  min-height:36px;
+  padding:8px 12px;
+  background:rgba(22,29,66,.5);
+  border-color:var(--pg-line);
+  color:var(--pg-muted);
+}
+#pvp-root .pvp16-tabs button[aria-pressed="true"]{
+  background:rgba(124,215,255,.16);
+  border-color:rgba(124,215,255,.55);
+  color:#eaf8ff;
+}
+#pvp-root .pvp16-tabs button[data-pvp16-action="refresh"]{
+  margin-left:auto;
+  background:transparent;
+}
+
+/* Sıralama filtreleri. */
+#pvp-root .pvp16-filters{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin:0 0 12px;
+}
+#pvp-root .pvp16-filters label{font-size:14px;color:#c6d4f2}
+#pvp-root .pvp16-filters select{
+  margin-left:8px;
+  min-height:36px;
+  padding:6px 10px;
+  border:1px solid rgba(158,180,255,.28);
+  border-radius:8px;
+  background:#0e1638;
+  color:var(--pg-ink);
+  font:400 14px/1.2 inherit;
+  color-scheme:dark;
+  cursor:pointer;
+}
+#pvp-root .pvp16-filters select:focus{
+  outline:3px solid #a6f2ff;
+  outline-offset:2px;
+}
+
+/* Panel gövdesi. */
+#pvp-root .pvp16-body{min-height:120px;color:var(--pg-ink)}
+#pvp-root .pvp16-body h3{
+  margin:16px 0 8px;
+  font-size:16px;
+  font-weight:600;
+  line-height:1.25;
+  color:#eef2ff;
+}
+#pvp-root .pvp16-body>h3:first-child{margin-top:0}
+#pvp-root .pvp16-body h3 small{font-size:12px;font-weight:400;color:var(--pg-faint)}
+
+/* İstatistik kartları: değerler altın, etiketler soluk. */
+#pvp-root .pvp16-statgrid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+  margin:0 0 12px;
+}
+#pvp-root .pvp16-stat{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+  padding:12px 8px;
+  border:1px solid var(--pg-line);
+  border-radius:10px;
+  background:var(--pg-surface);
+}
+#pvp-root .pvp16-stat strong{
+  font-size:22px;
+  font-weight:600;
+  line-height:1.2;
+  color:var(--pg-gold);
+  font-variant-numeric:tabular-nums;
+}
+#pvp-root .pvp16-stat small{
+  font-size:12px;
+  line-height:1.4;
+  color:var(--pg-muted);
+  text-align:center;
+}
+
+/* Maç geçmişi satırları: hairline ayraçlı liste. */
+#pvp-root .pvp16-match{
+  display:grid;
+  grid-template-columns:88px minmax(0,1fr) auto;
+  gap:12px;
+  align-items:center;
+  padding:8px 0;
+  border-bottom:1px solid rgba(158,180,255,.12);
+  font-size:14px;
+}
+#pvp-root .pvp16-match strong{font-size:14px;font-weight:600;line-height:1.2}
+#pvp-root .pvp16-match span{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e2e9fb;
+}
+#pvp-root .pvp16-match small{
+  color:var(--pg-faint);
+  font-size:12px;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+#pvp-root .pvp16-win{color:#7afcb0}
+#pvp-root .pvp16-loss{color:#ff9db0}
+#pvp-root .pvp16-draw{color:#ffdf9c}
+#pvp-root .pvp16-cancelled{color:var(--pg-faint)}
+
+/* Sıralama tablosu satırları. */
+#pvp-root .pvp16-board{margin-top:4px}
+#pvp-root .pvp16-row{
+  display:grid;
+  grid-template-columns:44px minmax(0,1fr) auto 64px;
+  gap:12px;
+  align-items:center;
+  padding:8px 0;
+  border-bottom:1px solid rgba(158,180,255,.12);
+  font-size:14px;
+}
+#pvp-root .pvp16-row strong{
+  font-size:14px;
+  font-weight:600;
+  color:var(--pg-faint);
+  font-variant-numeric:tabular-nums;
+}
+#pvp-root .pvp16-row:nth-child(-n+3) strong{color:var(--pg-gold)}
+#pvp-root .pvp16-row span{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e2e9fb;
+}
+#pvp-root .pvp16-row em{
+  font-style:normal;
+  font-weight:600;
+  color:var(--pg-accent);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+#pvp-root .pvp16-row small{
+  color:var(--pg-faint);
+  font-size:12px;
+  text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+
+/* Durum satırı ve boş durumlar. */
+#pvp-root .pvp16-status{
+  min-height:1.4em;
+  margin:12px 0 0;
+  font-size:12px;
+  line-height:1.4;
+  color:var(--pg-faint);
+}
+#pvp-root .pvp16-empty{
+  padding:16px;
+  border:1px dashed rgba(158,180,255,.25);
+  border-radius:10px;
+  background:rgba(22,29,66,.45);
+  color:#b6c2e2;
+  font-size:14px;
+  line-height:1.5;
+}
+
+/* ========== Arkadaşlar paneli (pvp17) ========== */
+#pvp-root .pvp17-heading{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding-bottom:12px;
+  margin-bottom:12px;
+  border-bottom:1px solid var(--pg-line);
+}
+#pvp-root .pvp17-heading>div{min-width:0}
+#pvp-root .pvp17-heading small{
+  font-size:12px;
+  font-weight:500;
+  letter-spacing:.1em;
+  color:#8fdcff;
+}
+#pvp-root .pvp17-heading h2{
+  margin:4px 0 0;
+  font-size:20px;
+  font-weight:600;
+  line-height:1.2;
+  color:#f4f7ff;
+}
+#pvp-root .pvp17-notice{
+  margin:0 0 12px;
+  font-size:14px;
+  line-height:1.5;
+  color:var(--pg-muted);
+}
+#pvp-root .pvp17-notice b,
+#pvp-root .pvp17-mycode b{font-weight:600;color:#dfe8ff}
+
+/* Arkadaş kodu plakası: panelin odak öğesi. */
+#pvp-root .pvp17-mycode{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:12px;
+  margin:0 0 12px;
+  padding:12px 14px;
+  border:1px solid var(--pg-line-strong);
+  border-radius:10px;
+  background:linear-gradient(180deg,#1a2452,#141a3e);
+}
+#pvp-root .pvp17-mycode>div{flex:1;min-width:0}
+#pvp-root .pvp17-mycode small{
+  display:block;
+  font-size:12px;
+  letter-spacing:.08em;
+  color:#9fb0d8;
+}
+#pvp-root .pvp17-mycode strong{
+  display:block;
+  margin-top:4px;
+  font-family:ui-monospace,Consolas,"Courier New",monospace;
+  font-size:20px;
+  font-weight:600;
+  line-height:1.3;
+  letter-spacing:.14em;
+  color:var(--pg-gold);
+  overflow-wrap:anywhere;
+}
+#pvp-root .pvp17-mycode button{flex:none}
+
+/* Kod ekleme formu. */
+#pvp-root .pvp17-add{margin:0 0 12px}
+#pvp-root .pvp17-add label{
+  display:block;
+  margin:0 0 4px;
+  font-size:14px;
+  color:#c6d4f2;
+}
+#pvp-root .pvp17-add>div{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+#pvp-root .pvp17-add input{
+  flex:1;
+  min-width:0;
+  min-height:36px;
+  padding:8px 10px;
+  border:1px solid rgba(158,180,255,.28);
+  border-radius:8px;
+  background:#0d1330;
+  color:#fff;
+  font-family:ui-monospace,Consolas,"Courier New",monospace;
+  font-size:14px;
+  font-weight:600;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+#pvp-root .pvp17-add input::placeholder{
+  color:#7c8fb4;
+  font-weight:400;
+  letter-spacing:0;
+}
+#pvp-root .pvp17-add input:focus{
+  outline:3px solid #a6f2ff;
+  outline-offset:2px;
+  border-color:#4db9e2;
+}
+#pvp-root .pvp17-add button{flex:none}
+
+/* Araç satırı: Yenile + bilgi notu. */
+#pvp-root .pvp17-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:0 0 12px;
+}
+#pvp-root .pvp17-toolbar button{
+  min-height:32px;
+  padding:4px 12px;
+  background:transparent;
+}
+#pvp-root .pvp17-toolbar span{
+  font-size:12px;
+  line-height:1.4;
+  color:var(--pg-faint);
+}
+
+/* Liste bölümleri: kart yüzeyi + hairline satır ayraçları. */
+#pvp-root .pvp17-content{
+  display:grid;
+  gap:12px;
+  color:var(--pg-muted);
+}
+#pvp-root .pvp17-content section{
+  padding:12px;
+  border:1px solid var(--pg-line);
+  border-radius:10px;
+  background:var(--pg-surface);
+}
+#pvp-root .pvp17-content h3{
+  margin:0 0 8px;
+  font-size:16px;
+  font-weight:600;
+  line-height:1.25;
+  color:#eef2ff;
+}
+#pvp-root .pvp17-content h3 small{
+  font-size:12px;
+  font-weight:400;
+  color:var(--pg-faint);
+}
+
+/* Kişi satırları. */
+#pvp-root .pvp17-person{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:8px 0;
+  border-top:1px solid rgba(158,180,255,.12);
+}
+#pvp-root .pvp17-person>div{flex:1;min-width:0}
+#pvp-root .pvp17-person strong{
+  display:block;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:14px;
+  font-weight:500;
+  color:#eef2ff;
+}
+#pvp-root .pvp17-person small{
+  display:block;
+  font-family:ui-monospace,Consolas,"Courier New",monospace;
+  font-size:12px;
+  letter-spacing:.04em;
+  color:var(--pg-faint);
+}
+#pvp-root .pvp17-person>span{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:4px;
+}
+#pvp-root .pvp17-person button{
+  min-height:32px;
+  padding:4px 12px;
+}
+
+/* Davet kartları: işlem bekleyen öğe, altın kenarla öne çıkar. */
+#pvp-root .pvp17-invite{
+  padding:8px 12px;
+  margin-bottom:4px;
+  border:1px solid rgba(255,217,140,.38);
+  border-radius:10px;
+  background:#221c44;
+  font-size:14px;
+  line-height:1.5;
+  color:#dfe4f5;
+}
+#pvp-root .pvp17-invite strong{font-weight:600;color:#ffe9bd}
+#pvp-root .pvp17-invite small{color:var(--pg-muted);font-size:12px}
+#pvp-root .pvp17-invite div{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+
+#pvp-root .pvp17-none{
+  margin:4px 0 0;
+  font-size:14px;
+  line-height:1.5;
+  color:var(--pg-faint);
+}
+#pvp-root .pvp17-status{
+  min-height:1.4em;
+  margin:12px 0 0;
+  font-size:12px;
+  line-height:1.4;
+  color:#9fb0d8;
+}
+
+/* Lobi içindeki oda sahibi kutusu (phase17 işaretlemesi): yazı tabanı. */
+#pvp-root .pvp17-host small{font-size:12px}
+#pvp-root .pvp17-host button{font-size:13px;font-weight:600}
+
+/* ========== Araç çubuğu tetikleyicileri: 12 px taban ========== */
+#pvp-root .pvp5-network-controls .pvp5-net-button{font-size:13px;font-weight:600}
+
+/* ========== Kısa ekran / dar ekran ========== */
+@media(max-height:820px){
+  #pvp-root .pvp16-modal,
+  #pvp-root .pvp17-modal{
+    top:64px;
+    max-height:calc(100% - 80px);
+    padding:12px;
+  }
+}
+@media(max-width:820px){
+  #pvp-root .pvp16-modal,
+  #pvp-root .pvp17-modal{
+    left:12px;
+    right:12px;
+    width:auto;
+    top:140px;
+    max-height:calc(100% - 152px);
+  }
+  #pvp-root .pvp17-person>span{justify-content:flex-start}
+}
+@media(max-width:760px){
+  #pvp-root .pvp16-statgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:640px){
+  #pvp-root .pvp16-match{grid-template-columns:80px minmax(0,1fr)}
+  #pvp-root .pvp16-match small{grid-column:2;white-space:normal}
+  #pvp-root .pvp16-row{grid-template-columns:36px minmax(0,1fr) auto}
+  #pvp-root .pvp16-row small{display:none}
+  #pvp-root .pvp5-network-controls .pvp5-net-button{font-size:12px}
+}
+@media(max-width:520px){
+  #pvp-root .pvp17-add>div{flex-wrap:wrap}
+  #pvp-root .pvp17-add button{flex:1 1 100%}
+  #pvp-root .pvp17-mycode button{flex:1 1 100%}
+}
+@media(max-width:430px){
+  #pvp-root .pvp16-modal,
+  #pvp-root .pvp17-modal{top:112px;max-height:calc(100% - 124px)}
+}
+
+/* ========== Hareketi azalt ========== */
+/* "Efektleri azalt" ayarı (#pvp-root.pvp4-reduced): açılış animasyonu ve geçişler kapalı. */
+#pvp-root.pvp4-reduced .pvp16-modal,
+#pvp-root.pvp4-reduced .pvp17-modal{animation:none}
+#pvp-root.pvp4-reduced .pvp16-modal *,
+#pvp-root.pvp4-reduced .pvp17-modal *{transition:none!important}
+/* Sistem tercihi: anında görün (pvp.css'teki genel kuralın panel kapsamlı hâli). */
+@media(prefers-reduced-motion:reduce){
+  #pvp-root .pvp16-modal,
+  #pvp-root .pvp17-modal{animation:none}
+  #pvp-root .pvp16-modal *,
+  #pvp-root .pvp17-modal *{transition:none!important}
+}

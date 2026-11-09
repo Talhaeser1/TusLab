@@ -1,0 +1,10 @@
+/* Stage 13: lightweight only-on-combat defense banners, no idle GPU workload */
+.pvp13-defense{position:relative;z-index:8;display:block;margin:1px 9px;font-size:clamp(8px,.65vw,11px);font-weight:850;letter-spacing:.015em;color:#bcdfff;white-space:nowrap;text-align:center;text-shadow:0 0 5px #3c95ff;min-height:13px}
+.pvp13-banner{position:absolute;z-index:12;top:24%;left:50%;transform:translate(-50%,0);pointer-events:none;white-space:nowrap;padding:8px 13px;border-radius:10px;border:2px solid currentColor;background:#080d2acf;font:1000 clamp(13px,1.6vw,24px)/1.1 system-ui;color:#84d9ff;text-shadow:0 0 10px currentColor;box-shadow:0 0 26px #44c7ff99;animation:pvp13-callout .85s ease-out forwards}
+.pvp13-parry{color:#ffe986;box-shadow:0 0 38px #fff38499}
+.pvp13-perfect{color:#bcf7ff;box-shadow:0 0 28px #4fe8ffbb}
+.pvp13-counter{color:#ffab55;box-shadow:0 0 29px #ff7b29aa}
+.pvp13-shatter{color:#ff779d;box-shadow:0 0 38px #ff3b73aa}
+@keyframes pvp13-callout{0%{opacity:0;transform:translate(-50%,30px) scale(.72)}18%{opacity:1;transform:translate(-50%,0) scale(1.12)}65%{opacity:1;transform:translate(-50%,-12px) scale(1)}100%{opacity:0;transform:translate(-50%,-25px) scale(.98)}}
+@media(prefers-reduced-motion:reduce){.pvp13-banner{animation:none;opacity:1}}
+@media(max-width:1450px){.pvp13-defense{font-size:8px}.pvp13-banner{top:27%;padding:5px 8px}}

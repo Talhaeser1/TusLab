@@ -1,0 +1,488 @@
+/* ==========================================================================
+   TuşLab — Neon Arena · P9: PvP lobi paneli
+   pvp/page-lobby.css — index.html'de diğer stillerden SONRA yüklenir:
+     <link rel="stylesheet" href="./pvp/page-lobby.css" />
+   --------------------------------------------------------------------------
+   Kapsam (network.js şablonundaki sınıflar; işaretleme DEĞİŞTİRİLMEDİ,
+   mevcut sınıflar yalnızca #pvp-root önekli özgüllükle yeniden biçimlendirildi):
+     · Araç çubuğu girişi: .pvp5-net-button, .pvp5-connect-status, .pvp24-chip
+     · Panel çerçevesi:     .pvp6-panel + .pvp6-head (eyebrow/h2/label)
+     · Oda kur/katıl:       .pvp6-before, .pvp6-startrow, .pvp6-primary,
+                            .pvp6-or, .pvp6-join, .pvp6-help
+     · Bot paneli:          .pvp24-practice (seçmeler, .pvp24-practice-start/stop)
+     · Oda içi:             .pvp6-code, .pvp6-share, .pvp6-players/.pvp6-slot,
+                            .pvp6-choices, .pvp22-runes/.pvp22-rune-grid,
+                            .pvp6-controls, .pvp17-host, .pvp6-counter, .pvp6-log
+     · Mod/tur seçici:      .rui-picker / .rui-seg (yalnız lobi içinde)
+   İlkeler: 12 px altı yazı yok · 400/500/600 kalınlık · 4/8 px boşluk ritmi ·
+   60-30-10 (koyu lacivert tuval %60, kart yüzeyleri %30, camgöbeği vurgu %10;
+   altın yalnız birincil CTA/oda kodu, kızıl-mavi yalnız taraf kimliği) ·
+   1 px kenarlık + üst kenar ışığı ile derinlik (parlama yığını yok) ·
+   animasyonda yalnız transform/opacity · blur/backdrop-filter yok ·
+   sonsuz animasyon yok · prefers-reduced-motion ve "Efektleri azalt"
+   (#pvp-root.pvp4-reduced) desteklenir.
+   ========================================================================== */
+
+/* ---------- tasarım jetonları ---------- */
+#pvp-root{
+  --pl-ink:#e9efff;            /* ana metin */
+  --pl-muted:#a8b5da;          /* ikincil metin */
+  --pl-faint:#8f9cc4;          /* meta metin */
+  --pl-surface:#161d42;        /* L1 kart yüzeyi (yuvalar, kutular) */
+  --pl-surface-2:#1b2350;      /* L2 düğme yüzeyi */
+  --pl-inset:#0d142e;          /* giriş alanı zemini */
+  --pl-line:rgba(158,180,255,.16);        /* ince kenarlık */
+  --pl-line-strong:rgba(124,215,255,.4);  /* panel kenarlığı */
+  --pl-accent:#7cd7ff;         /* tek etkileşim vurgusu (camgöbeği) */
+  --pl-accent-deep:#0e5378;    /* birincil çevrimiçi eylem zemini */
+  --pl-gold:#ffd98c;           /* altın: bot CTA, oda kodu, geri sayım */
+  --pl-good:#8ff0b6;           /* hazır */
+  --pl-online:#7ce4cf;         /* bağlı */
+  --pl-fire:#ff9a62;           /* I · KIZIL taraf kimliği */
+  --pl-rune:#6fc8ff;           /* II · MAVİ taraf kimliği */
+  --pl-focus:#7cd7ff;          /* odak halkası */
+  --pl-mono:ui-monospace,Consolas,"Cascadia Code","Courier New",monospace;
+}
+
+/* ==========================================================================
+   1) Araç çubuğu girişleri — lobiyi açan düğmeler ve durum metni
+   ========================================================================== */
+#pvp-root .pvp5-network-controls .pvp5-net-button{
+  background:#1a2148;
+  border:1px solid rgba(124,215,255,.34);
+  border-radius:9px;
+  color:#dfe9ff;
+  font-weight:600;
+  box-shadow:none;
+}
+/* Profil / Arkadaşlar: daha sakin hayalet düğme */
+#pvp-root .pvp5-network-controls .pvp5-net-button.ui-button-ghost{
+  background:transparent;
+  border-color:#565b82;
+  color:#c9d2f0;
+}
+#pvp-root .pvp5-connect-status{
+  font-size:12px;font-weight:500;line-height:1.3;
+  color:#f3c797;white-space:nowrap;
+}
+#pvp-root .pvp5-connect-status[data-online="true"]{color:#9beec7}
+/* "ANTRENMAN · çevrimdışı" durum yongası */
+#pvp-root .pvp24-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 10px;border-radius:999px;
+  border:1px solid rgba(111,240,216,.38);
+  background:#0d2b2a;
+  color:#a9f5e3;
+  font-size:12px;font-weight:500;letter-spacing:.04em;
+  white-space:nowrap;
+}
+#pvp-root .pvp24-chip[hidden]{display:none}
+
+/* ==========================================================================
+   2) Panel çerçevesi — tek sakin yüzey: 1 px kenarlık + üst kenar ışığı,
+      dağınık tek gölge; multigradyan/parlama yığını yok.
+   ========================================================================== */
+#pvp-root .pvp6-panel{
+  top:72px;
+  right:clamp(12px,2vw,36px);
+  width:min(560px,calc(100% - 24px));
+  max-height:calc(100% - 88px);
+  padding:16px;
+  border:1px solid var(--pl-line-strong);
+  border-radius:16px;
+  background:linear-gradient(180deg,#141a3f,#0f142f);
+  box-shadow:0 18px 48px rgba(3,5,18,.6),inset 0 1px 0 rgba(255,255,255,.05);
+  color:var(--pl-ink);
+  font:400 14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  scrollbar-color:#2c3765 transparent;
+}
+#pvp-root .pvp6-panel::-webkit-scrollbar{width:10px}
+#pvp-root .pvp6-panel::-webkit-scrollbar-thumb{
+  background:#2c3765;border-radius:8px;border:2px solid transparent;background-clip:content-box;
+}
+/* Açılış: kullanıcı eylemine yanıt veren tek seferlik iniş (transform/opacity). */
+@keyframes pl-lobby-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+#pvp-root .pvp6-panel:not([hidden]){animation:pl-lobby-in .16s ease-out both}
+
+/* ==========================================================================
+   3) Başlık — eyebrow / başlık / durum; sağda PvP yongası
+   ========================================================================== */
+#pvp-root .pvp6-head{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  border-bottom:1px solid var(--pl-line);
+  padding-bottom:12px;margin-bottom:16px;
+}
+#pvp-root .pvp6-eyebrow{
+  display:block;font-size:12px;font-weight:500;
+  letter-spacing:.08em;color:#9ecbe8;
+}
+#pvp-root .pvp6-head h2{
+  margin:4px 0 0;font-size:20px;font-weight:600;line-height:1.2;
+  letter-spacing:.01em;color:#f4f6ff;text-shadow:none;
+}
+#pvp-root .pvp6-head p{margin:4px 0 0;font-size:12px;line-height:1.4;color:#8fd8c6}
+#pvp-root .pvp6-label{
+  flex:none;padding:4px 10px;border-radius:8px;
+  border:1px solid #6f5bd6;background:#2a2350;
+  color:#cabcf5;font-size:12px;font-weight:500;letter-spacing:.06em;
+}
+
+/* ==========================================================================
+   4) Form ögeleri — giriş alanları ve düğme tabanı
+   ========================================================================== */
+#pvp-root .pvp6-panel input,
+#pvp-root .pvp6-panel select{
+  width:100%;min-width:0;min-height:44px;
+  padding:8px 12px;
+  border:1px solid var(--pl-line);border-radius:10px;
+  background:var(--pl-inset);
+  color:var(--pl-ink);
+  font-size:14px;font-weight:400;line-height:1.4;
+  outline:0;
+}
+#pvp-root .pvp6-panel input::placeholder{color:#7f8bb0}
+#pvp-root .pvp6-panel input:focus,
+#pvp-root .pvp6-panel select:focus{
+  border-color:rgba(124,215,255,.66);
+  box-shadow:none;
+}
+/* Oda kodu ve davet bağlantısı eş aralıklı mono */
+#pvp-root .pvp6-panel [data-lobby-join-code]{
+  font-family:var(--pl-mono);letter-spacing:.08em;text-transform:uppercase;
+}
+#pvp-root .pvp6-panel [data-lobby-link]{
+  flex:1 1 auto;font-family:var(--pl-mono);font-size:12px;color:#cdd8f2;
+}
+#pvp-root .pvp6-panel button{
+  min-height:44px;
+  padding:10px 14px;
+  border:1px solid var(--pl-line);border-radius:10px;
+  background:var(--pl-surface-2);
+  color:#d5e2f8;
+  font-family:inherit;font-size:14px;font-weight:500;line-height:1.2;
+  cursor:pointer;
+  box-shadow:none;text-shadow:none;
+  transition:background-color .12s ease,border-color .12s ease,color .12s ease;
+}
+#pvp-root .pvp6-panel button:disabled{opacity:.5;cursor:not-allowed}
+/* Birincil çevrimiçi eylem: oda oluştur + hazırım (camgöbeği dolgu) */
+#pvp-root .pvp6-panel .pvp6-primary{
+  flex:1;min-height:44px;
+  border-color:#4db9e2;background:var(--pl-accent-deep);
+  color:#eaf9ff;font-weight:600;
+}
+/* Hayalet: odadan çık / bot maçını bitir */
+#pvp-root .pvp6-panel .pvp6-leave,
+#pvp-root .pvp6-panel .pvp24-practice-stop{
+  background:transparent;border-color:#565b82;color:#c9d2f0;
+}
+/* Bot başlat: oyun genelindeki altın birincil eylem (ui-button-primary) */
+#pvp-root .pvp6-panel .pvp24-practice-start{
+  width:100%;min-height:44px;font-weight:600;
+}
+#pvp-root .pvp24-practice-stop{width:100%;margin-top:8px}
+
+/* ==========================================================================
+   5) Oda kurma akışı — ad, birincil eylem, "VEYA" ayraçları, katıl satırı
+   ========================================================================== */
+#pvp-root .pvp6-before>label{
+  display:block;margin:0 0 6px;
+  font-size:12px;font-weight:500;letter-spacing:.02em;color:#b9c6e8;
+}
+#pvp-root .pvp6-startrow{margin-top:8px}
+#pvp-root .pvp6-startrow .pvp6-primary{width:100%}
+/* Üç ayrı giriş yolunu bölen işlevsel hairline ayraç */
+#pvp-root .pvp6-or{
+  display:flex;align-items:center;gap:12px;
+  margin:16px 0 12px;
+  font-size:12px;font-weight:500;letter-spacing:.08em;color:var(--pl-faint);
+  text-align:center;
+}
+#pvp-root .pvp6-or::before,
+#pvp-root .pvp6-or::after{content:"";flex:1;border-top:1px solid var(--pl-line)}
+#pvp-root .pvp6-join{display:flex;gap:8px;align-items:center}
+#pvp-root .pvp6-join button,
+#pvp-root .pvp6-share button{flex:none;white-space:nowrap}
+#pvp-root .pvp6-help{margin:12px 0 0;font-size:12px;line-height:1.5;color:#9aa8cc}
+#pvp-root .pvp6-help b{color:#cfe0f8;font-weight:500}
+
+/* ==========================================================================
+   6) Bot antrenman paneli — çevrimdışı bölge (soluk turkuaz kenar)
+   ========================================================================== */
+#pvp-root .pvp24-practice{
+  margin-top:4px;padding:12px;
+  border:1px solid rgba(111,240,216,.26);border-radius:12px;
+  background:var(--pl-surface);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+#pvp-root .pvp24-practice .ui-panel-intro{
+  margin:0 0 12px;font-size:12px;line-height:1.5;color:#b9c6e8;
+}
+#pvp-root .pvp24-practice-row{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;
+}
+#pvp-root .pvp24-practice label{
+  display:flex;flex-direction:column;gap:4px;margin:0;
+  font-size:12px;font-weight:500;color:#b9c6e8;
+}
+#pvp-root .pvp24-practice .pvp6-help{margin-top:8px}
+
+/* ==========================================================================
+   7) Oda içi durum — oda kodu, davet bağlantısı, oyuncu yuvaları
+   ========================================================================== */
+#pvp-root .pvp6-code{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  margin-bottom:12px;padding:12px;
+  border:1px solid rgba(255,217,140,.34);border-radius:12px;
+  background:var(--pl-surface);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+#pvp-root .pvp6-code small{
+  display:block;font-size:12px;font-weight:500;
+  letter-spacing:.08em;color:var(--pl-gold);
+}
+#pvp-root .pvp6-code strong{
+  display:block;margin-top:2px;
+  font-family:var(--pl-mono);font-size:16px;font-weight:600;line-height:1.3;
+  letter-spacing:.06em;font-variant-numeric:tabular-nums;color:#ffe9c2;
+}
+#pvp-root .pvp6-code span{flex:none;font-size:12px;font-weight:500;color:var(--pl-online);white-space:nowrap}
+#pvp-root .pvp6-code span b{font-weight:600;color:inherit}
+#pvp-root .pvp6-share{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+#pvp-root .pvp6-players{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* Yuvalar: L1 kart + 3 px taraf kimliği kenarı (kızıl/mavi anlam taşır) */
+#pvp-root .pvp6-slot{
+  min-width:0;display:flex;flex-direction:column;gap:4px;
+  padding:12px;
+  border:1px solid var(--pl-line);border-left-width:3px;border-radius:12px;
+  background:var(--pl-surface);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+#pvp-root .pvp6-slot.fire{border-left-color:var(--pl-fire)}
+#pvp-root .pvp6-slot.rune{border-left-color:var(--pl-rune)}
+#pvp-root .pvp6-player-tag{font-size:12px;font-weight:500;letter-spacing:.08em;color:#ffb08a}
+#pvp-root .pvp6-slot.rune .pvp6-player-tag{color:#8fd4ff}
+#pvp-root .pvp6-slot strong{
+  font-size:14px;font-weight:600;line-height:1.3;color:#f0f4ff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#pvp-root .pvp6-slot small{
+  font-size:12px;line-height:1.4;color:var(--pl-muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#pvp-root .pvp6-slot em{
+  margin-top:4px;font-style:normal;
+  font-size:12px;font-weight:500;line-height:1.4;color:var(--pl-faint);
+}
+#pvp-root .pvp6-slot[data-online="true"] em{color:var(--pl-online)}
+#pvp-root .pvp6-slot[data-ready="true"] em{color:var(--pl-good)}
+
+/* ==========================================================================
+   8) Savaşçı ve rün seçimi — basılı durumu düz renk tonu + iç halka
+   ========================================================================== */
+#pvp-root .pvp6-charlabel{
+  margin:16px 0 8px;
+  font-size:12px;font-weight:500;letter-spacing:.08em;color:#b9c6e8;
+}
+#pvp-root .pvp6-choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#pvp-root .pvp6-choices button{
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#pvp-root .pvp6-choices button[aria-pressed="true"]{
+  border-color:rgba(255,154,98,.62);background:#33203a;
+  box-shadow:inset 0 0 0 1px rgba(255,154,98,.28),inset 0 1px 0 rgba(255,255,255,.05);
+}
+#pvp-root .pvp6-choices button[data-character="rune"][aria-pressed="true"]{
+  border-color:rgba(111,200,255,.62);background:#182d4c;
+  box-shadow:inset 0 0 0 1px rgba(111,200,255,.28),inset 0 1px 0 rgba(255,255,255,.05);
+}
+#pvp-root .pvp22-runes{
+  margin-top:12px;padding:12px;
+  border:1px solid var(--pl-line);border-radius:12px;
+  background:var(--pl-surface);
+}
+#pvp-root .pvp22-runes .pvp6-charlabel{margin:0 0 8px}
+#pvp-root .pvp22-rune-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#pvp-root .pvp22-rune-grid button{
+  min-height:40px;padding:8px;
+  font-size:12px;line-height:1.35;white-space:normal;
+}
+#pvp-root .pvp22-rune-grid button[aria-pressed="true"]{
+  border-color:rgba(255,217,140,.6);background:#332715;color:#ffe9c2;
+  box-shadow:inset 0 0 0 1px rgba(255,217,140,.26),inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+/* ==========================================================================
+   9) Mod ve tur seçicileri — segment denetimi (yalnız lobi içinde;
+      maç sırasındaki .rui-* HUD kurallarına dokunulmaz)
+   ========================================================================== */
+#pvp-root .pvp6-panel .rui-picker{
+  display:grid;grid-template-columns:auto 1fr;align-items:center;
+  gap:8px 12px;margin:12px 0;
+}
+#pvp-root .pvp6-panel .rui-picker-label{font-size:12px;font-weight:500;color:#b9c6e8}
+#pvp-root .pvp6-panel .rui-seg{
+  display:inline-flex;justify-self:start;gap:4px;padding:4px;
+  border:1px solid var(--pl-line);border-radius:10px;
+  background:var(--pl-inset);
+}
+#pvp-root .pvp6-panel .rui-seg button{
+  min-width:56px;min-height:36px;padding:4px 10px;
+  border-color:transparent;border-radius:7px;background:transparent;
+  color:#b9c6e8;font-size:13px;font-weight:500;line-height:1.25;
+  box-shadow:none;
+}
+#pvp-root .pvp6-panel .rui-seg button b{
+  font-size:14px;font-weight:600;color:inherit;
+  font-variant-numeric:tabular-nums;margin-inline-end:2px;
+}
+#pvp-root .pvp6-panel .rui-seg button[aria-pressed="true"]{
+  border-color:rgba(124,215,255,.5);background:#123a5a;color:#eaf6ff;
+  box-shadow:inset 0 0 0 1px rgba(124,215,255,.3),inset 0 1px 0 rgba(255,255,255,.06);
+}
+#pvp-root .pvp6-panel .rui-seg button[aria-pressed="true"] b{color:#dff4ff}
+#pvp-root .pvp6-panel .rui-seg button:disabled{opacity:.5}
+#pvp-root .pvp6-panel .rui-seg button[aria-pressed="true"]:disabled{opacity:1}
+#pvp-root .pvp6-panel .rui-picker-note{
+  grid-column:1 / -1;font-size:12px;line-height:1.4;color:#8f9cc4;
+}
+/* Mod düğmeleri iki satırlı (etiket + ipucu): sola yaslı */
+#pvp-root .pvp6-panel .aui-modes .rui-seg button{text-align:left}
+#pvp-root .pvp6-panel .aui-modes .rui-seg button small{
+  display:block;margin-top:2px;
+  font-size:12px;font-weight:400;line-height:1.3;color:#9fb0d6;
+}
+#pvp-root .pvp6-panel .aui-modes .rui-seg button[aria-pressed="true"] small{color:#bfe0f2}
+
+/* ==========================================================================
+   10) Hazır/çık satırı, oda sahibi kontrolleri, geri sayım
+   ========================================================================== */
+#pvp-root .pvp6-controls{display:flex;gap:12px;margin-top:16px}
+#pvp-root .pvp17-host:not([hidden]){
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  margin-top:12px;padding:12px;
+  border:1px solid rgba(255,217,140,.32);border-radius:10px;
+  background:#241c10;
+}
+#pvp-root .pvp17-host small{font-size:12px;font-weight:500;color:var(--pl-gold)}
+#pvp-root .pvp17-host button{
+  min-height:36px;padding:6px 10px;font-size:13px;
+  background:transparent;border-color:rgba(255,217,140,.4);color:#ffe3b0;
+}
+#pvp-root .pvp6-counter{
+  margin-top:12px;padding:12px;text-align:center;
+  border:1px solid rgba(255,217,140,.4);border-radius:12px;
+  background:#241a10;
+}
+#pvp-root .pvp6-counter div{
+  font-size:12px;font-weight:500;letter-spacing:.08em;color:var(--pl-gold);
+}
+#pvp-root .pvp6-counter strong{
+  display:block;margin-top:4px;
+  font-size:32px;font-weight:600;line-height:1.2;
+  font-variant-numeric:tabular-nums;color:#ffe9c2;text-shadow:none;
+}
+
+/* ==========================================================================
+   11) Olay günlüğü — hairline satır ayraçlı L1 yüzey
+   ========================================================================== */
+#pvp-root .pvp6-log{
+  margin-top:16px;padding:8px 12px;
+  border:1px solid var(--pl-line);border-radius:10px;
+  background:var(--pl-inset);
+  min-height:44px;max-height:140px;overflow-y:auto;
+  font-family:var(--pl-mono);font-size:12px;line-height:1.5;color:#b9c6e8;
+  overflow-wrap:anywhere;
+  scrollbar-width:thin;scrollbar-color:#2c3765 transparent;
+}
+#pvp-root .pvp6-log>div{padding-block:4px}
+#pvp-root .pvp6-log>div+div{border-top:1px solid var(--pl-line)}
+
+/* ==========================================================================
+   12) Odak halkaları — lobideki tüm etkileşimli ögeler
+   ========================================================================== */
+#pvp-root .pvp6-panel :is(button,input,select):focus-visible,
+#pvp-root .pvp5-network-controls .pvp5-net-button:focus-visible{
+  outline:2px solid var(--pl-focus);outline-offset:2px;
+}
+
+/* ==========================================================================
+   13) Durum geçişleri (yalnız hover; renk/kenarlık — transform yok)
+   ========================================================================== */
+@media(hover:hover){
+  #pvp-root .pvp5-network-controls .pvp5-net-button:hover{
+    border-color:rgba(124,215,255,.62);background:#22305e;box-shadow:none;
+  }
+  #pvp-root .pvp5-network-controls .pvp5-net-button.ui-button-ghost:hover{
+    background:rgba(26,33,72,.6);border-color:#6d74a3;
+  }
+  #pvp-root .pvp6-panel button:not(:disabled):hover{
+    border-color:rgba(124,215,255,.5);background:#22305e;color:#eaf4ff;
+  }
+  #pvp-root .pvp6-panel .pvp6-primary:not(:disabled):hover{
+    background:#12688e;border-color:#7cd7ff;color:#f2fbff;
+  }
+  #pvp-root .pvp6-panel .pvp6-leave:not(:disabled):hover,
+  #pvp-root .pvp6-panel .pvp24-practice-stop:not(:disabled):hover{
+    border-color:#79819f;background:rgba(26,33,72,.6);color:#e6ecfb;
+  }
+  #pvp-root .pvp6-panel .rui-seg button:not(:disabled):not([aria-pressed="true"]):hover{
+    background:rgba(255,255,255,.07);border-color:transparent;color:#eaf4ff;
+  }
+  #pvp-root .pvp17-host button:not(:disabled):hover{
+    border-color:rgba(255,217,140,.66);background:rgba(255,217,140,.1);
+  }
+}
+
+/* ==========================================================================
+   14) Kısa ekran (≤800 px yükseklik) — 4/8 ritminde sıkışma; tabanlar korunur
+   ========================================================================== */
+@media(max-height:800px){
+  #pvp-root .pvp6-panel{top:60px;max-height:calc(100% - 68px);padding:12px 16px}
+  #pvp-root .pvp6-head{padding-bottom:8px;margin-bottom:12px}
+  #pvp-root .pvp6-or{margin:12px 0 8px}
+  #pvp-root .pvp6-panel button{min-height:40px;padding:8px 12px}
+  #pvp-root .pvp6-panel input,
+  #pvp-root .pvp6-panel select{min-height:40px}
+  #pvp-root .pvp6-code{padding:8px 12px;margin-bottom:8px}
+  #pvp-root .pvp6-slot{padding:8px 12px}
+  #pvp-root .pvp24-practice{padding:8px}
+  #pvp-root .pvp22-runes{padding:8px}
+  #pvp-root .pvp6-charlabel{margin:12px 0 6px}
+  #pvp-root .pvp6-controls{margin-top:12px}
+  #pvp-root .pvp6-help{margin-top:8px}
+  #pvp-root .pvp6-log{margin-top:12px}
+}
+
+/* ==========================================================================
+   15) Dar ekran — tek kolona inme; yatay taşma yok
+   ========================================================================== */
+@media(max-width:600px){
+  #pvp-root .pvp6-players,
+  #pvp-root .pvp6-choices,
+  #pvp-root .pvp24-practice-row{grid-template-columns:1fr}
+  #pvp-root .pvp6-panel .rui-picker{grid-template-columns:1fr}
+  #pvp-root .pvp6-panel .rui-seg{display:flex;width:100%}
+  #pvp-root .pvp6-panel .rui-seg button{flex:1;min-width:0}
+}
+@media(max-width:480px){
+  #pvp-root .pvp6-share{flex-wrap:wrap}
+  #pvp-root .pvp6-share button{width:100%}
+  #pvp-root .pvp22-rune-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* ==========================================================================
+   16) Azaltılmış hareket — prefers-reduced-motion + oyun içi "Efektleri azalt"
+   ========================================================================== */
+@media(prefers-reduced-motion:reduce){
+  #pvp-root .pvp6-panel{animation:none}
+  #pvp-root .pvp6-panel button,
+  #pvp-root .pvp6-panel input,
+  #pvp-root .pvp6-panel select{transition:none}
+}
+#pvp-root.pvp4-reduced .pvp6-panel{animation:none}
+#pvp-root.pvp4-reduced .pvp6-panel button,
+#pvp-root.pvp4-reduced .pvp6-panel input,
+#pvp-root.pvp4-reduced .pvp6-panel select{transition:none}

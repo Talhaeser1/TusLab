@@ -1,0 +1,181 @@
+/* TuşLab — Canlı Neon Revizyon / görsel yoğunluğu yükseltirken input gecikmesini azaltan katman */
+:root {
+  --bg:#070719; --panel:#090f2b; --panel2:#0d1941;
+  --line:#455de4; --muted:#c5d2ed; --text:#fcf9ff;
+  --neon-pink:#ff37d4; --neon-cyan:#00dfff; --neon-violet:#a648ff;
+  --hot:#ff5a3e; --gold:#ffc24e;
+}
+html,body{background:#070918!important}
+body{font-synthesis:none!important}
+body::before{
+  background:
+    linear-gradient(90deg,#09081bd9 0%,#060e2dd9 33%,#070928d8 66%,#110624b3 100%),
+    url('./assets/city-backdrop.jpg') center top/cover no-repeat,
+    radial-gradient(circle at 73% 12%,#e81ba277,transparent 38%)!important;
+  opacity:1!important;
+}
+body::after{opacity:.15!important;background-size:53px 53px!important}
+.global-header{background:linear-gradient(90deg,#030617aa,#141136b0,#060c2ccc)!important;border-bottom-color:#7f4bf6a0!important;border-radius:10px!important;}
+.brand-glyph{box-shadow:0 0 21px #275cffbb,inset 0 0 13px #b8fcff66!important}
+.brand em{background:linear-gradient(100deg,#91b7ff,#f852f0)!important;-webkit-background-clip:text!important;background-clip:text!important}
+.global-link{border-color:#2e3980!important;background:linear-gradient(120deg,#0d1944f2,#0b102ae8)!important;}
+.global-link.selected,.global-link:hover{background:linear-gradient(110deg,#9a228e,#4425b9)!important;border-color:#fe64f6!important;box-shadow:0 0 0 1px #ff60dc8c,0 0 14px #f12bd06b!important}
+.rogue-app{max-width:2048px!important}
+.three-windows{gap:12px!important}
+.browser-window{
+  background:linear-gradient(155deg,#08163df4,#090d2af7 65%,#0d0d31f7)!important;
+  border:1px solid #5b64df!important;
+  border-top:2px solid #fa53b2!important;
+  box-shadow:0 9px 25px #0009,0 0 14px #7926d94b,inset 0 0 19px #4726a51a!important;
+  transition:transform .16s ease-out,border-color .16s ease-out,box-shadow .16s ease-out!important;
+  backface-visibility:hidden;
+}
+.commander-window{border-left:2px solid #fa438a!important;transform:rotateY(1.1deg) rotateZ(-.25deg)!important}
+.analytics-window{border-right:2px solid #ec52ce!important;transform:rotateY(-1.1deg) rotateZ(.25deg)!important}
+.arena-window{border:2px solid #b348f2!important;border-top-color:#ff45bb!important;box-shadow:0 0 13px #ce43d966,0 13px 34px #000b!important}
+.browser-window:hover{transform:translateY(-2px) rotateY(var(--hoverY,0deg)) rotateX(var(--hoverX,0deg))!important;box-shadow:0 14px 28px #000b,0 0 19px #8e57f67d!important}
+.browser-window:focus-within{border-color:#cb78ff!important}
+.browser-window::before{height:3px!important;filter:none!important;background:linear-gradient(90deg,#ff5a62,#ff33e6 31%,#7649ff 57%,#03c9ff 85%,#fd65cd)!important;opacity:1!important}
+.section-heading h2{color:#fff!important;text-shadow:0 0 10px #b551ff61!important}
+.section-heading p{color:#cad7fb!important;font-size:14px!important}
+.eyebrow{letter-spacing:1px!important;color:#9fd8ff!important}
+/* Bold cards inspired by the approved rogue UI, keeping contrast high */
+.player-card{background:linear-gradient(117deg,#45215ca8,#131c51d9 52%,#0c1941)!important;border:1px solid #a748fd!important;box-shadow:inset 0 0 22px #c736ef28,0 0 12px #b442eb3d!important}
+.player-avatar{border-color:#ff7acb!important;box-shadow:0 0 12px #d946ee7d!important}
+.streak-chip{background:linear-gradient(145deg,#6c214cbb,#22163bbb)!important;border-color:#f7899c!important}
+.command-tabs button.active,.commander-tab.active{background:linear-gradient(95deg,#9b2396,#4f249d)!important;color:#fff!important;border-color:#ff5ddc!important;box-shadow:0 0 13px #ff46cb66!important}
+.commander-window .quest-item{border-color:#334fa28a!important}
+.commander-window .quest-item:hover,.adventure:hover{border-color:#ff54d5!important;transform:translateY(-2px)!important}
+.special-quest,.weekly-raid{background:linear-gradient(105deg,#341137e8,#26123edb 65%,#421034bd)!important;border:1px solid #fa4c93!important;box-shadow:0 0 12px #f6329263,inset 0 0 16px #dd47932a!important}
+.adventure{box-shadow:inset 0 0 10px #4c38e638!important;border-color:#4b65f2!important;transition:transform .14s ease-out,border-color .14s ease-out!important}
+.adventure:active,.global-link:active{transform:translateY(1px)!important}
+.big-action,.primary-action,.start-adventure{background:linear-gradient(90deg,#df2ba8,#873af5 50%,#df37b2)!important;box-shadow:0 0 18px #ff3de39c,inset 0 0 10px #ffd9ff5e!important;border-color:#ffc9ff!important;color:#fff!important}
+/* Dedicated vivid boss scene; one sharp image, no costly masked/filtered photo layers. */
+.boss-battle{
+  height:295px!important;
+  background:#0b0b39!important;
+  border:2px solid #e35afb!important;
+  box-shadow:0 0 10px #f142df88,inset 0 0 20px #a93cff33!important;
+  overflow:hidden!important;
+  contain:paint;
+}
+.boss-art-layer{
+  position:absolute!important;inset:0!important;opacity:1!important;filter:none!important;
+  background:
+    linear-gradient(90deg,#0a0a2bca 0%,#090d2e5d 18%,transparent 42%,transparent 68%,#0b0f30b8 100%),
+    linear-gradient(0deg,#091033ac 0%,transparent 44%,#08092966 100%),
+    url('./assets/boss-face.jpg') 50% 37%/cover no-repeat!important;
+  transform:none!important;
+}
+.boss-art-layer::before,.boss-art-layer::after{content:none!important;background:none!important;filter:none!important;-webkit-mask-image:none!important;mask-image:none!important}
+.boss-battle::before{
+  content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+   radial-gradient(ellipse at 48% 56%,transparent 20%,#1306383b 63%,#08082273 100%),
+   linear-gradient(90deg,#7b22fa2b,transparent 29%,transparent 76%,#00cfff25);
+}
+.boss-battle::after{
+  content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  border:1px solid #ff7aff76;border-radius:9px;
+  box-shadow:inset 0 0 22px #8d48ff55,inset 0 -13px 21px #0e11af36;
+}
+.boss-flash{position:absolute;pointer-events:none;z-index:2;inset:5% 19%;border-radius:50%;opacity:0;background:radial-gradient(circle,#fff4aa80,#ff497e45 26%,transparent 65%);mix-blend-mode:screen;}
+.boss-rune{position:absolute;z-index:2;color:#06eaff;opacity:.72;pointer-events:none;font-size:40px;text-shadow:0 0 18px #00ffff;animation:rune-float 6s ease-in-out infinite;will-change:transform}
+.boss-rune-left{left:29%;top:42%}.boss-rune-right{right:27%;bottom:7%;color:#ff82e4;animation-delay:-3s}
+@keyframes rune-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+.boss-topline{z-index:4!important;top:12px!important}.boss-kicker{color:#ff7baf!important;text-shadow:0 0 11px #fa2d82b5!important;font-size:19px!important}
+.boss-topline small{color:#ecedff!important;font-size:13px!important;text-shadow:0 1px 5px #060627!important}
+.boss-health{top:73px!important;z-index:5!important}
+.health-track{background:#210c39db!important;border:1px solid #ff81cf!important;box-shadow:0 0 12px #ff2c6a82!important}
+#boss-meter{background:linear-gradient(90deg,#fb315b,#ff5d79 50%,#ffc39a)!important;box-shadow:0 0 12px #ff4768c5!important;transition:width .13s linear!important}
+#boss-hp{font-size:13px!important;font-weight:850!important;color:#fff5ff!important;text-shadow:0 0 7px #000!important}
+.boss-center{inset:112px 10px 13px!important;z-index:4!important}
+.combat-side:not(.right){border-color:#ffb04f!important;background:radial-gradient(circle,#701b2bd9 0%,#a339227a 50%,transparent 73%)!important;box-shadow:0 0 19px #ff622799,inset 0 0 17px #ff613d6e!important}
+.combat-combo b{color:#ffd486!important;font-size:39px!important;text-shadow:0 0 10px #ff820f!important}
+.boss-hud-stat,.boss-clock{background:#0b1744c9!important;border:1px solid #377feaaa!important;color:#f8f7ff!important;box-shadow:0 0 7px #3159e850!important}
+.boss-bottomline{z-index:5!important;background:linear-gradient(90deg,#230c3ec7,#07153455,#180f36ca)!important;color:#f1d7ff!important}
+.damage-pop{font-weight:1000!important;font-size:32px!important;color:#ffca63!important;text-shadow:0 0 9px #ff3514,0 0 14px #ffb34e!important;pointer-events:none;animation:damage-float-fast .58s cubic-bezier(.15,.8,.35,1) forwards!important;will-change:transform,opacity}
+.damage-pop.crit{color:#fcb4ff!important;font-size:41px!important;text-shadow:0 0 12px #ff29bb!important}
+@keyframes damage-float-fast{0%{opacity:0;transform:translateY(8px) scale(.7)}22%{opacity:1;transform:translateY(0) scale(1.15)}100%{opacity:0;transform:translateY(-50px) scale(.95)}}
+/* Readable typing area, not a blur-heavy glass material */
+.combat-writing{background:linear-gradient(130deg,#081e4cf5,#101039f5)!important;border:2px solid #7870ff!important;box-shadow:inset 0 0 11px #3878ff4d,0 0 10px #7f54ff4c!important}
+.typing-stage .text-main{font-size:19px!important;color:#e2edff!important;line-height:1.43!important;text-shadow:0 0 1px #8fb1ff55!important}
+.typing-stage .char.active{background:#5746ffed!important;box-shadow:0 0 9px #9b6cff9e!important;color:#fff!important}
+.typing-stage .char.correct{color:#61fbc9!important}
+.typing-stage .char.wrong{background:#c32b5877!important;color:#ffd6db!important}
+.typing-hint{font-size:12px!important;color:#adc9fa!important}
+/* Per-key backdrop-filter is expensive; simple translucent fills keep all 40+ keys responsive */
+.heat-key,.keyboard-region .heat-key,.heat-keyboard .heat-key{
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  background:linear-gradient(160deg,#173873d9,#101944de)!important;
+  border:1px solid #477bff!important;
+  box-shadow:inset 0 0 4px #8ca9ff36!important;
+  color:#ecf6ff!important;font-weight:850!important;
+  transition:background-color .06s,box-shadow .06s,transform .06s!important;
+}
+.keyboard-region .heat-key.pressed,.heat-key.pressed{background:#ed448ce8!important;box-shadow:0 0 9px #fd42d1,0 0 5px #ff9cce!important;transform:translateY(-1px)!important}
+.keyboard-region .heat-key.focus-key{background:linear-gradient(160deg,#694cffde,#263facf4)!important;border-color:#dca3ff!important;box-shadow:0 0 9px #a46effb8!important}
+.heat-key.hot{background:linear-gradient(145deg,#db365fe7,#812768)!important;border-color:#ff658b!important}
+.heat-key.warm{background:linear-gradient(145deg,#df8d34d9,#824d2b)!important;border-color:#ffbd72!important}
+.heat-key.cool{background:linear-gradient(145deg,#086c85e8,#146474)!important;border-color:#18dffa!important}
+.heat-key.spacekey{background:linear-gradient(120deg,#241f70ef,#0f5683b0)!important}
+.keyboard-region,.battle-guide,.next-word{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.battle-guide{border:1px solid #714fff!important;background:#0e1942f5!important}
+.guide-title{color:#ffca76!important}
+.guide-title .live-dot{color:#4dffd2!important}
+.next-word{border-color:#585ef2!important}
+.battle-stat-row>div{border-color:#426cf6!important;background:linear-gradient(150deg,#142659,#0b1741)!important}
+.battle-stat-row strong{color:#fff!important}
+/* Performance panel: richer data without low-contrast microtype */
+.metric,.analysis-card,.card{border-color:#315dcb!important;background:linear-gradient(150deg,#0c204beb,#0b1435f2)!important}
+.score-grid .score,.score-grid>div{background:linear-gradient(155deg,#0e2552,#0b1538)!important;border-color:#4268dc!important}
+.score-grid small,.metric-label,.analysis-card h3,.quest-name,.player-progress span{color:#d2dfff!important}
+.score-grid small{font-size:12px!important}.score-grid b{color:#fff!important}
+.analysis-card h3{font-size:14px!important}
+.analysis-card{box-shadow:inset 0 0 10px #344ffa12!important}
+.badge-token.unlocked{border-color:#ffa936!important;background:linear-gradient(160deg,#44274e,#231d51)!important}
+.weekly-raid{border-color:#ff54a2!important}
+.weekly-raid button{background:linear-gradient(90deg,#a931cc,#e044ad)!important;border:1px solid #e29dff!important}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid #84efff!important;outline-offset:2px!important}
+button{touch-action:manipulation}
+/* Keep the entire battle and keyboard visible on common 900p / 1080p screens */
+@media(min-width:1371px){
+  .boss-battle{height:285px!important}
+  .combat-writing{height:147px!important;max-height:147px!important}
+  .combat-lower{height:140px!important;min-height:140px!important;max-height:140px!important}
+  .heat-key{height:27px!important}
+  .boss-center{inset:110px 10px 12px!important}
+  .boss-health{top:72px!important}
+  .battle-stat-row>div{min-height:55px!important}
+}
+@media(min-width:1371px) and (max-height:870px){
+ .boss-battle{height:248px!important}.combat-writing{height:130px!important;max-height:130px!important}
+ .combat-lower{height:120px!important;min-height:120px!important;max-height:120px!important}
+ .heat-key{height:24px!important}.boss-center{inset:101px 10px 11px!important}
+}
+@media(max-width:1370px){.boss-battle{height:255px!important}.boss-center{top:105px!important}}
+@media(prefers-reduced-motion:reduce){.boss-rune,.damage-pop,.boss-flash{animation:none!important}.browser-window{transition:none!important}}
+.reduced-motion .boss-rune{animation:none!important}
+/* Centralize the entire crown/upper body instead of cropping the boss's head. */
+.boss-art-layer{
+ background:
+  linear-gradient(90deg,#0d0b32b8 0%,#0d15354f 22%,transparent 37%,transparent 67%,#101032ba 86%,#0a0a2bed),
+  linear-gradient(0deg,#0d0c3b8a,transparent 28%,transparent 80%,#0a0b283e),
+  url('./assets/boss-face.jpg') calc(50% + 65px) top / auto 115% no-repeat,
+  radial-gradient(ellipse at 54% 40%,#0b8cebd1 0%,#5416bcca 43%,#151040 90%)!important;
+}
+.boss-battle.boss-rage{border-color:#ff8045!important;box-shadow:0 0 18px #ff633aaf,inset 0 0 19px #ff543266!important}
+.boss-battle.boss-rage .boss-rune{color:#ffad48;text-shadow:0 0 17px #ff673f}
+.boss-battle.boss-rage #boss-meter{background:linear-gradient(90deg,#f13b29,#ffa626)!important}
+@media(min-width:1371px) and (min-height:960px){
+  .boss-battle{height:330px!important}
+  .boss-center{top:114px!important}.boss-health{top:77px!important}
+  .combat-writing{height:163px!important;max-height:163px!important}
+  .combat-lower{height:149px!important;min-height:149px!important;max-height:149px!important}
+}
+/* Low-power fallback; setting is available under Ayarlar > Hareketleri azalt. */
+.reduced-motion .browser-window,.reduced-motion .browser-window:hover{transform:none!important;transition:none!important;box-shadow:0 4px 14px #0009!important}
+.reduced-motion .boss-rune,.reduced-motion .boss-flash{animation:none!important;display:none!important}
+.reduced-motion .heat-key{box-shadow:none!important;transition:none!important}
+/* Avoid an extra page scroll bar caused only by the previous bottom padding. */
+.rogue-app{padding-bottom:0!important}

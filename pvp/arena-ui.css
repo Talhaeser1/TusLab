@@ -1,0 +1,207 @@
+/* Arena modu arayüzü — docs/ARENA-MODU.md §8.2 (Ajan 4a).
+ * HUD .pvp2-announce satırına girer: [taraf 1: HP · süre · kombo · ceza] [madalyon: raund + akış] [taraf 2].
+ * Hazırlık kartları ve D/Y şeridi üst yazma panelindeki yuvadadır; özet kartı boşalan üst alanda belirir.
+ * Metin tabanı 12px; sayılar tabular. Hareket yalnız transform/opacity, azaltılmış harekette yok. */
+
+[data-arena-ui],[data-arena-stage],[data-arena-overlay]{
+  --aui-fire:#ff8a4c;--aui-fire-soft:#ffb98a;--aui-rune:#5ccbff;--aui-rune-soft:#a5e6ff;--aui-gold:#ffc87a;--aui-gold-deep:#d98a2c;
+  --aui-danger:#ff4d6d;--aui-good:#6ff5b8;--aui-violet:#b77bff;--aui-ice:#9fd8ff;--aui-panel:rgba(12,9,36,.95);--aui-line:#7b5cc0;
+  --aui-text:#f3eeff;--aui-muted:#b9b3da;--aui-mono:ui-monospace,Consolas,"Cascadia Code","Courier New",monospace;
+  --aui-ease:cubic-bezier(.16,1,.3,1);
+  color:var(--aui-text);font-size:13px;font-weight:600;letter-spacing:normal;text-shadow:none}
+[data-arena-ui][hidden],[data-arena-stage][hidden],[data-arena-ui] [hidden],[data-arena-stage] [hidden],[data-arena-overlay] [hidden]{display:none!important}
+.pvp2-announce:has(> [data-arena-ui]:not([hidden])){display:block;min-height:0}
+.pvp2-announce:has(> [data-arena-ui]:not([hidden])) > :not([data-arena-ui]){display:none}
+
+/* ---------------- HUD ---------------- */
+.aui-hud{position:relative;z-index:30;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:stretch;gap:12px;width:100%}
+.aui-side{display:grid;gap:5px;min-width:0;padding:7px 16px;border:1px solid transparent;border-radius:12px}
+.aui-side-1{background:linear-gradient(90deg,rgba(84,24,18,.86),rgba(28,12,42,.9) 70%,rgba(20,10,44,.7));border-color:#ff8a4c55}
+.aui-side-2{background:linear-gradient(270deg,rgba(14,42,84,.86),rgba(16,14,48,.9) 70%,rgba(20,10,44,.7));border-color:#5ccbff55}
+.aui-side.is-me{box-shadow:inset 0 0 0 1px #ffffff22}
+.aui-side-top,.aui-hp-row,.aui-side-meta{display:flex;align-items:center;gap:10px;min-width:0}
+.aui-side-2 .aui-side-top,.aui-side-2 .aui-hp-row,.aui-side-2 .aui-side-meta{flex-direction:row-reverse}
+.aui-name{font-size:15px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.aui-side-1 .aui-name{color:var(--aui-fire-soft)}.aui-side-2 .aui-name{color:var(--aui-rune-soft)}
+.aui-you{flex:none;padding:1px 7px;border-radius:5px;background:#ffffff1f;font-size:12px;font-weight:800}
+.aui-progress{font-variant-numeric:tabular-nums;font-weight:800;font-size:13px;color:#e9e4ff;white-space:nowrap}
+.aui-done{padding:1px 8px;border-radius:6px;background:#0f3b31;border:1px solid #3fcf9d;color:var(--aui-good);font-size:12px;font-weight:800;white-space:nowrap}
+/* HP: maç boyu kalıcı 5.000 */
+.aui-hp{flex:1;min-width:60px;height:14px;padding:2px;border-radius:99px;background:#080b1df0;border:1px solid #ffffff2a;box-shadow:inset 0 2px 5px #0009}
+.aui-hp-fill{display:block;height:100%;border-radius:99px;transition:width 300ms var(--aui-ease)}
+.aui-side-1 .aui-hp-fill{background:linear-gradient(90deg,#fc364b,#ff6f46,#ffbe6a)}
+.aui-side-2 .aui-hp{direction:rtl}
+.aui-side-2 .aui-hp-fill{background:linear-gradient(270deg,#348fff,#39c2f8,#8ff1ff)}
+.aui-hp.is-low .aui-hp-fill{background:linear-gradient(90deg,#ff2e4d,#ff6a6a)}
+.aui-hp-text{flex:none;font-size:13px;font-weight:850;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Kişisel saat çipi */
+.aui-clock{flex:none;padding:2px 9px;border-radius:7px;background:#1c1240;border:1px solid #ffffff2a;font-size:13px;font-weight:850;font-variant-numeric:tabular-nums;white-space:nowrap}
+.aui-clock.is-urgent{border-color:var(--aui-danger);color:#ffd9e0;background:#3a0716}
+.aui-clock.is-frozen{border-color:var(--aui-ice);color:#dff3ff;background:#0f2a44}
+.aui-clock.is-blind{border-color:#6b5ca5;color:#cfc6f2;background:#15102e}
+/* Kombo: 4 hücre, 4. hücre FİNAL kapısı */
+.aui-combo{display:flex;align-items:center;gap:8px;min-width:0}
+.aui-side-2 .aui-combo{flex-direction:row-reverse}
+.aui-cells{display:flex;gap:4px}
+.aui-side-2 .aui-cells{flex-direction:row-reverse}
+.aui-cell{width:20px;height:10px;border-radius:3px;background:#ffffff1a;transform:skewX(-14deg);transition:background-color 150ms var(--aui-ease)}
+.aui-side-2 .aui-cell{transform:skewX(14deg)}
+.aui-cell-final{box-shadow:inset 0 0 0 1px #ffc87a88}
+.aui-side-1 .aui-cell.is-on{background:linear-gradient(180deg,var(--aui-fire-soft),var(--aui-fire))}
+.aui-side-2 .aui-cell.is-on{background:linear-gradient(180deg,var(--aui-rune-soft),var(--aui-rune))}
+.aui-combo.is-combo .aui-cell.is-on{background:linear-gradient(180deg,#fff1cf,var(--aui-gold));box-shadow:0 0 7px #ffc87a88}
+.aui-combo-label{font-size:12px;font-weight:850;color:var(--aui-muted);white-space:nowrap}
+.aui-combo.is-combo .aui-combo-label{color:var(--aui-gold)}
+.aui-combo.is-final .aui-combo-label{padding:1px 7px;border-radius:4px;background:linear-gradient(180deg,#ffe0a3,var(--aui-gold) 55%,var(--aui-gold-deep));color:#2a1404}
+/* Ceza çipi: −%48 */
+.aui-penalty{flex:none;padding:2px 8px;border-radius:6px;background:#5a0f22;border:1px solid var(--aui-danger);color:#ff8ea2;font-size:13px;font-weight:900;font-variant-numeric:tabular-nums}
+.aui-penalty.is-clean{background:#0f3b31;border-color:#3fcf9d;color:var(--aui-good)}
+
+/* Madalyon: raund + akış adımları */
+.aui-medal{display:grid;justify-items:center;align-content:center;gap:3px;min-width:220px;padding:5px 14px;border-radius:12px;background:#120c33f2;border:1px solid var(--aui-gold)}
+.aui-title{font-size:13px;font-weight:900;color:var(--aui-gold);letter-spacing:.06em;white-space:nowrap}
+.aui-clockface{display:flex;align-items:baseline;gap:6px}
+.aui-secs{font-size:30px;line-height:1;font-weight:900;font-variant-numeric:tabular-nums;color:#fff}
+.aui-unit{font-size:12px;font-weight:850;color:var(--aui-muted);letter-spacing:.06em}
+.aui-medal.is-urgent{border-color:var(--aui-danger)}.aui-medal.is-urgent .aui-secs{color:#ff8ea2}
+.aui-medal.is-frozen{border-color:var(--aui-ice)}.aui-medal.is-frozen .aui-secs{color:#dff3ff}
+.aui-medal.is-blind .aui-secs{color:#cfc6f2}
+.aui-steps{display:flex;gap:4px;margin:0;padding:0;list-style:none;counter-reset:aui}
+.aui-step{counter-increment:aui;padding:1px 7px;border-radius:5px;font-size:12px;font-weight:750;color:#8f88b8;background:#ffffff0d;white-space:nowrap}
+.aui-step::before{content:counter(aui) ' '}
+.aui-step.is-past{color:#c9c2ea}
+.aui-step.is-active{color:#1c1240;background:var(--aui-gold);font-weight:900}
+
+/* ---------------- yazma paneli yuvası ---------------- */
+.aui-stage{display:grid;gap:8px}
+.aui-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.aui-chips:not(:has(.aui-chip:not([hidden]))){display:none}
+.aui-chip{padding:3px 10px;border-radius:8px;font-size:13px;font-weight:800;border:1px solid #ffffff2a;background:#1c1240;white-space:nowrap}
+.aui-chip.is-scramble{border-color:var(--aui-violet);background:#2a1450;color:#ead9ff;font-size:14px}
+.aui-chip.is-thief{border-color:var(--aui-danger);background:#3a0716;color:#ffd9e0}
+.aui-chip.is-freeze{border-color:var(--aui-ice);background:#0f2a44;color:#dff3ff}
+.aui-chip.is-blind{border-color:#6b5ca5;background:#15102e;color:#cfc6f2}
+.aui-chip.is-gift{border-color:#b08a40;color:#f2dcae}
+.aui-chip.is-gift.is-active{border-color:var(--aui-gold);background:#3b2a08;color:var(--aui-gold)}
+.aui-chip.is-picks{color:var(--aui-muted);font-weight:700}
+/* D/Y şeridi: raundun kelime sayısına göre (5–20); 15+ kelimede sıkışık */
+.aui-words{display:flex;flex-wrap:wrap;justify-content:center;gap:5px 6px;margin:0;padding:0;list-style:none}
+.aui-word{position:relative;padding:2px 9px;border-radius:6px;font:600 15px/1.45 var(--aui-mono);color:#8f88b8;background:#0e0a2acc;border:1px solid #ffffff14}
+.aui-words.is-compact{gap:4px 5px}
+.aui-words.is-compact .aui-word{padding:1px 7px;font-size:13px}
+.aui-word.is-done{color:#bdb6dd}
+.aui-word.is-good{color:var(--aui-good);border-color:#3fcf9d66}
+.aui-word.is-good::after{content:'D';margin-inline-start:6px;font-family:system-ui,sans-serif;font-size:12px;font-weight:900}
+.aui-word.is-bad{color:#ff8ea2;text-decoration:line-through 2px #ff4d6d;border-color:#ff4d6d55}
+.aui-word.is-bad::after{content:'Y';margin-inline-start:6px;font-family:system-ui,sans-serif;font-size:12px;font-weight:900;text-decoration:none;display:inline-block}
+.aui-word.is-active{color:#fff;background:#3343a8;border-color:#8ef7ff;box-shadow:0 0 10px #4d7dff55}
+.aui-word.has-opp::before{content:'';position:absolute;left:5px;right:5px;bottom:-4px;height:2px;border-radius:2px;background:var(--aui-rune)}
+[data-arena-ui].me-2 ~ * .aui-word.has-opp::before{background:var(--aui-fire)}
+.aui-stage.is-scrambled .aui-word{letter-spacing:.06em;border-color:#b77bff55}
+
+/* Hazırlık: skill + eşya kartları */
+.aui-prep{display:grid;gap:10px}
+.aui-prep-head{display:flex;align-items:center;gap:12px}
+.aui-prep-title{font-size:15px;font-weight:900;color:var(--aui-gold)}
+.aui-prep-timer{margin-inline-start:auto;padding:3px 12px;border-radius:8px;background:#1c1240;border:1px solid var(--aui-gold);
+  font-size:18px;font-weight:900;font-variant-numeric:tabular-nums;color:#fff}
+.aui-group{display:grid;gap:6px}
+.aui-group-label{font-size:12px;font-weight:800;color:var(--aui-muted);letter-spacing:.04em}
+.aui-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.aui-cards-items{grid-template-columns:repeat(4,minmax(0,1fr))}
+.aui-card{position:relative;display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:8px;min-height:64px;padding:8px 40px 8px 10px;
+  border:1px solid var(--aui-line);border-radius:12px;background:#0e0a2ae6;color:var(--aui-text);text-align:left;cursor:pointer;font:inherit;
+  transition:border-color 150ms var(--aui-ease),background-color 150ms var(--aui-ease)}
+.aui-card:hover:not(:disabled){border-color:#c9a6ff;background:#1c1450}
+.aui-card:focus-visible{outline:2px solid #7fd7ff;outline-offset:2px}
+.aui-card[aria-pressed="true"]{border-color:var(--aui-gold);background:#2b1d0ee6;box-shadow:0 0 14px #ffc87a44}
+.aui-card:disabled{cursor:not-allowed;opacity:.62}
+.aui-card.is-empty{border-style:dashed}
+.aui-key{display:grid;place-items:center;min-width:24px;height:24px;padding:0 5px;border-radius:6px;background:#ffffff1a;border:1px solid #ffffff33;
+  font:800 13px/1 var(--aui-mono);color:#fff}
+.aui-icon{font-size:24px;line-height:1}
+.aui-card-copy{display:grid;gap:2px;min-width:0}
+/* Başlık kesilmesin ("Harfleri kar…"): en fazla 2 satıra sarılır. */
+.aui-card-copy strong{font-size:14px;font-weight:850;line-height:1.2;white-space:normal;overflow-wrap:anywhere}
+.aui-card-copy small{font-size:12px;color:var(--aui-muted);line-height:1.3}
+.aui-uses{position:absolute;top:5px;right:8px;font-size:12px;font-weight:850;color:var(--aui-gold);font-variant-numeric:tabular-nums}
+.aui-card.is-empty .aui-uses{color:#ff8ea2}
+.aui-prep-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.aui-lock-note{margin-inline-end:auto;font-size:13px;color:var(--aui-muted)}
+.aui-lock,.aui-skip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 16px;border-radius:10px;font:800 14px/1 inherit;cursor:pointer}
+.aui-lock{border:1px solid var(--aui-gold);background:linear-gradient(180deg,#ffe0a3,var(--aui-gold) 60%,var(--aui-gold-deep));color:#2a1404}
+.aui-skip{border:1px solid #9978d88c;background:#50338c6e;color:#f4e9ff}
+.aui-lock:disabled{background:#0f3b31;border-color:#3fcf9d;color:var(--aui-good);cursor:default}
+.aui-skip:disabled{opacity:.5;cursor:default}
+.aui-lock kbd,.aui-skip kbd{padding:2px 6px;border-radius:5px;background:#00000033;font:700 12px/1 var(--aui-mono)}
+.aui-lock:focus-visible,.aui-skip:focus-visible{outline:2px solid #7fd7ff;outline-offset:2px}
+.aui-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------------- özet kartı (panel indiği için üst alan boş) ---------------- */
+.aui-overlay{display:contents}
+.aui-summary{position:absolute;left:50%;top:clamp(150px,22vh,320px);z-index:40;transform:translateX(-50%);width:min(560px,calc(100% - 32px));
+  max-height:calc(100dvh - 170px);overflow-y:auto;padding:16px 18px 14px;border-radius:16px;background:var(--aui-panel);border:1px solid var(--aui-gold);box-shadow:0 18px 50px #02000bcc;
+  animation:aui-enter 220ms var(--aui-ease) both}
+@keyframes aui-enter{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+.aui-sum-title{font-size:14px;font-weight:900;color:var(--aui-muted);letter-spacing:.06em}
+.aui-sum-winner{margin:6px 0 10px;font-size:22px;font-weight:950;line-height:1.2;overflow-wrap:anywhere}
+.aui-sum-winner.is-seat-1{color:var(--aui-fire-soft)}.aui-sum-winner.is-seat-2{color:var(--aui-rune-soft)}.aui-sum-winner.is-draw{color:var(--aui-gold)}
+.aui-sum-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.aui-sum-table tr>*{width:32%;overflow-wrap:anywhere}
+.aui-sum-table tr>*:first-child{width:36%}
+.aui-sum-table th,.aui-sum-table td{padding:4px 6px;border-bottom:1px solid #ffffff14;text-align:right;line-height:1.2}
+.aui-sum-table th[scope=row]{text-align:left;color:var(--aui-muted);font-weight:700}
+.aui-sum-table th[scope=col]{font-size:13px;overflow-wrap:anywhere}
+.aui-sum-table .aui-col-1{color:var(--aui-fire-soft)}.aui-sum-table .aui-col-2{color:var(--aui-rune-soft)}
+.aui-sum-table td.is-win{font-weight:950;color:var(--aui-gold)}
+.aui-sum-foot{display:flex;justify-content:space-between;gap:10px;margin-top:10px;font-size:13px;color:var(--aui-muted)}
+.aui-sum-left{font-weight:900;color:#fff;font-variant-numeric:tabular-nums}
+
+/* ---------------- maç sonu karnesi ---------------- */
+.aui-result{display:grid;gap:8px;margin:8px 0;font-size:13px}
+.aui-res-len{color:#b9b3da;font-size:12px}
+.aui-res-players{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.aui-res-player{display:grid;gap:2px;padding:8px 10px;border-radius:10px;background:#ffffff0d;border:1px solid #ffffff1a}
+.aui-res-player.is-win{border-color:#ffc87a}
+.aui-res-player.aui-col-1 strong{color:#ffb98a}.aui-res-player.aui-col-2 strong{color:#a5e6ff}
+.aui-res-hp{font-size:18px;font-weight:900;font-variant-numeric:tabular-nums}
+.aui-res-player small{font-size:12px;color:#c9c2ea}
+.aui-res-table-wrap{min-width:0;overflow-x:auto}
+.aui-res-table{width:100%;table-layout:fixed;border-collapse:collapse;text-align:left;font-size:12px;font-variant-numeric:tabular-nums}
+.aui-res-table th,.aui-res-table td{padding:5px 7px;border-bottom:1px solid #ffffff20;overflow-wrap:anywhere;vertical-align:top}
+.aui-res-table th:first-child{width:23%;color:#d9cfef}.aui-res-table td{width:38.5%}
+.aui-res-table td strong,.aui-res-table td small{display:block;line-height:1.25}
+.aui-res-table td small{color:#c9c2ea;margin-top:2px}
+.aui-res-table .aui-res-total{background:#ffffff12;font-weight:800}
+
+/* ---------------- dar / kısa ekranlar ---------------- */
+@media(max-width:1200px){
+  .aui-cards{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .aui-cards-items{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .aui-medal{min-width:170px}
+}
+@media(max-width:820px){
+  .aui-hud{grid-template-columns:1fr 1fr;grid-template-areas:'medal medal' 's1 s2'}
+  .aui-medal{grid-area:medal}.aui-side-1{grid-area:s1}.aui-side-2{grid-area:s2}
+  .aui-cards,.aui-cards-items{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-height:820px){
+  .aui-side{padding:5px 12px;gap:3px}
+  .aui-secs{font-size:26px}
+  .aui-card{min-height:56px;padding:6px 8px}
+}
+@media(max-width:480px){
+  .aui-summary{top:132px;width:calc(100% - 16px);max-height:calc(100dvh - 146px);padding:10px}
+  .aui-sum-winner{font-size:17px;margin:4px 0 6px}
+  .aui-sum-table{font-size:12px}
+  .aui-sum-table th,.aui-sum-table td{padding:3px 2px}
+  .aui-sum-table th[scope=col]{font-size:12px}
+  .aui-res-player{min-width:0}
+  .aui-res-table{font-size:12px}
+  .aui-res-table th,.aui-res-table td{padding:4px 3px}
+}
+@media(prefers-reduced-motion:reduce){
+  .aui-summary{animation:none}
+  .aui-hp-fill,.aui-cell,.aui-card{transition:none}
+}
+#pvp-root.pvp4-reduced .aui-summary{animation:none}

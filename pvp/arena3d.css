@@ -1,0 +1,99 @@
+/*
+ * Paket 26 — 3D Neon Arena çekirdeği (pvp/arena3d.js)
+ *
+ * Katman sırası (.pvp2-duel, isolation:isolate bir yığın bağlamıdır):
+ *   z 0  .pvp26-canvas      → .pvp2-duel'in İLK çocuğu; yan yana sahnelerde tüm düello alanını,
+ *                             alt alta (dar ekran) sahnelerde yalnızca sahne bandını kaplar
+ *   z 0  .pvp2-side (auto)  → DOM sırasıyla canvas'ın ÜSTÜNDE; 3B modda arka planı şeffaf
+ *   z 4  .pvp2-midline / VS
+ *   z 7  .pvp24-particles   (2B parçacık canvas'ı)
+ * Sahne içi katmanlar (.pvp4-effects z6, etiketler, hasar sayıları) kendi
+ * .pvp2-side bağlamında kalır ve 3B canvas'ın üstünde görünür.
+ */
+#pvp-root .pvp26-canvas{
+  position:absolute;
+  z-index:0;
+  display:block;
+  pointer-events:none;   /* yazma alanı ve düğmeler tıklanabilir kalır */
+  border-radius:17px;    /* yan sahnelerle aynı köşe: kanvas tüm düello alanını kaplar */
+  user-select:none;
+}
+
+/* 3B karakterler DOM rig'in yerini alır (yerleşim korunur, sadece gizlenir). */
+#pvp-root.pvp26-3d .pvp3-rig{visibility:hidden}
+
+/*
+ * Kolezyum sayfası: 3B modda şato resmi yerine gece stadyumu.
+ * Renkler 3B sahneyle aynı: gök #03020b → sis #150a2c, ateş #ff6a2a (sol),
+ * rün #9a5bff (sağ), arena parıltısı #6a2462. İnce yatay çizgiler tribün
+ * basamaklarını, iç gölge stadyumun kararan kenarlarını çağrıştırır.
+ */
+#pvp-root.pvp26-3d .pvp2-shell{
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 56%,rgba(106,36,98,.36),transparent 70%),
+    radial-gradient(ellipse 38% 60% at 16% 62%,rgba(255,106,42,.13),transparent 72%),
+    radial-gradient(ellipse 38% 60% at 84% 62%,rgba(154,91,255,.17),transparent 72%),
+    repeating-linear-gradient(180deg,rgba(154,91,255,.045) 0 1px,transparent 1px 26px),
+    linear-gradient(180deg,#03020b 0%,#0d0820 36%,#150a2c 62%,#07040f 100%);
+  box-shadow:inset 0 0 160px 40px rgba(3,1,10,.85);
+}
+
+/* Yan paneller: üstte isim/HP okunurluğu için koyu perde, gerisi şeffaf (tribünler görünür). */
+#pvp-root.pvp26-3d .pvp2-side{
+  background:linear-gradient(180deg,rgba(7,4,18,.84) 0,rgba(7,4,18,.6) 70px,rgba(7,4,18,0) 124px);
+  border-color:rgba(255,124,85,.34);
+  box-shadow:none;
+}
+#pvp-root.pvp26-3d .pvp2-rune{border-color:rgba(88,152,232,.36)}
+#pvp-root.pvp26-3d .pvp2-side::before{display:none}
+#pvp-root.pvp26-3d .pvp2-player-top,
+#pvp-root.pvp26-3d .pvp2-health{text-shadow:0 1px 2px rgba(0,0,0,.85)}
+#pvp-root.pvp26-3d .pvp2-stage{background:transparent}
+/* Sahne çerçevesi gölgesi yok: iki sahne tek ve kesintisiz bir arena gibi okunur. */
+#pvp-root.pvp26-3d .pvp2-stage::after{box-shadow:none}
+
+/* 2B sahne süsleri 3B platformla çakışmasın. */
+#pvp-root.pvp26-3d .pvp2-rune-ring,
+#pvp-root.pvp26-3d .pvp2-floor{display:none}
+
+/* Çift efekt önleme: 3B mermi/parçacık/kıvılcım varken eski DOM ve 2B canvas
+   karşılıkları gizlenir. Piksel hasar sayıları (.pvp4-effects içindeki .pxd-*) kalır. */
+#pvp-root.pvp26-3d .pvp10-projectile,
+#pvp-root.pvp26-3d .pvp10-cross-impact,
+#pvp-root.pvp26-3d .pvp3-vfx,
+#pvp-root.pvp26-3d .pvp21-layer,
+#pvp-root.pvp26-3d .pvp4-particle,
+#pvp-root.pvp26-3d .pvp4-effect,
+#pvp-root.pvp26-3d .pvp24-particles{display:none}
+
+/* ---------------------------------------------------------------------------
+   Performans ajanı — 3B moddaki gizli DOM rig'i ve pahalı gölge.
+   Ölçüm (Intel UHD, 2400×1350): 3B açıkken gizli .pvp3-rig ve parçaları
+   sonsuz transform animasyonlarıyla her karede stil yeniden hesabı +
+   535×803'lük iki birleştirme katmanı (will-change) üretiyordu. Görünmüyorlar:
+   animasyon, filtre ve katman ipucu tamamen kapatılır.
+   --------------------------------------------------------------------------- */
+#pvp-root.pvp26-3d .pvp3-rig,
+#pvp-root.pvp26-3d .pvp3-rig *{
+  animation:none!important;
+  filter:none!important;
+  will-change:auto!important;
+}
+/* 160px bulanık iç gölge, tam ekran kabukta her yeniden raster'da (yazı/HP
+   güncellemesi) baştan çiziliyordu. Aynı kararan kenar, raster'ı ucuz bir
+   radyal degrade ile verilir. */
+#pvp-root.pvp26-3d .pvp2-shell{
+  box-shadow:none;
+  background:
+    radial-gradient(ellipse 120% 115% at 50% 50%,transparent 58%,rgba(3,1,10,.82) 100%),
+    radial-gradient(ellipse 70% 55% at 50% 56%,rgba(106,36,98,.36),transparent 70%),
+    radial-gradient(ellipse 38% 60% at 16% 62%,rgba(255,106,42,.13),transparent 72%),
+    radial-gradient(ellipse 38% 60% at 84% 62%,rgba(154,91,255,.17),transparent 72%),
+    repeating-linear-gradient(180deg,rgba(154,91,255,.045) 0 1px,transparent 1px 26px),
+    linear-gradient(180deg,#03020b 0%,#0d0820 36%,#150a2c 62%,#07040f 100%);
+}
+/* 3B canvas her karede değişir: kendi katmanında kalsın, çevresi yeniden boyanmasın. */
+#pvp-root .pvp26-canvas{contain:strict}
+/* Rol rozeti 3B canvas'ın üstünde: backdrop-filter her karede değişen WebGL
+   görüntüsünü yeniden bulanıklaştırmaya zorluyordu. Opak zemin aynı okunurluğu verir. */
+#pvp-root.pvp26-3d .pvp2-role{backdrop-filter:none;-webkit-backdrop-filter:none;background:#100b2de6}

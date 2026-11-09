@@ -1,0 +1,99 @@
+/* TUŞLAB / NEON ARENA — FIRE KEYBOARD UPDATE
+   A standalone visual layer; existing side panels and battle engine remain intact. */
+#panel-arena .window-content{
+ display:flex!important;flex-direction:column!important;justify-content:flex-start!important;
+ gap:clamp(5px,.7vh,9px)!important;overflow:hidden!important;min-height:0!important;
+ padding:clamp(8px,.95vw,13px)!important;isolation:isolate;
+ background:linear-gradient(160deg,rgba(7,10,40,.65),rgba(8,5,34,.42))!important;
+}
+#panel-arena .fire-arena-top{position:relative;z-index:6;display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;gap:7px;height:clamp(49px,6.2vh,70px);margin:0;padding:2px 2px 5px;border-bottom:1px solid rgba(152,67,255,.4);min-width:0}
+.fire-arena-heading{display:flex;align-items:center;gap:8px;min-width:0;flex:0 0 auto}
+.fire-swords{font-size:clamp(21px,1.6vw,33px);filter:drop-shadow(0 0 6px #ff830a)}
+.fire-arena-heading h2{font-size:clamp(21px,1.6vw,32px)!important;font-weight:900;line-height:1.04!important;margin:0!important;color:#f5efff;white-space:nowrap;text-shadow:0 0 9px rgba(102,142,255,.4)}
+.fire-arena-heading p{font-size:clamp(9px,.75vw,13px)!important;color:#bfc9eb;margin:4px 0 0!important;line-height:1.15;white-space:nowrap}
+.fire-arena-modes{display:flex;align-items:center;gap:4px;min-width:0;flex:0 1 auto;justify-content:flex-end}
+.fire-mode{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;white-space:nowrap;font-size:clamp(9px,.71vw,12px);font-weight:650;color:#c8d5fa;background:rgba(4,12,45,.86);border:1px solid rgba(67,114,255,.64);border-radius:7px;padding:8px clamp(5px,.55vw,11px);height:clamp(27px,3.6vh,38px);cursor:pointer;transition:background .15s,box-shadow .15s,transform .15s}
+.fire-mode:hover,.fire-mode:focus-visible{border-color:#a7cbff;color:#fff;transform:translateY(-1px)}
+.fire-mode.selected{background:linear-gradient(115deg,#306ffe,#651afa)!important;color:#fff;border-color:#a1a1ff;box-shadow:0 0 12px #7258ff,0 0 22px #6c42fc8c}
+.fire-audio{display:grid;place-items:center;flex:0 0 auto;width:30px;height:30px;color:#69ddff;background:#0d1a43cf;border:1px solid #4597ff9c;border-radius:8px;cursor:pointer}.fire-audio.is-muted,.fire-audio[aria-pressed=false]{opacity:.55;color:#aeb4ca}.fire-audio .icon{width:16px;height:16px}
+#panel-arena .fire-arena-stage{position:relative;display:flex;flex:1 1 auto;min-height:0!important;overflow:hidden;border:1px solid rgba(121,81,255,.9);border-radius:12px;box-shadow:inset 0 0 20px #120a3fba,0 0 12px #8a40ff5f;background:linear-gradient(125deg,rgba(12,21,73,.3),rgba(45,9,69,.25)),url('./assets/castle-scene.webp') center 45%/cover no-repeat}
+#panel-arena .fire-arena-stage .arena-backdrop{position:absolute!important;inset:0!important;width:100%;height:100%;z-index:0!important;overflow:hidden;pointer-events:none!important;background:radial-gradient(ellipse at 48% 47%,#0bbaff80,transparent 57%),radial-gradient(ellipse at 70% 40%,#c51cf15b,transparent 65%)!important}
+#panel-arena .fire-arena-stage .arena-backdrop img{position:absolute!important;left:50%!important;right:auto!important;top:auto!important;bottom:-56%!important;inset:auto auto -56% 50%!important;height:165%!important;max-height:none!important;width:auto!important;max-width:none!important;object-fit:contain!important;object-position:center bottom!important;transform:translateX(-50%);filter:saturate(1.26) contrast(1.12) drop-shadow(0 0 15px #6733ff98) drop-shadow(0 0 12px #e946448c)!important;animation:fire-boss-idle 3.8s ease-in-out infinite alternate!important;will-change:transform}
+@keyframes fire-boss-idle{from{transform:translateX(-50%) translateY(0) scale(1)}to{transform:translateX(-50%) translateY(-6px) scale(1.012)}}
+#panel-arena .fire-arena-stage .arena-backdrop:after{position:absolute;content:'';inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(4,6,33,.68),transparent 30%,transparent 66%,rgba(6,3,29,.6)),linear-gradient(180deg,rgba(8,8,36,.26),transparent 55%,rgba(8,5,35,.52))!important}
+#panel-arena .fire-arena-stage #boss-battle{position:relative!important;z-index:3!important;display:block!important;flex:1 1 auto!important;min-height:0!important;max-height:none!important;height:100%!important;margin:0!important;border:0!important;box-shadow:none!important;background:transparent!important;overflow:hidden!important;isolation:isolate}
+#panel-arena .fire-arena-stage .boss-grid{position:relative!important;inset:auto!important;display:grid!important;grid-template-columns:minmax(0,1fr) clamp(90px,7.5vw,125px)!important;grid-template-rows:auto minmax(0,1fr)!important;align-items:start!important;width:100%!important;height:100%!important;gap:5px!important;padding:clamp(9px,.85vw,16px)!important;pointer-events:none!important}
+#panel-arena .fire-arena-stage .boss-head-left{grid-column:1!important;grid-row:1!important;position:relative!important;max-width:min(340px,93%)!important;margin:0!important;z-index:3!important;text-shadow:0 2px 8px #030415}
+#panel-arena .boss-head-left .arena-mode-label{display:none!important}
+#panel-arena .boss-kicker{font-size:clamp(12px,1vw,18px)!important;color:#ff8eaf!important;white-space:nowrap}
+#panel-arena .boss-head-left small{display:block;white-space:nowrap;color:#dbd3f4;font-size:clamp(9px,.7vw,12px)!important}
+#panel-arena .boss-health{margin-top:8px!important;max-width:clamp(180px,21vw,320px)!important}
+#panel-arena .boss-health .health-track{height:clamp(10px,1.4vh,16px)!important;background:rgba(22,9,52,.8)!important;border:1px solid #f690ac82!important}
+#panel-arena #boss-hp{font-size:clamp(10px,.83vw,14px)!important;color:#fff;display:block;margin-top:4px!important}
+#panel-arena .fire-arena-stage .boss-combo-cell{position:relative!important;grid-column:1!important;grid-row:2!important;align-self:center!important;justify-self:start!important;margin:0!important;top:auto!important;left:auto!important;z-index:3!important}
+#panel-arena .combat-combo{width:clamp(69px,7vw,120px)!important;height:clamp(69px,7vw,120px)!important;border:3px solid #ffae35!important;background:radial-gradient(circle,#2b0604 35%,#aa2b00c9 67%,#e16b00)!important;box-shadow:0 0 13px #ff8500,0 0 23px #fb6100aa,inset 0 0 13px #ff6722!important;animation:fire-ring-pulse 1.8s ease-in-out infinite alternate!important}
+@keyframes fire-ring-pulse{from{box-shadow:0 0 13px #ff8500,0 0 23px #fb6100aa,inset 0 0 13px #ff6722}to{box-shadow:0 0 18px #ffaf21,0 0 32px #fd4600d9,inset 0 0 21px #ff8d29}}
+#panel-arena .combat-combo b{font-size:clamp(27px,2.7vw,47px)!important;font-weight:900;color:#ffed9c;text-shadow:0 0 13px #ff7500!important}
+#panel-arena .combat-combo small{font-size:clamp(10px,.9vw,16px)!important}
+#panel-arena .fire-arena-stage .boss-right-column{position:relative!important;grid-column:2!important;grid-row:1/3!important;z-index:4;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:clamp(3px,.58vh,8px)!important;overflow:visible}
+#panel-arena .boss-right-column .phase-badge{font-size:clamp(10px,.76vw,13px)!important;text-align:center;background:rgba(13,11,43,.9)!important;border:1px solid #b854ff!important;padding:clamp(5px,.6vh,9px)!important}
+#panel-arena .boss-right-column .boss-clock{min-width:0!important;width:100%;padding:clamp(6px,.75vh,11px)!important;background:rgba(12,16,52,.87)!important;border:1px solid #9954ff!important}
+#panel-arena .boss-right-column .boss-clock b{font-size:clamp(18px,1.4vw,26px)!important}
+.fire-boss-stats{display:flex;flex-direction:column;gap:clamp(3px,.55vh,7px)}
+.fire-boss-stat{display:grid;grid-template-columns:auto 1fr;align-items:center;column-gap:5px;padding:clamp(5px,.62vw,10px);background:rgba(7,19,60,.84);border:1px solid rgba(76,121,255,.78);border-radius:9px;min-height:0}
+.fire-boss-stat>span{grid-row:1/3;font-size:clamp(17px,1.4vw,26px);color:#33d6ff;text-shadow:0 0 11px #009bff}.fire-boss-stat b{font-size:clamp(15px,1.25vw,24px);color:#fff;line-height:1.1}.fire-boss-stat small{font-size:clamp(9px,.71vw,12px);color:#b7caff;line-height:1.1}
+#panel-arena .boss-last-impact{display:none!important}
+#panel-arena .fire-arena-stage #boss-effect-anchor{position:absolute;inset:0;pointer-events:none;z-index:9;overflow:hidden}
+#panel-arena .fire-arena-stage .combat-number,#panel-arena .fire-arena-stage .faz3-damage{z-index:10!important;filter:drop-shadow(0 0 9px #ff681a);font-weight:900}
+#panel-arena .fire-writing.combat-writing{position:relative!important;z-index:5!important;display:flex!important;flex-direction:column!important;flex:0 0 auto!important;order:initial!important;width:100%!important;height:clamp(87px,12.8vh,141px)!important;min-height:0!important;max-height:none!important;margin:0!important;padding:clamp(7px,.75vw,14px)!important;border:1px solid #6793ff!important;border-radius:11px!important;background:rgba(3,8,34,.93)!important;box-shadow:0 0 10px #5368ff7a,inset 0 0 10px #261d6c9f!important;overflow:hidden!important}
+#panel-arena .fire-writing #typing-stage{flex:1!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:hidden!important;outline:none;padding:0!important}
+#panel-arena .fire-writing .text-main{height:100%!important;max-height:none!important;min-height:0!important;font-size:clamp(15px,1.15vw,22px)!important;line-height:1.42!important;letter-spacing:.01em!important;color:#dbe6ff!important;overflow:hidden!important}
+#panel-arena .fire-writing .char.pending{color:#b1bdd9!important;opacity:.74}
+#panel-arena .fire-writing .char.correct{color:#fff!important;opacity:1}
+#panel-arena .fire-writing .char.current-word{background:#1154e9c9!important;border-radius:4px!important;box-shadow:0 0 8px #285fffbd!important}
+#panel-arena .fire-writing .typing-meta{height:15px!important;flex:0 0 auto!important;min-height:0!important;margin-top:3px!important}
+#panel-arena .fire-keyboard-wrap{z-index:6;position:relative;display:flex;flex:0 0 auto!important;align-items:center;justify-content:center;width:100%;height:clamp(106px,17.4vh,188px)!important;min-height:0!important;margin:0!important;overflow:visible!important;background:linear-gradient(180deg,rgba(5,8,35,.4),rgba(11,7,40,.88));border:1px solid rgba(139,66,255,.5);border-radius:11px}
+.fire-keyboard{width:min(98%,560px);height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:clamp(2px,.6vh,6px);padding:5px 4px}
+.fire-key-row{display:flex;align-items:center;justify-content:center;width:100%;gap:clamp(2px,.4vw,6px);min-height:0;flex:1 1 0}
+.fire-key-row.row-1{width:93%}.fire-key-row.row-2{width:84%}
+#panel-arena .fire-key{display:flex;align-items:center;justify-content:center;min-width:0;flex:1 1 0;max-width:53px;height:100%;min-height:0;background:linear-gradient(180deg,rgba(26,33,84,.91),rgba(4,11,38,.96));border:1px solid #3564d3;border-radius:clamp(4px,.48vw,9px);color:#dbe7ff;font-family:inherit;font-size:clamp(11px,.98vw,18px);font-weight:850;line-height:1;text-shadow:0 0 6px #648fff5f;cursor:pointer;box-shadow:inset 0 2px 6px #3c56aa49,0 2px 0 #050426,0 0 8px #2e64ff69;transform:translateY(0);transition:transform 75ms ease,filter .12s ease,border-color .10s ease,box-shadow .12s ease,background .12s ease}
+#panel-arena .fire-key:hover,#panel-arena .fire-key:focus-visible{outline:0;border-color:#b7d6ff;box-shadow:0 0 13px #3894ff,0 0 0 1px #60b3ff inset}
+#panel-arena .fire-key.focus-key{color:#fff;border-color:#9ac5ff;background:linear-gradient(180deg,#2577ff,#3815c0);box-shadow:0 0 12px #559aff,0 0 25px #255bfa,inset 0 0 8px #7abbff}
+#panel-arena .fire-key.last-good{color:#fff;border-color:#9ae7ff;background:linear-gradient(180deg,#44b3ff,#2755fd);box-shadow:0 0 18px #3dbaff,0 0 28px #4459ff}
+#panel-arena .fire-key.last-bad{color:#fff6d4;border-color:#ffcf65;background:linear-gradient(180deg,#ff9c25,#c6370a);box-shadow:0 0 13px #ff7a00,0 0 25px #ff3f07,inset 0 0 8px #ffca55;animation:fire-key-burst .32s ease-out}
+#panel-arena .fire-key.pressed,#panel-arena .fire-key:active{transform:translateY(3px) scale(.96);filter:brightness(1.32)}
+@keyframes fire-key-burst{0%{box-shadow:0 0 25px #ffec75,0 0 38px #ff4d00;transform:scale(1.08)}100%{transform:scale(1)}}
+.fire-key-row.space-row{width:53%;max-height:clamp(14px,2.4vh,24px);flex:.6 1 0}
+#panel-arena .fire-key.space{width:100%;max-width:none;letter-spacing:.2em;font-size:clamp(9px,.68vw,12px)}
+#panel-arena .fire-bottom-stats{position:relative;z-index:5;flex:0 0 auto!important;height:clamp(48px,7.7vh,83px)!important;width:100%;min-height:0!important}
+#panel-arena .fire-bottom-stats .battle-stat-row{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:clamp(3px,.5vw,8px)!important;margin:0!important;padding:0!important;height:100%!important;min-height:0!important;background:none!important}
+#panel-arena .fire-bottom-stats .battle-stat-row>div{height:100%!important;min-height:0!important;display:flex!important;align-items:center!important;justify-content:center!important;flex-direction:column!important;gap:1px!important;padding:clamp(3px,.34vw,8px)!important;background:rgba(7,19,52,.95)!important;border:1px solid #406cff!important;border-radius:9px!important;box-shadow:inset 0 0 9px #1544a749,0 0 8px #242fff42!important}
+#panel-arena .fire-bottom-stats .battle-stat-row span{font-size:clamp(9px,.72vw,12px)!important;color:#99cdff!important;white-space:nowrap!important;letter-spacing:0!important}
+#panel-arena .fire-bottom-stats .battle-stat-row strong{font-size:clamp(18px,1.5vw,30px)!important;color:#f8f7ff!important;line-height:1.08!important;margin:0!important}
+#panel-arena .fire-bottom-stats .battle-stat-row small{font-size:clamp(9px,.72vw,12px)!important;color:#8ac7ff!important;line-height:1.1}
+#panel-arena .pause-screen{z-index:15!important}
+@media(max-width:1450px){
+ .fire-arena-heading{gap:4px}.fire-arena-heading h2{font-size:18px!important}.fire-arena-heading p{font-size:9px!important}.fire-swords{font-size:20px}
+ .fire-arena-modes{gap:3px}.fire-mode{font-size:9px;padding:3px 5px;height:27px}.fire-audio{width:25px;height:27px}
+ #panel-arena .fire-arena-stage .boss-grid{padding:8px!important;grid-template-columns:minmax(0,1fr) 84px!important}
+ #panel-arena .fire-arena-stage .arena-backdrop img{height:170%!important;bottom:-58%!important;inset:auto auto -58% 50%!important}
+ #panel-arena .boss-kicker{font-size:12px!important}.fire-boss-stat{padding:4px 5px}.fire-boss-stat>span{font-size:15px}.fire-boss-stat b{font-size:15px}.fire-boss-stat small{font-size:9px}
+ #panel-arena .fire-writing .text-main{font-size:14px!important}
+}
+@media(max-height:800px){
+ #panel-arena .window-content{gap:5px!important;padding:7px!important}
+ #panel-arena .fire-arena-top{height:43px}
+ #panel-arena .fire-writing.combat-writing{height:98px!important;padding:6px 9px!important}
+ #panel-arena .fire-keyboard-wrap{height:115px!important}
+ #panel-arena .fire-bottom-stats{height:53px!important}
+ #panel-arena .fire-arena-stage .arena-backdrop img{height:169%!important;bottom:-58%!important;inset:auto auto -58% 50%!important}
+ #panel-arena .combat-combo{width:72px!important;height:72px!important}
+ #panel-arena .combat-combo b{font-size:28px!important}
+ #panel-arena .fire-bottom-stats .battle-stat-row strong{font-size:18px!important}
+}
+@media(prefers-reduced-motion:reduce){#panel-arena .fire-arena-stage .arena-backdrop img,#panel-arena .combat-combo,#panel-arena .fire-key{animation:none!important;transition:none!important}}
+.reduced-motion #panel-arena .fire-arena-stage .arena-backdrop img,.effects-reduced #panel-arena .fire-arena-stage .arena-backdrop img,.reduced-motion #panel-arena .combat-combo,.effects-reduced #panel-arena .fire-key{animation:none!important}
+/* Override the legacy keyboard-removal rule from boss-extended.css. */
+#panel-arena #arena-keyboard.fire-keyboard-wrap{display:flex!important;visibility:visible!important}
+
+#panel-arena .fire-key.pressed{background:linear-gradient(180deg,#ffac34,#e34a12)!important;border-color:#ffe79a!important;color:white!important;box-shadow:0 0 14px #ffae20,0 0 25px #f85908,inset 0 0 9px #fff6b9!important}

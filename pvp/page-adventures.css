@@ -1,0 +1,475 @@
+/* ============================================================
+   TuşLab — P5: Maceralar / harita (hub) görünümü + macera kartları
+   pvp/page-adventures.css — index.html'de diğer stillerden SONRA
+   bağlanır:  <link rel="stylesheet" href="./pvp/page-adventures.css" />
+
+   Kapsam (yalnız #app içinde):
+   - Hub görünümü: #panel-arena .full-center-page (MACERA HARİTASI)
+   - Macera kartları: #panel-home .phase4-adventure-grid .adventure
+   - "Maceraya Başla" düğmesi (.phase4-launch)
+   - Macera detay / sonuç pencereleri (.adventure-detail, .adventure-result)
+
+   Notlar:
+   - !important yalnızca exact-ui.css / stage1.css içindeki mevcut
+     !important kurallarını geçersiz kılmak zorunda olduğum yerlerde
+     kullanıldı (12px yazı tabanı, kenarlık/yarıçap tutarlılığı,
+     göz yormayan düğme görünümü). Diğer her yerde #app önekiyle
+     özgüllük yeterli.
+   - Performans: yalnız transform/opacity geçişleri; sonsuz animasyon
+     yok; büyük alanda blur yok (hub sayfasındaki mevcut
+     backdrop-filter kaldırıldı).
+   - :has(.hub-hero) hub sayfasını Akademi/Veri Merkezi sayfalarından
+     ayırır; desteklenmeyen tarayıcıda kural sessizce yok sayılır.
+   ============================================================ */
+
+/* --- Bölüm tokenları (yalnız ana uygulamaya scoped) --- */
+#app{
+  --p5-canvas:#060e2c;        /* zemin (var olan koyu lacivert) */
+  --p5-surface:#0d1a3a;       /* L1 kart yüzeyi */
+  --p5-surface-hover:#101d3f; /* hover yüzeyi */
+  --p5-line:#3b4c7e;          /* 1px ince kenarlık */
+  --p5-line-hover:#8a6cff;    /* hover kenarlığı */
+  --p5-text:#eef3ff;
+  --p5-muted:#b9c6e6;
+  --p5-accent:#8d3ecf;        /* ana vurgu (magenta-mor, ~%10 alan) */
+  --p5-accent-hover:#a049dd;
+  --p5-accent-border:#b98bff;
+  --p5-focus:#9feeff;         /* odak halkası (uygulama geneli cyan ailesi) */
+  --p5-gold:#ffca61;          /* yalnızca yıldız puanları */
+  --p5-radius-lg:12px;        /* büyük paneller */
+  --p5-radius:10px;           /* kartlar ve düğmeler */
+  --p5-ease:cubic-bezier(.2,.7,.3,1);
+}
+
+/* ============================================================
+   1) HUB SAYFASI — MACERA HARİTASI (#panel-arena)
+   ============================================================ */
+
+/* Performans: hub sayfası büyük ve sabit bir alandır; arkasındaki
+   sahne üzerinde blur pahalıdır. Yarı saydam koyu zemin zaten
+   okunabilirliği sağlıyor. */
+#app #panel-arena .full-center-page{
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+
+/* Sayfa dikey akış: içerik uzun pencerede ortalanır, kısa pencerede
+   (safe) başa yaslanır — taşma kesmesi olmaz. */
+#app .full-center-page:has(.hub-hero){
+  display:flex;
+  flex-direction:column;
+  justify-content:safe center;
+}
+
+/* Kicker etiketi: 12px taban, 600 kalınlık (ağırlık hiyerarşisi).
+   font-size !important: phase1.css .eyebrow'i 10px'e sabitliyor;
+   12px altı görünür yazı kuralı için geçersiz kılınmak zorunda. */
+#app .full-center-page:has(.hub-hero)>.eyebrow{
+  display:block;
+  font-size:12px!important;
+  font-weight:600;
+  line-height:1.4;
+}
+
+/* Sayfa başlığı: 30px (stage1'in !important değeriyle uyumlu),
+   satır yüksekliği ve kenar boşlukları 4/8 ritminde. */
+#app .full-center-page:has(.hub-hero)>h2{
+  font-size:30px;
+  font-weight:600;
+  line-height:1.15;
+  letter-spacing:-.01em;
+  color:#f4f7ff;
+  margin:4px 0 8px;
+  text-wrap:balance;
+}
+
+/* Tanıtım metni: 15px gövde, okunabilir satır uzunluğu. */
+#app .full-center-page:has(.hub-hero)>p{
+  font-size:15px;
+  line-height:1.55;
+  color:var(--p5-muted);
+  margin:0 0 16px;
+  max-width:70ch;
+}
+
+/* --- Hub kahraman paneli (harita sahnesi + CTA) --- */
+#app .hub-hero{
+  flex:0 0 auto;
+  border:1px solid #46589a;                     /* önce ince kenarlık */
+  border-radius:var(--p5-radius-lg);
+  background:#101a36;                           /* görsel yüklenmese de okunur */
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05); /* kenar ışığı, glow yığını değil */
+  padding:24px;
+}
+
+/* Sola doğru koyulaşan perde: metin tarafında net kontrast,
+   sağda harita sahnesi görünür kalır. */
+#app .hub-scene{
+  background:linear-gradient(90deg,#0a1030f5 0%,#0c1436e6 34%,#13204acc 58%,#1a234866 78%,#20204e33 100%),
+             url('../assets/hub-world.jpg') center/cover;
+}
+
+#app .hub-hero>div:last-child{
+  position:relative;
+  max-width:min(560px,72%);
+}
+
+#app .hub-hero h3{
+  font-size:24px;
+  font-weight:600;
+  line-height:1.2;
+  color:#ffffff;
+  margin:0 0 12px;
+  text-wrap:balance;
+}
+
+#app .hub-hero p{
+  font-size:15px;
+  line-height:1.55;
+  color:#d3ddf5;
+  max-width:52ch;
+  margin:0;
+}
+
+/* Ana CTA: tek renk vurgu, glow yok; 44px dokunma hedefi. */
+#app .hub-hero .btn.primary{
+  background:var(--p5-accent);
+  border:1px solid var(--p5-accent-border);
+  color:#fff;
+  font-size:15px;
+  font-weight:600;
+  min-height:44px;
+  padding:10px 20px;
+  border-radius:var(--p5-radius);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+  transition:transform .15s var(--p5-ease);
+}
+#app .hub-hero .btn.primary:hover{background:var(--p5-accent-hover)}
+#app .hub-hero .btn.primary:active{transform:translateY(1px)}
+#app .hub-hero .btn.primary:focus-visible{
+  outline:2px solid var(--p5-focus);
+  outline-offset:2px;
+}
+
+/* --- Hub görev ızgarası: 2x2 görev kartları --- */
+#app .hub-grid{
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  margin-top:16px;
+}
+
+/* Kart: emoji işareti + başlık aynı satırda, açıklama altta.
+   (İşaretleme değiştirilemediği için satır-sarma flex kullanıldı.) */
+#app .hub-grid button{
+  display:flex;
+  flex-flow:row wrap;
+  align-items:center;
+  gap:4px 8px;
+  padding:14px 16px;
+  border:1px solid var(--p5-line);
+  border-radius:var(--p5-radius);
+  background:var(--p5-surface);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  color:var(--p5-text);
+  text-align:left;
+  font-size:20px;   /* emoji işaretinin boyutu */
+  line-height:1;
+  transition:transform .15s var(--p5-ease);
+}
+#app .hub-grid button:hover{
+  transform:translateY(-2px);
+  border-color:var(--p5-line-hover);
+  background:var(--p5-surface-hover);
+  /* rogue.css'in hover glow'unu (0 0 23px) kenar ışığıyla değiştirir */
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+}
+#app .hub-grid button:active{transform:translateY(1px)}
+#app .hub-grid button:focus-visible{
+  outline:2px solid var(--p5-focus);
+  outline-offset:2px;
+}
+#app .hub-grid button b{
+  flex:1 1 auto;
+  min-width:0;
+  font-size:16px;
+  font-weight:600;
+  line-height:1.25;
+  color:#fff;
+}
+#app .hub-grid button small{
+  flex-basis:100%;
+  /* !important: ui-polish-home.css'teki geniş "#app :is(small)"
+     12px!important kuralını geçmek zorunda; kart açıklaması
+     ikincil metindir, meta boyutunda kalmamalı. */
+  font-size:14px!important;
+  font-weight:400;
+  line-height:1.4;
+  color:var(--p5-muted);
+}
+
+/* ============================================================
+   2) MACERA KARTLARI (#panel-home, sol panel)
+   ============================================================ */
+
+/* Bölüm başlığı satırı: başlık ve bağlantı aynı taban hizasında. */
+#app .phase4-adventure-head h3{
+  font-weight:600;
+  line-height:1.2;
+  margin:0;
+}
+/* "Tümünü Gör →" — exact-ui 9px tabanını 12px tabanına çeker. */
+#app .phase4-adventure-head button{
+  font-size:12px!important;
+  font-weight:600;
+  color:#9fd8ff;
+  min-height:36px;
+  padding:8px;
+  border-radius:8px;
+}
+#app .phase4-adventure-head button:focus-visible{
+  outline:2px solid var(--p5-focus);
+  outline-offset:2px;
+}
+
+/* Kart çerçevesi: tek tip 1px kenarlık + 10px yarıçap + koyu,
+   yeterince opak zemin (poster altındaki metin için kontrast). */
+#app .phase4-adventure-grid .adventure{
+  border:1px solid #3f5aa0!important;
+  border-radius:var(--p5-radius)!important;
+  background-color:#0a1638f2!important;
+  gap:4px!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  transition:transform .15s var(--p5-ease);
+}
+
+/* Poster: hover'da yalnızca transform (ölçek). */
+#app .phase4-adventure-grid .adventure .adventure-poster{
+  transition:transform .18s var(--p5-ease);
+}
+#app .phase4-adventure-grid .adventure:hover .adventure-poster{
+  transform:scale(1.04);
+}
+
+/* Hover: parlaklık filtresi ve glow yerine kenarlık koyulaşması +
+   2px yükselme (transform). */
+#app .phase4-adventure-grid .adventure:hover{
+  transform:translateY(-2px);
+  filter:none;
+  border-color:#6f95e8!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+}
+#app .phase4-adventure-grid .adventure:focus-visible{
+  outline:2px solid var(--p5-focus);
+  outline-offset:2px;
+  filter:none;
+}
+
+/* Kart metinleri — 12px altı yazı yok (exact-ui'nin 8/10/11px
+   tabanlarını 12px tabanına çeken zorunlu geçersiz kılmalar). */
+#app .phase4-adventure-grid .adventure strong{
+  font-size:clamp(12px,.9vw,15px)!important;
+  font-weight:600;
+  color:#ffffff;
+}
+#app .phase4-adventure-grid .adventure small{
+  font-size:12px!important;
+  color:#c3cfe8;
+}
+#app .phase4-adventure-grid .adventure>span:last-child{
+  font-size:12px!important;
+  color:#ffd3a1;   /* XP ödülü ipucu: küçük altın vurgu */
+}
+
+/* --- "Maceraya Başla" düğmesi --- */
+/* exact-ui çok renkli gradyan + 3 katman glow kullanıyor; burada
+   tek vurgu rengi, kartlarla uyumlu yarıçap ve 600 kalınlık. */
+#app .phase4-launch{
+  background:var(--p5-accent)!important;
+  border:1px solid var(--p5-accent-border)!important;
+  border-radius:var(--p5-radius-lg)!important;
+  font-weight:600!important;
+  font-size:clamp(15px,1.1vw,18px)!important;
+  letter-spacing:.01em;
+  text-shadow:none!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08)!important;
+  transition:transform .15s var(--p5-ease);
+}
+#app .phase4-launch:hover{
+  background:var(--p5-accent-hover)!important;
+  /* stage1.css'in -3px + scale(1.01) !important hareketini
+     sakin 1px kalkışla değiştirir (yalnız transform). */
+  transform:translateY(-1px)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08)!important;
+}
+#app .phase4-launch:focus-visible{
+  outline:2px solid var(--p5-focus);
+  outline-offset:2px;
+}
+
+/* ============================================================
+   3) MACERA PENCERELERİ (detay + sonuç)
+   ============================================================ */
+
+/* Detay metni */
+#app .modal .adventure-detail p{
+  font-size:14px;
+  line-height:1.55;
+  color:#cdd6f2;
+  margin:0 0 12px;
+}
+
+/* Özet satırı: süre / en iyi skor / yıldız — taban hizalı. */
+#app .modal .adventure-summary{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:baseline;
+  gap:8px 16px;
+  padding:12px 0;
+  margin:12px 0;
+  border-block:1px solid #3a4a7a;
+  font-size:14px;
+  color:#c3cdf0;
+}
+#app .modal .adventure-summary b{
+  color:#fff;
+  font-weight:600;
+}
+
+/* Yıldızlar: yalnız renk + boyut; glow yok. */
+#app .modal .adventure-stars{
+  color:var(--p5-gold);
+  font-size:18px;
+  line-height:1.2;
+  letter-spacing:2px;
+  text-shadow:none;
+}
+#app .modal .adventure-stars.big{
+  font-size:32px;
+  letter-spacing:3px;
+  text-align:center;
+  margin:8px 0 16px;
+}
+
+/* Sonuç istatistikleri: L1 yüzey, ince kenarlık, 12px etiket +
+   20px değer (hiyerarşi boyuttan gelir). */
+#app .modal .adventure-result-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  margin:16px 0;
+}
+#app .modal .adventure-result-grid>div{
+  border:1px solid #3a4c7e;
+  border-radius:var(--p5-radius);
+  background:#0d1836;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  padding:12px;
+  color:#b6c2e4;
+  font-size:12px;
+  line-height:1.35;
+}
+#app .modal .adventure-result-grid>div>strong{
+  display:block;
+  color:#fff;
+  font-size:20px;
+  font-weight:600;
+  line-height:1.25;
+  margin-top:4px;
+}
+
+#app .modal .adventure-result p{
+  font-size:14px;
+  line-height:1.5;
+  color:#c3cfe8;
+  margin:8px 0;
+}
+#app .modal .adventure-result .result-buttons{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+}
+#app .modal .adventure-result .result-buttons .btn{
+  font-size:14px;
+  font-weight:600;
+  min-height:44px;
+  padding:10px 16px;
+}
+#app .modal .adventure-result .result-buttons .btn:focus-visible{
+  outline:2px solid var(--p5-focus);
+  outline-offset:2px;
+}
+
+/* Detay penceresindeki ana düğme ("Başla") hub CTA ile aynı dilde. */
+#app .modal .adventure-detail .btn.primary{
+  background:var(--p5-accent);
+  border:1px solid var(--p5-accent-border);
+  color:#fff;
+  font-size:15px;
+  font-weight:600;
+  min-height:44px;
+  padding:10px 20px;
+  border-radius:var(--p5-radius);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+  transition:transform .15s var(--p5-ease);
+}
+#app .modal .adventure-detail .btn.primary:hover{background:var(--p5-accent-hover)}
+#app .modal .adventure-detail .btn.primary:focus-visible{
+  outline:2px solid var(--p5-focus);
+  outline-offset:2px;
+}
+
+/* Macera pencerelerinde tam ekran blur kullanma (performans);
+   zemin zaten %88 koyu. */
+#app .modal-backdrop:has(.adventure-detail),
+#app .modal-backdrop:has(.adventure-result){
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+
+/* ============================================================
+   4) HAREKETİ AZALT
+   prefers-reduced-motion + uygulamanın "Efektleri azalt" ayarı
+   (html.reduced-motion / html.effects-reduced) desteklenir.
+   ============================================================ */
+@media (prefers-reduced-motion:reduce){
+  #app .hub-grid button,
+  #app .hub-hero .btn.primary,
+  #app .phase4-adventure-grid .adventure,
+  #app .phase4-adventure-grid .adventure .adventure-poster,
+  #app .phase4-launch,
+  #app .modal .adventure-detail .btn.primary{
+    transition:none!important;
+    transform:none!important;
+  }
+  #app .phase4-adventure-grid .adventure:hover .adventure-poster{
+    transform:none!important;
+  }
+  #app .phase4-launch:hover{
+    transform:none!important;
+  }
+}
+html.reduced-motion #app .hub-grid button,
+html.reduced-motion #app .hub-hero .btn.primary,
+html.reduced-motion #app .phase4-adventure-grid .adventure,
+html.reduced-motion #app .phase4-adventure-grid .adventure .adventure-poster,
+html.reduced-motion #app .phase4-launch,
+html.reduced-motion #app .modal .adventure-detail .btn.primary,
+html.effects-reduced #app .hub-grid button,
+html.effects-reduced #app .hub-hero .btn.primary,
+html.effects-reduced #app .phase4-adventure-grid .adventure,
+html.effects-reduced #app .phase4-adventure-grid .adventure .adventure-poster,
+html.effects-reduced #app .phase4-launch,
+html.effects-reduced #app .modal .adventure-detail .btn.primary{
+  transition:none!important;
+  transform:none!important;
+}
+html.reduced-motion #app .phase4-adventure-grid .adventure:hover .adventure-poster,
+html.effects-reduced #app .phase4-adventure-grid .adventure:hover .adventure-poster{
+  transform:none!important;
+}
+html.reduced-motion #app .phase4-launch:hover,
+html.effects-reduced #app .phase4-launch:hover{
+  transform:none!important;
+}

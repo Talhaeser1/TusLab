@@ -1,0 +1,54 @@
+/* Stage 04: lightweight event-driven slash, ground-ripple, shield and charged impact. */
+.pvp2-stage{--pvp4-primary:#ff9d48;--pvp4-bright:#ffe2a4;--pvp4-shadow:#e3411a;--pvp4-tilt:1;}
+.pvp2-rune .pvp2-stage{--pvp4-primary:#49c9ff;--pvp4-bright:#dcfaff;--pvp4-shadow:#2758dc;--pvp4-tilt:-1;}
+.pvp4-effects{position:absolute;inset:0;z-index:6;overflow:hidden;border-radius:inherit;pointer-events:none;contain:layout style paint;}
+.pvp4-effect{position:absolute;display:block;pointer-events:none;will-change:opacity,transform;}
+.pvp4-effect-blade{left:25%;top:12%;width:61%;height:76%;border-radius:50%;border:12px solid transparent;border-top-color:var(--pvp4-bright);border-right-color:var(--pvp4-primary);filter:drop-shadow(0 0 8px var(--pvp4-primary)) drop-shadow(0 0 17px var(--pvp4-shadow));animation:pvp4-blade-swish .45s cubic-bezier(.14,.76,.2,1) both;transform-origin:50% 50%}
+.pvp2-rune .pvp4-effect-blade{border-right-color:transparent;border-left-color:var(--pvp4-primary)}
+.pvp4-effect-wave{left:11%;bottom:6%;width:78%;height:27%;border-radius:50%;border:5px solid var(--pvp4-primary);box-shadow:0 0 18px var(--pvp4-bright),inset 0 0 24px var(--pvp4-shadow);background:radial-gradient(ellipse,var(--pvp4-shadow),transparent 64%);animation:pvp4-wave .8s ease-out both}
+.pvp4-effect-wave::before,.pvp4-effect-wave::after{content:'';position:absolute;inset:24% 10%;border:3px solid var(--pvp4-bright);border-radius:50%;opacity:.65;box-shadow:0 0 17px var(--pvp4-primary)}
+.pvp4-effect-wave::after{inset:38% 21%;border-width:2px}
+.pvp4-effect-shield{left:21%;top:10%;width:59%;height:79%;border:5px solid var(--pvp4-bright);border-radius:44% 44% 49% 49%;background:radial-gradient(ellipse at 52% 45%,#56aefa2e,transparent 71%);box-shadow:0 0 14px var(--pvp4-bright),0 0 34px var(--pvp4-primary),inset 0 0 32px var(--pvp4-primary);animation:pvp4-shield .85s ease-in-out both}
+.pvp4-effect-shield::before{content:'✧ ᚱ ✦ ᚦ ✧';position:absolute;top:23%;left:-4%;width:108%;text-align:center;letter-spacing:.7em;color:var(--pvp4-bright);font-size:clamp(13px,2vw,24px);text-shadow:0 0 12px var(--pvp4-bright);animation:pvp4-rune-spin 1s linear both}
+.pvp4-effect-shield-ring{left:20%;top:10%;width:60%;height:80%;border:4px solid var(--pvp4-bright);border-radius:48%;box-shadow:0 0 30px var(--pvp4-primary);animation:pvp4-shield-ring .49s ease-out both}
+.pvp4-effect-charge{left:17%;top:4%;width:66%;height:89%;border:3px solid var(--pvp4-primary);border-radius:50%;box-shadow:0 0 28px var(--pvp4-primary),inset 0 0 30px var(--pvp4-shadow);background:radial-gradient(ellipse,#ffffff0b 0%,transparent 65%);animation:pvp4-charge .62s ease-in both}
+.pvp4-effect-charge::after{content:'ULTİ';position:absolute;top:45%;left:0;width:100%;text-align:center;font:1000 clamp(20px,2vw,32px) system-ui,sans-serif;color:var(--pvp4-bright);text-shadow:0 0 18px var(--pvp4-primary);letter-spacing:.28em}
+.pvp4-effect-hitflash{inset:0;background:radial-gradient(ellipse at 50% 52%,#ffffffe1,var(--pvp4-primary) 15%,#ffffff09 44%,transparent 67%);mix-blend-mode:screen;animation:pvp4-flash .43s ease-out both}
+.pvp4-effect-explosion{inset:-15%;background:radial-gradient(circle at 50% 53%,#ffffffb8 0%,var(--pvp4-primary) 9%,var(--pvp4-shadow) 22%,transparent 62%);mix-blend-mode:screen;animation:pvp4-explosion .93s cubic-bezier(.13,.82,.3,1) both}
+.pvp4-effect-smoke{left:10%;top:17%;width:80%;height:78%;border-radius:50%;background:radial-gradient(ellipse at 50% 70%,#6b679c88,#18162665 55%,transparent 70%);animation:pvp4-smoke .85s ease-out both}
+.pvp4-effect-shield-static{left:22%;top:12%;width:56%;height:75%;border:3px solid var(--pvp4-primary);border-radius:48%;box-shadow:0 0 18px var(--pvp4-primary);opacity:.85}
+.pvp4-effect-flash-static{inset:10%;border:2px solid var(--pvp4-primary);border-radius:12px;opacity:.8}
+.pvp4-particle{position:absolute;top:52%;left:50%;width:7px;height:21px;border-radius:2px 2px 90% 90%;background:linear-gradient(var(--pvp4-bright),var(--pvp4-primary) 40%,transparent);box-shadow:0 0 11px var(--pvp4-primary);transform-origin:50% 50%;animation:pvp4-particle .68s ease-out var(--pvp4-delay,0ms) both;will-change:transform,opacity}
+.pvp4-particle-rune{width:9px;height:9px;border:2px solid var(--pvp4-bright);background:var(--pvp4-primary);transform:rotate(45deg)}
+.pvp4-cue-label{position:absolute;z-index:8;left:50%;top:20%;transform:translateX(-50%);min-width:84px;max-width:72%;text-align:center;color:#fff6df;font-size:clamp(11px,1.1vw,17px);font-weight:1000;letter-spacing:.08em;text-shadow:0 0 9px var(--pvp4-primary),0 0 17px var(--pvp4-shadow);pointer-events:none}
+.pvp4-cue-label:empty{display:none}
+.pvp4-impact-jolt .pvp3-model{animation:pvp4-jolt .24s cubic-bezier(.2,.6,.2,1) both}
+.pvp4-aux-buttons{display:flex;align-items:center;gap:6px;min-width:0}
+.pvp4-toggle,.pvp4-combo{font:800 10px/1.3 system-ui,sans-serif;padding:6px 9px;color:#ffe8fb;background:#17113bdc;border:1px solid #8c80da9c;border-radius:8px;cursor:pointer;white-space:nowrap}
+.pvp4-toggle[aria-pressed='true']{color:#b3f5ff;border-color:#35bade}
+.pvp4-combo:hover,.pvp4-toggle:hover{background:#3a235e}
+.pvp4-combo:focus-visible,.pvp4-toggle:focus-visible{outline:2px solid #9bebff;outline-offset:2px}
+.pvp4-perf{font-size:9px;color:#aaaec9;white-space:nowrap}
+#pvp-root.pvp4-reduced .pvp3-rig,#pvp-root.pvp4-reduced .pvp3-rig *,#pvp-root.pvp4-reduced .pvp3-vfx *,#pvp-root.pvp4-reduced .pvp4-effect,#pvp-root.pvp4-reduced .pvp4-particle{animation:none!important;transition:none!important}
+@keyframes pvp4-blade-swish{0%{opacity:0;transform:rotate(-75deg) scale(.32)}27%{opacity:1}63%{opacity:1}100%{opacity:0;transform:rotate(64deg) scale(1.2)}}
+@keyframes pvp4-wave{0%{opacity:0;transform:scale(.2) translateY(-22px)}25%{opacity:1}100%{opacity:0;transform:scale(1.62) translateY(15px)}}
+@keyframes pvp4-shield{0%,100%{opacity:0;transform:scale(.4)}15%,78%{opacity:1;transform:scale(1)}55%{opacity:.8;transform:scale(1.06)}}
+@keyframes pvp4-shield-ring{0%{opacity:0;transform:scale(.58)}25%{opacity:.9}100%{opacity:0;transform:scale(1.36)}}
+@keyframes pvp4-charge{0%{opacity:0;transform:scale(1.3) rotate(-30deg)}70%{opacity:1}100%{opacity:.2;transform:scale(.8) rotate(55deg)}}
+@keyframes pvp4-flash{0%{opacity:0}20%{opacity:.8}100%{opacity:0}}
+@keyframes pvp4-explosion{0%{opacity:0;transform:scale(.1)}15%{opacity:1}100%{opacity:0;transform:scale(2)}}
+@keyframes pvp4-smoke{from{opacity:0;transform:translateY(28px) scale(.7)}35%{opacity:.75}to{opacity:0;transform:translateY(-70px) scale(1.55)}}
+@keyframes pvp4-rune-spin{from{transform:rotate(-24deg)}to{transform:rotate(24deg)}}
+@keyframes pvp4-particle{0%{opacity:0;transform:rotate(var(--pvp4-angle)) translateY(0) scale(.2)}17%{opacity:1}100%{opacity:0;transform:rotate(var(--pvp4-angle)) translateY(calc(-1 * var(--pvp4-distance))) scale(.22)}}
+@keyframes pvp4-jolt{0%,100%{transform:translateX(0)}22%{transform:translateX(-5px) rotate(-1.2deg)}50%{transform:translateX(6px) rotate(.9deg)}78%{transform:translateX(-2px)}}
+@media (max-height:820px){.pvp4-toggle,.pvp4-combo{font-size:9px;padding:4px 6px}.pvp4-cue-label{top:17%}}
+@media (max-width:1100px){.pvp4-perf{display:none}.pvp4-toggle{font-size:9px}}
+@media(prefers-reduced-motion:reduce){#pvp-root .pvp4-effect,#pvp-root .pvp4-particle{animation:none!important;transition:none!important}}
+
+/* Legacy preview VFX hidden: only timeline cues should trigger new effects. */
+#pvp-root .pvp3-vfx{display:none}
+/* The stage itself jolts very briefly at impact; no layout reflow. */
+#pvp-root .pvp2-stage.pvp4-impact-jolt{animation:pvp4-camera-shock .22s ease-out both}
+@keyframes pvp4-camera-shock{0%,100%{transform:translate3d(0,0,0)}19%{transform:translate3d(-2px,1px,0)}42%{transform:translate3d(3px,-1px,0)}70%{transform:translate3d(-1px,1px,0)}}
+#pvp-root.pvp4-reduced .pvp2-stage.pvp4-impact-jolt{animation:none!important}
+@media(prefers-reduced-motion:reduce){#pvp-root .pvp2-stage.pvp4-impact-jolt{animation:none!important}}

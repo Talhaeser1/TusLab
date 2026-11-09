@@ -1,0 +1,112 @@
+/* Lobi paneli v2: sağdan açılan, ekran yüksekliğine oturan panel; iki net kart (Arkadaşınla oyna / Bota karşı).
+   Eski lobby.css, ui-polish.css ve practice.css kurallarının üstüne yazar. Blur yok, sonsuz animasyon yok, yazılar ≥12 px. */
+#pvp-root .pvp6-panel{
+  position:fixed;z-index:150;top:76px;right:16px;bottom:16px;left:auto;
+  width:min(440px,calc(100vw - 32px));max-width:none;max-height:none;
+  display:flex;flex-direction:column;gap:12px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#5b4aa8 transparent;
+  padding:16px 18px 18px;border:1px solid #7c5cff59;border-radius:16px;
+  background:#0d0a24f7;box-shadow:-10px 0 40px #000b,0 0 0 1px #0008;color:#ece8ff;
+  font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
+  animation:lb-in 200ms cubic-bezier(.2,.9,.3,1) both
+}
+@keyframes lb-in{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+#pvp-root .pvp6-head{margin:0;padding:0 0 12px;border-bottom:1px solid #ffffff1a;align-items:center}
+#pvp-root .pvp6-head h2{margin:2px 0;font-size:20px;letter-spacing:.03em;color:#fff;text-shadow:none}
+#pvp-root .pvp6-eyebrow{font-size:12px;letter-spacing:.14em;color:#8ddff6}
+#pvp-root .pvp6-head p{margin:0;font-size:13px;color:#9dffeb}
+#pvp-root .pvp6-label{font-size:12px;padding:6px 10px}
+
+/* Kartlar */
+#pvp-root .pvp6-before{display:grid;gap:12px}
+#pvp-root .lb-card{display:grid;gap:10px;margin:0;padding:14px 16px;border:1px solid #ffffff1f;border-radius:14px;background:#ffffff07}
+#pvp-root .lb-online{border-color:#ff6fb04d;background:linear-gradient(160deg,#2a0f2e66,#ffffff05 60%)}
+#pvp-root .lb-practice{border-color:#3fd7b25c;background:linear-gradient(160deg,#0d2b2a66,#ffffff05 60%)}
+#pvp-root .lb-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#pvp-root .lb-card-head h3{margin:0;font-size:16px;font-weight:850;color:#fff}
+#pvp-root .lb-tag{flex:none;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;color:#cfc7ff;background:#ffffff10;border:1px solid #ffffff1f}
+#pvp-root .lb-card label,#pvp-root .pvp24-practice label{display:flex;flex-direction:column;gap:6px;margin:0;font-size:13px;font-weight:600;color:#cdd6f0}
+#pvp-root .lb-card > label{display:block;margin-bottom:-4px}
+
+/* Alanlar ve düğmeler */
+#pvp-root .pvp6-panel input,#pvp-root .pvp6-panel select{min-height:42px;padding:9px 12px;font-size:14px;border-radius:10px;background:#090f27;border:1px solid #4e5f99;color:#fff}
+#pvp-root .pvp6-panel button{min-height:40px;font-size:14px;border-radius:10px;transform:none}
+#pvp-root .pvp6-panel button:hover:not(:disabled){transform:none}
+#pvp-root .pvp6-startrow{margin:0}
+#pvp-root .pvp6-panel button.pvp6-primary{width:100%;min-height:46px;font-size:15px}
+#pvp-root .pvp6-join{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+#pvp-root .pvp6-join button{min-width:92px;padding-inline:14px}
+#pvp-root .lb-divider{display:flex;align-items:center;gap:10px;margin:2px 0;font-size:12px;font-weight:700;color:#9aa6c8;letter-spacing:.04em}
+#pvp-root .lb-divider::before,#pvp-root .lb-divider::after{content:'';flex:1;height:1px;background:#ffffff1f}
+
+/* Antrenman kartı (practice.css'in dış kutusunu sıfırla: kart zaten kutu) */
+#pvp-root .lb-practice.pvp24-practice{margin:0}
+#pvp-root .pvp24-practice-row{margin:0;gap:10px}
+#pvp-root .lb-practice .rui-picker{margin:0;grid-template-columns:1fr;gap:6px}
+#pvp-root .lb-practice .rui-picker-label{font-size:13px;color:#cdd6f0}
+#pvp-root .lb-practice .rui-seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}
+#pvp-root .lb-practice .rui-seg button{min-height:52px;padding:6px 8px;display:grid;place-content:center;gap:2px;text-align:center;white-space:normal;line-height:1.15}
+#pvp-root .lb-practice .rui-seg button b{font-size:14px}
+#pvp-root .lb-practice .rui-seg button small{font-size:12px;opacity:.85}
+#pvp-root .lb-practice .rui-seg button[aria-pressed="true"]{border-color:#ffc87a;background:#3a2560;box-shadow:0 0 0 1px #ffc87a55 inset}
+#pvp-root .lb-practice .rui-picker[data-rounds-picker] .rui-seg button{min-height:40px}
+#pvp-root .pvp24-practice-start{width:100%;min-height:48px!important;font-size:15px!important}
+#pvp-root .pvp6-help{margin:0;font-size:12px;line-height:1.5;color:#a9b4d4}
+
+/* Günlük: boşsa yer kaplamasın; doluysa küçük */
+#pvp-root .pvp6-log:empty{display:none}
+#pvp-root .pvp6-log{flex:none;max-height:72px;overflow-y:auto;margin:0;padding-top:8px;font-size:12px}
+
+/* Oda içi (katıldıktan sonra) */
+#pvp-root .pvp6-after{display:grid;gap:12px}
+#pvp-root .pvp6-code strong{font-size:17px}
+#pvp-root .pvp6-code small,#pvp-root .pvp6-slot small,#pvp-root .pvp6-slot em,#pvp-root .pvp6-player-tag,#pvp-root .pvp6-charlabel{font-size:12px}
+#pvp-root .pvp6-charlabel{margin:4px 0 0}
+#pvp-root .pvp6-share{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:0}
+
+@media (max-height:760px){
+  #pvp-root .pvp6-panel{top:60px;bottom:8px;padding:12px 14px 14px;gap:10px}
+  #pvp-root .lb-card{padding:12px 14px;gap:8px}
+}
+@media (max-width:767.98px){
+  #pvp-root .pvp6-panel{left:8px;right:8px;width:auto;top:64px;bottom:8px}
+  #pvp-root .lb-practice .rui-seg{grid-auto-flow:row;grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){#pvp-root .pvp6-panel{animation:none}}
+#pvp-root.pvp4-reduced .pvp6-panel{animation:none}
+/* Oda dışındayken teknik günlük gösterilmez (oyuncuya değil geliştiriciye yönelik; paneli taşırıyordu). */
+#pvp-root .pvp6-before:not([hidden]) ~ .pvp6-log{display:none}
+#pvp-root .lb-card{padding:12px 14px;gap:8px}
+#pvp-root .pvp6-before{gap:10px}
+
+/* ---------- Geniş ekran: ortada iki sütunlu pencere (kullanıcının 1920×~895 ekranında dar yan panel kayıyordu) ---------- */
+@media (min-width:1100px){
+  #pvp-root .pvp6-panel{
+    top:50%;left:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);
+    width:min(1040px,calc(100vw - 48px));max-height:calc(100dvh - 32px);
+    padding:18px 22px 20px;gap:14px;
+    box-shadow:0 0 0 100vmax #04021099,0 24px 70px #000c;  /* arka plan karartma: ek öğe yok */
+    animation-name:lb-pop
+  }
+  @keyframes lb-pop{from{opacity:0;transform:translate(-50%,-48%)}to{opacity:1;transform:translate(-50%,-50%)}}
+  #pvp-root .pvp6-before{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);align-items:stretch;gap:14px}
+  #pvp-root .lb-online{align-content:start}
+  #pvp-root .lb-online .pvp6-startrow{margin-top:4px}
+  /* Oda içi görünüm de iki sütunu kullanır: oyuncular üstte geniş, seçimler altta */
+  #pvp-root .pvp6-after{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;align-items:start}
+  #pvp-root .pvp6-after>*{grid-column:1 / -1}
+  #pvp-root .pvp6-after>.pvp6-code{grid-column:1}
+  #pvp-root .pvp6-after>.pvp6-share{grid-column:2;align-self:center}
+}
+@media (min-width:1100px) and (prefers-reduced-motion:reduce){#pvp-root .pvp6-panel{animation:none}}
+/* Maç uzunluğu düğmeleri (5/7/10 tur) dar kalıp iki satıra bölünüyordu: tam genişlik, tek satır. */
+#pvp-root .lb-practice [data-rounds-picker] .rui-seg{display:grid!important;grid-auto-flow:column;grid-auto-columns:1fr;width:100%;gap:6px}
+#pvp-root .lb-practice [data-rounds-picker] .rui-seg button{display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;min-height:40px}
+/* %80 yakınlaştırma (≥2200 CSS px): lobi yazıları ekranda ≥12 px kalsın. */
+@media (min-width:2200px){
+  #pvp-root .pvp6-panel{width:min(1240px,calc(100vw - 48px))}
+  #pvp-root .pvp6-eyebrow,#pvp-root .pvp6-label,#pvp-root .lb-tag,#pvp-root .lb-divider,#pvp-root .pvp6-help,
+  #pvp-root .lb-practice .rui-seg button small,#pvp-root .pvp6-code small,#pvp-root .pvp6-slot small,#pvp-root .pvp6-slot em,#pvp-root .pvp6-player-tag,#pvp-root .pvp6-charlabel{font-size:15px}
+  #pvp-root .pvp6-head p,#pvp-root .lb-card label,#pvp-root .pvp24-practice label,#pvp-root .lb-practice .rui-picker-label{font-size:16px}
+  #pvp-root .lb-practice .rui-seg button b,#pvp-root .pvp6-panel input,#pvp-root .pvp6-panel select,#pvp-root .pvp6-panel button{font-size:17px}
+  #pvp-root .lb-card-head h3{font-size:20px}
+}

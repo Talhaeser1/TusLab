@@ -1,0 +1,115 @@
+/* TuşLab — Neon Arena | Canlı boss hasarı: yalnızca CSS/yerel DOM animasyonları. */
+#panel-arena #boss-battle .boss-effect-anchor{
+  position:absolute!important;inset:0!important;pointer-events:none!important;
+  z-index:20!important;isolation:isolate;overflow:visible!important;
+}
+#panel-arena .boss-last-impact{
+  display:grid;justify-items:center;align-content:center;gap:2px;
+  width:100%;min-height:42px;padding:5px 6px;
+  border:1px solid rgba(255,179,100,.28);border-radius:11px;
+  background:linear-gradient(135deg,rgba(47,22,54,.83),rgba(18,20,55,.85));
+  box-shadow:inset 0 0 14px rgba(255,112,33,.07),0 0 10px rgba(255,107,38,.08);
+  opacity:.65;transition:opacity .14s ease,border-color .14s ease;
+  box-sizing:border-box;
+}
+#panel-arena .boss-last-impact small{font-size:clamp(8px,.58vw,11px);line-height:1.05;font-weight:800;letter-spacing:.07em;color:#ffd49c;white-space:nowrap}
+#panel-arena .boss-last-impact strong{font-size:clamp(14px,1.22vw,23px);font-variant-numeric:tabular-nums;line-height:1.04;font-weight:1000;color:#ffb856;text-shadow:0 0 15px rgba(255,143,38,.5)}
+#panel-arena .boss-last-impact.has-hit{opacity:1;border-color:rgba(255,163,52,.62)}
+#panel-arena .boss-last-impact.was-critical{border-color:#ff88dd;box-shadow:0 0 15px rgba(255,82,163,.32),inset 0 0 11px rgba(255,105,57,.16)}
+#panel-arena .boss-last-impact.was-critical strong{color:#ffea7a;text-shadow:0 0 12px #ff4fba}
+/* Pop-up damage numbers float in the real game layer, never inside the text box. */
+#panel-arena #boss-effect-anchor .combat-number{
+  position:absolute;z-index:22;display:flex;align-items:center;justify-content:center;
+  gap:4px;flex-direction:column;white-space:nowrap;pointer-events:none;
+  font-family:system-ui,'Segoe UI',sans-serif;line-height:.97;
+  color:#ffba51;text-align:center;
+  font-weight:1000;text-shadow:0 2px 0 #632611,0 0 12px rgba(255,114,8,.8),0 0 23px rgba(255,96,12,.55);
+  animation:neon-damage-float .82s cubic-bezier(.12,.54,.26,1) forwards!important;
+  will-change:transform,opacity;
+}
+#panel-arena #boss-effect-anchor .combat-number strong{
+  display:block;font-size:clamp(29px,2.7vw,52px);font-weight:1000;line-height:1;
+  -webkit-text-stroke:.7px rgba(93,32,10,.6);
+}
+#panel-arena #boss-effect-anchor .combat-number.faz3-critical{
+  color:#ffe96e;filter:drop-shadow(0 0 9px rgba(255,57,161,.65));
+  text-shadow:0 2px 0 #66164c,0 0 11px #ff39b6,0 0 25px rgba(255,120,28,.85);
+  animation-duration:.88s!important;
+}
+#panel-arena #boss-effect-anchor .combat-number.faz3-critical em{
+  display:block;white-space:nowrap;font-size:clamp(17px,1.85vw,31px);
+  font-style:italic;font-weight:1000;letter-spacing:-.02em;color:#fff1a8;
+  transform:skewX(-8deg);-webkit-text-stroke:.8px rgba(124,25,89,.8);
+}
+#panel-arena #boss-effect-anchor .combat-number.faz3-critical strong{
+  font-size:clamp(43px,3.7vw,68px);
+  background:linear-gradient(180deg,#fff3a4 3%,#ffb739 40%,#ff4c97 98%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  -webkit-text-stroke:1px rgba(255,212,119,.5);
+}
+@keyframes neon-damage-float{
+  0%{opacity:0;transform:translate(-50%,20px) scale(.65) rotate(var(--hit-angle,0deg))}
+  17%{opacity:1;transform:translate(-50%,-12px) scale(1.24) rotate(var(--hit-angle,0deg))}
+  39%{opacity:1;transform:translate(-50%,-22px) scale(1.06) rotate(0)}
+  72%{opacity:1;transform:translate(-50%,-43px) scale(1.02)}
+  100%{opacity:0;transform:translate(-50%,-91px) scale(.88)}
+}
+#panel-arena #boss-effect-anchor .combat-impact-ring{
+  position:absolute;z-index:19;width:165px;height:165px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,228,162,.44) 0%,rgba(255,105,40,.2) 36%,transparent 70%);
+  border:2px solid rgba(255,204,106,.75);
+  box-shadow:0 0 16px rgba(255,136,42,.7),inset 0 0 28px rgba(255,145,40,.29);
+  animation:neon-combat-pulse .5s ease-out forwards;
+}
+#panel-arena #boss-effect-anchor .combat-impact-ring.critical{
+  width:240px;height:240px;border-color:#fff2c2;
+  box-shadow:0 0 24px rgba(255,67,181,.9),inset 0 0 30px rgba(255,220,65,.45);
+  background:radial-gradient(circle,rgba(255,244,198,.49),rgba(247,81,196,.24) 36%,transparent 70%);
+}
+@keyframes neon-combat-pulse{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.23)}
+  23%{opacity:.95}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.08)}
+}
+/* Combo develops a hotter ring as the player strings together correct words. */
+#panel-arena #boss-battle .combat-combo{
+  position:relative;isolation:isolate;
+  border-color:#ffc46a!important;
+  box-shadow:0 0 12px rgba(255,136,46,.45),0 0 22px rgba(255,109,39,.35),inset 0 0 15px rgba(251,129,48,.28)!important;
+}
+#panel-arena #boss-battle .combat-combo b{text-shadow:0 0 8px rgba(80,33,8,.8)}
+#panel-arena #boss-battle .combat-combo[data-tier='high']{
+  border-color:#ffec8a!important;
+  box-shadow:0 0 12px #ff9945,0 0 33px rgba(255,99,26,.73),0 0 55px rgba(255,44,90,.2)!important;
+}
+#panel-arena #boss-battle .combat-combo[data-tier='legendary']{
+  border-color:#ffedb6!important;
+  box-shadow:0 0 20px #ffbf51,0 0 35px rgba(255,68,135,.77),inset 0 0 12px rgba(255,239,153,.55)!important;
+}
+#panel-arena #boss-battle.combat-critical .boss-health{
+  filter:drop-shadow(0 0 7px rgba(255,109,168,.7));
+}
+#panel-arena #boss-battle .health-track #boss-meter{
+  transition:width .24s cubic-bezier(.18,.78,.28,1)!important;
+}
+#panel-arena #boss-battle .health-track #boss-meter-lag{
+  transition:width .63s cubic-bezier(.18,.68,.23,1)!important;
+}
+/* 1366×768: last-hit chip fits under phase/time without covering the boss. */
+@media(max-width:1420px), (max-height:820px){
+  #panel-arena .boss-last-impact{min-height:32px;padding:4px 5px;gap:0;border-radius:8px}
+  #panel-arena .boss-last-impact small{font-size:8px}
+  #panel-arena .boss-last-impact strong{font-size:15px}
+  #panel-arena #boss-effect-anchor .combat-number strong{font-size:31px}
+  #panel-arena #boss-effect-anchor .combat-number.faz3-critical strong{font-size:42px}
+  #panel-arena #boss-effect-anchor .combat-number.faz3-critical em{font-size:19px}
+}
+@media(prefers-reduced-motion:reduce){
+  #panel-arena #boss-effect-anchor .combat-number,
+  #panel-arena #boss-effect-anchor .combat-impact-ring{animation:none!important;opacity:0!important}
+  #panel-arena .boss-last-impact{transition:none!important}
+}
+html.reduced-motion #panel-arena #boss-effect-anchor .combat-number,
+html.reduced-motion #panel-arena #boss-effect-anchor .combat-impact-ring,
+html.effects-reduced #panel-arena #boss-effect-anchor .combat-number,
+html.effects-reduced #panel-arena #boss-effect-anchor .combat-impact-ring{animation:none!important;opacity:0!important}

@@ -1,0 +1,99 @@
+/* Yetenek çubuğu (Q / E / S / R) — pasif HUD kartları. Kaynak: pvp/skillbar.js.
+   Performans: yalnız transform/opacity hareket eder; bulanıklık filtresi ve sonsuz animasyon yok.
+   Tek seferlik geri bildirimler (hazır nabzı, kullanım parlaması, bekleme süpürmesi) WAAPI ile skillbar.js'te. */
+#pvp-root .pvp2-skillrow{
+  --sk-ink:#f4f0ff;--sk-muted:#bdb4dc;--sk-card:#140c2c;--sk-card-ready:#21102a;
+  --sk-accent:#ff8a4c;--sk-hot:#ffc87a;--sk-meter:#ff9a52;--sk-line:rgba(255,138,76,.32);
+  container-type:inline-size;display:flex;flex-wrap:wrap;gap:6px;min-width:0
+}
+/* Pasif olduğu açıkça yazılır: canlı maçta göstergedir, maç dışında önizleme düğmesidir. */
+#pvp-root .pvp2-skillrow::before{
+  content:"Önizleme: karta bas, yetenek animasyonunu izle";flex:0 0 100%;
+  font-size:12px;line-height:1.3;color:var(--sk-muted);padding-inline:2px;text-shadow:0 1px 2px #000
+}
+#pvp-root .pvp2-skillrow:has(.sk-card[aria-disabled="true"])::before{content:"Doğru kelime yazdıkça dolar, dolunca kendiliğinden çıkar"}
+
+#pvp-root .sk-card{
+  position:relative;isolation:isolate;overflow:hidden;
+  flex:1 1 calc(25% - 5px);display:grid;grid-template-columns:30px minmax(0,1fr) 22px;
+  grid-template-areas:"key copy icon" "foot foot foot";
+  align-items:center;column-gap:8px;row-gap:6px;min-width:0;min-height:44px;
+  padding:8px 9px 7px;border:1px solid var(--sk-line);border-style:solid;border-radius:10px;
+  background:var(--sk-card);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  color:var(--sk-ink);text-align:left;font:inherit;opacity:1;cursor:default
+}
+#pvp-root .sk-card[data-sk-kind="rune"]{--sk-accent:#a68bff;--sk-hot:#7fe0ff;--sk-meter:#5ccbff;--sk-line:rgba(150,128,255,.34);--sk-card-ready:#141638}
+#pvp-root .sk-card:disabled,#pvp-root .sk-card[aria-disabled="true"]{opacity:1;border-style:solid;cursor:default}
+#pvp-root .sk-card[aria-disabled="false"]{cursor:pointer}
+@media (hover:hover){
+  #pvp-root .sk-card[aria-disabled="false"]:hover{border-color:var(--sk-accent);box-shadow:inset 0 1px 0 rgba(255,255,255,.07)}
+}
+#pvp-root .sk-card:focus-visible{outline:2px solid #7fd7ff;outline-offset:2px}
+#pvp-root .sk-card[aria-pressed="true"]{border-color:var(--sk-hot)}
+
+/* Tuş rozeti */
+#pvp-root .sk-card .sk-key{
+  grid-area:key;display:grid;place-items:center;width:30px;height:30px;
+  border:1px solid var(--sk-accent);border-radius:7px;background:transparent;box-shadow:none;
+  color:var(--sk-accent);font-size:15px;font-weight:600;line-height:1
+}
+/* İkon */
+#pvp-root .sk-card .sk-icon{grid-area:icon;display:grid;place-items:center;width:22px;height:22px;color:var(--sk-muted);opacity:.85}
+#pvp-root .sk-card .sk-icon svg{width:22px;height:22px;display:block}
+/* Ad + kısa etki */
+#pvp-root .sk-card .sk-copy{grid-area:copy;display:flex;flex-direction:column;min-width:0;gap:1px}
+#pvp-root .sk-card .sk-copy strong{font-size:14px;font-weight:600;line-height:1.2;color:var(--sk-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pvp-root .sk-card .sk-fx{font-size:12px;line-height:1.3;color:var(--sk-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* network.js'in eski "3/5 · OTOMATİK" metni: görsel olarak gizli, düzeni etkilemez. */
+#pvp-root .sk-card .sk-legacy{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+/* Ölçer + durum satırı */
+#pvp-root .sk-card .sk-foot{grid-area:foot;display:flex;align-items:center;gap:8px;min-width:0}
+#pvp-root .sk-card .sk-status{flex:none;font-size:12px;line-height:1.2;font-weight:500;color:var(--sk-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* Segmentli ölçer: her segment bir doğru kelime */
+#pvp-root .sk-card .sk-meter{flex:1 1 auto;position:relative;height:6px;min-width:0;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.09)}
+#pvp-root .sk-card .sk-fill,#pvp-root .sk-card .sk-cd{position:absolute;inset:0;border-radius:inherit}
+#pvp-root .sk-card .sk-fill{background:var(--sk-meter);transform:scaleX(var(--sk-fill,0));transform-origin:left center;transition:transform 200ms cubic-bezier(.16,1,.3,1)}
+#pvp-root .sk-card .sk-cd{background:rgba(10,6,24,.72);transform-origin:right center;opacity:0}
+#pvp-root .sk-card .sk-meter::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(90deg,transparent 0 calc(100% / var(--sk-seg,1) - 2px),var(--sk-card) calc(100% / var(--sk-seg,1) - 2px) calc(100% / var(--sk-seg,1)))
+}
+
+/* Tek seferlik geri bildirim katmanları (WAAPI ile oynatılır, normalde görünmez) */
+#pvp-root .sk-card .sk-glow,#pvp-root .sk-card .sk-burst{position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;opacity:0}
+#pvp-root .sk-card .sk-glow{box-shadow:inset 0 0 0 2px var(--sk-hot),inset 0 0 18px color-mix(in srgb,var(--sk-accent) 45%,transparent)}
+#pvp-root .sk-card .sk-burst{background:radial-gradient(120% 140% at 15% 50%,color-mix(in srgb,var(--sk-hot) 55%,transparent),transparent 70%)}
+
+/* Durumlar */
+#pvp-root .sk-card[data-sk-state="ready"]{border-color:var(--sk-accent);background:var(--sk-card-ready);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 0 12px color-mix(in srgb,var(--sk-accent) 22%,transparent)}
+#pvp-root .sk-card[data-sk-state="ready"] .sk-key{background:var(--sk-accent);color:#170a1c}
+#pvp-root .sk-card[data-sk-state="ready"] .sk-icon{color:var(--sk-hot);opacity:1}
+#pvp-root .sk-card[data-sk-state="ready"] .sk-status{color:var(--sk-hot)}
+#pvp-root .sk-card[data-sk-state="ready"] .sk-fill{background:var(--sk-hot)}
+#pvp-root .sk-card[data-sk-state="active"]{border-color:var(--sk-hot);background:var(--sk-card-ready)}
+#pvp-root .sk-card[data-sk-state="active"] .sk-key{background:var(--sk-hot);border-color:var(--sk-hot);color:#170a1c}
+#pvp-root .sk-card[data-sk-state="active"] .sk-icon,#pvp-root .sk-card[data-sk-state="active"] .sk-status{color:var(--sk-hot);opacity:1}
+#pvp-root .sk-card[data-sk-state="active"] .sk-fill{background:var(--sk-hot)}
+#pvp-root .sk-card[data-sk-state="cooldown"] .sk-key{border-color:rgba(255,255,255,.22);color:var(--sk-muted)}
+#pvp-root .sk-card[data-sk-state="cooldown"] .sk-fill{opacity:.45}
+#pvp-root .sk-card[data-sk-state="cooldown"] .sk-cd{opacity:1}
+/* network.js'in eski "hazır" sınıfının parlaması yerine data-sk-state kullanılır */
+#pvp-root .sk-card.pvp2-skill-ready:not([data-sk-state="ready"]):not([data-sk-state="active"]){background:var(--sk-card);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+
+/* Dar panel (telefon, dikey yığın): 2×2; çok darda ikon ve etki gizlenir, ad iki satıra iner */
+@container (max-width:560px){
+  #pvp-root .sk-card{flex-basis:calc(50% - 3px)}
+}
+@container (max-width:400px){
+  #pvp-root .sk-card{grid-template-columns:28px minmax(0,1fr);grid-template-areas:"key copy" "foot foot";column-gap:7px;padding:7px 8px}
+  #pvp-root .sk-card .sk-icon,#pvp-root .sk-card .sk-fx{display:none}
+  #pvp-root .sk-card .sk-key{width:28px;height:28px}
+  #pvp-root .sk-card .sk-copy strong{white-space:normal;line-height:1.15}
+}
+
+/* Hareketi azalt: geçiş yok; WAAPI tarafı skillbar.js'te yalnız opaklık oynatır */
+@media (prefers-reduced-motion:reduce){
+  #pvp-root .sk-card .sk-fill{transition:none}
+}
+#pvp-root.pvp4-reduced .sk-card .sk-fill{transition:none}

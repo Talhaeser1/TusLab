@@ -1,0 +1,136 @@
+/* Aşama 4 üzerine odaklı arena düzenlemesi: ekran üstünde bir boss, en altta yazma alanı. */
+#panel-arena .window-content {
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:flex-start!important;
+  align-items:stretch!important;
+  gap:clamp(7px,.8vh,12px)!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+#panel-arena .arena-topbar{
+  flex:0 0 auto!important;
+  margin:0!important;
+}
+/* Eski klavye bölgesi artık yok. Yeniden yaratılmasını isteyen JS varsa da alan gösterilmez. */
+#panel-arena .keyboard-region,#panel-arena #arena-keyboard{display:none!important}
+/* Tek boss görseli büyüyerek yukarıdan aşağıya mümkün olan yüksekliği kullanır. */
+#panel-arena #boss-battle.boss-battle{
+  flex:1 1 auto!important;
+  height:auto!important;
+  max-height:none!important;
+  min-height:0!important;
+  overflow:hidden!important;
+  isolation:isolate;
+  position:relative!important;
+  border-radius:17px!important;
+}
+#boss-battle>.boss-art-layer{
+  position:absolute!important;inset:-15%!important;width:130%!important;height:130%!important;
+  object-fit:cover!important;object-position:center 28%!important;
+  filter:blur(22px) saturate(1.35) brightness(.43)!important;
+  opacity:.9!important;
+  transform:scale(1.01);
+}
+#boss-battle>.boss-full-art{
+  position:absolute;left:50%;top:0%;transform:translateX(-50%);
+  height:100%;width:auto;max-width:90%;object-fit:contain;
+  object-position:center bottom;
+  z-index:2;pointer-events:none;user-select:none;
+  filter:drop-shadow(0 0 22px rgba(41,90,247,.28));
+}
+#boss-battle>.boss-shade{
+  z-index:2!important;
+  background:linear-gradient(180deg,rgba(9,9,33,.53) 0%,rgba(10,8,35,.15) 25%,transparent 43%,rgba(9,7,30,.16) 82%,rgba(12,9,41,.76) 100%)!important;
+}
+/* Başlık ve HP yukarı, merkezdeki taç ve yüz kapanmayacak şekilde solda. */
+#boss-battle .boss-grid{
+  position:relative!important;z-index:4!important;
+  height:100%!important;
+  grid-template-rows:auto minmax(0,1fr)!important;
+  padding:clamp(11px,1vw,17px)!important;
+  row-gap:6px!important;
+}
+#boss-battle .boss-head-left{align-self:start!important;grid-row:1!important;margin-top:0!important;padding-top:0!important;}
+#boss-battle .boss-kicker{font-size:clamp(15px,1.03vw,21px)!important;color:#ff83a4!important;text-shadow:0 2px 8px #060619,0 0 15px #250b45;}
+#boss-battle .boss-head-left>small{font-size:clamp(10px,.75vw,13px)!important;}
+#boss-battle .boss-health{margin-top:8px!important}
+#boss-battle .boss-right-column{align-self:start!important;gap:clamp(4px,.65vh,8px)!important;}
+#boss-battle .boss-combo-cell{align-self:end!important;padding-bottom:4px!important;}
+#boss-battle .boss-figure{pointer-events:none!important;}
+/* Alt destek satırı: sıradaki kelime ve kısa ipucu; sanal klavye yok. */
+#panel-arena .arena-support-strip.combat-lower{
+  flex:0 0 auto!important;
+  width:100%;height:clamp(54px,6.6vh,69px)!important;
+  min-height:0!important;
+  display:grid!important;
+  grid-template-columns:minmax(190px,39%) minmax(0,1fr)!important;
+  gap:8px!important;
+  margin:0!important;
+}
+#panel-arena .arena-support-strip .next-word,
+#panel-arena .arena-support-strip .battle-guide{
+  display:flex!important;flex-direction:row!important;
+  align-items:center!important;justify-content:flex-start!important;
+  gap:clamp(7px,.8vw,12px)!important;
+  padding:6px 12px!important;
+  height:100%!important;min-height:0!important;
+  border-radius:12px!important;
+  overflow:hidden!important;
+}
+#panel-arena .arena-support-strip .next-word small{font-size:11px!important;white-space:nowrap!important;}
+#panel-arena .arena-support-strip .next-word strong{
+  flex:0 1 auto;min-width:0;max-width:43%;margin:0!important;
+  padding:7px 11px!important;font-size:clamp(14px,1vw,20px)!important;
+  white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;
+}
+#panel-arena .arena-support-strip .damage-hint{margin:0 0 0 auto!important;white-space:nowrap!important;font-size:clamp(10px,.78vw,13px)!important;}
+#panel-arena .arena-support-strip .battle-guide .guide-title{white-space:nowrap;flex:0 0 auto;font-size:12px!important;}
+#panel-arena .arena-support-strip .battle-guide p{
+  margin:0!important;min-width:0;
+  font-size:clamp(11px,.72vw,13px)!important;line-height:1.35!important;
+  max-height:2.7em!important;overflow:hidden!important;
+}
+/* Yazma alanı en altta, eski klavyenin olduğu çalışma bandında. */
+#panel-arena .arena-bottom-writing.combat-writing{
+  flex:0 0 auto!important;
+  order:3;
+  width:100%!important;
+  margin:0!important;
+  padding:clamp(10px,.95vw,15px)!important;
+  border:1px solid rgba(94,155,255,.75)!important;
+  background:rgba(7,13,38,.91)!important;
+  border-radius:15px!important;
+  box-shadow:inset 0 0 17px rgba(32,85,157,.2),0 0 20px rgba(91,81,255,.2)!important;
+}
+#panel-arena .arena-bottom-writing .text-main{
+  font-size:clamp(16px,1.2vw,23px)!important;
+  line-height:1.45!important;
+  --line-h:1.45!important;
+  height:calc(3 * 1.45em)!important;
+  min-height:calc(3 * 1.45em)!important;
+  max-height:calc(3 * 1.45em)!important;
+  overflow:hidden!important;
+}
+#panel-arena .arena-bottom-writing .typing-meta{margin-top:7px!important;}
+/* Lower-height 1366×768 tuning: text stays fully readable and boss still shows torso. */
+@media(max-height:840px){
+  #panel-arena .window-content{gap:6px!important;padding:8px!important;}
+  #panel-arena .arena-support-strip.combat-lower{height:51px!important;grid-template-columns:minmax(170px,44%) minmax(0,1fr)!important;gap:5px!important;}
+  #panel-arena .arena-support-strip .next-word,#panel-arena .arena-support-strip .battle-guide{padding:5px 8px!important;gap:6px!important;}
+  #panel-arena .arena-support-strip .next-word strong{padding:5px 7px!important;max-width:42%;font-size:14px!important;}
+  #panel-arena .arena-support-strip .next-word small{font-size:9px!important;}
+  #panel-arena .arena-support-strip .damage-hint{font-size:10px!important;}
+  #panel-arena .arena-support-strip .battle-guide .guide-title{font-size:10px!important;}
+  #panel-arena .arena-support-strip .battle-guide p{font-size:10px!important;}
+  #boss-battle .boss-health{margin-top:5px!important;}
+  #boss-battle .boss-kicker{font-size:15px!important;}
+  #panel-arena .arena-bottom-writing.combat-writing{padding:9px 10px!important;}
+  #panel-arena .arena-bottom-writing .text-main{font-size:16px!important;}
+}
+@media(max-width:1430px){
+  #panel-arena .arena-support-strip .next-word strong{max-width:42%;}
+  #panel-arena .arena-support-strip .battle-guide .guide-title{font-size:10px!important;}
+}
+@media(prefers-reduced-motion:reduce){#boss-battle>.boss-full-art{filter:none}}
+

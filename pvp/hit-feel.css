@@ -1,0 +1,29 @@
+/* Paket 28 — vuruş hissi: düşük can vinyeti, isabet flaşı, HP barı sarsıntısı. */
+
+/* Ekran kenarı kırmızı vinyet. Tıklamaları engellemez, yerleşimi kaydırmaz. */
+#pvp-root .pvp28-lowhp{position:fixed;inset:0;z-index:40;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse 80% 75% at 50% 50%,transparent 60%,#c4002a2e 80%,#a0002270 100%);
+  box-shadow:inset 0 0 60px 6px #e0103a99;
+  transition:opacity 400ms ease-out}
+#pvp-root .pvp28-lowhp[data-level="low"]{opacity:.55}
+#pvp-root .pvp28-lowhp[data-level="critical"]{opacity:.85}
+#pvp-root .pvp28-lowhp.is-beat{animation:pvp28-beat 520ms ease-out}
+@keyframes pvp28-beat{0%{filter:brightness(1)}18%{filter:brightness(1.7)}36%{filter:brightness(1.1)}52%{filter:brightness(1.45)}100%{filter:brightness(1)}}
+
+/* Kendi oyuncun hasar alınca kısa kırmızı kenar flaşı (vinyet kapalıyken de). */
+#pvp-root .pvp28-lowhp.is-hit{animation:pvp28-hit 420ms ease-out}
+@keyframes pvp28-hit{0%{opacity:calc(.35 + .55 * var(--pvp28-hit,.5))}100%{}}
+
+/* Yan paneldeki HP barı darbe aldığında kısa sarsılır. */
+#pvp-root .pvp2-health.pvp28-hpshake .pvp2-health-track{animation:pvp28-hpshake 260ms cubic-bezier(.36,.07,.19,.97)}
+@keyframes pvp28-hpshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+/* Darbe anında dolgu bir an beyazlar. */
+#pvp-root .pvp2-health.pvp28-hpshake .pvp2-health-fill{animation:pvp28-hpflash 260ms ease-out}
+@keyframes pvp28-hpflash{0%{filter:brightness(2.2) saturate(.4)}100%{filter:none}}
+
+@media(prefers-reduced-motion:reduce){
+  #pvp-root .pvp28-lowhp.is-beat,#pvp-root .pvp28-lowhp.is-hit,
+  #pvp-root .pvp2-health.pvp28-hpshake .pvp2-health-track,#pvp-root .pvp2-health.pvp28-hpshake .pvp2-health-fill{animation:none}
+}
+#pvp-root.pvp4-reduced .pvp28-lowhp.is-beat,#pvp-root.pvp4-reduced .pvp28-lowhp.is-hit,
+#pvp-root.pvp4-reduced .pvp2-health.pvp28-hpshake .pvp2-health-track,#pvp-root.pvp4-reduced .pvp2-health.pvp28-hpshake .pvp2-health-fill{animation:none}

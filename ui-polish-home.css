@@ -1,0 +1,20 @@
+/* Ana sayfada PvP modlarına doğrudan, okunaklı giriş. */
+.home-pvp-entry{display:grid;gap:12px;margin:14px 0;padding:16px;border:1px solid #7f73be;border-radius:14px;background:linear-gradient(135deg,#211747,#101d3b);color:#f5f1ff}
+.home-pvp-entry h3{margin:0 0 4px;font-size:18px}
+.home-pvp-entry p{margin:0;color:#d6cdec;font-size:13px;line-height:1.45}
+.home-pvp-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.home-pvp-mode{display:grid;align-content:start;gap:5px;min-width:0;min-height:94px;padding:10px;border:1px solid #685bb0;border-radius:10px;background:#201b49;color:#f6f1ff;text-decoration:none;transition:transform .16s ease,background-color .16s ease}
+.home-pvp-mode:hover{transform:translateY(-2px);background:#302769}
+.home-pvp-mode strong{font-size:15px}.home-pvp-mode span{font-size:12px;color:#d3c9ed}.home-pvp-mode em{font-size:12px;font-style:normal;font-weight:800;color:#8fe7ff}
+.home-pvp-online{justify-self:start;min-height:40px;padding:8px 12px;border:1px solid #95afff;border-radius:8px;background:#24356e;color:#fff;font-size:13px;font-weight:800;cursor:pointer}
+.home-pvp-entry :is(a,button):focus-visible,.global-header :is(a,button):focus-visible{outline:3px solid #9feeff;outline-offset:3px}
+#app small,#app svg text,#app .global-nav span,#app .header-tools small,#app .notice-count,#app .quest-reward,#app .phase4-trend,#app .fire-mode,#app .fire-key,#app .legend-wpm,#app .legend-accuracy,#app .phase4-chart-empty,#app .phase4-data-hint,#app .raid-countdown,#app .raid-reward,#app .bonus-xp{font-size:12px}
+#app :is(small,svg text,.global-nav span,.notice-count,.quest-reward,.phase4-trend,.fire-mode,.fire-key,.legend-wpm,.legend-accuracy,.phase4-chart-empty,.phase4-data-hint,.raid-countdown,.raid-reward,.bonus-xp,.profile-details b,.phase4-heading-copy p,.player-progress>span,.commander-tabs button,.quest-top span,.quest-top b,.challenge-copy span,.typing-meta span,.battle-stat-row span,.weak-row b,.analysis-card h3,.card-top button,.raid-eyebrow,.raid-content p,.raid-progress span,.phase4-raid-bottom button){font-size:12px!important}
+#app .fire-arena-heading p,#app .boss-head-left small,#app .battle-stat-row span,#app .battle-stat-row small{font-size:14px!important}
+#app .raid-countdown{font-size:16px!important}
+#app .adventure>span:not(.adventure-poster){font-size:12px!important}
+#app #panel-arena #boss-battle .boss-head-left>small,#app #panel-arena .fire-bottom-stats .battle-stat-row :is(span,small),#app #panel-analytics .phase4-weekly-raid .raid-countdown{font-size:12px!important}
+@media(max-width:700px){.home-pvp-modes{grid-template-columns:1fr}.home-pvp-mode{min-height:0}}
+#pvp-loading[hidden]{display:none}
+#pvp-loading{position:fixed;inset:0;z-index:700;display:grid;place-items:center;padding:24px;background:#09071b;color:#f4f0ff;font:800 clamp(20px,5vw,32px)/1.35 system-ui,sans-serif;text-align:center}
+#pvp-loading span{display:block;width:min(100%,420px);padding:24px;border:1px solid #8a6bd6;border-radius:16px;background:#17133a}

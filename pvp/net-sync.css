@@ -1,0 +1,8 @@
+/* Stage 12: compact network diagnostics and visual-only client prediction */
+.pvp12-ping{font:800 11px/1.4 Consolas,monospace;color:#d7e2ff;white-space:nowrap;padding:5px 8px;border:1px solid #466184;border-radius:8px;background:#101b34}
+.pvp12-ping[data-quality="good"]{color:#81ffd1;border-color:#38c795}
+.pvp12-ping[data-quality="medium"]{color:#ffe0a0;border-color:#d7974f}
+.pvp12-ping[data-quality="high"]{color:#ff9eab;border-color:#e75873}
+.pvp12-windup{position:absolute;z-index:8;left:50%;top:58px;transform:translateX(-50%);border:1px solid #61e2ff;background:#092343ed;box-shadow:0 0 15px #158dff66;border-radius:8px;color:#b7f0ff;padding:5px 12px;font-size:11px;font-weight:800;pointer-events:none;white-space:nowrap}
+.pvp12-windup[hidden]{display:none!important}
+@media(max-width:1600px){.pvp12-ping{font-size:9px;padding:4px 5px}.pvp12-windup{top:47px;font-size:9px}}

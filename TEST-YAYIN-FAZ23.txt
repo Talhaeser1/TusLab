@@ -1,0 +1,10 @@
+
+> tuslab-pvp-production-ready@1.0.0 cf:validate
+> npm run cf:build && node scripts/predeploy-check.mjs
+
+
+> tuslab-pvp-production-ready@1.0.0 cf:build
+> node cloudflare/build-assets.mjs
+
+Cloudflare static assets prepared at: /mnt/data/pvp_work/TusLab-PvP-IsPaketi23/cloudflare/public
+Ön dağıtım kontrolü başarılı: 50/50 kontrol.

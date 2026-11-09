@@ -1,0 +1,129 @@
+/* Kısa ekranlar (Brave'de sekme + yer imi çubuğu düşünce ~940 px): arena sahnesine yer aç.
+   Kural: docs/EKRAN-KONTROL-KURALLARI.md → karakter görseli ≥ ~250 px. Yalnız boşluk/punto; yerleşim sırası aynı.
+   Bu dosya index.html'de en son yüklenir. */
+/* Sağ oyuncunun durum etiketi ("Bekleme") VS dairesinin altına giriyordu: aynalanıp sağ köşeye. */
+#pvp-root .pvp2-side:not(.pvp2-fire) .pvp3-motion-label{left:auto;right:8px}
+
+@media (max-height:1000px) and (min-width:900px){
+  /* Oyuncu başlığı: 81 → ~58 px */
+  #pvp-root .pvp2-player-top{padding:4px 10px;min-height:0}
+  #pvp-root .pvp2-player-top .pvp2-player-mark{width:38px;height:38px;font-size:22px}
+  #pvp-root .pvp2-player-top .pvp2-identity strong{font-size:22px;line-height:1.1}
+  #pvp-root .pvp2-player-top .pvp2-identity small,
+  #pvp-root .pvp2-player-top .pvp2-identity span{line-height:1.2}
+  /* Arena sahnesine yer (1920×940: 260 px; 1366×650: 134 px idi): başlık tek satır (ad · karakter);
+     "OYUNCU 1 · KIZIL TARAF" yazısı gizlenir — taraf rozet (ATEŞ/RÜN) ve renkle belli. */
+  #pvp-root .pvp2-player-top .pvp2-identity{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:baseline;gap:8px;min-width:0}
+  #pvp-root .pvp2-player-top .pvp2-identity>small{display:none}
+  #pvp-root .pvp2-player-top .pvp2-identity>strong{flex:none}
+  #pvp-root .pvp2-player-top .pvp2-character-name{min-width:0;white-space:nowrap}
+  #pvp-root .pvp2-player-top .pvp2-player-end{display:flex;flex-direction:row;align-items:center;gap:8px}
+  /* Alt kural şeridi "Nasıl oynanır" panelinde de var: kısa ekranda sahneye bırakılır. */
+  #pvp-root .pvp2-rules,#pvp-root .pvp2-footer{display:none}
+  /* HP kutusu: 68 → ~50 px */
+  #pvp-root .pvp2-health{padding:5px 10px 6px}
+  #pvp-root .pvp2-health-meta{margin-bottom:4px}
+  #pvp-root .pvp2-health-track{height:16px}
+  /* Beceri satırının üstündeki tekrar eden açıklama yazısı (her oyuncuda aynı) */
+  #pvp-root .pvp2-skillrow::before{display:none}
+  /* Yazma paneli: iç boşluklar */
+  #pvp-root .tt{padding:8px 20px;gap:6px}
+  #pvp-root .tt-type{gap:6px}
+  #pvp-root .tt-meta{min-height:0}
+}
+
+/* Dizüstü (≤ ~768 px ekran → ~650 px görünür alan): sahne 0 px'e düşüyordu. */
+@media (max-height:760px) and (min-width:900px){
+  #pvp-root .pvp2-shell{gap:6px;padding-top:6px;padding-bottom:6px}
+  #pvp-root .pvp2-toolbar{min-height:0;padding:3px 10px}
+  #pvp-root .tt{padding:6px 16px;gap:4px}
+  #pvp-root .tt-status{display:none}
+  /* Raund/mod bilgisi üst sayaçta (.rui-bar) zaten var; kısa ekranda tekrar gösterilmez. */
+  #pvp-root:has(.rui:not([hidden])) .tt-head{display:none}
+  #pvp-root .tt-head{min-height:0}
+  #pvp-root .tt-input{padding:5px 12px}
+  #pvp-root .pvp2-rules,#pvp-root .pvp2-footer{display:none}
+  #pvp-root .pvp2-side{padding:8px;gap:5px}
+  #pvp-root .pvp2-player-top{padding:2px 8px}
+  #pvp-root .pvp2-player-top .pvp2-player-mark{width:32px;height:32px;font-size:18px}
+  #pvp-root .pvp2-player-top .pvp2-identity strong{font-size:19px}
+  #pvp-root .pvp2-player-top .pvp2-player-mark{width:28px;height:28px;font-size:16px}
+  #pvp-root .pvp2-health{padding:4px 8px}
+  #pvp-root .pvp2-health-track{height:12px}
+  /* Zamana Karşı: üst sayaç madalyonu 64 → 52 px (sahne 146 → ~158 px). */
+  #pvp-root .rui-clock{width:52px;height:52px}
+  #pvp-root .rui-secs{font-size:19px}
+  /* Tur arası sonucu: daha sıkı tablo */
+  #pvp-root .rui-inter>.rui-summary{padding:8px 12px}
+  #pvp-root .rui-inter>.rui-summary .rui-sum-winner{font-size:17px;margin:2px 0 4px}
+  #pvp-root .rui-inter>.rui-summary .rui-sum-table th,#pvp-root .rui-inter>.rui-summary .rui-sum-table td{padding:0 6px;font-size:13px;line-height:1.2}
+  /* 1366×650: özet 191 px, kutu 148 px idi → başlık ve kazanan tek satır, tablo sıkı. */
+  #pvp-root .rui-inter>.rui-summary{display:grid;grid-template-columns:auto minmax(0,1fr);align-content:start;column-gap:10px;padding-top:4px;padding-bottom:4px}
+  #pvp-root .rui-inter>.rui-summary>.rui-sum-head{grid-column:1;align-self:center;margin:0}
+  #pvp-root .rui-inter>.rui-summary>.rui-sum-winner{grid-column:2;align-self:center;text-align:right;margin:0;font-size:16px}
+  #pvp-root .rui-inter>.rui-summary>:not(.rui-sum-head):not(.rui-sum-winner){grid-column:1 / -1}
+  #pvp-root .rui-inter>.rui-summary>.rui-sum-foot{margin-top:2px}
+  #pvp-root .rui-skill-picker{padding:8px 10px}
+  #pvp-root .rui-skill-picker .rui-skill-cards .aui-card{min-height:52px;padding:6px 10px}
+  /* Raund Arena hazırlığı yazma panelinden ~130 px uzundu → sahne 36 px'e iniyordu.
+     Kart açıklaması gizlenir (başlık ne yaptığını söylüyor; tam metin aria-label'da). */
+  #pvp-root .aui-prep .aui-card-copy small{display:none}
+  #pvp-root .aui-prep .aui-card{min-height:38px;padding-top:4px;padding-bottom:4px}
+  /* Hazırlıkta sahne hâlâ 124 px'ti: kilitle/geç düğmeleri başlık satırına çıkar (bir satır kazanılır). */
+  #pvp-root .aui-prep{grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:6px}
+  #pvp-root .aui-prep>*{grid-column:1 / -1}
+  #pvp-root .aui-prep>.aui-prep-head{grid-column:1;grid-row:1;min-width:0}
+  #pvp-root .aui-prep>.aui-prep-foot{grid-column:2;grid-row:1;margin:0;padding:0;border:0}
+  #pvp-root .aui-prep .aui-lock-note{display:none}
+  /* Raund Arena üst göstergesi 80 px'ti (ad · HP · kombo üç satır): kombo adın satırına çıkar → 2 satır. */
+  #pvp-root .aui-side{grid-template-columns:minmax(0,1fr) auto;column-gap:10px;row-gap:3px;padding:4px 12px}
+  #pvp-root .aui-side>.aui-side-top{grid-column:1;grid-row:1}
+  #pvp-root .aui-side>.aui-side-meta{grid-column:2;grid-row:1}
+  #pvp-root .aui-side>.aui-hp-row{grid-column:1 / -1;grid-row:2}
+  #pvp-root .aui-side-2{grid-template-columns:auto minmax(0,1fr)}
+  #pvp-root .aui-side-2>.aui-side-top{grid-column:2}
+  #pvp-root .aui-side-2>.aui-side-meta{grid-column:1}
+  /* Ortadaki saat madalyonu da 3 satırdı (başlık · saat · adımlar): başlık ve saat yan yana. */
+  #pvp-root .aui-medal{grid-template-columns:auto auto;column-gap:10px;row-gap:2px;padding-top:3px;padding-bottom:3px;align-items:center}
+  #pvp-root .aui-medal>.aui-steps{grid-column:1 / -1}
+}
+
+/* Dar masaüstünde VS dairesi başlıkların iç ucundaki rozetlere ("ATEŞ") ve işarete biniyordu. */
+@media (max-width:1600px) and (min-width:900px){
+  #pvp-root .pvp2-side.pvp2-fire .pvp2-player-top{padding-right:44px}
+  #pvp-root .pvp2-side:not(.pvp2-fire) .pvp2-player-top{padding-left:44px}
+}
+
+/* %80 tarayıcı yakınlaştırması (1920 px ekranda ~2400 CSS px): 12 px yazı ekranda 9,6 px kalıyordu.
+   Bu genişlikte küçük yazılar ~15 px'e çıkar → ekranda ≥12 px. %100 kullananlar etkilenmez. */
+@media (min-width:2200px){
+  #pvp-root .pvp2-footer,#pvp-root .pvp2-footer strong,#pvp-root .pvp2-footer em,#pvp-root .pvp2-footer span,#pvp-root .pvp2-footer-chip,
+  #pvp-root .pvp5-net-button,#pvp-root .pvp2-network,#pvp-root .pvp12-ping,#pvp-root .pvp24-chip,#pvp-root .pvp-topbar-clock,
+  #pvp-root .pvp4-toggle,#pvp-root .pvp10-volume-label,#pvp-root .pvp4-perf,#pvp-root .pvp15-surrender,#pvp-root .pvp2-toolbar a,#pvp-root .pvp2-toolbar button:not(.pvp4-icon-btn),
+  #pvp-root .rui-you,#pvp-root .rui-progress,#pvp-root .rui-side-clock,#pvp-root .rui-meter-label,#pvp-root .rui-title,
+  #pvp-root .rui-secs-unit,#pvp-root .rui-done,#pvp-root .rui-next,
+  #pvp-root .rui-sum-title,#pvp-root .rui-sum-reason,#pvp-root .rui-sum-score,#pvp-root .rui-sum-foot,
+  #pvp-root .aui-card-key,#pvp-root .aui-card-icon,#pvp-root .aui-uses,#pvp-root .rui-pick-status,#pvp-root .rui-pick-lock,#pvp-root .rui-pick-skip,
+  #pvp-root .tt-mode,#pvp-root .pvp3-motion-label,#pvp-root .pvp2-role,#pvp-root .pvp22-passive,#pvp-root .pvp13-defense,
+  #pvp-root .sk-fx,#pvp-root .sk-status{font-size:15px}
+  /* Ölçümle bulunan kalan küçük yazılar (12–14 px → ekranda 9,6–11 px). */
+  #pvp-root .pvp2-brand strong,#pvp-root .pvp2-announce>span,#pvp-root .pvp2-announce>span>strong,#pvp-root .pvp2-announce-sep,
+  #pvp-root .tt-xchg-text,#pvp-root .pvp7-combo{font-size:15px}
+  #pvp-root .rui-name,#pvp-root .rui-word,#pvp-root .tt-label-text,#pvp-root .tt-status,#pvp-root .tt-meta,#pvp-root .tt-meta b,
+  #pvp-root .rui-sum-table,#pvp-root .rui-sum-table th,#pvp-root .rui-sum-table td{font-size:16px}
+  #pvp-root .rui-skill-picker .rui-skill-cards .aui-card-copy strong{font-size:17px}
+  #pvp-root .rui-skill-picker .rui-skill-cards .aui-card-copy small{font-size:15px}
+  /* Bunlar başka katmanlarda !important ile 12 px'e sabitlenmiş; yalnız bu genişlikte ezilir. */
+  #pvp-root .pvp2-network,#pvp-root .pvp12-ping,#pvp-root .pvp24-chip,#pvp-root .pvp10-volume-label,#pvp-root .pvp4-perf,
+  #pvp-root .sk-fx,#pvp-root .sk-status,#pvp-root .rui-secs-unit,#pvp-root .pvp2-brand em,#pvp-root .pvp4-settings small,
+  #pvp-root .pvp2-brand small,#pvp-root .pvp-topbar-clock strong{font-size:15px!important}
+  #pvp-root .sk-card .pvp2-skill-copy strong{font-size:17px!important}
+}
+
+/* Dar masaüstü (kart ~150 px): adlar kesilmesin → ikon ve tek satırlık açıklama gizlenir, ad 2 satıra sarılabilir.
+   Açıklama, kartın title/aria-label metninde durur. */
+@media (max-width:1600px) and (min-width:900px){
+  #pvp-root .sk-card .sk-icon{display:none}
+  #pvp-root .sk-card .sk-fx{display:none}
+  #pvp-root .sk-card .pvp2-skill-copy strong{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.15}
+}

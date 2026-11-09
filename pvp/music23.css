@@ -1,0 +1,16 @@
+/* Phase 23 — separate music mix from combat SFX */
+.pvp23-audio{display:flex;align-items:center;gap:5px;padding:3px 7px;border:1px solid #9d6cf477;border-radius:9px;background:#201636d9}
+.pvp23-audio input{width:55px;accent-color:#e3a9ff;cursor:pointer}.pvp23-audio small{font-size:9px;color:#d7c2f8;min-width:25px}
+.pvp23-audio .pvp4-toggle{white-space:nowrap;font-size:10px;padding:6px}
+@media(max-width:1450px){.pvp23-audio input{width:44px}.pvp23-audio small{display:none}}
+/* Keep the added channel controls from forcing a horizontal scroll at 1366px. */
+@media(max-width:1600px){
+ .pvp2-toolbar .pvp2-actions{gap:5px}
+ .pvp23-audio{gap:3px;padding:2px 4px;flex:none}
+ .pvp23-audio input{width:38px}
+ .pvp23-audio .pvp4-toggle{font-size:9px;padding:5px 4px}
+}
+@media(max-width:1400px){
+ .pvp23-audio input{width:28px}
+ .pvp23-audio small{display:none}
+}
