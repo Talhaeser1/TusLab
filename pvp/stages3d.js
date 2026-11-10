@@ -58,6 +58,11 @@ const RAIN_VERTEX = `uniform float uTime;
 
 /** Four cosmetic environments. Colosseum geometry remains in arena3d.js;
  * `legacy` wraps that builder without copying its content here. */
+const STAGE_BACKDROPS = Object.freeze({
+  colosseum: 'arena-neon-kolezyum', skyforge: 'arena-gok-demirhanesi',
+  runegarden: 'arena-run-bahcesi', harbor: 'arena-firtina-limani',
+});
+
 export function buildStage(THREE, {id, quality = 'high', parent, legacy = null,
   isReduced = () => false, document = globalThis.document, random = Math.random} = {}) {
   id = normalizeStage(id);
@@ -126,6 +131,22 @@ export function buildStage(THREE, {id, quality = 'high', parent, legacy = null,
     const key = new THREE.DirectionalLight(0xffeedc, 1.8); key.position.set(2, 7, 6);
     group.add(fill, key);
     ambient.push(...[fill, key].map(light => ({light, base: light.intensity})));
+  }
+
+  // Boyalı arka plan (assets/higgsfield/final): yalnız tarayıcıda, doku yüklenince eklenir.
+  // Yüklenemezse sahne eskisi gibi kalır; düzlem dispose() taramasıyla birlikte serbest bırakılır.
+  const backdropFile = STAGE_BACKDROPS[id];
+  if (backdropFile && typeof Image !== 'undefined' && THREE.TextureLoader) {
+    try {
+      new THREE.TextureLoader().load(new URL(`../assets/higgsfield/final/${backdropFile}.webp`, import.meta.url).href, texture => {
+        if (disposed) { texture.dispose(); return; }
+        texture.colorSpace = THREE.SRGBColorSpace;
+        const plane = mesh(new THREE.PlaneGeometry(110, 61.9), new THREE.MeshBasicMaterial({
+          map: texture, color: 0xb4b4c4, fog: false, depthWrite: false, toneMapped: false,
+        }), 'pvp33-backdrop', 0, -3.4, -30);
+        plane.renderOrder = -9; plane.frustumCulled = false;
+      }, undefined, () => {});
+    } catch { /* Arka plan görseli isteğe bağlıdır. */ }
   }
 
   if (id === 'skyforge') {

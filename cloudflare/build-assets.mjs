@@ -20,7 +20,7 @@ for(const file of keep){
   } else if(file==='assets'){
     // Paket 32: ham karakter kaynakları (assets/characters-src, ~14 MB) yayına gitmez; oyun
     // assets/characters/<id>.glb optimize kopyalarını kullanır (scripts/optimize-characters.mjs).
-    await cp(join(root,file),join(dest,file),{recursive:true,filter:src=>!/[\\/]characters-src([\\/]|$)/.test(src)});
+    await cp(join(root,file),join(dest,file),{recursive:true,filter:src=>!/[\\/]characters-src([\\/]|$)|[\\/]higgsfield[\\/]deneme([\\/]|$)/.test(src)});
   } else await cp(join(root,file),join(dest,file),{recursive:true});
 }
 console.log('Cloudflare static assets prepared at:',dest);

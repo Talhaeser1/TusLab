@@ -670,6 +670,8 @@ function playCombat(action){
 }
 function playImpactFeedback(action){
   fx24.damage?.handle(action);
+  // Yalnız görsel: temas anı boyalı efekt katmanına (visual-enrich.js) duyurulur.
+  try{root?.dispatchEvent(new CustomEvent('tuslab:pvp-impact',{bubbles:true,detail:{toSeat:action.toSeat,fromSeat:action.fromSeat,skill:action.skill,phase:action.phase,amount:Number(action.amount)||0,blocked:!!action.blocked,critical:!!action.critical}}));}catch{}
   const defender=action.toSeat===2?'rune':'fire';
   if(arena3d.instance&&!action.blocked&&['q','e','r'].includes(action.skill))playFighterSfx(action.fromSeat,action.skill,.8);
   // Paket 32: temiz isabet hedefin kendi sesiyle; blok/kritik sesleri aynı kalır.

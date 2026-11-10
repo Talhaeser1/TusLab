@@ -232,3 +232,49 @@
     min-height: 40px !important;
   }
 }
+
+/* ===== Higgsfield boyalı görseller (assets/higgsfield/final) ===== */
+/* Lobi: arena kartı küçük resimleri */
+#pvp-root .lb3-stage-art[data-stage-art="colosseum"]{background:url(./assets/higgsfield/final/arena-neon-kolezyum.webp) center/cover no-repeat}
+#pvp-root .lb3-stage-art[data-stage-art="skyforge"]{background:url(./assets/higgsfield/final/arena-gok-demirhanesi.webp) center/cover no-repeat}
+#pvp-root .lb3-stage-art[data-stage-art="runegarden"]{background:url(./assets/higgsfield/final/arena-run-bahcesi.webp) center/cover no-repeat}
+#pvp-root .lb3-stage-art[data-stage-art="harbor"]{background:url(./assets/higgsfield/final/arena-firtina-limani.webp) center/cover no-repeat}
+#pvp-root .lb3-stage-art[data-stage-art="colosseum"]::after,
+#pvp-root .lb3-stage-art[data-stage-art="skyforge"]::after,
+#pvp-root .lb3-stage-art[data-stage-art="runegarden"]::after,
+#pvp-root .lb3-stage-art[data-stage-art="harbor"]::after{background:linear-gradient(180deg,transparent 55%,rgba(7,7,25,.5))}
+
+/* Lobi: karakter kartı — küçük avatar + açıklama ile yetenekler arasındaki boşlukta portre.
+   Portre yalnız boş kalan alanı doldurur (flex 1 1 0, min-height 0); kart yüksekliğini büyütmez. */
+#pvp-root .lb3-fighter{--ve-portrait:none}
+#pvp-root .lb3-fighter[data-fighter="vargr"]{--ve-portrait:url(./assets/higgsfield/final/portre-vargr.webp)}
+#pvp-root .lb3-fighter[data-fighter="sira"]{--ve-portrait:url(./assets/higgsfield/final/portre-sira.webp)}
+#pvp-root .lb3-fighter[data-fighter="doran"]{--ve-portrait:url(./assets/higgsfield/final/portre-doran.webp)}
+#pvp-root .lb3-fighter[data-fighter="nyx"]{--ve-portrait:url(./assets/higgsfield/final/portre-nyx.webp)}
+#pvp-root .lb3-fighter[data-fighter] .lb3-f-art{background-image:var(--ve-portrait);background-size:cover;background-position:50% 14%}
+#pvp-root .lb3-fighter:is([data-fighter="vargr"],[data-fighter="sira"],[data-fighter="doran"],[data-fighter="nyx"]) .lb3-f-emblem{opacity:0}
+#pvp-root .lb3-fighter[data-fighter] .lb3-f-blurb{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+#pvp-root .lb3-fighter[data-fighter] .lb3-f-blurb::after{content:"";flex:1 1 0;min-height:0;max-height:240px;margin-top:8px;border-radius:10px;
+  background:linear-gradient(180deg,transparent 60%,rgba(7,7,25,.55)),var(--ve-portrait) 50% 18%/cover no-repeat}
+#pvp-root .lb3-fighter[data-fighter] .lb3-f-skills{margin-top:8px}
+
+/* Lobi zemini (giriş görseli) ve ana sayfa PvP vitrini (afiş) — metin kontrastı için koyu örtü */
+#pvp-root .pvp6-panel.lb3{background-image:linear-gradient(180deg,rgba(7,7,25,.84),rgba(7,7,25,.93)),url(./assets/higgsfield/final/ekran-giris.webp)!important;background-size:cover!important;background-position:center!important}
+#app .home-pvp-entry.lb3-home{background-image:linear-gradient(90deg,rgba(7,7,25,.9) 0%,rgba(7,7,25,.72) 55%,rgba(7,7,25,.5) 100%),url(./assets/higgsfield/final/lobi-afis.webp)!important;background-size:cover!important;background-position:center!important}
+
+/* Yükleme, zafer/yenilgi, raund kartı */
+#pvp-loading{background:linear-gradient(rgba(9,7,27,.72),rgba(9,7,27,.86)),url(./assets/higgsfield/final/ekran-yukleme.webp) center/cover no-repeat #09071b}
+#pvp-root .pvp15-backdrop:has([data-outcome="victory"]){background:linear-gradient(rgba(5,7,29,.62),rgba(5,7,29,.86)),url(./assets/higgsfield/final/ekran-zafer.webp) center/cover no-repeat #05071d}
+#pvp-root .pvp15-backdrop:has([data-outcome="defeat"]){background:linear-gradient(rgba(5,7,29,.66),rgba(5,7,29,.9)),url(./assets/higgsfield/final/ekran-yenilgi.webp) center/cover no-repeat #05071d}
+#pvp-root .m33-result{background-image:linear-gradient(rgba(9,7,27,.8),rgba(9,7,27,.9)),url(./assets/higgsfield/final/ekran-raund-banner.webp);background-size:cover;background-position:center;border-radius:14px}
+
+/* Vuruş anı boyalı efekt katmanı (visual-enrich.js üretir); siyah zemin "screen" ile kaybolur,
+   kenarlar maske ile yumuşar. Hasar rakamları ve can barları bu katmanın dışında, kodla çizilir. */
+#pvp-root .ve-impact{position:fixed;z-index:30;pointer-events:none;mix-blend-mode:screen;background:center/contain no-repeat;
+  -webkit-mask-image:radial-gradient(circle,#000 42%,transparent 70%);mask-image:radial-gradient(circle,#000 42%,transparent 70%);
+  transform:translate(-50%,-50%) scale(.45);opacity:0;animation:ve-impact var(--ve-impact-ms,420ms) cubic-bezier(.2,.9,.3,1) forwards;will-change:transform,opacity}
+@keyframes ve-impact{0%{transform:translate(-50%,-50%) scale(.45) rotate(var(--ve-rot,0deg));opacity:0}
+  14%{opacity:1}55%{opacity:.9}100%{transform:translate(-50%,-50%) scale(1.12) rotate(var(--ve-rot,0deg));opacity:0}}
+#pvp-root .ve-impact.ve-calm{animation-name:ve-impact-calm}
+@keyframes ve-impact-calm{0%{transform:translate(-50%,-50%) scale(.9);opacity:0}25%{opacity:.6}100%{transform:translate(-50%,-50%) scale(.9);opacity:0}}
+@media (prefers-reduced-motion:reduce){#pvp-root .ve-impact{animation-name:ve-impact-calm}}
