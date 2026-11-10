@@ -1,5 +1,11 @@
 import {createArenaBloom} from './arena3d-bloom.js';
 import {budgetRatio, createFrameGovernor, PIXEL_BUDGETS} from './perf-governor.js';
+import {buildStage} from './stages3d.js';
+import {DEFAULT_STAGE, normalizeStage} from './shared/stages.js';
+import {
+  createFighterRig, createSkillFx, isKnownFighter, loadFighterAsset, modelUrl, rootMotionAt, skillDuration,
+  MODEL_VIEW, FIGHTER_MODEL_BASE,
+} from './fighters3d.js';
 
 /**
  * TuşLab Neon Arena — 3D arena çekirdeği (Paket 26)
@@ -137,10 +143,10 @@ const POOL_Y = 0.012 - ARENA_SINK;
 const ARENA_TIERS = Object.freeze({count: 6, r0: 9.6, y0: 1.2, rise: 0.75, tread: 1.05, podiumR: 8.9, floorY: -0.6});
 /**
  * Auto quality (performans ajanı): kademeli düşüş, tek yönlü.
- *   0 → yüksek: bloom açık, ≤ 2.0 MP
+ *   0 → yüksek: bloom açık, oran = min(devicePixelRatio, 2)
  *   1 → bloom kapalı (ilk ve en ucuz kazanç: tam ekran ara hedef + birleştirme geçişi yok)
  *   2 → çözünürlük düşük: ≤ 1.4 MP, oran ≤ 1.25
- *   3 → düşük kalite: ≤ 1.0 MP, oran ≤ 1, kalabalık/ışık/parçacık azaltılır
+ *   3 → düşük kalite: oran = 1, kalabalık/ışık/parçacık azaltılır
  * 40 karelik pencerenin ortalaması 20 ms'yi aşarsa bir kademe inilir; ısınma
  * (45 kare) ve 250 ms'den uzun duraklamalar (shader derleme, sekme dönüşü) ölçülmez.
  */
@@ -494,6 +500,11 @@ export async function createArena3D({
   createRenderer = null,
   loadTexture = null,
   assetBase = './assets/rig/',
+  // Paket 32: 3B rig'li karakter modelleri. loadModel(url) → {gltf, clips}; cloneModel = SkeletonUtils.clone.
+  // Varsayılanlar vendor GLTFLoader/SkeletonUtils'i tembel yükler; model yoksa düzlem dövüşçü kalır.
+  loadModel = null,
+  cloneModel = null,
+  modelBase = FIGHTER_MODEL_BASE,
 } = {}) {
   // ---------------------------------------------------------------- guards
   const duel = safeCall(() => root?.querySelector?.('.pvp2-duel')) || null;
@@ -536,9 +547,10 @@ export async function createArena3D({
     const perf = env?.performance;
     return typeof perf?.now === 'function' ? perf.now() : Date.now();
   };
+  const motionPreference = safeCall(() => env?.matchMedia?.('(prefers-reduced-motion: reduce)'));
   const reduced = () => {
     try {
-      return Boolean(isReduced());
+      return Boolean(isReduced() || root?.classList?.contains?.('pvp4-reduced') || motionPreference?.matches);
     } catch {
       return false;
     }
@@ -597,13 +609,17 @@ export async function createArena3D({
 
   let bubbleGeometry = null; // shared lazily-created geometries
   let blobGeometry = null;
-  const env3d = buildEnvironment();
+  const fighterBlobTexture = drawBlob(); // shared by fighters across environment changes
+  let env3d = buildEnvironment();
   const fighters = new Map(SEATS.map(seat => [seat, buildFighter(seat)]));
   const flashQuad = buildFlashQuad();
   const dimQuad = buildDimQuad();
   const floorGlow = buildFloorGlow();
   const FOG_BASE = scene.fog.color.clone();
   const HORIZON_BASE = env3d.sky.material.uniforms.uHorizon.value.clone();
+  let stageId = DEFAULT_STAGE;
+  let activeStage = wrapColosseum();
+  let stageTime = 0;
 
   // ------------------------------------------------------------ cinematics (paket 29)
   // superFreeze / slowMo / introSweep state + dynamic fight-camera springs.
@@ -956,11 +972,63 @@ export async function createArena3D({
     backRim.position.set(0, 3, -8);
     group.add(backRim);
 
-    const blobTexture = drawBlob();
+    const blobTexture = fighterBlobTexture;
     const colosseum = buildColosseum(group);
     // Ambient lights dimmed by the super freeze (base intensities kept here).
     const ambient = [hemi, key, backRim].map(light => ({light, base: light.intensity}));
     return {group, hq, floaters, stars, floorMaterial, halo, blobTexture, starCount, colosseum, sky, ambient};
+  }
+
+  function wrapColosseum() {
+    const environment = env3d;
+    return buildStage(THREE, {id: DEFAULT_STAGE, parent: scene, quality: effectiveQuality(), isReduced: reduced,
+      legacy: {
+        group: environment.group, fog: scene.fog, ambient: environment.ambient,
+        applyQuality(level) {
+          const high = level === 'high';
+          for (const object of environment.hq) object.visible = high;
+          environment.stars.geometry.setDrawRange(0, high ? environment.starCount : Math.round(environment.starCount * 0.4));
+          applyColosseumQuality(environment.colosseum, level);
+        },
+        update(dt, t, quiet) {
+          updateColosseum(environment.colosseum, t, dt, quiet);
+          environment.colosseum.embers.visible = !quiet;
+          for (const f of environment.floaters) {
+            f.object.position.y = f.baseY + (quiet ? 0 : Math.sin(t * f.speed + f.phase) * f.amp);
+            if (f.spin) f.object.rotation.y = quiet ? 0 : t * f.spin;
+          }
+          environment.floorMaterial.emissiveIntensity = quiet ? 0.8 : 0.8 + 0.12 * Math.sin(t * 1.3);
+          environment.stars.rotation.y = quiet ? 0 : t * 0.004;
+        },
+        dispose(resources) {
+          for (const kind of ['geometries', 'materials', 'textures']) {
+            for (const item of resources[kind]) owned[kind].delete(item);
+          }
+        },
+      },
+    });
+  }
+
+  function setStage(id) {
+    if (destroyed) return;
+    const next = normalizeStage(id);
+    if (next === stageId) return;
+    activeStage.dispose();
+    env3d = null;
+    stageId = next;
+    stageTime = 0;
+    if (next === DEFAULT_STAGE) {
+      scene.fog = new THREE.Fog(0x150a2c, 14, 44);
+      env3d = buildEnvironment();
+      activeStage = wrapColosseum();
+    } else {
+      activeStage = buildStage(THREE, {id: next, quality: effectiveQuality(), parent: scene, isReduced: reduced, document: doc});
+    }
+    FOG_BASE.copy(scene.fog.color);
+    fogPulse.value = 0;
+    activeStage.applyQuality(effectiveQuality());
+    layout(true);
+    queueWarmup();
   }
 
   // ================================================================ COLOSSEUM
@@ -1459,6 +1527,16 @@ export async function createArena3D({
       offset: new THREE.Vector3(),
       seg: null,           // active travel tween, see startSeg()
       spin: 0,             // extra body roll (rad, + = backward like tilt), pivoting at the waist
+      // Paket 32: 3B model (null → düzlem dövüşçü). fighterId istenen karakter; modelToken yarışları keser.
+      fighterId: null,
+      model: null,
+      modelToken: 0,
+      modelJob: null,
+      modelFailed: false,
+      modelAsset: null,
+      modelClock: 0,       // model simülasyon saati (ms): slowMo/hitStop ile birlikte ilerler
+      fxQueue: [],         // zamanlı beceri efektleri {at, fn}
+      lastCast: null,      // {at, hitMs}: rakibin isabet tepkisi vuruş anına ertelenir
     };
   }
 
@@ -1575,8 +1653,8 @@ export async function createArena3D({
     }
     if (!results || results.some(r => !r.texture || !r.texture.isTexture)) {
       // Graceful fallback: keep the DOM rigs (class never added → canvas stays
-      // behind the opaque stage backgrounds).
-      readyState = 'failed';
+      // behind the opaque stage backgrounds). Paket 32: modeller hazırsa sahne yine açılır.
+      if (readyState !== 'ready') readyState = 'failed';
       readyResolve(false);
       return;
     }
@@ -1598,6 +1676,223 @@ export async function createArena3D({
     readyResolve(true);
   })();
 
+  // ================================================================ 3D MODELS (paket 32)
+  //
+  // setFighters({1:'vargr', 2:'doran'}) yalnız seçili iki karakterin GLB'sini tembel yükler
+  // (aynı karakter iki koltukta → aynı varlıktan iki SkeletonUtils klonu). Model gelince
+  // düzlem katmanları gizlenir, model aynı actor grubuna girer: poz izleri (fwd/lift/tilt)
+  // kök hareketi olarak uygulanmaya devam eder, gövdeyi klip animasyonu taşır.
+  // Model yüklenemezse (404, WebGL kemik sınırı) düzlem dövüşçü yedek olarak kalır.
+
+  let skillFx = null;
+  let cloneFn = typeof cloneModel === 'function' ? cloneModel : null;
+  async function getClone() {
+    if (cloneFn) return cloneFn;
+    try {
+      cloneFn = (await import('./vendor/SkeletonUtils.js')).clone;
+    } catch {
+      cloneFn = null;
+    }
+    return cloneFn;
+  }
+  function fetchModel(id) {
+    const url = modelUrl(id, modelBase);
+    if (typeof loadModel === 'function') return Promise.resolve().then(() => loadModel(url, id));
+    return loadFighterAsset(THREE, url);
+  }
+  /** WebGL sınırı: 41 kemikli iskelet ≈ 41×4 vec4 vertex uniform ister. */
+  function modelsBlocked() {
+    const max = Number(renderer?.capabilities?.maxVertexUniforms);
+    return Number.isFinite(max) && max > 0 && max < 200;
+  }
+  function setPlaneVisible(fighter, visible) {
+    fighter.core.mesh.visible = visible;
+    fighter.guard.pivot.visible = visible;
+    fighter.weapon.pivot.visible = visible;
+  }
+  function detachModel(fighter) {
+    if (!fighter.model) return;
+    safeCall(() => fighter.model.dispose());
+    fighter.model = null;
+    fighter.modelAsset = null;
+    fighter.fxQueue = [];
+    setPlaneVisible(fighter, true);
+    fighter.actor.visible = Boolean(fighter.core.material.map);
+  }
+  function attachModel(fighter, rig, asset) {
+    detachModel(fighter);
+    fighter.model = rig;
+    fighter.modelAsset = asset;
+    fighter.modelClock = 0;
+    fighter.fxQueue = [];
+    fighter.actor.add(rig.object);
+    setPlaneVisible(fighter, false);
+    fighter.actor.visible = true;
+    if (!skillFx) skillFx = safeCall(() => createSkillFx(THREE, scene)) || null;
+    if (fighter.ko) rig.play('ko');
+    else if (fighter.victory) rig.play('win');
+    if (readyState !== 'ready' && [...fighters.values()].every(f => f.model)) {
+      readyState = 'ready';
+      safeCall(() => root.classList?.add?.('pvp26-3d'));
+      layout(true);
+    }
+    safeCall(() => queueWarmup()); // kemikli malzeme programları savaş ortasında değil şimdi derlensin
+  }
+
+  /** Koltuk → karakter kimliği; bilinmeyen kimlikler yok sayılır. Döner: Promise<boolean> (hepsi yüklendi mi). */
+  function setFighters(map = {}) {
+    if (destroyed) return Promise.resolve(false);
+    if (modelsBlocked()) return Promise.resolve(false);
+    const jobs = [];
+    for (const seat of SEATS) {
+      const id = map?.[seat];
+      if (!isKnownFighter(id)) continue;
+      const fighter = fighters.get(seat);
+      if (fighter.fighterId === id && (fighter.model || fighter.modelJob)) {
+        jobs.push(fighter.modelJob || Promise.resolve(true));
+        continue;
+      }
+      fighter.fighterId = id;
+      fighter.modelFailed = false;
+      const token = ++fighter.modelToken;
+      detachModel(fighter);
+      const job = (async () => {
+        try {
+          const [asset, clone] = await Promise.all([fetchModel(id), getClone()]);
+          if (destroyed || token !== fighter.modelToken) return false;
+          const rig = createFighterRig(THREE, asset, {fighterId: id, seat, clone});
+          attachModel(fighter, rig, asset);
+          return true;
+        } catch (error) {
+          if (token === fighter.modelToken) fighter.modelFailed = true;
+          safeCall(() => env?.console?.warn?.(`[arena3d] ${id} modeli yüklenemedi; düzlem dövüşçü kullanılıyor.`, error?.message || error));
+          return false;
+        } finally {
+          if (token === fighter.modelToken) fighter.modelJob = null;
+        }
+      })();
+      fighter.modelJob = job;
+      jobs.push(job);
+    }
+    return Promise.all(jobs).then(results => results.length > 0 && results.every(Boolean));
+  }
+
+  /** Karaktere özel beceri: klip adımları + kök hareketi izi + zamanlı efektler. false → model yok. */
+  function playModelSkill(seat, skill, {fx = true} = {}) {
+    const fighter = fighters.get(seat);
+    const rig = fighter?.model;
+    if (!rig || fighter.ko) return false;
+    const spec = rig.choreo[skill];
+    if (!spec) return false;
+    rig.play(skill);
+    fighter.lastCast = {at: now(), hitMs: spec.hitMs || 0};
+    const dur = skillDuration(spec);
+    const spinOk = !reduced();
+    addTrack(fighter, dur, (p, o, m) => {
+      const r = rootMotionAt(spec, p * dur);
+      o.fwd += r.fwd * m;
+      o.lift += r.lift * m;
+      if (spinOk) o.yaw += r.yaw; // azaltılmış harekette kendi ekseninde dönüş yok
+      o.glow += skill === 'r' ? 1.1 * (1 - p) : 0.3 * Math.sin(Math.PI * p);
+    });
+    if (fx) {
+      const def = otherSeat(seat);
+      for (const item of spec.fx || []) {
+        fighter.fxQueue.push({at: fighter.modelClock + (item.at || 0), fn: () => spawnSkillFx(seat, def, item)});
+      }
+      if (fighter.fxQueue.length > 12) fighter.fxQueue.splice(0, fighter.fxQueue.length - 12);
+    }
+    return true;
+  }
+
+  /** Bir efekt örneği: mermi/rün oku/meteor/sütun/kalkan kırıkları/girdap/yer darbesi. */
+  function spawnSkillFx(seat, def, item) {
+    const fighter = fighters.get(seat);
+    const rig = fighter?.model;
+    if (!rig || destroyed) return;
+    const color = rig.palette.main;
+    const accent = rig.palette.accent;
+    const s = fighter.root.scale.x || 1;
+    const quiet = reduced();
+    const impact = power => {
+      api.flash(color, 0.08 + 0.12 * power, 140 + 120 * power);
+      spawnFloorWave(def, seat, 0.4 + 0.6 * power);
+      if (power >= 0.6) api.shake(0.2 + 0.35 * power, 200 + 200 * power);
+      if (power >= 0.8) { pulseFog(color, 0.5 * power); cheer(0.4 * power); }
+    };
+    if (item.kind === 'slam') {
+      impact(item.power ?? 0.7);
+      return;
+    }
+    if (quiet || !skillFx) {
+      api.flash(color, 0.12, 160);
+      if (item.kind === 'shards') shatterBubble(def);
+      return;
+    }
+    const anchor = api.seatAnchor(def);
+    const ground = api.seatGround(def);
+    if (item.kind === 'spear' || item.kind === 'dagger' || item.kind === 'rune') {
+      const from = rig.boneWorld(item.from || 'handslot.r');
+      skillFx.spawn({kind: item.kind, from, to: anchor, color, accent, flight: item.flight || 260, scale: s,
+        onArrive: () => impact(item.kind === 'spear' ? 0.45 : 0.3)});
+    } else if (item.kind === 'meteor') {
+      skillFx.spawn({kind: 'meteor', from: api.seatAnchor(seat), to: ground, color, accent, flight: item.flight || 500, scale: s * 1.2,
+        onArrive: () => impact(1.2)});
+    } else if (item.kind === 'column') {
+      skillFx.spawn({kind: 'column', to: ground, color, accent, ms: item.ms || 900, scale: s, onArrive: () => impact(0.6)});
+    } else if (item.kind === 'shards') {
+      shatterBubble(def);
+      skillFx.spawn({kind: 'shards', to: anchor, color: fighters.get(def)?.palette.shield ?? 0xffffff, accent, ms: 650, scale: s});
+      impact(0.7);
+    } else if (item.kind === 'swirl') {
+      skillFx.spawn({kind: 'swirl', to: api.seatGround(seat), color, accent, ms: item.ms || 700, scale: s,
+        follow: out => {
+          const g = api.seatGround(seat);
+          out.set(g.x, 0.75 * s + (fighter.lastPose ? Math.max(0, fighter.lastPose.lift) * s : 0), g.z);
+        }});
+    }
+  }
+
+  /** Mixer + efekt kuyruğu (tick içinde, poz güncellemesinden sonra). */
+  function updateModels(dt, timeScale, frozenFighter, stopped) {
+    for (const fighter of fighters.values()) {
+      const rig = fighter.model;
+      if (!rig) continue;
+      const paused = stopped || fighter.seat === frozenFighter;
+      rig.setTimeScale(timeScale);
+      rig.setPaused(paused);
+      rig.update(dt);
+      if (!paused) fighter.modelClock += dt * timeScale * 1000;
+      if (fighter.fxQueue.length) {
+        for (let i = 0; i < fighter.fxQueue.length; i++) {
+          const job = fighter.fxQueue[i];
+          if (job.at > fighter.modelClock) continue;
+          fighter.fxQueue.splice(i--, 1);
+          safeCall(job.fn);
+        }
+      }
+    }
+    if (skillFx) safeCall(() => skillFx.update(dt * timeScale));
+  }
+
+  /**
+   * Model durum geçişi (yoksa no-op). İsabet/savunma tepkisi, rakibin az önce başlattığı
+   * becerinin görsel vuruş anına (hitMs) ertelenir: sunucu hasarı beceriyle aynı anda yollar,
+   * ama kafa sallanması baltanın inişiyle olmalı.
+   */
+  function modelPlay(seat, state, opts) {
+    const rig = fighters.get(seat)?.model;
+    if (!rig) return;
+    const reactive = state === 'hit' || state === 'block' || state === 'blockHit';
+    const cast = reactive ? fighters.get(otherSeat(seat))?.lastCast : null;
+    const wait = cast ? cast.at + cast.hitMs - now() : 0;
+    if (wait > 16 && wait < 2000) {
+      cue(wait, () => { if (fighters.get(seat)?.model === rig && !fighters.get(seat).ko) safeCall(() => rig.play(state, opts)); });
+      return;
+    }
+    safeCall(() => rig.play(state, opts));
+  }
+
   // ===================================================================== LAYOUT
 
   const layoutState = {width: 0, height: 0, signature: '', lastCheck: 0, seats: new Map()};
@@ -1608,15 +1903,14 @@ export async function createArena3D({
   const stageOf = seat => safeCall(() => duel.querySelector(`.pvp2-side[data-seat="${seat}"] .pvp2-stage`)) || null;
 
   /**
-   * Render oranı MUTLAK piksel bütçesiyle sınırlı (canvas tüm düelloyu kaplar).
-   * Oran dpr'yi izler ve 1'in altına inebilir: tarayıcı %80/%67'ye uzaklaştırınca
-   * (CSS alanı büyür, dpr < 1) GPU artık ekranda görünenden fazla piksel boyamaz.
+   * Explicit high preserves device resolution; low uses one pixel per CSS pixel.
+   * Only the FPS governor may reduce automatic resolution after slow frames.
    */
   function pixelRatio(width = 0, height = 0) {
     const dpr = Number(env?.devicePixelRatio) || 1;
-    if (effectiveQuality() === 'low') return budgetRatio(width, height, dpr, {maxRatio: 1, budget: PIXEL_BUDGETS.arenaLow});
+    if (effectiveQuality() === 'low') return 1;
     if (autoStep() >= 2) return budgetRatio(width, height, dpr, {maxRatio: 1.25, budget: PIXEL_BUDGETS.arenaMedium});
-    return budgetRatio(width, height, dpr, {maxRatio: 2, budget: PIXEL_BUDGETS.arenaHigh});
+    return Math.min(dpr, 2);
   }
   /** Bloom yalnızca en üst kademede (otomatik modda ilk kapanan şey). */
   const bloomActive = () => bloomEnabled && effectiveQuality() === 'high' && autoStep() === 0 && !reduced();
@@ -1628,16 +1922,15 @@ export async function createArena3D({
   function layout(force = false) {
     if (destroyed) return false;
     const duelRect = rectOf(duel);
-    const r1 = rectOf(stageOf(1));
-    const r2 = rectOf(stageOf(2));
+    let r1 = rectOf(stageOf(1));
+    let r2 = rectOf(stageOf(2));
     if (!duelRect || !r1 || !r2) return false;
-    // Side-by-side stages (desktop): the canvas fills the whole duel so the
-    // colosseum also shows behind the name/HP rows and the VS gap. Stacked
-    // stages (narrow screens) keep the old stage-band canvas.
+    // Detect a vertical stack, independently of horizontal intersection.
+    const stacked = r2.top >= r1.bottom - 4;
     const sideBySide = Math.abs(r1.top - r2.top) < 8 && Math.abs(r1.height - r2.height) < 8
       && (r1.right <= r2.left + 2 || r2.right <= r1.left + 2);
     let left, right, top, bottom;
-    if (sideBySide) {
+    if (sideBySide || stacked) {
       const cl = Number(duel.clientLeft) || 0;
       const ct = Number(duel.clientTop) || 0;
       left = duelRect.left + cl;
@@ -1653,6 +1946,12 @@ export async function createArena3D({
     const width = Math.round(right - left);
     const height = Math.round(bottom - top);
     if (width < 2 || height < 2) return false;
+    if (stacked) {
+      const stageH = (r1.height + r2.height) / 2;
+      const stageTop = top + (height - stageH) / 2;
+      r1 = {left, top: stageTop, width: width / 2, height: stageH};
+      r2 = {left: left + width / 2, top: stageTop, width: width / 2, height: stageH};
+    }
 
     const offsetX = left - duelRect.left - (Number(duel.clientLeft) || 0);
     const offsetY = top - duelRect.top - (Number(duel.clientTop) || 0);
@@ -1673,7 +1972,7 @@ export async function createArena3D({
     safeCall(() => renderer.setPixelRatio?.(ratio));
     safeCall(() => renderer.setSize?.(width, height, false));
     safeCall(() => bloom?.setSize(width, height, ratio));
-    const emberUniforms = env3d.colosseum?.emberMaterial?.uniforms;
+    const emberUniforms = env3d?.colosseum?.emberMaterial?.uniforms;
     if (emberUniforms) emberUniforms.uScale.value = (height * ratio) / (2 * Math.tan(THREE.MathUtils.degToRad(LAYOUT.fov / 2)));
 
     const aspect = width / height;
@@ -1736,7 +2035,7 @@ export async function createArena3D({
   // ================================================================ ANIMATION
 
   /** Pose accumulator; every track adds into it. */
-  const emptyPose = () => ({fwd: 0, lift: 0, tilt: 0, squash: 0, weapon: 0, guard: 0, flash: 0, glow: 0, dark: 0});
+  const emptyPose = () => ({fwd: 0, lift: 0, tilt: 0, squash: 0, weapon: 0, guard: 0, flash: 0, glow: 0, dark: 0, yaw: 0, koTilt: 0});
 
   /** Amplitude for gameplay motion (reduced mode keeps a small hint only). */
   const amp = () => (reduced() ? 0.25 : 1);
@@ -1794,6 +2093,7 @@ export async function createArena3D({
   function playHit(seat, amount) {
     const fighter = fighters.get(seat);
     const a = clamp((Number(amount) || 0) / HEAVY_DAMAGE, 0.08, 1);
+    modelPlay(seat, 'hit', {heavy: a > 0.6});
     const dist = 0.25 + 0.95 * a;
     addTrack(fighter, 420 + 260 * a, (p, o, m) => {
       const env = p < 0.3 ? easeOutCubic(p / 0.3) : 1 - easeInOutSine((p - 0.3) / 0.7);
@@ -1807,6 +2107,7 @@ export async function createArena3D({
   }
 
   function playBrace(seat, strength = 1) {
+    modelPlay(seat, strength >= 1.1 ? 'blockHit' : 'block');
     addTrack(fighters.get(seat), 560, (p, o, m) => {
       const env = bump(p);
       o.fwd += -0.22 * strength * env * m;
@@ -1818,6 +2119,7 @@ export async function createArena3D({
   }
 
   function playStagger(seat) {
+    modelPlay(seat, 'hit', {heavy: true});
     addTrack(fighters.get(seat), 700, (p, o, m) => {
       const env = bump(p);
       o.fwd += -0.5 * env * m;
@@ -1828,6 +2130,7 @@ export async function createArena3D({
   }
 
   function playStumble(seat) {
+    modelPlay(seat, 'hit', {heavy: true});
     addTrack(fighters.get(seat), 820, (p, o, m) => {
       const env = p < 0.25 ? easeOutCubic(p / 0.25) : 1 - easeInOutSine((p - 0.25) / 0.75);
       o.fwd += -0.7 * env * m;
@@ -2020,7 +2323,7 @@ export async function createArena3D({
       cheer(0.35);
     } else if (n === 2) {
       startSeg(attacker, {...roles, target: blocked ? 'atkBlocked' : 'atkStrike', dur: T.strikeMs, ease: easeOutCubic});
-      playLunge(atk, {wind: 40, strike: 120, recover: 200, dist: 0.25, swing: 1.4, glow: 1});
+      if (!attacker.model) playLunge(atk, {wind: 40, strike: 120, recover: 200, dist: 0.25, swing: 1.4, glow: 1});
       if (!blocked) {
         startSeg(defender, {
           ...roles, target: 'defHit', delay: T.hitStopMs, dur: T.hitMs, ease: easeOutCubic,
@@ -2087,6 +2390,10 @@ export async function createArena3D({
     fighter.bubblePulses.length = 0;
     fighter.victory = null;
     fighter.ko = {start: now(), dur: reduced() ? 300 : 950};
+    if (fighter.model) {
+      fighter.fxQueue = [];
+      safeCall(() => fighter.model.play('ko'));
+    }
     cue(reduced() ? 300 : 620, () => api.shake(0.45, 380));
     cheer(1);
     // Knockout in the middle of an ultimate (phase 1/2 was lethal): throw the
@@ -2106,6 +2413,7 @@ export async function createArena3D({
     if (!fighter || fighter.ko) return;
     fighter.tracks.length = 0;
     fighter.victory = {start: now()};
+    modelPlay(seat, 'win');
   }
 
   /** Compute the pose of one fighter for this frame and apply it to the scene graph. */
@@ -2163,7 +2471,8 @@ export async function createArena3D({
       const k = clamp((tNow - fighter.ko.start) / fighter.ko.dur, 0, 1);
       const fall = k < 0.8 ? easeInQuad(k / 0.8) : 1 - Math.sin(((k - 0.8) / 0.2) * Math.PI) * 0.06;
       o.tilt += 1.42 * fall;
-      o.fwd += -0.35 * fall;
+      o.koTilt += 1.42 * fall;   // model: Death_A klibi düşüşü kendisi oynatır
+      o.fwd += -0.35 * (fighter.model ? 0.3 : 1) * fall;
       o.weapon += 0.6 * fall;
       o.guard += -0.4 * fall;
       o.dark += 0.55 * k;
@@ -2175,20 +2484,29 @@ export async function createArena3D({
     const spin = face * fighter.spin;
     const waist = WAIST_Y;
     fighter.actor.position.set(face * o.fwd + waist * Math.sin(spin), Math.max(0, o.lift) + waist * (1 - Math.cos(spin)), 0);
-    fighter.actor.rotation.z = face * o.tilt + spin;
-    fighter.actor.scale.set(1 + o.squash * 0.5, 1 - o.squash, 1);
+    const flash = clamp(o.flash, 0, 1);
+    const glow = clamp(o.glow, 0, 1.5);
+    if (fighter.model) {
+      // Paket 32: klip baskın — düzlem eğimi/ezilmesi modele kısık uygulanır, dönüş (yaw) koreografiden.
+      fighter.actor.rotation.z = face * (o.tilt - o.koTilt) * MODEL_VIEW.tiltScale + spin;
+      const sq = o.squash * MODEL_VIEW.squashScale;
+      fighter.actor.scale.set(1 + sq * 0.5, 1 - sq, 1);
+      fighter.model.setYaw(o.yaw);
+      fighter.model.setTint({flash, glow, dark: o.dark});
+    } else {
+      fighter.actor.rotation.z = face * o.tilt + spin;
+      fighter.actor.scale.set(1 + o.squash * 0.5, 1 - o.squash, 1);
+    }
     fighter.weapon.pivot.rotation.z = -face * o.weapon;
     fighter.guard.pivot.rotation.z = -face * o.guard * 0.8;
 
     // Materials: emissive = base white (keeps the art readable) + glow + hit flash.
-    const flash = clamp(o.flash, 0, 1);
-    const glow = clamp(o.glow, 0, 1.5);
     const base = 0.38;
     const pr = ((fighter.palette.main >> 16) & 255) / 255;
     const pg = ((fighter.palette.main >> 8) & 255) / 255;
     const pb = (fighter.palette.main & 255) / 255;
     const shade = 1 - o.dark;
-    for (const material of fighter.materials) {
+    if (!fighter.model) for (const material of fighter.materials) {
       material.emissive.setRGB(
         (base + flash * 2.4 + glow * pr * 0.9) * shade,
         (base + flash * 2.4 + glow * pg * 0.9) * shade,
@@ -2324,9 +2642,9 @@ export async function createArena3D({
     if (fogPulse.value < 1e-3) fogPulse.value = 0;
     const dim = 1 - CINEMATIC.superDim * (cine.superLight ? 0.45 : 1) * cine.superK;
     scene.fog.color.copy(FOG_BASE).lerp(fogPulse.color, fogPulse.value * 0.45).multiplyScalar(dim);
-    env3d.sky.material.uniforms.uHorizon.value.copy(HORIZON_BASE).lerp(fogPulse.color, fogPulse.value * 0.5);
-    for (const a of env3d.ambient) a.light.intensity = a.base * dim;
-    if (dim < 1) {
+    env3d?.sky.material.uniforms.uHorizon.value.copy(HORIZON_BASE).lerp(fogPulse.color, fogPulse.value * 0.5);
+    for (const a of activeStage.ambient) a.light.intensity = a.base * dim;
+    if (dim < 1 && env3d) {
       env3d.floorMaterial.emissiveIntensity *= dim;
       for (const b of env3d.colosseum?.brazierLights || []) b.light.intensity *= dim;
     }
@@ -2390,8 +2708,8 @@ export async function createArena3D({
     dimQuad.quad.visible = false;
     dimQuad.material.opacity = 0;
     scene.fog.color.copy(FOG_BASE);
-    env3d.sky.material.uniforms.uHorizon.value.copy(HORIZON_BASE);
-    for (const a of env3d.ambient) a.light.intensity = a.base;
+    env3d?.sky.material.uniforms.uHorizon.value.copy(HORIZON_BASE);
+    for (const a of activeStage.ambient) a.light.intensity = a.base;
     if (camera.fov !== LAYOUT.fov) {
       camera.fov = LAYOUT.fov;
       camera.updateProjectionMatrix();
@@ -2637,6 +2955,29 @@ export async function createArena3D({
     facing(seat) {
       return facingOf(seat);
     },
+    /**
+     * Paket 31: the seat's body (core) rig texture, or null until the rigs are loaded.
+     * Owned by the core — plugins may sample it but must never dispose it.
+     */
+    rigTexture(seat) {
+      return fighters.get(seat)?.core?.material?.map || null;
+    },
+    /** Paket 32: koltuğun 3B modeli {fighterId, rig} ya da null (düzlem yedek). */
+    fighterModel(seat) {
+      const fighter = fighters.get(seat);
+      return fighter?.model ? {fighterId: fighter.fighterId, rig: fighter.model} : null;
+    },
+    /**
+     * Paket 32: koltuğun karakterinden yarı saydam, tek renk siluet (partner desteği).
+     * Çağıran sahneye ekler ve dispose eder; model yüklü değilse null.
+     */
+    createFighterGhost(seat, {color, opacity = 0.55, asSeat = seat} = {}) {
+      const fighter = fighters.get(seat);
+      if (destroyed || !fighter?.model || !fighter.modelAsset) return null;
+      return safeCall(() => createFighterRig(THREE, fighter.modelAsset, {
+        fighterId: fighter.fighterId, seat: asSeat, clone: cloneFn, ghost: {color, opacity},
+      })) || null;
+    },
     /** Make the crowd cheer, intensity 0..1 (decays by itself). */
     cheer(intensity = 0.6) {
       if (!destroyed) cheer(intensity);
@@ -2696,6 +3037,9 @@ export async function createArena3D({
     },
     quality() {
       return effectiveQuality();
+    },
+    stage() {
+      return stageId;
     },
     isReduced() {
       return reduced();
@@ -2776,7 +3120,9 @@ export async function createArena3D({
     if (type === 'SKILL_CAST') {
       const seat = event.fromSeat;
       if (!isSeat(seat)) return;
-      if (event.skill === 'q') playLunge(seat, {wind: 120, strike: 170, recover: 240, dist: 0.85, swing: 1});
+      if (playModelSkill(seat, event.skill)) {
+        if (event.skill === 'r') api.flash(fighters.get(seat).palette.main, 0.14, 260);
+      } else if (event.skill === 'q') playLunge(seat, {wind: 120, strike: 170, recover: 240, dist: 0.85, swing: 1});
       else if (event.skill === 'e') playLunge(seat, {wind: 230, strike: 260, recover: 380, dist: 1.35, lift: 0.18, squash: 0.12, swing: 1.3});
       else if (event.skill === 'r') {
         // Charge-up: the ULTIMATE_PHASE events (+250 ms) do the travelling.
@@ -2790,7 +3136,7 @@ export async function createArena3D({
         api.flash(fighters.get(seat).palette.main, 0.14, 260);
       }
     } else if (type === 'COUNTERATTACK_CAST') {
-      if (isSeat(event.fromSeat)) playLunge(event.fromSeat, {wind: 70, strike: 140, recover: 220, dist: 1.0, swing: 1.1, glow: 0.4});
+      if (isSeat(event.fromSeat) && !playModelSkill(event.fromSeat, 'q', {fx: false})) playLunge(event.fromSeat, {wind: 70, strike: 140, recover: 220, dist: 1.0, swing: 1.1, glow: 0.4});
     } else if (type === 'ULTIMATE_PHASE') {
       if (!isSeat(event.fromSeat)) return;
       if (reduced()) ultimateFlashOnly(event);
@@ -2813,7 +3159,10 @@ export async function createArena3D({
         const inUltTravel = Boolean(ult && ult.def === seat && fighters.get(seat).seg);
         // During an ultimate pull/throw the travel tween owns the defender's body.
         if (!inUltTravel) playHit(seat, event.amount);
-        else addTrack(fighters.get(seat), 260, (p, o) => { o.flash += Math.max(0, 1 - p * 3); }, {replace: false});
+        else {
+          addTrack(fighters.get(seat), 260, (p, o) => { o.flash += Math.max(0, 1 - p * 3); }, {replace: false});
+          modelPlay(seat, 'hit', {heavy: true});
+        }
         const a = clamp((Number(event.amount) || 0) / HEAVY_DAMAGE, 0, 1);
         const crit = Array.isArray(event.bonusTags) && event.bonusTags.length > 0;
         // Bigger hits freeze longer: Q ≈ 60 ms, E ≈ 95 ms, crit/heavy up to 140 ms.
@@ -2890,7 +3239,7 @@ export async function createArena3D({
     try {
       startKnockout(loser);
       startVictory(winnerSeat);
-      if (env3d.colosseum) env3d.colosseum.focusSeat = winnerSeat; // spotlights find the winner
+      if (env3d?.colosseum) env3d.colosseum.focusSeat = winnerSeat; // spotlights find the winner
       if (!reduced()) {
         dollyTo(winnerSeat, 2600, true); // slow, held cinematic push-in
       }
@@ -2911,10 +3260,17 @@ export async function createArena3D({
       fighter.victory = null;
       fighter.bubbleMaterial.uniforms.uColor.value.setHex(fighter.palette.shield);
       resetTravel(fighter);
+      fighter.lastCast = null;
+      if (fighter.model) {
+        fighter.fxQueue = [];
+        fighter.modelClock = 0;
+        safeCall(() => fighter.model.reset());
+      }
     }
+    safeCall(() => skillFx?.clear());
     ult = null;
     finishedUlts.length = 0;
-    if (env3d.colosseum) {
+    if (env3d?.colosseum) {
       env3d.colosseum.excite = 0;
       env3d.colosseum.focusSeat = null;
     }
@@ -2961,10 +3317,8 @@ export async function createArena3D({
 
   function applyQuality() {
     const high = effectiveQuality() === 'high';
-    for (const object of env3d.hq) object.visible = high;
-    safeCall(() => env3d.stars.geometry.setDrawRange(0, high ? env3d.starCount : Math.round(env3d.starCount * 0.4)));
+    activeStage.applyQuality(effectiveQuality());
     for (const fighter of fighters.values()) fighter.accentLight.visible = high;
-    if (env3d.colosseum) applyColosseumQuality(env3d.colosseum, high ? 'high' : 'low');
     floorGlow.mesh.visible = high; // scene polish is the first thing 'low' drops
     if (!high) for (const w of floorGlow.waves) w.active = false;
     layout(true);
@@ -3035,7 +3389,7 @@ export async function createArena3D({
   function setLightLevel(level) {
     const high = level === 'high';
     for (const fighter of fighters.values()) fighter.accentLight.visible = high;
-    const c = env3d.colosseum;
+    const c = env3d?.colosseum;
     if (c) {
       const caps = ARENA_ENV_CAPS[level] || ARENA_ENV_CAPS.high;
       c.brazierLights.forEach((b, i) => { b.light.visible = i < caps.lights; });
@@ -3153,16 +3507,13 @@ export async function createArena3D({
       updateFighter(fighter, fighter.clock, tNow);
     }
     processUltimate(tNow); // segments that just ended may finish the choreography
+    // Paket 32: mixer — slowMo'da yavaşlar, hitStop'ta ve süper donmasında durur.
+    updateModels(dt, timeScale, frozenFighter, tNow < hitStop.until);
 
-    // Ambient environment motion.
+    // Stage simulation follows the same slow-motion clock as the fighters.
     const quiet = reduced();
-    if (env3d.colosseum) updateColosseum(env3d.colosseum, t, dt, quiet);
-    for (const f of env3d.floaters) {
-      f.object.position.y = f.baseY + (quiet ? 0 : Math.sin(t * f.speed + f.phase) * f.amp);
-      if (f.spin) f.object.rotation.y = quiet ? 0 : t * f.spin;
-    }
-    env3d.floorMaterial.emissiveIntensity = quiet ? 0.8 : 0.8 + 0.12 * Math.sin(t * 1.3);
-    env3d.stars.rotation.y = quiet ? 0 : t * 0.004;
+    stageTime += dt * api.timeScale();
+    activeStage.update(dt * api.timeScale(), stageTime);
     updateAtmosphere(dt, quiet);
     updateFloorGlow(tNow, quiet);
 
@@ -3270,6 +3621,13 @@ export async function createArena3D({
       }
     }
     frameSubs.clear();
+    for (const fighter of fighters.values()) {
+      fighter.modelToken++;
+      detachModel(fighter);
+    }
+    safeCall(() => skillFx?.dispose());
+    skillFx = null;
+    activeStage.dispose();
     destroyed = true;
     safeCall(() => resizeObserver?.disconnect());
     safeCall(() => doc.removeEventListener?.('visibilitychange', onVisibility));
@@ -3309,10 +3667,13 @@ export async function createArena3D({
     onMatchEnd,
     resize: () => layout(true),
     setQuality,
+    setStage,
     clear,
     destroy,
     registerPlugin,
     api,
+    /** Paket 32: koltuklara karakter ata ({1:'vargr', 2:'doran'}); GLB tembel yüklenir. */
+    setFighters,
     /** Resolves true once the rig textures are on the GPU (false on fallback). */
     ready,
     /** Test/debug hooks (not part of the plugin contract). */
@@ -3332,7 +3693,8 @@ export async function createArena3D({
       },
       ultimate: () => (ult ? {attacker: ult.atk, defender: ult.def, phase: ult.shown, queued: ult.queue.slice(), ending: ult.ending} : null),
       environment: () => {
-        const c = env3d.colosseum;
+        const c = env3d?.colosseum;
+        if (!c) return {stage: stageId, crowd: 0, braziers: 0, banners: 0, spotlights: 0, lights: 0, embers: 0, excite: 0};
         return {
           crowd: c.crowd.count,
           braziers: c.flames.count,
@@ -3350,7 +3712,7 @@ export async function createArena3D({
         timeScale: cine.timeScale, sweepK: cine.sweepK,
         frozenSeat: frozenSeat(now()),
         dim: dimQuad.quad.visible ? dimQuad.material.opacity : 0,
-        ambient: env3d.ambient.map(a => a.light.intensity / (a.base || 1)),
+        ambient: activeStage.ambient.map(a => a.light.intensity / (a.base || 1)),
         framing: {cam: framing.cam.toArray(), look: framing.look.toArray()},
         waves: floorGlow.waves.filter(w => w.active).length,
         floorGlow: floorGlow.mesh.visible,
@@ -3358,6 +3720,15 @@ export async function createArena3D({
         fov: camera.fov,
       }),
       readyState: () => readyState,
+      models: () => Object.fromEntries(SEATS.map(seat => {
+        const f = fighters.get(seat);
+        return [seat, {
+          fighter: f.fighterId, loaded: Boolean(f.model), loading: Boolean(f.modelJob), failed: Boolean(f.modelFailed),
+          planeVisible: f.core.mesh.visible, fxQueued: f.fxQueue?.length || 0,
+          ...(f.model ? f.model.stats() : {}),
+        }];
+      })),
+      skillFx: () => (skillFx ? skillFx.stats() : {live: 0, kinds: []}),
       plugins: () => plugins.length,
     },
   };

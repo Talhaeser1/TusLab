@@ -62,6 +62,42 @@ function mount(now){
 const all=node=>[node,...node.children.flatMap(all)];
 const byRole=(el,name)=>all(el).filter(n=>n.dataset?.rui===name);
 
+test('round skill cards remain mounted while keyboard selection changes',()=>{
+  const {el,ui}=mount(41_000);
+  ui.update(roundMatch({round:{phase:'intermission',nextRoundAt:50_000}}),'me');
+  const cards=all(el).filter(n=>n.getAttribute('data-round-skill'));
+  assert.equal(cards.length,3);
+  ui.handleKey({key:'1',preventDefault(){}});
+  assert.equal(all(el).find(n=>n.getAttribute('data-round-skill')==='timethief'),cards[0]);
+  assert.equal(cards[0].getAttribute('aria-pressed'),'true');
+  ui.destroy();
+});
+
+test('fullscreen round result uses the centered panel without measuring or covering the typing panel',()=>{
+  const {host,el,ui}=mount(41_000);host.dataset.layout='fullscreen';el.closest=()=>host;
+  host.querySelector=()=>{throw new Error('fullscreen must not place results in the typing box');};
+  const m=roundMatch({round:{phase:'intermission',nextRoundAt:50_000},roundHistory:[roundEnd]});
+  ui.update(m,'me');const inter=byRole(el,'inter')[0];
+  assert.ok(inter.classList.contains('is-centered'));assert.equal(inter.hidden,false);assert.ok(host.classList.contains('rui-inter-open'));
+  ui.destroy();assert.equal(host.classList.contains('rui-inter-open'),false);
+});
+
+test('round end: shared player columns, winner emphasis, win pips and live countdown ring',()=>{
+  const {el,ui,setNow}=mount(41_000);
+  const m=roundMatch({roundsWon:{1:1,2:1},round:{phase:'intermission',nextRoundAt:50_000}});
+  ui.handle({type:'ROUND_END',payload:{...roundEnd,match:m}});ui.update(m,'me');
+  const result=all(el).find(n=>n.classList.contains('m33-result'));
+  assert.ok(result);
+  const columns=all(result).filter(n=>n.classList.contains('m33-player'));
+  assert.equal(columns.length,2);assert.ok(columns[1].classList.contains('is-winner'));
+  assert.ok(columns[0].textContent.includes('Doğru'));assert.ok(columns[0].textContent.includes('210'));
+  assert.equal(all(result).filter(n=>n.classList.contains('m33-pip')).length,10);
+  const ring=all(result).find(n=>n.getAttribute('class')==='m33-count-fill');
+  assert.equal(ring.getAttribute('stroke-dashoffset'),'0.00');
+  setNow(42_000);ui.tick();assert.ok(Number(ring.getAttribute('stroke-dashoffset'))>0);
+  ui.destroy();
+});
+
 // ---------- sabitler ve eşlemeler ----------
 test('rounds: options and normalisation (invalid → 5)',()=>{
   assert.deepEqual(ROUND_OPTIONS,[5,7,10]);
@@ -111,7 +147,7 @@ test('rounds HUD: ROUND_START → RAUND 2 / 5, ten-word strip, server-clock time
   const vm=roundsViewModel(roundMatch(),'me',25_000);
   assert.equal(vm.visible,true);assert.equal(vm.title,'RAUND 2 / 5');assert.equal(vm.suddenDeath,false);
   assert.equal(vm.timer.seconds,15);assert.equal(vm.timer.text,'15');assert.equal(vm.timer.urgent,false);
-  assert.ok(Math.abs(vm.timer.fraction-0.5)<1e-9);
+  assert.ok(Math.abs(vm.timer.fraction-0.375)<1e-9);
   assert.equal(vm.words.length,10);assert.equal(vm.words[6].state,'active');assert.equal(vm.words[7].opponent,true);
   assert.equal(vm.words[9].state,'todo');
   const [left,right]=vm.sides;
@@ -150,7 +186,7 @@ test('rounds HUD: input lock reasons (intermission, settling, done, time over)',
 // ---------- tur sonu, çarpışma ----------
 test('round summary card: winner, KO badge, stats table and score line',()=>{
   const s=summaryModel(roundEnd,roundMatch(),'me');
-  assert.equal(s.title,'RAUND 2 SONU');assert.equal(s.ko,true);assert.equal(s.draw,false);assert.equal(s.winnerSeat,2);
+  assert.equal(s.title,'TUR 2 BİTTİ');assert.equal(s.ko,true);assert.equal(s.draw,false);assert.equal(s.winnerSeat,2);
   assert.ok(s.winnerText.includes('<img src=x onerror=alert(1)>'),'isim düz metin olarak kalır; DOM katmanı textContent kullanır');
   assert.deepEqual(s.rows.map(r=>r.label),['Doğru','Yanlış','En iyi seri','Hasar','RP']);
   assert.deepEqual(s.rows.find(r=>r.label==='RP').values,['721','1.170']);
@@ -233,7 +269,7 @@ test('rounds DOM: last call, clash callout, summary overlay and unknown packets'
   const ended=roundMatch({roundsWon:{1:1,2:1},round:{phase:'intermission',nextRoundAt:50_000}});
   setNow(46_000);ui.handle({type:'ROUND_END',payload:{...roundEnd,match:ended}});ui.update(ended,'me');
   const summary=byRole(el,'summary')[0];assert.equal(summary.hidden,false);
-  assert.ok(summary.textContent.includes('RAUND 2 SONU'));assert.ok(summary.textContent.includes('KO'));assert.ok(summary.textContent.includes('1.170'));
+  assert.ok(summary.textContent.includes('TUR 2 BİTTİ'));assert.ok(summary.textContent.includes('KO'));assert.ok(summary.textContent.includes('1.170'));
   setNow(48_500);ui.tick();
   assert.equal(summary.hidden,true);
   const intro=byRole(el,'intro')[0];assert.equal(intro.hidden,false);assert.ok(intro.textContent.includes('RAUND 3'));assert.ok(intro.textContent.includes('2'));

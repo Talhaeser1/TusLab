@@ -3,7 +3,7 @@
 //
 //   const hud = createFightHud({root, isReduced, scheduler, getArenaApi});
 //   hud.matchStart({players:[{seat,name,character}], mode})  -> maç başı girişi (VS → RAUND 1 → SAVAŞ!)
-//   hud.update(match, myId)                                  -> süper bar, raund yazısı, isimler
+//   hud.update(match, myId)                                  -> süper bar, destek barı (paket 31), raund yazısı, isimler
 //   hud.handle(combatEvent)                                  -> kombo sayacı + anons yazıları
 //   hud.matchEnd({winnerSeat, reason})                       -> NAKAVT! + ZAFER / YENİLGİ
 //   hud.clear() / hud.destroy()
@@ -11,18 +11,24 @@
 // Yalnız görseldir: oyun durumuna dokunmaz, tıklama/yazmayı engellemez (pointer-events:none),
 // yazma kutusunun üstüne çıkmaz (katman yalnız arena alanını kaplar), tüm metin textContent ile yazılır.
 
+import {FIGHTERS,isFighterId,getFighter} from './shared/fighters.js';
+import {getStage} from './shared/stages.js';
+
 export const HUD_TIMES = Object.freeze({
   vs: 1000, round: 500, fight: 550, // giriş toplamı 2050 ms (≤ 2200)
-  call: 700, final: 1000, reducedCall: 520, reducedIntro: 700,
+  call: 700, final: 850, reducedCall: 520, reducedIntro: 700,
   comboWindow: 1400, comboOut: 180, startDelay: 60, busyMax: 1600, busyPoll: 100,
   superFlash: 900, freeze: 450, slowRate: 0.25, slowMs: 900, sweep: 1800,
 });
 export const MAX_PENDING_CALLS = 2;
 export const CALLS = Object.freeze({
   crit: 'KRİTİK!', parry: 'PARRY!', counter: 'KONTRA!', shieldBreak: 'KALKAN KIRIK!',
-  ultimate: 'ULTİ!', knockout: 'NAKAVT!', victory: 'ZAFER', defeat: 'YENİLGİ', draw: 'BERABERE', fight: 'SAVAŞ!',
+  ultimate: 'ULTİ!', assist: 'DESTEK!', knockout: 'NAKAVT!', victory: 'ZAFER', defeat: 'YENİLGİ', draw: 'BERABERE', fight: 'SAVAŞ!',
 });
-const CHAR_NAME = Object.freeze({fire: 'Alev Celladı', rune: 'Rün Muhafızı'});
+/** Paket 32: karakterin R (ulti) adı anons metni olarak; bilinmeyen karakterde genel 'ULTİ!'. */
+export function ultimateCall(fighterId) {
+  return isFighterId(fighterId) ? `${FIGHTERS[fighterId].skills.r.name.toLocaleUpperCase('tr-TR')}!` : CALLS.ultimate;
+}
 const PRIORITY = new Set([CALLS.knockout, CALLS.victory, CALLS.defeat, CALLS.draw]);
 
 const seatOf = v => (v === 1 || v === 2 ? v : null);
@@ -41,8 +47,19 @@ export function superValue(match, player) {
   return Number.isFinite(r) ? Math.max(0, Math.min(1, r / 5)) : null;
 }
 
+/** Paket 31 — destek barı: {value 0..1, ready, partner} ya da gösterilmeyecekse null (saf; test edilir). */
+export function assistValue(match, player) {
+  if (!match || !player || match.assistEnabled !== true || match.mode === 'arena') return null;
+  const a = player.assist;
+  const meter = Number(a?.meter);
+  if (!a || !Number.isFinite(meter)) return null;
+  const value = Math.max(0, Math.min(1, meter / 100));
+  const partner = a.partner === 'fire' || a.partner === 'rune' ? a.partner : player.character === 'fire' ? 'rune' : 'fire';
+  return {value, ready: a.ready === true || value >= 1, partner};
+}
+
 /** Bu combat olayı hangi anonsu doğurur? {text, seat} ya da null (saf; test edilir). */
-export function callFor(event) {
+export function callFor(event, fighterOf = () => null) {
   if (!event || typeof event !== 'object') return null;
   switch (event.type) {
     case 'DAMAGE_APPLIED': {
@@ -54,7 +71,8 @@ export function callFor(event) {
     case 'PARRY_TRIGGERED': return {text: CALLS.parry, seat: seatOf(event.seat)};
     case 'COUNTERATTACK_CAST': return {text: CALLS.counter, seat: seatOf(event.fromSeat)};
     case 'SHIELD_BROKEN': return {text: CALLS.shieldBreak, seat: seatOf(event.seat === 1 ? 2 : event.seat === 2 ? 1 : null)};
-    case 'SKILL_CAST': return event.skill === 'r' && !event.arena ? {text: CALLS.ultimate, seat: seatOf(event.fromSeat)} : null;
+    case 'SKILL_CAST': return event.skill === 'r' && !event.arena ? {text: ultimateCall(fighterOf(seatOf(event.fromSeat))), seat: seatOf(event.fromSeat)} : null;
+    case 'ASSIST_CAST': return {text: CALLS.assist, seat: seatOf(event.fromSeat)};
     case 'KNOCKOUT': return {text: CALLS.knockout, seat: null};
     default: return null;
   }
@@ -72,9 +90,13 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
     timers.add(id); return id;
   };
   const cancel = id => { if (id != null) { scheduler.clearTimeout(id); timers.delete(id); } };
-  const reduced = () => { try { return Boolean(isReduced()); } catch { return false; } };
+  const reduced = () => {
+    if (root.classList?.contains?.('pvp4-reduced')) return true;
+    try { if (doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return true; } catch {}
+    try { return Boolean(isReduced()); } catch { return false; }
+  };
   const api = () => { try { return getArenaApi?.() || null; } catch { return null; } };
-  const callApi = (name, ...args) => { const a = api(); if (a && typeof a[name] === 'function') { try { a[name](...args); } catch { /* yalnız süs */ } } };
+  const callApi = (name, ...args) => { if (reduced()) return; const a = api(); if (a && typeof a[name] === 'function') { try { a[name](...args); } catch { /* yalnız süs */ } } };
   const el = (tag, cls, text) => { const n = doc.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = String(text); return n; };
 
   root.classList?.add('fhud-on'); // fight-hud.css: fx-damage'ın küçük "KOMBO xN" sayacını gizler (tek sayaç)
@@ -108,6 +130,14 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
   // ---- Durum -------------------------------------------------------------
   const players = new Map(); // seat -> {name, character}
   let mySeat = null, mode = 'classic', lastRound = null, introRound = null, lastPhase = null, introWaitsForRound = false;
+  let stage = getStage();
+  function fighterAccent(node, seat) {
+    if (!seat) return;
+    const p = players.get(seat) || {};
+    const color = getFighter(p.fighter, p.character || sideOf(seat)).palette.accent;
+    for (const key of ['--fhud-accent', '--fhud-glow', '--fhud-hot']) node.style?.setProperty?.(key, color);
+  }
+  const bands = tone => reduced() ? [] : [el('i', `fhud-band fhud-band-top fhud-tone-${tone}`), el('i', `fhud-band fhud-band-bottom fhud-tone-${tone}`)];
 
   // ---- Anonslar (aynı anda tek; en fazla 2 bekleyen) ---------------------
   let call = null; // {el, timer, text}
@@ -117,7 +147,7 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
     if (call?.text === text && !priority) return false; // aynı yazı üst üste gelmesin
     if (queue.some(q => q.text === text)) return false;
     const item = {text, seat, ms, priority, sub};
-    if (!call) { showCall(item); return true; }
+    if (!call && !intro) { showCall(item); return true; }
     if (queue.length >= MAX_PENDING_CALLS) {
       if (!priority) return false;
       const idx = queue.findIndex(q => !q.priority);
@@ -147,13 +177,14 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
       : seat ? sideOf(seat) : 'neutral';
     const layer = makeLayer('call');
     const word = el('strong', `fhud-call-text fhud-tone-${tone}`, text);
-    if (!red) layer.append(el('i', `fhud-call-slash fhud-tone-${tone}`));
+    fighterAccent(layer, seat); fighterAccent(word, seat);
+    for (const band of bands(tone)) { fighterAccent(band, seat); layer.append(band); }
     if (sub) {
       const stack = el('div', 'fhud-call-stack');
       stack.append(word, el('span', `fhud-call-sub fhud-tone-${sub === CALLS.victory ? 'win' : sub === CALLS.defeat ? 'lose' : 'neutral'}`, sub));
       layer.append(stack);
     } else layer.append(word);
-    const dur = red ? HUD_TIMES.reducedCall : (ms ?? HUD_TIMES.call);
+    const dur = red ? HUD_TIMES.reducedCall : Math.min(900, ms ?? HUD_TIMES.call);
     layer.style?.setProperty?.('--fhud-dur', `${dur}ms`);
     call = {el: layer, text, timer: null, watch: null};
     call.timer = later(finishCall, dur);
@@ -170,29 +201,32 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
   // Başka modüllerin girişleri: cinematic.js (VS / raund bandı), rounds-ui.js (geri sayım, "RAUND n · BAŞLA!").
   const bannerBusy = () => Boolean(root.querySelector?.('.cin.cin-banner:not([hidden])')
     || root.querySelector?.('.rui-intro:not([hidden])') || root.querySelector?.('.rui-flash:not([hidden])'));
-  const busy = () => Boolean(root.classList?.contains?.('cin-playing') || bannerBusy());
-  function stopIntro() {
+  const busy = () => Boolean(call || root.classList?.contains?.('cin-playing') || bannerBusy());
+  function stopIntro(drain = true) {
     if (!intro) return;
     for (const t of intro.timers) cancel(t);
     intro.el?.remove?.();
     intro = null;
+    if (drain && !call && queue.length) showCall(queue.shift());
   }
   function introStep(layer, kind, nodes) {
-    layer.replaceChildren?.(...nodes);
+    layer.replaceChildren?.(...bands('neutral'), ...nodes);
     layer.className = `fhud-layer fhud-intro fhud-step-${kind}${reduced() ? ' fhud-reduced' : ''}`;
   }
   function vsNodes() {
     const half = seat => {
       const p = players.get(seat) || {};
+      const fighter = getFighter(p.fighter, p.character || sideOf(seat));
       const box = el('div', `fhud-vs-side fhud-tone-${sideOf(seat)}`);
+      fighterAccent(box, seat);
       box.append(el('small', 'fhud-vs-seat', `OYUNCU ${seat}`), el('strong', 'fhud-vs-name', p.name || `Oyuncu ${seat}`),
-        el('span', 'fhud-vs-char', CHAR_NAME[p.character] || CHAR_NAME[sideOf(seat)]));
+        el('span', 'fhud-vs-char', `${fighter.name} · ${fighter.title}`));
       return box;
     };
-    return [half(1), el('b', 'fhud-vs-mark', 'VS'), half(2)];
+    return [half(1), el('b', 'fhud-vs-mark', 'VS'), half(2), el('span', 'fhud-vs-arena', `ARENA: ${stage.name}`)];
   }
   function playIntro(round = 1, {withVs = true, withRound = true} = {}) {
-    stopIntro();
+    stopIntro(false);
     const layer = makeLayer('intro');
     intro = {el: layer, timers: []};
     const at = (fn, ms) => intro.timers.push(later(fn, ms));
@@ -213,7 +247,7 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
       step(() => introStep(layer, 'round', [el('strong', 'fhud-intro-word', roundText)]), t);
       t += HUD_TIMES.round;
     }
-    step(() => introStep(layer, 'fight', [el('i', 'fhud-call-slash fhud-tone-neutral'), el('strong', 'fhud-intro-word fhud-intro-fight', CALLS.fight)]), t);
+    step(() => introStep(layer, 'fight', [el('strong', 'fhud-intro-word fhud-intro-fight', CALLS.fight)]), t);
     t += HUD_TIMES.fight;
     at(stopIntro, t);
   }
@@ -318,11 +352,43 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
   }
   function hideSupers() { for (const s of supers.values()) { cancel(s.flashTimer); s.el.remove?.(); } supers.clear(); }
 
+  // ---- Destek barı (paket 31): süper barın hemen üstünde, ince; partnerin renginde ----
+  const assists = new Map(); // seat -> {el, fill, label, key}
+  function assistFor(seat) {
+    let s = assists.get(seat);
+    const stage = stageOf(seat);
+    if (!stage) return null;
+    if (s && s.el.parentNode === stage) return s;
+    s?.el.remove?.();
+    const box = el('div', `fhud-assist fhud-seat-${seat}`);
+    box.setAttribute?.('aria-hidden', 'true');
+    const label = el('span', 'fhud-assist-label', 'DESTEK');
+    const track = el('span', 'fhud-assist-track');
+    const fill = el('span', 'fhud-assist-fill');
+    track.append(fill); box.append(label, track);
+    stage.appendChild(box);
+    s = {el: box, fill, label, key: ''};
+    assists.set(seat, s);
+    return s;
+  }
+  function paintAssist(seat, state) {
+    if (!state) { const old = assists.get(seat); if (old) { old.el.hidden = true; old.key = ''; } return; }
+    const s = assistFor(seat);
+    if (!s) return;
+    const key = `${state.value}|${state.ready}|${state.partner}|${reduced()}`;
+    if (s.key === key && !s.el.hidden) return;
+    s.key = key; s.el.hidden = false;
+    s.el.className = `fhud-assist fhud-seat-${seat} fhud-tone-${state.partner}${state.ready ? ' fhud-ready' : ''}${reduced() ? ' fhud-reduced' : ''}`;
+    s.fill.style?.setProperty?.('transform', `scaleX(${Math.round(state.value * 1000) / 1000})`);
+    s.label.textContent = state.ready ? 'DESTEK HAZIR' : 'DESTEK';
+  }
+  function hideAssists() { for (const s of assists.values()) s.el.remove?.(); assists.clear(); }
+
   // ---- Genel API ----------------------------------------------------------
   function rememberPlayers(list) {
     for (const p of Array.isArray(list) ? list : []) {
       const seat = seatOf(p?.seat);
-      if (seat) players.set(seat, {name: String(p.name || `Oyuncu ${seat}`).slice(0, 40), character: p.character === 'rune' || p.character === 'fire' ? p.character : sideOf(seat)});
+      if (seat) players.set(seat, {name: String(p.name || `Oyuncu ${seat}`).slice(0, 40), character: p.character === 'rune' || p.character === 'fire' ? p.character : sideOf(seat), fighter: isFighterId(p.fighter) ? p.fighter : null});
     }
   }
 
@@ -342,16 +408,18 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
       } else if (event.type === 'KNOCKOUT') {
         callApi('slowMo', HUD_TIMES.slowRate, HUD_TIMES.slowMs);
       }
-      const c = callFor(event);
+      const c = callFor(event, seat => players.get(seat)?.fighter || null);
       if (c) enqueueCall(c.text, c.seat, PRIORITY.has(c.text) ? {ms: HUD_TIMES.final} : {});
       return true;
     } catch { return false; }
   }
 
-  function matchStart({players: list = [], mode: m = 'classic', round = 1, phase = null} = {}) {
+  function matchStart({players: list = [], mode: m = 'classic', round = 1, phase = null, stage: stageId} = {}) {
     if (destroyed) return;
     clear();
+    players.clear(); mySeat = null;
     rememberPlayers(list);
+    stage = getStage(stageId);
     mode = m === 'arena' || m === 'rounds' ? m : 'classic';
     lastPhase = phase || null; introWaitsForRound = false;
     introRound = Number(round) || 1;
@@ -363,6 +431,7 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
     if (destroyed || !match) return;
     try {
       rememberPlayers(match.players);
+      stage = getStage(match.stage);
       mode = match.mode === 'arena' || match.mode === 'rounds' ? match.mode : 'classic';
       const mine = (match.players || []).find(p => p && myId != null && p.playerId === myId);
       mySeat = seatOf(mine?.seat) ?? mySeat;
@@ -370,6 +439,7 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
       for (const seat of [1, 2]) {
         const p = (match.players || []).find(x => x?.seat === seat);
         paintSuper(seat, live && p ? superValue(match, p) : null);
+        paintAssist(seat, live && p ? assistValue(match, p) : null);
       }
       // Raund modlarında her raund başında "RAUND N" (1. raund girişte gösterilir).
       if (live && (mode === 'rounds' || mode === 'arena') && match.round) {
@@ -389,10 +459,10 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
 
   function matchEnd({winnerSeat = null, reason = null} = {}) {
     if (destroyed) return;
-    stopIntro(); cancel(pendingIntro); pendingIntro = null;
+    stopIntro(false); cancel(pendingIntro); pendingIntro = null;
     dropCalls();
     for (const seat of [...combos.keys()]) hideCombo(seat, false);
-    hideSupers();
+    hideSupers(); hideAssists();
     const w = seatOf(winnerSeat);
     const text = !w ? CALLS.draw : mySeat ? (w === mySeat ? CALLS.victory : CALLS.defeat)
       : `${players.get(w)?.name || `OYUNCU ${w}`} KAZANDI`;
@@ -404,10 +474,10 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
   }
 
   function clear() {
-    stopIntro(); cancel(pendingIntro); pendingIntro = null;
+    stopIntro(false); cancel(pendingIntro); pendingIntro = null;
     dropCalls();
     for (const seat of [...combos.keys()]) hideCombo(seat, false);
-    hideSupers();
+    hideSupers(); hideAssists();
     lastRound = null; introRound = null; lastPhase = null; introWaitsForRound = false;
   }
 

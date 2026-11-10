@@ -80,7 +80,8 @@ test('word requests cannot mutate a paused duel and fake resume events are serve
   const before=await ctx.storage.get('match');const p=before.participants[1];
   await packet(room,b,'WORD_SUBMIT',{matchId:before.id,wordIndex:p.wordIndex,text:p.currentWord});
   assert.equal(messages(b,'ERROR').at(-1).payload.code,'MATCH_PAUSED');
-  await packet(room,b,'MATCH_RESUMED',{match:before});
+  // Küçük sahte paket: tam maç nesnesi 4096 baytlık oda sınırına dayanıyordu (paket boyutu testi ayrı).
+  await packet(room,b,'MATCH_RESUMED',{match:{id:before.id,status:'running',version:before.version}});
   assert.equal(messages(b,'ERROR').at(-1).payload.code,'SERVER_ONLY_EVENT');
   assert.deepEqual(await ctx.storage.get('match'),before);
 });

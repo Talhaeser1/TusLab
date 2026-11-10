@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createDamageNumbers, rasterize, isTextSupported, FONT, LABELS, GLYPH_HEIGHT,
+  createDamageNumbers, LABELS, FONT_SIZE, LANES, pickLane, PALETTES,
   MAX_LIVE_PER_SIDE, COMBO_WINDOW_MS,
 } from '../pvp/fx-damage.js';
+import { readFileSync } from 'node:fs';
 
 // ---- Minimal fake DOM ------------------------------------------------------
 function fakeCtx() {
@@ -13,7 +14,7 @@ function fakeCtx() {
 function fakeEl(tag, doc) {
   const el = {
     tagName: tag.toUpperCase(), ownerDocument: doc, parentNode: null, children: [], className: '',
-    dataset: {}, attrs: {}, props: {}, width: 0, height: 0,
+    dataset: {}, attrs: {}, props: {}, width: 0, height: 0, textContent: '',
     style: { setProperty(k, v) { el.props[k] = v; } },
     get firstChild() { return el.children[0] || null; },
     setAttribute(k, v) { el.attrs[k] = String(v); },
@@ -64,38 +65,53 @@ function setup(opts = {}) {
 }
 const hit = (extra = {}) => ({ type: 'DAMAGE_APPLIED', fromSeat: 1, toSeat: 2, skill: 'q', amount: 105,
   blocked: false, blockKind: null, counter: false, bonusTags: [], ...extra });
-const nums = layer => layer.children.filter(c => c.className.includes('pxd-num'));
+const nums = layer => layer.children.filter(c => c.className.includes('pxd-float'));
 
-// ---- Font ------------------------------------------------------------------
-test('bitmap font covers every label and every number glyph used', () => {
-  for (const text of Object.values(LABELS)) assert.ok(isTextSupported(text), text);
-  for (const text of ['-0123456789', '+', '1/3', '2/3', '3/3', 'KOMBO x12 · 1450']) assert.ok(isTextSupported(text), text);
-  for (const [ch, g] of Object.entries(FONT)) {
-    assert.equal(g.rows.length, GLYPH_HEIGHT, ch);
-    for (const row of g.rows) assert.equal(row.length, g.width, ch);
+// ---- Paket 33: net tipografi ---------------------------------------------
+test('paket 33: no pixel canvas — text is drawn as crisp DOM text, never scaled with image-rendering', () => {
+  const css = readFileSync(new URL('../pvp/fx-damage.css', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../pvp/fx-damage.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(css, /image-rendering/);
+  assert.doesNotMatch(src, /createElement\('canvas'\)/);
+  assert.match(css, /-webkit-text-stroke/);
+  assert.match(css, /paint-order:\s*stroke fill/);
+  // Yalnız transform/opacity canlanır.
+  for (const [, body] of css.matchAll(/@keyframes[^{]+\{([\s\S]*?)\}\s*\}/g)) {
+    for (const [, prop] of body.matchAll(/([a-z-]+)\s*:/g)) assert.ok(['transform', 'opacity', 'animation-timing-function'].includes(prop), prop);
   }
+  // En küçük yazı (etiket) küçük ekranda da ≥ 12 px.
+  assert.ok(Math.min(...Object.values(FONT_SIZE)) * 0.75 >= 12);
+  for (const p of Object.values(PALETTES)) for (const k of ['fill', 'top', 'line', 'shadow']) assert.match(p[k], /^#[0-9a-f]{6}$/i);
 });
 
-test('rasterize produces ink pixels and falls back for unknown glyphs', () => {
-  const r = rasterize('-105');
-  assert.equal(r.height, GLYPH_HEIGHT);
-  assert.equal(r.width, 4 + 5 + 5 + 5 + 3);
-  assert.ok(r.mask.some(Boolean));
-  assert.doesNotThrow(() => rasterize('ß€'));
+test('paket 33: lanes keep simultaneous numbers apart', () => {
+  assert.equal(pickLane([]), 0);
+  assert.equal(pickLane([0]), 1);
+  assert.equal(pickLane([0, 2]), 1);
+  assert.equal(pickLane([1, 0, 2, 3, 4, 5]), 1, 'hepsi doluysa en eskinin şeridi');
+  for (let i = 0; i < LANES.length; i++) for (let j = i + 1; j < LANES.length; j++) {
+    const dx = Math.abs(LANES[i].x - LANES[j].x), dy = Math.abs(LANES[i].y - LANES[j].y);
+    assert.ok(dx >= 90 || dy >= 60, `şerit ${i}/${j} çok yakın`);
+  }
+  const { fx, effects } = setup();
+  fx.handle(hit({ amount: 10 })); fx.handle(hit({ amount: 20 })); fx.handle(hit({ amount: 30 }));
+  assert.deepEqual(nums(effects[2]).map(n => n.dataset.lane), ['0', '1', '2']);
+  assert.equal(nums(effects[2])[1].props['--pxd-lx'], `${LANES[1].x}px`);
 });
 
 // ---- Factory ---------------------------------------------------------------
-test('DAMAGE_APPLIED draws a pixel canvas on the defender side', () => {
+test('DAMAGE_APPLIED draws an outlined text line on the defender side', () => {
   const { fx, effects } = setup();
   assert.equal(fx.handle(hit()), true);
   const [num] = nums(effects[2]);
   assert.ok(num.className.includes('pxd-normal'));
   assert.equal(nums(effects[1]).length, 0);
-  const canvas = num.children[0].children.at(-1);
-  assert.equal(canvas.tagName, 'CANVAS');
-  assert.ok(canvas.ctx.pixels > 0);
+  const line = num.children[0].children.at(-1);
+  assert.equal(line.tagName, 'SPAN');
+  assert.equal(line.textContent, '-105');
   assert.equal(num.dataset.text, '-105');
-  assert.match(canvas.style.width, /var\(--pxd-px, 4\)/);
+  assert.equal(line.props['--pxd-fs'], `${FONT_SIZE.normal}px`);
+  assert.equal(line.props['--pxd-line'], PALETTES.fire.line);
 });
 
 test('style by meaning: skill E, ultimate phases, counter, crit, blocks, shield break', () => {
@@ -138,8 +154,7 @@ test('combo ticker accumulates within the window and resets after it', () => {
   clock.runTo(600); fx.handle(hit({ amount: 25 }));
   const combo = effects[2].children.find(c => c.className.includes('pxd-combo'));
   assert.ok(combo);
-  // "KOMBO x3 · 175" — width check via rasterize of the expected text.
-  assert.equal(combo.children[0].width, rasterize('KOMBO x3 · 175').width + 2);
+  assert.equal(combo.children[0].textContent, 'KOMBO x3 · 175');
   clock.runTo(600 + COMBO_WINDOW_MS + 1);
   assert.equal(effects[2].children.some(c => c.className.includes('pxd-combo')), false);
   fx.handle(hit({ amount: 10 }));
@@ -189,7 +204,11 @@ test('clear and destroy remove everything and cancel all timers', () => {
 
 test('arena hits show engine tags (KOMBO/FİNAL/penalty) and never start the classic combo ticker', async () => {
   const mod = await import('../pvp/fx-damage.js');
-  for (const t of ['KOMBO x1.5', 'FİNAL x2', '-%48', 'ARINMA']) assert.equal(mod.isTextSupported(t), true, t);
+  const { fx, effects } = setup();
+  fx.handle(hit({ arena: true, tags: ['FİNAL'], multiplier: 2, penalty: 0.48 }));
+  const texts = nums(effects[2])[0].children[0].children.map(c => c.textContent);
+  assert.deepEqual(texts, ['FİNAL x2', '-%48', '-105']);
+  assert.equal(typeof mod.createDamageNumbers, 'function');
   const src = (await import('node:fs')).readFileSync(new URL('../pvp/fx-damage.js', import.meta.url), 'utf8');
   assert.match(src, /if \(event\.arena\) resetCombo\(seat\);/);
 });

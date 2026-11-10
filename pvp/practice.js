@@ -19,14 +19,30 @@
  */
 import {createMatch,submitWord,advanceMatch,nextDeadline,roundStartPayload,pickRoundSkill,ROUND_TIME_SKILLS,normalizeRounds as engineNormalizeRounds,surrenderMatch,publicMatch} from './shared/match.js';
 import {normalizeTyping} from './shared/typing-rules.js';
+import {normalizeAssist} from './shared/assist-rules.js';
+import {normalizeStageChoice,pickStage} from './shared/stages.js';
 import {createArenaMatch,submitArenaPick,submitArenaWord,advanceArenaMatch,nextArenaDeadline,arenaPublicMatch,surrenderArenaMatch} from './shared/arena.js';
 import {ARENA_SKILL_IDS} from './shared/arena-skills.js';
 import {ARENA_ITEM_IDS} from './shared/arena-damage.js';
+import {FIGHTERS,FIGHTER_IDS,isFighterId,normalizeFighter} from './shared/fighters.js';
+
+/** Paket 32: insan karakteri (o.fighter) arketipi belirler; bot karşı arketipten bir karakter alır.
+ * Bot seçimi motorun rng'sini TÜKETMEZ (deterministik denge testleri aynı kalır). */
+export function practiceFighters(o={}){
+  const character=isFighterId(o.fighter)?FIGHTERS[o.fighter].archetype:(o.character==='rune'?'rune':'fire');
+  const fighter=normalizeFighter(o.fighter,character);
+  const botCharacter=character==='fire'?'rune':'fire';
+  const pool=FIGHTER_IDS.filter(id=>FIGHTERS[id].archetype===botCharacter);
+  const pickRandom=typeof o.fighterRng==='function'?o.fighterRng:o.rng?()=>0:Math.random; // deterministik oturum (o.rng) → sabit bot karakteri
+  const botFighter=isFighterId(o.botFighter)&&FIGHTERS[o.botFighter].archetype===botCharacter?o.botFighter
+    :pool[Math.min(pool.length-1,Math.floor(pickRandom()*pool.length))];
+  return {character,fighter,botCharacter,botFighter};
+}
 
 /** Protocol version used by the real server envelope (room.js VERSION). */
 const VERSION=1;
 /** Combat event types the server broadcasts one-by-one (room.broadcastCombat). */
-const COMBAT_TYPES=new Set(['SKILL_CAST','SHIELD_TRIGGERED','PARRY_TRIGGERED','COUNTERATTACK_CAST','SHIELD_BROKEN','ULTIMATE_PHASE','DAMAGE_APPLIED','RUNE_TRIGGERED','WORD_CLASH']);
+const COMBAT_TYPES=new Set(['SKILL_CAST','SHIELD_TRIGGERED','PARRY_TRIGGERED','COUNTERATTACK_CAST','SHIELD_BROKEN','ULTIMATE_PHASE','DAMAGE_APPLIED','RUNE_TRIGGERED','WORD_CLASH','ASSIST_CAST']);
 /** Snapshot carrying message types (forwarded to onMatch). */
 const MATCH_TYPES=new Set(['MATCH_START','STATE_UPDATE','MATCH_END']);
 
@@ -91,6 +107,8 @@ export function makeTypo(word,rng=Math.random){
  * @param {5|7|10} [o.rounds=5] number of rounds, also kept for rematches
  * @param {'fire'|'rune'} [o.character='fire'] human fighter; fire = seat 1 (left), rune = seat 2 (right)
  * @param {string} [o.rune='none'] human rune; the bot always plays classic
+ * @param {boolean} [o.assist=true] partner support (paket 31); classic + rounds only, never in arena
+ * @param {string} [o.stage='colosseum'] stage id or 'random' (paket 33); random re-rolls on every (re)match
  * @param {string} [o.name='Savaşçı']
  * @param {()=>number} [o.rng=Math.random]
  * @param {()=>number} [o.now=Date.now]
@@ -110,14 +128,16 @@ export function createPracticeSession(o={}){
   const profile=BOT_DIFFICULTIES[difficulty];
   const rounds=normalizeRounds(o.rounds);
   const typing=normalizeTyping(o.typing); // paket 30: büyük/küçük harf + noktalama kuralları
-  const character=o.character==='rune'?'rune':'fire';
+  const assist=normalizeAssist(o.assist); // paket 31: partner desteği (varsayılan açık)
+  const stageChoice=normalizeStageChoice(o.stage); // paket 33
+  const {character,fighter,botFighter}=practiceFighters(o);
   // The arena paints seat 1 on the fire (left) side and seat 2 on the rune
   // (right) side, so the human's seat follows the chosen fighter.
   const humanSeat=character==='fire'?1:2;
   const botSeat=humanSeat===1?2:1;
   const players=[
-    {playerId:HUMAN_ID,seat:humanSeat,name:String(o.name||'Savaşçı').slice(0,20),character,rune:o.rune||'none'},
-    {playerId:BOT_ID,seat:botSeat,name:`Bot · ${profile.label}`,character:character==='fire'?'rune':'fire',rune:'none'}
+    {playerId:HUMAN_ID,seat:humanSeat,name:String(o.name||'Savaşçı').slice(0,20),character,fighter,rune:o.rune||'none'},
+    {playerId:BOT_ID,seat:botSeat,name:`Bot · ${profile.label}`,character:character==='fire'?'rune':'fire',fighter:botFighter,rune:'none'}
   ].sort((a,b)=>a.seat-b.seat);
 
   let match=null;                // authoritative internal state (like DO storage 'match')
@@ -181,7 +201,8 @@ export function createPracticeSession(o={}){
     const id=createId();
     // Local seed comes from the injected RNG and fresh id, so tests can replay
     // a duel exactly while each rematch still receives different words.
-    match=classic?createMatch(players,at,id,{exchangeMs:10000,typing}):createMatch(players,at,id,{rounds,seed:`${id}:${Math.floor(rng()*0x100000000)}`,resolveAtEnd:true,typing});
+    const stage=pickStage(stageChoice,rng);
+    match=classic?createMatch(players,at,id,{exchangeMs:10000,typing,assist,stage}):createMatch(players,at,id,{rounds,seed:`${id}:${Math.floor(rng()*0x100000000)}`,resolveAtEnd:true,typing,assist,stage});
     lastEmittedCombatId=0;rematchVotes=[];
     emit('MATCH_START',{match:snapshot(),serverTime:at,...(rematch?{rematch:true}:{})});
     if(!classic)broadcastRound([{type:'ROUND_START',payload:roundStartPayload(match)}],at);
@@ -229,6 +250,7 @@ export function createPracticeSession(o={}){
     const {roundEvents=[],...result}=outcome.result;
     if(playerId===HUMAN_ID)emit('WORD_RESULT',{...result,match:snapshot(),serverTime:at});
     if(outcome.result.cast)broadcastCombat([outcome.result.cast]);
+    if(outcome.result.assistCast)broadcastCombat([outcome.result.assistCast]);
     if(roundEvents.length)broadcastRound(roundEvents,at);
     const submitted=match;
     const step=advanceMatch(submitted,at,rng);
@@ -328,7 +350,8 @@ export function createPracticeSession(o={}){
     get rematchVotes(){return rematchVotes.slice();},
     /** Number of live timers owned by this session (0 after dispose). */
     get activeTimers(){return [tickTimer,botTimer,rematchTimer].filter(x=>x!==null).length;},
-    humanId:HUMAN_ID,botId:BOT_ID,humanSeat,botSeat,difficulty,profile,character,rounds,typing,mode:classic?'classic':'rounds'
+    get stage(){return match?.stage??(stageChoice==='random'?'colosseum':stageChoice);},stageChoice,
+    humanId:HUMAN_ID,botId:BOT_ID,humanSeat,botSeat,difficulty,profile,character,fighter,botFighter,rounds,typing,assist,mode:classic?'classic':'rounds'
   };
 }
 
@@ -337,10 +360,10 @@ function createArenaPracticeSession(o){
   const rng=o.rng||Math.random,now=o.now||(()=>Date.now()),scheduler=o.scheduler||defaultScheduler;
   const createId=o.createId||defaultId,tickMs=Math.max(10,o.tickMs||50);
   const difficulty=normalizeDifficulty(o.difficulty),profile=BOT_DIFFICULTIES[difficulty];
-  const character=o.character==='rune'?'rune':'fire',humanSeat=character==='fire'?1:2,botSeat=humanSeat===1?2:1;
+  const {character,fighter,botFighter}=practiceFighters(o),humanSeat=character==='fire'?1:2,botSeat=humanSeat===1?2:1;
   const players=[
-    {playerId:HUMAN_ID,seat:humanSeat,name:String(o.name||'Savaşçı').slice(0,20),character,rune:o.rune||'none'},
-    {playerId:BOT_ID,seat:botSeat,name:`Bot · ${profile.label}`,character:character==='fire'?'rune':'fire',rune:'none'}
+    {playerId:HUMAN_ID,seat:humanSeat,name:String(o.name||'Savaşçı').slice(0,20),character,fighter,rune:o.rune||'none'},
+    {playerId:BOT_ID,seat:botSeat,name:`Bot · ${profile.label}`,character:character==='fire'?'rune':'fire',fighter:botFighter,rune:'none'}
   ].sort((a,b)=>a.seat-b.seat);
   let match=null,tickTimer=null,botTimer=null,rematchTimer=null,disposed=false,lastCombatId=0,rematchVotes=[],rematchRevision=0;
   const history=[];
@@ -464,7 +487,7 @@ function createArenaPracticeSession(o){
   function startMatch(rematch=false){
     stopTimers();
     const at=now(),id=createId();
-    match=createArenaMatch(players,at,id,{seed:`${id}:${Math.floor(rng()*0x100000000)}`,typing:normalizeTyping(o.typing)});
+    match=createArenaMatch(players,at,id,{seed:`${id}:${Math.floor(rng()*0x100000000)}`,typing:normalizeTyping(o.typing),stage:pickStage(normalizeStageChoice(o.stage),rng)});
     lastCombatId=0;rematchVotes=[];
     emit('MATCH_START',{...(rematch?{rematch:true}:{})},at);
     emit('ARENA_PREP_START',{round:1,endsAt:match.round.endsAt},at);
@@ -506,7 +529,8 @@ function createArenaPracticeSession(o){
     get match(){return match;},get disposed(){return disposed;},get history(){return history.slice();},
     get rematchVotes(){return rematchVotes.slice();},
     get activeTimers(){return [tickTimer,botTimer,rematchTimer].filter(x=>x!==null).length;},
-    humanId:HUMAN_ID,botId:BOT_ID,humanSeat,botSeat,difficulty,profile,character,rounds:6,typing:normalizeTyping(o.typing),mode:'arena'
+    get stage(){return match?.stage??'colosseum';},stageChoice:normalizeStageChoice(o.stage),
+    humanId:HUMAN_ID,botId:BOT_ID,humanSeat,botSeat,difficulty,profile,character,fighter,botFighter,rounds:6,typing:normalizeTyping(o.typing),assist:false,mode:'arena'
   };
 }
 

@@ -7,11 +7,13 @@
  * kişisel `endsAt` üst sınırdır). Sunucu her gönderimi yine kendi saatiyle doğrular.
  */
 import {WORD_BANK} from './shared/words.js';
+import {createRoundEndCard,summaryColors} from './rounds-ui.js';
+import {ARENA_ROUND_DURATION_MS,ARENA_SUMMARY_MS} from './shared/arena.js';
 
 // Şartname §2 sabitleri (yalnız sunum için aynalanır; otorite motordadır).
 export const ARENA_UI_ROUND_WORDS=Object.freeze([5,10,15,15,15,20]);
 export const ARENA_UI_TOTAL_ROUNDS=6;
-export const ARENA_UI_ROUND_MS=30_000;
+export const ARENA_UI_ROUND_MS=ARENA_ROUND_DURATION_MS;
 export const ARENA_UI_FREEZE_MS=3_000;
 export const ARENA_UI_THIEF_MS=5_000;
 export const ARENA_UI_MAX_USES=2;
@@ -119,14 +121,14 @@ export function arenaTarget(match,myId){
 export function arenaInputLock(match,myId,serverNow,personalEnd=null){
   if(!isArenaMatch(match)||match.status!=='running')return {locked:false,reason:null};
   const phase=match.round.phase;
-  if(phase==='prep')return {locked:true,reason:'Raund öncesi · skill ve eşya seç'};
-  if(phase==='resolve')return {locked:true,reason:'Vuruşlar çözülüyor · dövüşü izle'};
-  if(phase==='summary')return {locked:true,reason:'Raund özeti · sıradaki hazırlık geliyor'};
-  if(phase!=='round')return {locked:true,reason:'Maç bitti'};
+  if(phase==='prep')return {locked:true,clearInput:true,reason:'Raund öncesi · skill ve eşya seç'};
+  if(phase==='resolve')return {locked:true,clearInput:true,reason:'Vuruşlar çözülüyor · dövüşü izle'};
+  if(phase==='summary')return {locked:true,clearInput:true,reason:'Raund özeti · sıradaki hazırlık geliyor'};
+  if(phase!=='round')return {locked:true,clearInput:true,reason:'Maç bitti'};
   const me=meOf(match,myId);
-  if(me?.roundDone)return {locked:true,reason:'Tamamlandı ✓ · rakip bekleniyor'};
-  if(Number.isFinite(personalEnd)&&serverNow>=personalEnd)return {locked:true,reason:'Süren doldu · raund kapanıyor'};
-  if(Number.isFinite(match.round.endsAt)&&serverNow>=match.round.endsAt)return {locked:true,reason:'Süre doldu · raund kapanıyor'};
+  if(me?.roundDone)return {locked:true,clearInput:true,reason:'Tamamlandı ✓ · rakip bekleniyor'};
+  if(Number.isFinite(personalEnd)&&serverNow>=personalEnd)return {locked:true,clearInput:true,reason:'Süren doldu · raund kapanıyor'};
+  if(Number.isFinite(match.round.endsAt)&&serverNow>=match.round.endsAt)return {locked:true,clearInput:true,reason:'Süre doldu · raund kapanıyor'};
   return {locked:false,reason:null};
 }
 
@@ -197,8 +199,11 @@ export function arenaSummaryModel(roundEnd,match,myId,{damage=null,record=null}=
   ];
   const winnerSeat=dealt[0]===dealt[1]?null:dealt[0]>dealt[1]?1:2;
   const next=round+1;
-  return {round,title:`RAUND ${round} ÖZETİ`,names,rows,winnerSeat,
-    winnerText:winnerSeat?`Raundu kazanan · ${nameOf(match,winnerSeat)}`:'Raund berabere',
+  const wins={1:0,2:0};
+  for(const r of match?.roundResults||[])if(r.winnerSeat)wins[r.winnerSeat]++;
+  return {round,title:`RAUND ${round} BİTTİ`,names,rows,winnerSeat,colors:summaryColors(match),
+    pips:[1,2].map(seat=>({filled:wins[seat],total})),
+    winnerText:winnerSeat?`${nameOf(match,winnerSeat)} RAUNDU ALDI`:'BERABERE',
     nextText:round<total?`Sıradaki: RAUND ${next} · ${ARENA_UI_ROUND_WORDS[next-1]??'—'} kelime`:'Maç sonucu hazırlanıyor'};
 }
 
@@ -229,8 +234,8 @@ export function arenaResultModel(result,myId,{record=null}={}){
 
 // ------------------------------------------------------------ mod seçici ---
 export const MODE_OPTIONS=Object.freeze([
-  {id:'classic',label:'Klasik',hint:'90 sn düello'},
-  {id:'rounds',label:'Zamana Karşı',hint:'tur · 30 sn'},
+  {id:'classic',label:'Klasik',hint:'120 sn düello'},
+  {id:'rounds',label:'Zamana Karşı',hint:'tur · 40 sn'},
   {id:'arena',label:'Arena',hint:'6 raund · skill + eşya'}
 ].map(Object.freeze));
 export const PRACTICE_MODE_KEY='tuslab-pvp-practice-mode';
@@ -365,7 +370,7 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
   const state={match:null,myId:null,destroyed:false,interval:null,visible:false,
     selected:{skill:null,item:null},prepKey:null,sentKey:null,
     marksKey:null,marks:new Map(),endKey:null,myEnd:Infinity,oppEnd:Infinity,roundStartEnd:null,lastSeq:null,
-    roundEnds:new Map(),damageBase:new Map(),summaryKey:null,sumLeft:null,lockKey:'',wordKey:null,announced:null};
+    roundEnds:new Map(),damageBase:new Map(),summaryKey:null,endCard:null,lockKey:'',wordKey:null,announced:null};
   const announce=text=>{live.textContent='';live.textContent=text;};
   const roundKey=m=>`${m?.matchId}:${Number(m?.round?.index)||0}`;
   const phase=()=>state.match?.round?.phase||null;
@@ -592,23 +597,19 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
   function renderSummary(m,t){
     const show=m.round.phase==='summary';
     setHidden(summary,!show);
+    const pvp=overlayHost?.closest?.('#pvp-root');
+    if(pvp)setFlag(pvp,'aui-summary-open',show);
     if(!show)return;
     const key=roundKey(m);const base=state.damageBase.get(key);
     const damage=base?{1:(Number(playerBySeat(m,1)?.combatStats?.damageDealt)||0)-base[1],2:(Number(playerBySeat(m,2)?.combatStats?.damageDealt)||0)-base[2]}:null;
-    const s=arenaSummaryModel(currentRoundEnd(m)||{round:m.round.index},m,state.myId,{damage,record:matchRecord(m.matchId)});
-    const left=secsOf((Number(m.round.summaryEndsAt)||t)-t);
+    const source=m.roundSummary||currentRoundEnd(m)||{round:m.round.index};
+    const s=arenaSummaryModel(source,m,state.myId,{damage,record:matchRecord(m.matchId)});
     const sumKey=`${key}:${m.sequence}:${matchRecord(m.matchId).seen.size}`;
     if(state.summaryKey!==sumKey){
       state.summaryKey=sumKey;
-      const table=h('table',{cls:'aui-sum-table'});
-      table.append(h('tr',{},h('th',{attrs:{scope:'col'},text:''}),...s.names.map((n,i)=>h('th',{cls:`aui-col-${i+1}`,attrs:{scope:'col'},text:n}))),
-        ...s.rows.map(r=>h('tr',{},h('th',{attrs:{scope:'row'},text:r.label}),...r.values.map((v,i)=>h('td',{cls:`aui-col-${i+1}${s.winnerSeat===i+1&&r.label==='Verilen hasar'?' is-win':''}`,text:v})))));
-      summary.replaceChildren(
-        h('header',{cls:'aui-sum-head'},h('strong',{cls:'aui-sum-title',text:s.title})),
-        h('div',{cls:`aui-sum-winner${s.winnerSeat?` is-seat-${s.winnerSeat}`:' is-draw'}`,text:s.winnerText}),
-        table,
-        h('footer',{cls:'aui-sum-foot'},h('span',{text:s.nextText}),state.sumLeft=h('span',{cls:'aui-sum-left',text:`${left} sn`})));
-    }else setText(state.sumLeft,`${left} sn`);
+      state.endCard=createRoundEndCard(doc,s);summary.replaceChildren(state.endCard.node);
+    }
+    state.endCard?.update(m.round.summaryEndsAt,t,ARENA_SUMMARY_MS);
   }
   function tick(){
     if(state.destroyed)return;
@@ -629,7 +630,7 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
     const visible=isArenaMatch(m)&&['running','paused'].includes(m.status);
     state.visible=visible;
     setHidden(hud,!visible);setHidden(stage,!visible);
-    if(!visible){setHidden(summary,true);ensureTicker(false);tick();return;}
+    if(!visible){setHidden(summary,true);overlayHost?.closest?.('#pvp-root')?.classList.remove('aui-summary-open');ensureTicker(false);tick();return;}
     const pk=roundKey(m);
     if(m.round.phase==='prep'&&state.prepKey!==pk){state.prepKey=pk;state.selected={skill:null,item:null};}
     if(m.round.phase!=='prep')state.prepKey=pk;
@@ -696,7 +697,7 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
     tick,
     destroy(){
       if(state.destroyed)return;state.destroyed=true;
-      ensureTicker(false);hud.remove();stage.remove();overlay.remove();
+      ensureTicker(false);overlayHost?.closest?.('#pvp-root')?.classList.remove('aui-summary-open');hud.remove();stage.remove();overlay.remove();
     }
   };
 }

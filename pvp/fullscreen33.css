@@ -1,0 +1,168 @@
+/* Paket 33 — yalnız aktif maçta tam ekran HUD. Telefon: compact-height.css. */
+#pvp-root[data-layout="fullscreen"]{
+  --fs-toolbar:40px;--fs-hud:96px;--fs-bottom:240px;--fs-pad:16px;
+  --fs-panel:#100d26;--fs-line:#62567e;--fs-ink:#f4f0ff;--fs-focus:#7fd7ff;
+}
+#pvp-root[data-layout="fullscreen"]:fullscreen{background:#09071b}
+#pvp-root[data-layout="fullscreen"] .pvp2-shell{
+  display:block;position:relative;width:100%;height:100dvh;min-height:0;padding:0;gap:0;
+  overflow:hidden;border-radius:0;box-shadow:none;animation:none;transform:none;translate:none;
+}
+#pvp-root[data-layout="fullscreen"] .pvp2-footer,
+#pvp-root[data-layout="fullscreen"] .pvp2-rules{display:none}
+
+/* İnce üst şerit. Açılan ayar ve lobi panellerinin boyutu sınırlanmaz. */
+#pvp-root[data-layout="fullscreen"] .pvp2-toolbar{
+  position:relative;z-index:40;display:flex;justify-content:space-between;min-height:0;height:40px;
+  gap:8px;margin:0;padding:0 var(--fs-pad);border:0;border-bottom:1px solid var(--fs-line);
+  border-radius:0;background:#100d26;box-shadow:none;
+}
+#pvp-root[data-layout="fullscreen"] .pvp2-brand small,
+#pvp-root[data-layout="fullscreen"] .pvp2-brand em{display:none}
+#pvp-root[data-layout="fullscreen"] .pvp2-brand-logo{width:28px;height:28px;font-size:16px}
+#pvp-root[data-layout="fullscreen"] .pvp-topbar-start,
+#pvp-root[data-layout="fullscreen"] .pvp-topbar-center,
+#pvp-root[data-layout="fullscreen"] .pvp2-actions{gap:8px}
+#pvp-root[data-layout="fullscreen"] .pvp-topbar-center{position:static}
+#pvp-root[data-layout="fullscreen"] .pvp-status-group{max-width:24vw;overflow:hidden}
+#pvp-root[data-layout="fullscreen"] .pvp-status-group>span{font-size:12px;padding:4px}
+#pvp-root[data-layout="fullscreen"] .pvp-status-group [data-pvp12-ping],
+#pvp-root[data-layout="fullscreen"] .pvp-status-group [data-net-status]{display:none}
+#pvp-root[data-layout="fullscreen"] .pvp2-actions .pvp4-icon-btn,
+#pvp-root[data-layout="fullscreen"] .pvp5-network-controls .pvp5-net-button,
+#pvp-root[data-layout="fullscreen"] .pvp2-actions .pvp15-surrender,
+#pvp-root[data-layout="fullscreen"] .pvp2-actions .pvp2-back{min-height:32px;height:32px;padding-block:4px;font-size:12px}
+#pvp-root[data-layout="fullscreen"] .pvp2-actions .pvp4-icon-btn{width:32px;padding:0;font-size:20px}
+#pvp-root[data-layout="fullscreen"] .pvp4-settings-pop{max-height:calc(100dvh - 48px);overflow-y:auto;background:#17132f}
+#pvp-root[data-layout="fullscreen"] .pvp4-settings-pop [data-pvp-action="fullscreen"][hidden]{display:none}
+
+/* Mevcut saat/raund madalyonu HP'lerin arasına taşınır. */
+#pvp-root[data-layout="fullscreen"] .pvp-topbar-clock{
+  position:fixed;z-index:42;left:50%;top:48px;transform:translateX(-50%);
+  display:flex;justify-content:center;flex-wrap:wrap;gap:4px;width:160px;min-height:40px;
+  padding:8px;border:1px solid var(--fs-line);border-radius:8px;
+  background:var(--fs-panel);color:var(--fs-ink);font-size:12px;
+}
+#pvp-root[data-layout="fullscreen"] .pvp-topbar-clock strong{font-size:16px;color:#ffc87a}
+#pvp-root[data-layout="fullscreen"][data-pvp-mode="rounds"] .pvp-topbar-clock,
+#pvp-root[data-layout="fullscreen"][data-pvp-mode="arena"] .pvp-topbar-clock{display:none}
+#pvp-root[data-layout="fullscreen"] .pvp2-announce{
+  position:fixed;top:48px;left:calc(50% - 88px);z-index:35;width:176px;
+  min-height:0;margin:0;padding:0;background:none;visibility:visible;
+}
+#pvp-root[data-layout="fullscreen"] .pvp2-announce>.pvp2-announce-icon,
+#pvp-root[data-layout="fullscreen"] .pvp2-announce>span,
+#pvp-root[data-layout="fullscreen"] .rui-side,
+#pvp-root[data-layout="fullscreen"] .aui-side{display:none}
+#pvp-root[data-layout="fullscreen"] .rui-bar,
+#pvp-root[data-layout="fullscreen"] .aui-hud{grid-template-columns:minmax(0,1fr);gap:0}
+#pvp-root[data-layout="fullscreen"] .rui-medal,
+#pvp-root[data-layout="fullscreen"] .aui-medal{min-width:0;padding:4px;background:var(--fs-panel);border:1px solid var(--fs-line);border-radius:8px}
+#pvp-root[data-layout="fullscreen"] .pvp2-midline{display:none}
+
+/* İki yarım ekran, tek kesintisiz sahne. Sarsıntı sabit HUD'u yerinden oynatmaz. */
+#pvp-root[data-layout="fullscreen"] .pvp2-duel{
+  position:fixed;inset:0;z-index:0;display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr);
+  gap:0;min-height:0;max-height:none;margin:0;border-radius:0;scale:none;transition:none;
+}
+#pvp-root[data-layout="fullscreen"] .pvp26-canvas{border-radius:0}
+#pvp-root[data-layout="fullscreen"] .pvp2-side{
+  display:grid;position:relative;grid-template-columns:minmax(0,1fr);grid-template-rows:88px minmax(0,1fr) 48px;gap:0;
+  min-width:0;min-height:0;height:100%;margin:0;padding:calc(var(--fs-toolbar) + 8px) var(--fs-pad) 8px;
+  border:0;border-radius:0;background:none;box-shadow:none;overflow:visible;
+}
+#pvp-root[data-layout="fullscreen"] .pvp2-side::before{display:none}
+#pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp2-health{
+  grid-row:1;grid-column:1;align-self:start;min-width:0;
+  margin:0 88px 0 0;padding:0;border:0;border-radius:0;background:var(--fs-panel);
+}
+#pvp-root[data-layout="fullscreen"] .pvp2-rune>.pvp2-health{margin:0 0 0 88px}
+#pvp-root[data-layout="fullscreen"] .pvp2-health-meta{margin:0 0 4px;padding:0 4px;font-size:12px;line-height:1.4;flex-wrap:nowrap;letter-spacing:0}
+#pvp-root[data-layout="fullscreen"] .pvp2-health-meta strong{font-size:14px}
+#pvp-root[data-layout="fullscreen"] .pvp2-rune .pvp2-health-meta{flex-direction:row-reverse}
+#pvp-root[data-layout="fullscreen"] .pvp2-health-track{height:28px;border-radius:4px}
+/* network.js'in scaleX(ratio) dolgusu korunur. Yalnız metinsiz grafik kabı aynalanır. */
+#pvp-root[data-layout="fullscreen"] .pvp2-rune .pvp2-health-track{transform:scaleX(-1)}
+#pvp-root[data-layout="fullscreen"] .pvp2-health-track>.pvp2-health-fill,
+#pvp-root[data-layout="fullscreen"] .pvp2-health-track>.pvp2-health-trail{transform-origin:left center}
+#pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp2-player-top{
+  grid-row:1;grid-column:1;align-self:end;min-width:0;min-height:32px;
+  padding:0;gap:8px;margin:0 88px 0 0;border:0;background:none;box-shadow:none;
+}
+#pvp-root[data-layout="fullscreen"] .pvp2-rune>.pvp2-player-top{flex-direction:row-reverse;margin:0 0 0 88px}
+#pvp-root[data-layout="fullscreen"] .pvp2-player-top .pvp2-player-mark{width:28px;height:28px;font-size:16px;box-shadow:none}
+#pvp-root[data-layout="fullscreen"] .pvp2-player-top .pvp2-identity{display:flex;flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:4px 8px;min-width:0}
+#pvp-root[data-layout="fullscreen"] .pvp2-player-top .pvp2-identity>small,
+#pvp-root[data-layout="fullscreen"] .pvp2-player-top .pvp2-connection{display:none}
+#pvp-root[data-layout="fullscreen"] .pvp2-player-top .pvp2-identity>strong{font-size:16px;font-weight:600;line-height:1.2;white-space:normal;overflow-wrap:anywhere;overflow:visible}
+#pvp-root[data-layout="fullscreen"] .pvp2-player-top .pvp2-character-name{font-size:14px;font-weight:500;line-height:1.5;white-space:normal}
+#pvp-root[data-layout="fullscreen"] .pvp2-player-top .pvp2-player-end{flex-direction:row;gap:4px;margin-inline-start:auto}
+#pvp-root[data-layout="fullscreen"] .pvp2-rune .pvp2-identity{flex-direction:row-reverse;text-align:right}
+#pvp-root[data-layout="fullscreen"] .pvp2-rune .pvp2-player-end{margin-inline-start:0;margin-inline-end:auto}
+#pvp-root[data-layout="fullscreen"] .pvp2-hero-tag{padding:4px;font-size:12px;font-weight:600;letter-spacing:0}
+#pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp2-stage{
+  grid-row:2;grid-column:1;align-self:start;min-width:0;min-height:0;
+  height:calc(100vh - var(--fs-toolbar) - var(--fs-hud) - var(--fs-bottom));
+  height:calc(100dvh - var(--fs-toolbar) - var(--fs-hud) - var(--fs-bottom));margin:0;border-radius:0;
+}
+#pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp7-combo{position:absolute;top:144px;left:var(--fs-pad);right:var(--fs-pad);width:fit-content;max-width:calc(100% - 32px);padding:4px 8px;font-size:12px;pointer-events:none;z-index:4}
+#pvp-root[data-layout="fullscreen"] .pvp2-rune>.pvp7-combo{left:auto}
+#pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp22-passive,
+#pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp13-defense,
+#pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp8-score{display:none}
+
+/* İki tarafta da Q E S R tek satır, en altta. */
+#pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp2-skillrow{position:absolute;left:var(--fs-pad);right:var(--fs-pad);bottom:8px;z-index:10;width:auto;max-width:none}
+#pvp-root[data-layout="fullscreen"] .pvp2-skillrow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+#pvp-root[data-layout="fullscreen"] .pvp2-skillrow::before{display:none}
+#pvp-root[data-layout="fullscreen"] .sk-card{
+  min-height:0;height:48px;padding:4px 8px;gap:4px 8px;grid-template-columns:24px minmax(0,1fr);
+  grid-template-rows:minmax(0,1fr) auto;grid-template-areas:"key copy" "key foot";border-radius:8px;
+}
+#pvp-root[data-layout="fullscreen"] .sk-card .sk-key{width:24px;height:24px;font-size:14px}
+#pvp-root[data-layout="fullscreen"] .sk-card .sk-icon,
+#pvp-root[data-layout="fullscreen"] .sk-card .sk-fx{display:none}
+#pvp-root[data-layout="fullscreen"] .sk-card .sk-copy strong{font-size:14px!important;line-height:1.2;font-weight:600;white-space:normal;overflow:visible;overflow-wrap:anywhere}
+#pvp-root[data-layout="fullscreen"] .sk-card .sk-foot{gap:4px}
+#pvp-root[data-layout="fullscreen"] .sk-card .sk-status{font-size:12px}
+
+/* Opak yazma yüzeyi, becerilerin 16px üstünde. */
+#pvp-root[data-layout="fullscreen"] .pvp2-shell>.tt{
+  position:fixed;z-index:30;left:50%;bottom:72px;translate:-50% 0;transform:none;
+  width:min(760px,92vw);max-width:none;height:auto;max-height:calc(100dvh - 224px);
+  margin:0;padding:8px 16px;gap:4px;overflow:auto;border:1px solid var(--fs-line);
+  border-radius:12px;background:#100d26;box-shadow:none;
+}
+#pvp-root[data-layout="fullscreen"] .tt-type{gap:4px}
+#pvp-root[data-layout="fullscreen"] .tt-head{position:static;display:flex;max-width:none;min-height:24px;gap:8px;flex-wrap:wrap}
+#pvp-root[data-layout="fullscreen"] .tt-label{white-space:normal;flex-wrap:wrap;gap:4px}
+#pvp-root[data-layout="fullscreen"] .tt-mode{border:0;border-radius:0;padding:0;background:none;font-size:12px}
+#pvp-root[data-layout="fullscreen"] .tt-label-text{font-size:14px;overflow:visible}
+#pvp-root[data-layout="fullscreen"] .tt-word{min-height:36px;column-gap:16px}
+#pvp-root[data-layout="fullscreen"] .tt-target{font-size:clamp(28px,2.1vw,40px);line-height:1.2;letter-spacing:.02em}
+#pvp-root[data-layout="fullscreen"] .tt-input{min-height:44px;height:44px;padding:4px 12px;font-size:20px}
+#pvp-root[data-layout="fullscreen"] .tt-status{display:block;min-height:0;padding-inline-start:8px;font-size:12px}
+#pvp-root[data-layout="fullscreen"] .tt-meta{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;font-size:12px}
+#pvp-root[data-layout="fullscreen"] .tt-who-line{white-space:normal;overflow-wrap:anywhere}
+#pvp-root[data-layout="fullscreen"] .tt-xchg{padding:4px 8px;min-height:24px;max-width:100%;white-space:normal;font-size:12px}
+#pvp-root[data-layout="fullscreen"] .tt-reset{display:none}
+
+/* Çözümde sahne odağı; ara ekranlarda tek kaydırılabilir panel. */
+#pvp-root[data-layout="fullscreen"].stage-focus:not(.rui-inter-open) .tt{display:none}
+#pvp-root[data-layout="fullscreen"].rui-inter-open .pvp2-shell>.tt{width:min(760px,92vw);height:auto;max-height:calc(100dvh - 224px);overflow:auto}
+#pvp-root[data-layout="fullscreen"][data-arena-phase="prep"] .pvp2-shell>.tt,
+#pvp-root[data-layout="fullscreen"][data-arena-phase="summary"] .pvp2-shell>.tt{max-height:calc(100dvh - 224px);overflow:auto}
+
+/* Şerit D'nin süper/destek barlarında yalnız konum. */
+#pvp-root[data-layout="fullscreen"] .fhud-super{top:auto;bottom:8px}
+#pvp-root[data-layout="fullscreen"] .fhud-assist{top:auto;bottom:40px}
+#pvp-root[data-layout="fullscreen"] :focus-visible{outline:2px solid var(--fs-focus);outline-offset:2px}
+#pvp-root[data-layout="fullscreen"].pvp4-reduced *,
+#pvp-root[data-layout="fullscreen"].pvp4-reduced *::before,
+#pvp-root[data-layout="fullscreen"].pvp4-reduced *::after{animation:none!important;transition:none!important}
+@media (prefers-reduced-motion:reduce){
+  #pvp-root[data-layout="fullscreen"] *,
+  #pvp-root[data-layout="fullscreen"] *::before,
+  #pvp-root[data-layout="fullscreen"] *::after{animation:none!important;transition:none!important}
+}

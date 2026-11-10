@@ -98,4 +98,9 @@ test('yüzer tur arası paneli eski satır içi konumu ezer; arena etiketi odak 
   assert.match(rsv, /#pvp-root:not\(\.stage-focus\) \.pvp2-duel>\.rsv-banner\{display:none\}/);
   assert.match(rsv, /#pvp-root:has\(\.pvp15-backdrop:not\(\[hidden\]\)\) \.rsv-banner\{display:none\}/);
   assert.match(read('pvp/howto.css'), /#pvp-root \.htp-panel\[hidden\]\{display:none\}/, '✕ ile kapanan panel ekranda kalmaz');
+  assert.match(read('pvp/results-v2.css'), /#pvp-root \.aui-res-table small\{font-size:12px\}/, 'arena maç sonu tablosunda 10 px yazı yok');
+  assert.match(read('pvp/cinematic.css'), /@media \(max-width:900px\)\{#pvp-root\.rui-inter-open \.tt\{height:/, 'telefonda tur arası kutusu taşmaz');
+  const ch = read('pvp/compact-height.css');
+  assert.match(ch, /#pvp-root \.aui-prep>\.aui-prep-foot\{grid-column:2;grid-row:1/, 'hazırlıkta düğmeler başlık satırında (sahneye yer)');
+  assert.match(ch, /#pvp-root \.pvp2-player-top \.pvp2-identity>small\{display:none\}/, 'kısa ekranda oyuncu başlığı tek satır');
 });

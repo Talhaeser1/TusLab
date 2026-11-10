@@ -199,6 +199,11 @@
   .aui-res-player{min-width:0}
   .aui-res-table{font-size:12px}
   .aui-res-table th,.aui-res-table td{padding:4px 3px}
+  /* Telefonda hazırlık kartları iki sütunda yazı alanı 64 px'e iniyordu ("ezilmiş kart"): tek sütun. */
+  #pvp-root .aui-prep .aui-cards,#pvp-root .aui-prep .aui-cards-items{grid-template-columns:minmax(0,1fr)}
+  /* Üst göstergede oyuncu adı kesiliyordu ("Sav…"): ad satırı sarılır. */
+  .aui-side-top{flex-wrap:wrap;row-gap:2px}
+  .aui-name{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
 }
 @media(prefers-reduced-motion:reduce){
   .aui-summary{animation:none}

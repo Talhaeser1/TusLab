@@ -16,7 +16,8 @@ test('cinematic: raund sonu bandı yazıları', () => {
 test('cinematic: VS modeli oyuncu ve karakteri eşler', () => {
   const [a, b] = vsModel({players});
   assert.equal(a.side, 'fire'); assert.equal(b.side, 'rune');
-  assert.equal(a.name, 'Savaşçı'); assert.equal(b.character, 'Rün Muhafızı');
+  assert.equal(a.name, 'Savaşçı'); assert.equal(b.character, 'Doran');
+  assert.equal(b.title, 'Demir Sur');
   assert.match(a.image, /\.webp$/);
   assert.equal(vsModel({}).length, 2, 'eksik veride de iki taraf');
 });

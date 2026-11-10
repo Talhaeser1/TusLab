@@ -63,6 +63,16 @@ test('resolve ui: ignores realtime and arena events (arena has its own resolve s
   assert.equal(d.duel.child, undefined);
 });
 
+test('resolve ui: ROUND_END hides the banner and clears side highlights before the result card',()=>{
+  const d=fakeDom();const ui=attachResolveUi({root:d.root,scheduler:d.scheduler});
+  d.root.emit('tuslab:pvp-round',{type:'ROUND_RESOLVE',payload:{round:2,turns:1}});
+  d.root.emit('tuslab:pvp-combat',{type:'DAMAGE_APPLIED',resolve:true,turn:1,fromSeat:1,toSeat:2,amount:100});
+  const banner=d.duel.child;assert.equal(banner.hidden,false);
+  d.root.emit('tuslab:pvp-round',{type:'ROUND_END',payload:{round:2}});
+  assert.equal(banner.hidden,true);assert.equal(ui.state().active,false);
+  assert.equal(d.sides[0].classList.contains('rsv-attacker'),false);ui.destroy();
+});
+
 test('resolve ui: pencere/çözüm geçişlerinde attack-turn sesi bir kez çalınır', () => {
   const d = fakeDom();
   const cues = [];

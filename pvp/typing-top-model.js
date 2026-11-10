@@ -51,3 +51,31 @@ export function ttNotice({live:isLive,own,disabled,pending,scrambled,exchange,st
   if(scrambled)return {kind:'chaos',text:'Harf Kaosu: harfler karışık · kelimeyi ekranda göründüğü gibi yaz, Space ile gönder'};
   return {kind:'hint',text};
 }
+
+/**
+ * Paket 33: saf animasyon durumu; DOM veya zamanlayıcı oluşturmaz.
+ * Tüm zamanlar aynı saatten (ms) gelir. Renderer son giriş/yanıt zamanını saklar,
+ * letterClass'ı letterIndex'teki harfe, wordClass/comboClass'ı kelimeye,
+ * clockClass'ı sayaca uygular; süre dolunca yeniden hesaplayıp sınıfı kaldırır.
+ * Doğru yanıtta wordClass gönderilen eski kelimeye uygulanır (yenisine değil).
+ */
+export function ttAnimationState({typed='',previousTyped='',lastInputAt=null,
+  correct=null,submittedAt=null,combo=0,secondsLeft=null,now=0,reduced=false}={}){
+  const recent=(at,duration)=>Number.isFinite(at)&&Number.isFinite(now)&&now>=at&&now-at<duration;
+  const text=String(typed).normalize('NFC'),before=String(previousTyped).normalize('NFC');
+  const added=text.length>before.length&&text.startsWith(before);
+  const letterHit=added&&recent(lastInputAt,120);
+  const outcome=correct===true?'hit':correct===false?'miss':null;
+  const wordActive=outcome&&recent(submittedAt,correct?180:260);
+  const count=Number(combo);
+  const comboLevel=Number.isFinite(count)?Math.max(0,Math.min(4,Math.floor(count/2))):0;
+  const urgent=Number.isFinite(secondsLeft)&&secondsLeft>0&&secondsLeft<=5;
+  return {
+    letterIndex:!reduced&&letterHit?[...text].length-1:-1,
+    letterClass:!reduced&&letterHit?'tt-letter-hit':'',
+    wordClass:!reduced&&wordActive?(correct?'tt-word-pop':'tt-word-miss'):'',
+    comboClass:!reduced&&comboLevel?`tt-combo-${comboLevel}`:'',
+    clockClass:!reduced&&urgent?'tt-clock-urgent':'',
+    outcome,comboLevel,urgent,
+  };
+}

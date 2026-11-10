@@ -1,9 +1,11 @@
 import {createPvPStore,PvPView} from './state.js';
 import {getTypingPreview} from './preview.js';
+import {exchangeGate,wordCommit,afterReject,queuedReady} from './word-queue.js';
 import {normalizeTyping} from './shared/typing-rules.js';
 import {createCharacterController,rigMarkup,MOTION_NAMES} from './characters.js';
 import {createCombatFxDirector} from './combat-fx.js';
-import {createPvPAudio} from './sound.js';
+import {createPvPAudio,soundForCue} from './sound.js';
+import {isFighterId,normalizeFighter} from './shared/fighters.js';
 import {createDynamicScore} from './music23.js';
 import {createProjectileDirector} from './projectiles.js';
 import {createChoreographyDirector} from './choreography21.js';
@@ -51,7 +53,9 @@ const network = new PvPNetworkConsole(root);
 // Arena odağı: saldırı sırasında yazma paneli katlanır, arena ekranı doldurur.
 attachStageFocus({root,isReduced:()=>reducedEffects||Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)});
 // Sıralı saldırı göstergesi (U3): "SALDIRI SIRASI 3/8", saldıran/SİPER vurgusu, pencere özeti.
-attachResolveUi({root,getSeat:()=>network.seat,isReduced:()=>reducedEffects||Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)});
+// Geçiş sesleri (attack-turn) oyuncunun SFX ayarına uyar; pvpAudio satır sonunda tanımlanır, çağrı anında hazırdır.
+attachResolveUi({root,getSeat:()=>network.seat,isReduced:()=>reducedEffects||Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches),
+  sfx:(name,gain)=>pvpAudio.play(name,{character:'center',gain})});
 // Nasıl oynanır paneli (U5): ? düğmesi, sekmeli rehber, Esc yalnız paneli kapatır.
 attachHowto({root});
 // Dövüş oyunu tarzı sinematik geçişler (VS girişi, raund bantları, tur arası sıralaması).
@@ -121,14 +125,20 @@ async function arena3dCreate(){
   const token=arena3d.token;
   if(!root||!arena3dWanted()){arena3dButtonSync();return;}
   try{
-    const [{createArena3D},{createArena3DFx},{createArena3DHpBars}]=await Promise.all([import('./arena3d.js'),import('./arena3d-fx.js'),import('./arena3d-hpbars.js')]);
+    const [{createArena3D},{createArena3DFx},{createArena3DHpBars},{createArena3DAssist}]=await Promise.all([import('./arena3d.js'),import('./arena3d-fx.js'),import('./arena3d-hpbars.js'),import('./arena3d-assist.js')]);
     if(token!==arena3d.token||root.hidden)return;
     const instance=await createArena3D({root,isReduced:fx24Reduced});
     if(!instance){arena3dButtonSync();return;}
     if(token!==arena3d.token||root.hidden){instance.destroy();return;}
     instance.registerPlugin(createArena3DFx(instance.api));
     instance.registerPlugin(createArena3DHpBars(instance.api));
+    instance.registerPlugin(createArena3DAssist(instance.api)); // paket 31: partner desteği silueti
     arena3d.instance=instance;
+    lastFighterKey='';arena3dSyncFighters(); // paket 32: yalnız seçili iki karakterin modeli tembel yüklenir
+    arena3dSyncStage();
+    // Hata ayıklama tutamacı: yalnız yerel geliştirmede (localhost) + ?fighter1/2 ile. Yalnız kozmetik katmana
+    // erişir (sunucuya/oyun durumuna yol yok); yayında hiç oluşmaz.
+    if(/[?&]fighter[12]=/.test(location.search)&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname))window.__tuslabArena3d=instance;
     syncHitFeel();
     fx24.motion?.clear();fx24.particles?.clear();
   }catch(error){
@@ -136,10 +146,43 @@ async function arena3dCreate(){
   }
   arena3dButtonSync();
 }
+// Paket 32: koltuk → karakter (match.players[].fighter; yoksa arketipin varsayılanı). Yalnız görsel/ses içindir.
+// Hata ayıklama: ?fighter1=sira&fighter2=nyx (yalnız bilinen kimlikler kabul edilir; oyun durumunu değiştirmez).
+function fighterOfSeat(seat){
+  const forced=new URLSearchParams(location.search).get(`fighter${seat}`);
+  if(isFighterId(forced))return forced;
+  const p=(network.match?.players||[]).find(x=>x?.seat===seat);
+  const side=p?.character==='fire'||p?.character==='rune'?p.character:(seat===2?'rune':'fire');
+  return normalizeFighter(p?.fighter,side);
+}
+let lastFighterKey='';
+function arena3dSyncFighters(){
+  const map={1:fighterOfSeat(1),2:fighterOfSeat(2)};
+  const key=`${map[1]}|${map[2]}`;
+  if(network.match&&key!==lastFighterKey){lastFighterKey=key;pvpAudio.preloadFighters?.([map[1],map[2]]);}
+  if(arena3d.instance?.setFighters)void arena3d.instance.setFighters(map); // aynı seçim → yeniden yüklemez
+}
+function arena3dSyncStage(){
+  const forced=/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?new URLSearchParams(location.search).get('stage'):null;
+  arena3d.instance?.setStage?.(forced||network.match?.stage);
+}
+/** Karaktere özel ses (dosya yoksa sound.js arketip sesine düşer). */
+const FIGHTER_GAIN={'vargr-e':1.2,'doran-q':1.2,'doran-e':1.2};
+function playFighterSfx(seat,key,gain=1){
+  if(typeof pvpAudio.playFighter!=='function')return false;
+  const fid=fighterOfSeat(seat);
+  return pvpAudio.playFighter(fid,key,{character:seat===2?'rune':'fire',gain:gain*(FIGHTER_GAIN[`${fid}-${key}`]||1)});
+}
 function arena3dDestroy(){
   arena3d.token++;
   arena3d.instance?.destroy();
   arena3d.instance=null;
+}
+/** Paket 32: beceri sesi (q/e/r) karaktere özel çalar; diğer işaretler arketip sesinde kalır. */
+function fighterSkillCue(side,cue,action){
+  const name=soundForCue(side,cue,action);
+  if(!name||!/-(q|e|r)$/.test(name)||!['q','e','r'].includes(action))return false;
+  return playFighterSfx(side==='rune'?2:1,action,action==='r'?.88:1);
 }
 let reducedEffects=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches??false;
 // Tur HUD'u: .pvp2-announce satırına yerleşir; süreler network.serverNow() (saat eşitlemesi) ile sayılır.
@@ -282,7 +325,7 @@ function arenaLayoutSync(){
   }
   const surrender=root.querySelector('[data-pvp15-action="surrender"]');if(surrender&&surrender.hidden!==!running)surrender.hidden=!running;
 }
-const controllers=Object.fromEntries(['fire','rune'].map(id=>[id,createCharacterController({id,onCue:({cue,action})=>{fxDirectors[id]?.play({cue,action});choreographers[id]?.onCue({cue,action});pvpAudio.playCue(id,cue,action);},onChange:({state,action})=>{
+const controllers=Object.fromEntries(['fire','rune'].map(id=>[id,createCharacterController({id,onCue:({cue,action})=>{fxDirectors[id]?.play({cue,action});choreographers[id]?.onCue({cue,action});if(!fighterSkillCue(id,cue,action))pvpAudio.playCue(id,cue,action);},onChange:({state,action})=>{
   const stage=root?.querySelector(`.pvp2-side[data-player="${id}"] .pvp2-stage`);
   if(!stage)return;
   choreographers[id]?.onMotion({state,action});
@@ -305,6 +348,15 @@ function skillRowSync(){
     applySkillRow(root.querySelector(`[data-player="${id}"]`),{player:m.players?.find(x=>x.seat===seat),rounds,now,reduced});
 }
 root?.addEventListener('tuslab:pvp-match',skillRowSync);
+/** Paket 33: 3B tuval veya 2B sahneyle yalnız aktif maçta tam ekran HUD. */
+function fullscreenLayoutSync(){
+  if(!root)return;
+  const running=['running','paused'].includes(network.match?.status);
+  const arena=root.querySelector('.pvp2-duel .pvp2-stage');
+  if(!root.hidden&&running&&arena)root.dataset.layout='fullscreen';
+  else delete root.dataset.layout;
+}
+root?.addEventListener('tuslab:pvp-match',fullscreenLayoutSync);
 function playerHTML(p){
   const isFire=p.id==='fire';
   return `<section class="pvp2-side pvp2-${p.style}" aria-label="${p.player} — ${p.name}" data-player="${p.id}" data-seat="${isFire?1:2}">
@@ -341,7 +393,7 @@ function topbarArrangeStatus(){
 }
 function screen(){
   return `<main class="pvp2-shell" aria-label="PvP Ruh Düellosu ikiye bölünmüş arena önizlemesi">
-   <header class="pvp2-toolbar"><div class="pvp-topbar-start"><div class="pvp2-brand"><span class="pvp2-brand-logo" aria-hidden="true">⚔</span><div><strong>TUŞLAB <em>· RUH DÜELLOSU</em></strong><small>PvP Arena · ${RELEASE_LABEL}</small></div></div>${networkConsoleHTML()}</div><div class="pvp-topbar-center"><div class="pvp-status-group" role="status" aria-label="Maç ve bağlantı durumu"><span class="pvp2-network" data-match-status>⚔ MAÇ BEKLENİYOR</span><span class="pvp12-ping" data-pvp12-ping data-quality="unknown">◌ Ping ölçülüyor</span></div><span class="pvp-topbar-clock">Süre <strong data-match-timer>—</strong><span aria-hidden="true">·</span>Sıra <strong data-match-sequence>—</strong></span><span class="pvp12-windup" data-pvp12-windup hidden></span><span class="pvp11-reconnect" data-reconnect-banner role="status" aria-live="polite" hidden></span></div><div class="pvp2-actions">${howtoButtonHTML()}<details class="pvp4-settings" data-pvp-settings><summary class="pvp4-icon-btn" aria-label="Ayarları aç: müzik, ses, efekt, 3B"><span aria-hidden="true">⚙</span><span class="pvp4-tip" aria-hidden="true">Ayarları aç · müzik, ses, efekt, 3B</span></summary><div class="pvp4-aux-buttons pvp4-settings-pop" role="group" aria-label="PvP ayarları"><div class="pvp23-audio" role="group" aria-label="Dinamik PvP müzik kontrolleri"><button type="button" class="pvp4-toggle" data-pvp-action="music" data-pvp23-music-toggle aria-pressed="false">♫ Müziği kapat</button><input type="range" min="0" max="100" step="5" value="20" data-pvp23-music aria-label="Müzik ses seviyesi"/><small data-pvp23-music-label>20%</small></div><div class="pvp10-audio-controls" role="group" aria-label="PvP ses kontrolleri"><button type="button" class="pvp4-toggle pvp10-sound-toggle" data-pvp-action="sound" aria-pressed="false">🔊 Sesi kapat</button><input type="range" class="pvp10-volume" data-pvp-volume aria-label="PvP ses seviyesi" min="0" max="100" step="5" value="55"/><span class="pvp10-volume-label" data-pvp-volume-label>55%</span></div><button type="button" class="pvp4-toggle" data-pvp-action="effects" aria-pressed="false">✧ Efektleri azalt</button><button type="button" class="pvp4-toggle" data-pvp-action="arena3d" aria-pressed="false">◈ 3B arenayı aç</button><span class="pvp4-perf">GPU dostu · ≤6 parçacık</span></div></details><button type="button" class="pvp15-surrender" data-pvp15-action="surrender" hidden>Teslim ol</button><button type="button" class="pvp2-back" data-pvp-action="close" aria-label="PvP'den çık, Yazma Arenasına dön">← Arenaya dön</button></div></header>
+   <header class="pvp2-toolbar"><div class="pvp-topbar-start"><div class="pvp2-brand"><span class="pvp2-brand-logo" aria-hidden="true">⚔</span><div><strong>TUŞLAB <em>· RUH DÜELLOSU</em></strong><small>PvP Arena · ${RELEASE_LABEL}</small></div></div>${networkConsoleHTML()}</div><div class="pvp-topbar-center"><div class="pvp-status-group" role="status" aria-label="Maç ve bağlantı durumu"><span class="pvp2-network" data-match-status>⚔ MAÇ BEKLENİYOR</span><span class="pvp12-ping" data-pvp12-ping data-quality="unknown">◌ Ping ölçülüyor</span></div><span class="pvp-topbar-clock">Süre <strong data-match-timer>—</strong><span aria-hidden="true">·</span>Sıra <strong data-match-sequence>—</strong></span><span class="pvp12-windup" data-pvp12-windup hidden></span><span class="pvp11-reconnect" data-reconnect-banner role="status" aria-live="polite" hidden></span></div><div class="pvp2-actions">${howtoButtonHTML()}<details class="pvp4-settings" data-pvp-settings><summary class="pvp4-icon-btn" aria-label="Ayarları aç: müzik, ses, efekt, 3B"><span aria-hidden="true">⚙</span><span class="pvp4-tip" aria-hidden="true">Ayarları aç · müzik, ses, efekt, 3B</span></summary><div class="pvp4-aux-buttons pvp4-settings-pop" role="group" aria-label="PvP ayarları"><div class="pvp23-audio" role="group" aria-label="Dinamik PvP müzik kontrolleri"><button type="button" class="pvp4-toggle" data-pvp-action="music" data-pvp23-music-toggle aria-pressed="false">♫ Müziği kapat</button><input type="range" min="0" max="100" step="5" value="20" data-pvp23-music aria-label="Müzik ses seviyesi"/><small data-pvp23-music-label>20%</small></div><div class="pvp10-audio-controls" role="group" aria-label="PvP ses kontrolleri"><button type="button" class="pvp4-toggle pvp10-sound-toggle" data-pvp-action="sound" aria-pressed="false">🔊 Sesi kapat</button><input type="range" class="pvp10-volume" data-pvp-volume aria-label="PvP ses seviyesi" min="0" max="100" step="5" value="55"/><span class="pvp10-volume-label" data-pvp-volume-label>55%</span></div><button type="button" class="pvp4-toggle" data-pvp-action="effects" aria-pressed="false">✧ Efektleri azalt</button><button type="button" class="pvp4-toggle" data-pvp-action="arena3d" aria-pressed="false">◈ 3B arenayı aç</button><button type="button" class="pvp4-toggle" data-pvp-action="fullscreen" aria-pressed="false">⛶ Tam ekran</button><span class="pvp4-perf">GPU dostu · ≤6 parçacık</span></div></details><button type="button" class="pvp15-surrender" data-pvp15-action="surrender" hidden>Teslim ol</button><button type="button" class="pvp2-back" data-pvp-action="close" aria-label="PvP'den çık, Yazma Arenasına dön">← Arenaya dön</button></div></header>
    <div class="pvp2-announce"><span class="pvp2-announce-icon" aria-hidden="true">✦</span><span><strong>RUH DÜELLOSU</strong><span class="pvp2-announce-sep" aria-hidden="true"> · </span>İki savaşçı, tek arena</span></div>
    <section class="tt" data-typetop aria-label="Yazma alanı">
      <div class="tt-arena" data-tt-arena></div>
@@ -425,7 +477,7 @@ function show(open){
     for(const ctrl of Object.values(controllers))ctrl.trigger('idle');
     for(const id of ['fire','rune']){fxDirectors[id]?.dispose();delete fxDirectors[id];choreographers[id]?.dispose();delete choreographers[id];}
     roundsUi?.destroy();roundsUi=null;arenaUi?.destroy();arenaUi=null;
-    delete root.dataset.pvpMode;delete root.dataset.arenaPhase;
+    delete root.dataset.layout;delete root.dataset.pvpMode;delete root.dataset.arenaPhase;
     projectiles?.dispose();projectiles=null;fx24Destroy();arena3dDestroy();pvpAudio.stop();pvpMusic.stop();lastMusicScene=null;
     root.replaceChildren();return;
   }
@@ -450,7 +502,7 @@ function show(open){
   const levelText=root.querySelector('[data-pvp-volume-label]');if(levelText)levelText.textContent=Math.round(audioSettings.volume*100)+'%';
   root.classList.toggle('pvp4-reduced',reducedEffects);
   fx24Create();
-  roundsUiCreate();arenaUiCreate();arenaLayoutSync();
+  roundsUiCreate();arenaUiCreate();arenaLayoutSync();fullscreenLayoutSync();fullscreenButtonSync();
   void arena3dCreate();
   for(const id of ['fire','rune']){
     const stage=root.querySelector(`.pvp2-side[data-player="${id}"] .pvp2-stage`);
@@ -486,6 +538,14 @@ root?.addEventListener('input',event=>{
  root.querySelector('[data-pvp-volume-label]').textContent=Math.round(volume*100)+'%';
  if(volume>0&&!pvpAudio.getState().muted)void pvpAudio.unlock();
 });
+/** Paket 33: ⚙ → Tam ekran düğmesinin etiketi/durumu; API yoksa düğme gizlenir. */
+function fullscreenButtonSync(){
+  const button=root?.querySelector('[data-pvp-action="fullscreen"]');if(!button)return;
+  button.hidden=!document.fullscreenEnabled;
+  const on=document.fullscreenElement===root;
+  button.setAttribute('aria-pressed',String(on));button.textContent=on?'⛶ Tam ekrandan çık':'⛶ Tam ekran';
+}
+document.addEventListener('fullscreenchange',fullscreenButtonSync);
 document.addEventListener('tuslab:pvp-enter',()=>store.dispatch({type:'PVP_OPEN'}));
 root?.addEventListener('click',event=>{
   const action=event.target.closest('[data-pvp-action]');if(!action)return;
@@ -505,6 +565,10 @@ root?.addEventListener('click',event=>{
     const turnOn=!arena3d.instance;
     arena3dSetPref(turnOn);
     if(turnOn)void arena3dCreate();else{arena3dDestroy();arena3dButtonSync();}
+  } else if(action.dataset.pvpAction==='fullscreen'){
+    // Paket 33: tarayıcı tam ekranı (Fullscreen API). Esc ile de çıkılır; etiket fullscreenchange ile eşitlenir.
+    if(document.fullscreenElement)void document.exitFullscreen?.().catch(fullscreenButtonSync);
+    else if(document.fullscreenEnabled)void root.requestFullscreen?.().catch(fullscreenButtonSync);
   } else if(action.dataset.pvpAction==='sound'){
     const next=pvpAudio.setMuted(!pvpAudio.getState().muted);
     action.setAttribute('aria-pressed',String(next));action.textContent=next?'🔇 Sesi aç':'🔊 Sesi kapat';
@@ -547,6 +611,8 @@ function playCombat(action){
   fx24.hud?.handle(action);
   if(action.arena&&action.type==='SKILL_CAST')pvpAudio.play('attack-turn',{character:action.fromSeat===2?'rune':'fire',gain:.6});
   if(action.type==='WORD_CLASH')pvpAudio.play('clash',{character:'center',gain:.78});
+  // Paket 31: partner desteği girişi — yeni ses dosyası yok, mevcut 'counter' örneği kısık çalınır.
+  if(action.type==='ASSIST_CAST')pvpAudio.play('counter',{character:action.fromSeat===2?'rune':'fire',gain:.62});
   fx24.damage?.handle(action);
   if(arena3d.instance)arena3d.instance.handle(action);
   else{fx24.motion?.handle(action);fx24.particles?.handle(action);}
@@ -599,7 +665,9 @@ function playCombat(action){
     pvpAudio.play('shatter',{character:kind,gain:1});
     pvp13Banner(action.seat,'✹ SHIELD BREAK!', 'shatter');
   }else if(action.type==='DAMAGE_APPLIED'){
-    pvpAudio.combat(action);
+    // Paket 32: temiz isabet hedefin kendi sesiyle; blok/kritik sesleri aynı kalır.
+    const plainHit=!action.blocked&&!action.critical&&(Number(action.amount)||0)>0&&(action.toSeat===1||action.toSeat===2);
+    if(!(plainHit&&playFighterSfx(action.toSeat,'hit')))pvpAudio.combat(action);
     if(!action.blocked&&(Number(action.amount)||0)>0)hitFeelDamage(action);
     projectiles?.impact({toSeat:action.toSeat,blocked:action.blocked});
     if(!action.blocked)controllers[defender]?.trigger('hit');
@@ -638,6 +706,8 @@ function hitFeelDamage(action){
 root?.addEventListener('tuslab:pvp-match',()=>{
   const m=network.match;
   if(m?.status==='running'&&m.matchId!==fx24.matchId){fx24.matchId=m.matchId;fx24Clear();arena3d.instance?.clear();}
+  arena3dSyncFighters(); // paket 32: maç/karakter değişince modeller (ve karakter sesleri) yenilenir
+  arena3dSyncStage();
 });
 root?.addEventListener('tuslab:pvp-match',()=>{
   const m=network.match;
@@ -649,7 +719,10 @@ root?.addEventListener('tuslab:pvp-match',()=>{
     arena3d.instance.onMatchEnd({winnerSeat:m.winnerSeat});
   }
   for(const seat of [1,2])controllers[seat===1?'fire':'rune']?.trigger(m.winnerSeat===null?'idle':m.winnerSeat===seat?'victory':'defeat');
-  if(m.winnerSeat===1||m.winnerSeat===2)pvpAudio.play(m.winnerSeat===network.seat?'victory':'defeat',{character:m.winnerSeat===1?'fire':'rune',gain:.7});
+  if(m.winnerSeat===1||m.winnerSeat===2){
+    pvpAudio.play(m.winnerSeat===network.seat?'victory':'defeat',{character:m.winnerSeat===1?'fire':'rune',gain:.7});
+    playFighterSfx(m.winnerSeat===1?2:1,'ko',.9); // paket 32: kaybedenin KO sesi
+  }
 });
 // Paket 29: dövüş HUD'u (fx24Clear yapan dinleyiciden SONRA kayıtlı olmalı). Maç başı girişi (yeni matchId,
 // yeni başlamış maç), süper bar/raund güncellemesi, maç sonu anonsu.
@@ -659,7 +732,7 @@ root?.addEventListener('tuslab:pvp-match',()=>{
   if(m.status==='running'&&m.matchId!==hudStartedId){
     hudStartedId=m.matchId;
     const fresh=!(Number(m.startedAt)>0)||network.serverNow()-Number(m.startedAt)<4000; // yeniden bağlanmada giriş oynamaz
-    if(fresh)hud.matchStart({players:(m.players||[]).map(p=>({seat:p.seat,name:p.name,character:p.character})),mode:m.mode,round:m.round?.index||1});
+    if(fresh)hud.matchStart({players:(m.players||[]).map(p=>({seat:p.seat,name:p.name,character:p.character,fighter:p.fighter})),mode:m.mode,round:m.round?.index||1});
   }
   hud.update(m,network.myId);
   if(m.status==='ended'&&m.matchId!==hudEndedId){hudEndedId=m.matchId;hud.matchEnd({winnerSeat:m.winnerSeat??null,reason:m.endReason||null});}
@@ -676,15 +749,15 @@ root?.addEventListener('input',event=>{
     const serverPlayer=match.players.find(x=>x.seat===seat);
     if(!serverPlayer||serverPlayer.playerId!==network.myId||p.pending||match.status==='paused'||network.reconnecting||inputLock(match).locked){textUpdate(p.id);return;}
     const wordLength=String(liveTarget(match,serverPlayer,true)||'').length;
-    const typed=input.value;
-    if(/\s/u.test(typed)){
-      const word=typed.split(/\s/u)[0];
-      p.typed=word.slice(0,wordLength+20);
-      if(word){
-        p.pending=true;p.pendingIndex=serverPlayer.wordIndex;
-        if(!network.submitWord(word)){p.pending=false;p.pendingIndex=null;p.typed='';}
-      }else p.typed='';
-    }else p.typed=typed.slice(0,wordLength+20);
+    // Paket 33: boşluk kelimeyi HER ZAMAN kutudan alır. Pencere kapandıysa (çözüm evresi) kelime sıraya girer ve
+    // sıradaki pencere açılınca gönderilir; kutuda kalıp sonraki kelimeyle birleşmez (pvp/word-queue.js).
+    const commit=wordCommit({typed:input.value,gate:exchangeGate(match,network.serverNow())});
+    if(commit.action==='queue'){p.queued=commit.word;p.typed='';}
+    else if(commit.action==='submit'){
+      p.typed=commit.word.slice(0,wordLength+20);
+      p.pending=true;p.pendingIndex=serverPlayer.wordIndex;
+      if(!network.submitWord(commit.word)){p.pending=false;p.pendingIndex=null;p.typed='';}
+    }else p.typed=commit.typed.slice(0,wordLength+20);
   }else p.typed=input.value.slice(0,texts[p.textIndex].length);
   textUpdate(p.id);
 });
@@ -693,7 +766,7 @@ let lastLiveMatchId=null;
 root?.addEventListener('tuslab:pvp-match',()=>{
   if(network.match?.matchId!==lastLiveMatchId){
     lastLiveMatchId=network.match?.matchId||null;
-    for(const p of Object.values(players)){p.typed='';p.startedAt=null;p.pending=false;p.pendingIndex=null;}
+    for(const p of Object.values(players)){p.typed='';p.startedAt=null;p.pending=false;p.pendingIndex=null;p.queued=null;}
   }
   for(const id of ['fire','rune']){
     const p=players[id];
@@ -701,13 +774,34 @@ root?.addEventListener('tuslab:pvp-match',()=>{
     const serverPlayer=network.match?.players?.find(x=>x.seat===seat);
     if(p.pending&&serverPlayer&&serverPlayer.wordIndex>p.pendingIndex){p.pending=false;p.pendingIndex=null;p.typed='';}
     textUpdate(id);
+    flushQueued(id);
   }
+});
+/** Paket 33: sıraya alınmış kelimeyi (pencere kapalıyken boşluk basıldı) pencere açılınca gönder. */
+function flushQueued(id){
+  const p=players[id],m=network.match;if(!p)return;
+  const sp=m?.players?.find(x=>x.seat===(id==='fire'?1:2));
+  if(p.queued&&m?.status!=='running'&&m?.status!=='paused')p.queued=null;
+  if(!queuedReady({queued:p.queued,pending:p.pending,match:m,now:network.serverNow(),own:sp?.playerId===network.myId}))return;
+  const word=p.queued;p.queued=null;p.typed='';p.pending=true;p.pendingIndex=sp.wordIndex;
+  if(!network.submitWord(word)){p.pending=false;p.pendingIndex=null;}
+  textUpdate(id);
+}
+// Pencere/raund yeniden açılınca: sıradaki kelimeyi gönder ve odak <body>'de kaldıysa yazma kutusuna dön.
+// (Kutu çözüm sırasında stage-focus ile gizlenir; kilit, gizliyken açıldığında focus() işe yaramıyordu.)
+root?.addEventListener('tuslab:pvp-round',event=>{
+  const type=event.detail?.type;if(type!=='EXCHANGE_START'&&type!=='ROUND_START')return;
+  flushQueued(myKey());
+  requestAnimationFrame(()=>{
+    const input=root.querySelector('[data-tt-input]'),active=document.activeElement;
+    if(input&&!input.disabled&&!root.hidden&&(!active||active===document.body))input.focus({preventScroll:true});
+  });
 });
 // A pending word may have been lost during a network cut. Let the player
 // retype it after authoritative recovery instead of leaving the input locked.
 root?.addEventListener('tuslab:pvp-recovered',()=>{
   for(const p of Object.values(players)){
-    p.pending=false;p.pendingIndex=null;p.typed='';p.startedAt=null;
+    p.pending=false;p.pendingIndex=null;p.typed='';p.startedAt=null;p.queued=null;
     textUpdate(p.id);
   }
 });
@@ -715,9 +809,12 @@ root?.addEventListener('tuslab:pvp-word-result',event=>{
   const result=event.detail||{};
   if(result.accepted)pvpAudio.play(result.correct?'word-correct':'word-wrong',{character:'center',gain:.22});
   if(!result.accepted){
-    const ownId=network.seat===2?'rune':'fire';
-    players[ownId].pending=false;players[ownId].pendingIndex=null;
-    textUpdate(ownId);
+    const ownId=network.seat===2?'rune':'fire',own=players[ownId];
+    // Paket 33: reddedilen kelime kutuda kalmaz (sonraki kelimeyle birleşip yanlış sayılıyordu);
+    // pencere kapandığı için reddedildiyse sıradaki pencerede yeniden gönderilir.
+    const after=afterReject({code:result.code,word:own.typed});
+    own.pending=false;own.pendingIndex=null;own.typed=after.typed;if(after.queued)own.queued=after.queued;
+    textUpdate(ownId);flushQueued(ownId);
     return;
   }
   const id=(result.seat??network.seat)===2?'rune':'fire';

@@ -120,8 +120,10 @@ void main() {
   vAlpha = aAlpha;
 }`;
 
-/** Yumuşak yuvarlak sprite: dış hale + parlak çekirdek; doku gerekmez. */
+/** 128px soft sprite, with an analytic fallback for canvas-less environments. */
 const PARTICLE_FRAG = /* glsl */`
+uniform sampler2D uSprite;
+uniform bool uHasSprite;
 varying vec3 vColor;
 varying float vAlpha;
 void main() {
@@ -130,6 +132,7 @@ void main() {
   if (d > 1.0) discard;
   float soft = 1.0 - d;
   soft *= soft;
+  if (uHasSprite) soft = texture2D(uSprite, gl_PointCoord).a;
   float core = exp(-d * 9.0);
   gl_FragColor = vec4(vColor * (soft + core * 1.4), vAlpha * soft);
 }`;
@@ -255,7 +258,15 @@ export function createArena3DFx(api) {
   const AXIS_Y = new THREE.Vector3(0, 1, 0);
 
   let dead = false;
-  const totals = {spawned: 0, dropped: 0, projectilesResolved: 0, events: 0};
+  const totals = {spawned: 0, dropped: 0, projectilesResolved: 0, events: 0, characterSkills: 0};
+  /** Paket 32: koltukta 3B karakter modeli varsa becerinin görseli karaktere özeldir (fighters3d.js). */
+  const hasCharacterModel = seat => {
+    try {
+      return typeof api.fighterModel === 'function' && Boolean(api.fighterModel(seat));
+    } catch {
+      return false;
+    }
+  };
   const resolveBeats = []; // short, bounded visual delays; game state is never delayed
 
   // =========================================================================
@@ -285,8 +296,26 @@ export function createArena3DFx(api) {
   pGeometry.setAttribute('aSize', sizeAttr);
   pGeometry.setAttribute('aAlpha', alphaAttr);
   pGeometry.setDrawRange(0, 0);
+  let particleSprite = null;
+  try {
+    const document = api.renderer?.domElement?.ownerDocument || globalThis.document;
+    const canvas = document?.createElement?.('canvas');
+    if (canvas) {
+      canvas.width = canvas.height = 128;
+      const ctx = canvas.getContext?.('2d');
+      if (ctx) {
+        const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+        gradient.addColorStop(0, 'rgba(255,255,255,1)');
+        gradient.addColorStop(0.3, 'rgba(255,255,255,0.8)');
+        gradient.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 128, 128);
+        particleSprite = new THREE.CanvasTexture(canvas);
+      }
+    }
+  } catch { /* Analytic circle remains available without a 2D context. */ }
   const pMaterial = mat(new THREE.ShaderMaterial({
-    uniforms: {uScale: {value: 600}},
+    uniforms: {uScale: {value: 600}, uSprite: {value: particleSprite}, uHasSprite: {value: Boolean(particleSprite)}},
     vertexShader: PARTICLE_VERT,
     fragmentShader: PARTICLE_FRAG,
     transparent: true,
@@ -408,6 +437,7 @@ export function createArena3DFx(api) {
 
   const M = {
     fireCore: mat(new THREE.MeshBasicMaterial({color: 0xfff3c4})),
+    runeCore: mat(new THREE.MeshBasicMaterial({color: 0xe3ffff, toneMapped: false})),
     fireGlow: glowMaterial('fire'),
     runeShard: mat(new THREE.MeshStandardMaterial({
       color: 0x2a1450, emissive: 0x8b5cf6, emissiveIntensity: 1.8,
@@ -447,7 +477,9 @@ export function createArena3DFx(api) {
       rec.ring.scale.setScalar(0.34);
       rec.glow = new THREE.Mesh(G.plane, M.runeGlow);
       rec.glow.scale.setScalar(0.85);
-      group.add(rec.shard, rec.ring, rec.glow);
+      rec.core = new THREE.Mesh(G.sphere, M.runeCore);
+      rec.core.scale.setScalar(0.07);
+      group.add(rec.shard, rec.ring, rec.glow, rec.core);
       for (let k = 0; k < 3; k++) {
         const o = new THREE.Mesh(G.octa, M.runeOrbiter);
         o.scale.setScalar(0.035);
@@ -455,7 +487,16 @@ export function createArena3DFx(api) {
         group.add(o);
       }
     }
-    root.add(group);
+    const trailGeometry = geo(new THREE.BufferGeometry());
+    trailGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(25 * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    rec.trail = new THREE.Line(trailGeometry, mat(new THREE.LineBasicMaterial({
+      color: PAL[kind].glow, opacity: 0.65, transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending, toneMapped: false,
+    })));
+    rec.trail.name = `arena3d-fx-trail-${kind}`;
+    rec.trail.visible = false;
+    rec.trail.frustumCulled = false;
+    root.add(group, rec.trail);
     projectiles.push(rec);
     return rec;
   }
@@ -478,6 +519,7 @@ export function createArena3DFx(api) {
   function releaseProjectile(rec) {
     rec.active = false;
     rec.group.visible = false;
+    rec.trail.visible = false;
   }
   // Performans: her türden bir mermi baştan (gizli) kurulur → parıltı
   // ShaderMaterial programı çekirdeğin ön-derlemesinde ısınır (ölçüldü: ilk
@@ -503,6 +545,10 @@ export function createArena3DFx(api) {
     rec.group.scale.setScalar(unit * rec.size);
     rec.group.position.copy(a);
     rec.group.visible = true;
+    const attr = rec.trail.geometry.getAttribute('position');
+    for (let i = 0; i <= 24; i++) a.toArray(attr.array, i * 3);
+    attr.needsUpdate = true;
+    rec.trail.visible = true;
     return rec;
   }
 
@@ -524,6 +570,11 @@ export function createArena3DFx(api) {
       const t = Math.min(1, rec.age / rec.dur);
       const prevX = rec.group.position.x, prevY = rec.group.position.y, prevZ = rec.group.position.z;
       bezier(rec, t, rec.group.position);
+      const trail = rec.trail.geometry.getAttribute('position');
+      for (let i = 0; i <= 24; i++) {
+        bezier(rec, Math.max(0, t - i / 24 * 0.22), tmpA).toArray(trail.array, i * 3);
+      }
+      trail.needsUpdate = true;
       const U = rec.unit;
       // Kameraya dönük parıltı.
       if (rec.glow) rec.glow.quaternion.copy(camQ);
@@ -1120,6 +1171,12 @@ export function createArena3DFx(api) {
     const kind = characterOf(ev.fromSeat, ev.character);
     if ((ev.resolve === true || ev.arena === true) && (ev.defenderAction === 'brace' || ev.arena === true) && resolveBeats.length < 8) {
       resolveBeats.push({kind: 'brace', seat: toSeat, remaining: 0.155});
+    }
+    // Paket 32: karaktere özel efekt (mızrak, rün oku, girdap, meteor…) çekirdekte çizilir;
+    // arketip halkası/mermisi üst üste binmesin. Model yoksa (düzlem yedek) eski efekt aynen.
+    if (hasCharacterModel(ev.fromSeat)) {
+      totals.characterSkills++;
+      return;
     }
     if (skill === 'r') {
       // R mermi atmaz: saldırgan enerji toplar, ULTIMATE_PHASE zinciri savunanı çeker.

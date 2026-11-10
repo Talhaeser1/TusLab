@@ -60,11 +60,17 @@
   #pvp-root .pvp-topbar-start .pvp5-network-controls{width:auto}
   #pvp-root .pvp-topbar-center{display:flex}
   #pvp-root .pvp2-actions{width:auto;flex:none}
-  #pvp-root .pvp5-network-controls [data-social-action="toggle"]{display:none}
+  #pvp-root .pvp5-network-controls [data-social-action="toggle"]{font-size:0;width:40px;min-width:40px;max-width:40px;padding:0;justify-content:center;align-items:center}
+  #pvp-root .pvp5-network-controls [data-social-action="toggle"]::before{content:"👥";font-size:17px}
   #pvp-root .pvp2-actions .pvp2-back{padding-inline:6px}
 }
 @media(max-width:570px){
-  #pvp-root .pvp5-network-controls [data-pvp16-action="toggle"]{display:none}
+  /* Paket 32: telefonda Profil/Arkadaşlar gizlenmez, yalnız simge kalır (paneller telefonda çalışıyor). */
+  #pvp-root .pvp5-network-controls [data-pvp16-action="toggle"]{display:inline-flex;font-size:0;width:40px;min-width:40px;max-width:40px;padding:0;justify-content:center;align-items:center}
+  #pvp-root .pvp5-network-controls [data-pvp16-action="toggle"]::before{content:"🏆";font-size:17px}
+  #pvp-root .pvp5-network-controls [data-lobby-action="toggle"]{font-size:0;width:40px;min-width:40px;max-width:40px;padding:0;justify-content:center;align-items:center;display:inline-flex}
+  #pvp-root .pvp5-network-controls [data-lobby-action="toggle"]::before{content:"⚔";font-size:17px}
+  #pvp-root .pvp5-network-controls{gap:4px}
   #pvp-root .pvp2-actions .pvp2-back{font-size:0}
   #pvp-root .pvp2-actions .pvp2-back::after{content:'Çık';font-size:12px}
   #pvp-root .pvp2-announce{font-size:12px}

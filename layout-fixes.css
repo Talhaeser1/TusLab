@@ -98,7 +98,7 @@
 #panel-analytics .analysis-card{overflow:hidden!important}
 /* 8 toast below topbar, top right; separated from panel flow by transparent spacing */
 #toast-host{position:fixed!important;top:calc(68px + 8px)!important;right:16px!important;bottom:auto!important;left:auto!important;z-index:110!important;width:min(265px,24vw)!important;max-width:265px!important;pointer-events:none!important;}
-#toast-host .toast{display:block;margin:0 0 5px!important;padding:9px 12px!important;background:#131b3bf2!important;box-shadow:0 8px 22px #0009!important;border:1px solid #7d72c4!important;font-size:11px!important;max-width:100%;pointer-events:none;}
+#toast-host .toast{display:block;margin:0 0 5px!important;padding:9px 12px!important;background:#131b3bf2!important;box-shadow:0 8px 22px #0009!important;border:1px solid #7d72c4!important;font-size:13px!important;line-height:1.4!important;max-width:100%;pointer-events:none;}
 @media(max-width:1550px){
  .global-header .brand strong{font-size:15px!important}
  .global-header .brand small{font-size:10px!important}

@@ -118,7 +118,7 @@ test('giriş: VS → RAUND 1 → SAVAŞ!, ≤ 2.2 sn, sonra katman kalmaz', () =
   clock.advance(HUD_TIMES.startDelay);
   assert.match(callText(root), /Savaşçı/);
   assert.match(callText(root), /VS/);
-  assert.match(callText(root), /Rün Muhafızı/);
+  assert.match(callText(root), /Doran · Demir Sur/);
   assert.deepEqual(calls[0], ['introSweep', HUD_TIMES.sweep]);
   clock.advance(HUD_TIMES.vs);
   assert.equal(callText(root), 'RAUND 1');

@@ -4,6 +4,7 @@
  * Bu modül yalnız görünümü üretir/günceller; hiçbir maç verisini değiştirmez.
  * Hareket: yalnız transform/opacity, tek seferlik (WAAPI); sonsuz animasyon yok.
  */
+import {FIGHTERS,isFighterId} from './shared/fighters.js';
 export const SKILL_ORDER=Object.freeze(['Q','E','S','R']);
 export const SKILL_THRESHOLDS=Object.freeze({
   classic:Object.freeze({Q:2,E:4,S:0,R:5}),
@@ -136,6 +137,7 @@ export function paintSkillCard(el,info,{reduced=false,live=true}={}){
 /** Canlı maç: sunucu oyuncusundan dört kartı güncelle. Arena modunda satır gizlidir; yine de zararsız. */
 export function applySkillRow(section,{player,rounds=false,now=Date.now(),reduced=false}={}){
   if(!section||!player)return;
+  applyFighterNames(section,player.fighter);
   for(const key of SKILL_ORDER)paintSkillCard(section.querySelector(`[data-skill="${key}"]`),readSkillState(player,key,{rounds,now}),{reduced,live:true});
 }
 
@@ -146,5 +148,24 @@ export function applySkillPreview(section,{chain=0,reduced=false}={}){
   for(const key of SKILL_ORDER){
     const threshold=t[key];
     paintSkillCard(section.querySelector(`[data-skill="${key}"]`),{key,energy:Math.min(threshold,chain),threshold,cooldownMs:0,shieldActive:false,shieldMs:0,casts:0},{reduced,live:false});
+  }
+}
+
+/** Paket 32: karakterin beceri adlarını kartlara yazar (yalnız metin; değişmediyse DOM'a dokunmaz).
+ * Bilinmeyen/eksik karakterde arketipin genel adları (SKILL_INFO) kalır. */
+export function fighterSkillLabels(fighterId){
+  if(!isFighterId(fighterId))return null;
+  const f=FIGHTERS[fighterId];
+  return Object.fromEntries(SKILL_ORDER.map(key=>{const sk=f.skills[key.toLowerCase()];return [key,{name:sk.name,effect:sk.short||sk.desc}];}));
+}
+export function applyFighterNames(section,fighterId){
+  if(!section||section.dataset?.skFighter===(fighterId||''))return;
+  const labels=fighterSkillLabels(fighterId);if(!labels)return;
+  if(section.dataset)section.dataset.skFighter=fighterId;
+  for(const key of SKILL_ORDER){
+    const card=section.querySelector(`[data-skill="${key}"]`);if(!card)continue;
+    const strong=card.querySelector('.sk-copy strong'),fx=card.querySelector('.sk-fx');
+    if(strong&&strong.textContent!==labels[key].name)strong.textContent=labels[key].name;
+    if(fx&&fx.textContent!==labels[key].effect)fx.textContent=labels[key].effect;
   }
 }

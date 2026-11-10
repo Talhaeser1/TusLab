@@ -18,6 +18,13 @@
   #pvp-root .pvp2-player-top .pvp2-identity>strong{flex:none}
   #pvp-root .pvp2-player-top .pvp2-character-name{min-width:0;white-space:nowrap}
   #pvp-root .pvp2-player-top .pvp2-player-end{display:flex;flex-direction:row;align-items:center;gap:8px}
+  /* Raund Arena hazırlığı: sahne 1920×940'ta 229, 1366×650'de 124 px'e iniyordu →
+     kilitle/geç düğmeleri başlık satırına çıkar (bir satır kazanılır); gizlilik notu kısa ekranda gizli. */
+  #pvp-root .aui-prep{grid-template-columns:minmax(0,1fr) auto;column-gap:12px}
+  #pvp-root .aui-prep>*{grid-column:1 / -1}
+  #pvp-root .aui-prep>.aui-prep-head{grid-column:1;grid-row:1;min-width:0}
+  #pvp-root .aui-prep>.aui-prep-foot{grid-column:2;grid-row:1;margin:0;padding:0;border:0}
+  #pvp-root .aui-prep .aui-lock-note{display:none}
   /* Alt kural şeridi "Nasıl oynanır" panelinde de var: kısa ekranda sahneye bırakılır. */
   #pvp-root .pvp2-rules,#pvp-root .pvp2-footer{display:none}
   /* HP kutusu: 68 → ~50 px */
@@ -57,24 +64,16 @@
   #pvp-root .rui-inter>.rui-summary{padding:8px 12px}
   #pvp-root .rui-inter>.rui-summary .rui-sum-winner{font-size:17px;margin:2px 0 4px}
   #pvp-root .rui-inter>.rui-summary .rui-sum-table th,#pvp-root .rui-inter>.rui-summary .rui-sum-table td{padding:0 6px;font-size:13px;line-height:1.2}
-  /* 1366×650: özet 191 px, kutu 148 px idi → başlık ve kazanan tek satır, tablo sıkı. */
-  #pvp-root .rui-inter>.rui-summary{display:grid;grid-template-columns:auto minmax(0,1fr);align-content:start;column-gap:10px;padding-top:4px;padding-bottom:4px}
-  #pvp-root .rui-inter>.rui-summary>.rui-sum-head{grid-column:1;align-self:center;margin:0}
-  #pvp-root .rui-inter>.rui-summary>.rui-sum-winner{grid-column:2;align-self:center;text-align:right;margin:0;font-size:16px}
-  #pvp-root .rui-inter>.rui-summary>:not(.rui-sum-head):not(.rui-sum-winner){grid-column:1 / -1}
-  #pvp-root .rui-inter>.rui-summary>.rui-sum-foot{margin-top:2px}
+  /* 1366×650: özet 191 px, kutu 148 px idi → tablo sıkı (başlık + kazanan tek satır: cinematic.css). */
+  #pvp-root .rui-inter>.rui-summary{padding-top:4px;padding-bottom:4px}
+  #pvp-root .rui-inter>.rui-summary>.rui-sum-winner{font-size:16px;margin:0}
   #pvp-root .rui-skill-picker{padding:8px 10px}
   #pvp-root .rui-skill-picker .rui-skill-cards .aui-card{min-height:52px;padding:6px 10px}
   /* Raund Arena hazırlığı yazma panelinden ~130 px uzundu → sahne 36 px'e iniyordu.
      Kart açıklaması gizlenir (başlık ne yaptığını söylüyor; tam metin aria-label'da). */
   #pvp-root .aui-prep .aui-card-copy small{display:none}
   #pvp-root .aui-prep .aui-card{min-height:38px;padding-top:4px;padding-bottom:4px}
-  /* Hazırlıkta sahne hâlâ 124 px'ti: kilitle/geç düğmeleri başlık satırına çıkar (bir satır kazanılır). */
-  #pvp-root .aui-prep{grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:6px}
-  #pvp-root .aui-prep>*{grid-column:1 / -1}
-  #pvp-root .aui-prep>.aui-prep-head{grid-column:1;grid-row:1;min-width:0}
-  #pvp-root .aui-prep>.aui-prep-foot{grid-column:2;grid-row:1;margin:0;padding:0;border:0}
-  #pvp-root .aui-prep .aui-lock-note{display:none}
+  #pvp-root .aui-prep{row-gap:6px}
   /* Raund Arena üst göstergesi 80 px'ti (ad · HP · kombo üç satır): kombo adın satırına çıkar → 2 satır. */
   #pvp-root .aui-side{grid-template-columns:minmax(0,1fr) auto;column-gap:10px;row-gap:3px;padding:4px 12px}
   #pvp-root .aui-side>.aui-side-top{grid-column:1;grid-row:1}
@@ -99,7 +98,7 @@
 @media (min-width:2200px){
   #pvp-root .pvp2-footer,#pvp-root .pvp2-footer strong,#pvp-root .pvp2-footer em,#pvp-root .pvp2-footer span,#pvp-root .pvp2-footer-chip,
   #pvp-root .pvp5-net-button,#pvp-root .pvp2-network,#pvp-root .pvp12-ping,#pvp-root .pvp24-chip,#pvp-root .pvp-topbar-clock,
-  #pvp-root .pvp4-toggle,#pvp-root .pvp10-volume-label,#pvp-root .pvp4-perf,#pvp-root .pvp15-surrender,#pvp-root .pvp2-toolbar a,#pvp-root .pvp2-toolbar button:not(.pvp4-icon-btn),
+  #pvp-root .pvp4-toggle,#pvp-root .pvp10-volume-label,#pvp-root .pvp4-perf,#pvp-root .pvp15-surrender,#pvp-root .pvp2-toolbar a,#pvp-root .pvp2-toolbar button:not(.pvp4-icon-btn):not(.pvp6-panel *),
   #pvp-root .rui-you,#pvp-root .rui-progress,#pvp-root .rui-side-clock,#pvp-root .rui-meter-label,#pvp-root .rui-title,
   #pvp-root .rui-secs-unit,#pvp-root .rui-done,#pvp-root .rui-next,
   #pvp-root .rui-sum-title,#pvp-root .rui-sum-reason,#pvp-root .rui-sum-score,#pvp-root .rui-sum-foot,
@@ -108,7 +107,24 @@
   #pvp-root .sk-fx,#pvp-root .sk-status{font-size:15px}
   /* Ölçümle bulunan kalan küçük yazılar (12–14 px → ekranda 9,6–11 px). */
   #pvp-root .pvp2-brand strong,#pvp-root .pvp2-announce>span,#pvp-root .pvp2-announce>span>strong,#pvp-root .pvp2-announce-sep,
-  #pvp-root .tt-xchg-text,#pvp-root .pvp7-combo{font-size:15px}
+  #pvp-root .tt-xchg-text,#pvp-root .pvp7-combo,#pvp-root .tt-reset,#pvp-root .rui-tick,#pvp-root .rui-mult,#pvp-root .rui-skill-picker>strong{font-size:15px}
+  /* Raund Arena (gösterge, hazırlık, özet): 12–14 px yazılar → 15–17 px. */
+  #pvp-root .aui-you,#pvp-root .aui-progress,#pvp-root .aui-hp-text,#pvp-root .aui-combo-label,#pvp-root .aui-clock,
+  #pvp-root .aui-title,#pvp-root .aui-unit,#pvp-root .aui-steps span,#pvp-root .aui-group-label,#pvp-root .aui-key,
+  #pvp-root .aui-card-copy small,#pvp-root .aui-lock-note,#pvp-root .aui-skip,#pvp-root .aui-skip span,#pvp-root .aui-lock-label,
+  #pvp-root .aui-prep kbd,#pvp-root .aui-sum-left,#pvp-root [class*="aui-sum"] span,
+  #pvp-root [class*="aui-"] th,#pvp-root [class*="aui-"] td,#pvp-root [class*="aui-"] .aui-col-1,#pvp-root [class*="aui-"] .aui-col-2{font-size:15px}
+  #pvp-root .aui-card-copy strong,#pvp-root .aui-sum-title{font-size:17px}
+  /* ui-polish.css'teki "[data-arena-ui] small" (12 px) daha özgül: öğe adıyla ezilir. */
+  #pvp-root [data-arena-ui] small.aui-unit,#pvp-root small.aui-unit,#pvp-root .cin-player,#pvp-root .aui-chip{font-size:15px}
+  /* Büyük yazıyla hazırlık 455 px'e çıkıyordu (sahne 246): kilitle/geç düğmeleri başlık satırında. */
+  #pvp-root .aui-prep{grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:8px}
+  #pvp-root .aui-prep>*{grid-column:1 / -1}
+  #pvp-root .aui-prep>.aui-prep-head{grid-column:1;grid-row:1;min-width:0}
+  #pvp-root .aui-prep>.aui-prep-foot{grid-column:2;grid-row:1;margin:0;padding:0;border:0}
+  #pvp-root .aui-prep .aui-lock-note{display:none}
+  /* Büyük yazıyla tur arası özeti 212 px, kutu 188 px idi: kutu bu genişlikte biraz uzar. */
+  #pvp-root.rui-inter-open .tt{height:clamp(150px,20vh,240px)}
   #pvp-root .rui-name,#pvp-root .rui-word,#pvp-root .tt-label-text,#pvp-root .tt-status,#pvp-root .tt-meta,#pvp-root .tt-meta b,
   #pvp-root .rui-sum-table,#pvp-root .rui-sum-table th,#pvp-root .rui-sum-table td{font-size:16px}
   #pvp-root .rui-skill-picker .rui-skill-cards .aui-card-copy strong{font-size:17px}
@@ -126,4 +142,162 @@
   #pvp-root .sk-card .sk-icon{display:none}
   #pvp-root .sk-card .sk-fx{display:none}
   #pvp-root .sk-card .pvp2-skill-copy strong{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.15}
+}
+
+/* Kısa dizüstü ekranı (1366×650): sahne 163 px idi (hedef ≥ 260). Yazma paneli, oyuncu başlığı/HP, beceri kartları ve
+   kombo satırı sıkılaşır; kelime ve giriş kutusu ≥16 px kalır. Yalnız boşluk/yerleşim; 1920×940 ve üstü etkilenmez. */
+@media (max-height:760px) and (min-width:900px){
+  /* "RUH DÜELLOSU" duyuru satırı: marka/mod üst çubukta ve sahnede zaten var. */
+  #pvp-root .pvp2-announce:not(:has(.rui:not([hidden]),.aui-hud:not([hidden]))){height:0;min-height:0;margin:-3px 0;padding:0;overflow:hidden;visibility:hidden}
+  #pvp-root .pvp2-toolbar{padding:2px 10px}
+  #pvp-root .pvp2-toolbar button:not(.pvp4-icon-btn):not(.pvp6-panel *),#pvp-root .pvp2-toolbar .pvp5-net-button,#pvp-root .pvp2-back{min-height:28px;height:30px;padding-top:2px;padding-bottom:2px}
+  #pvp-root .pvp2-toolbar .pvp4-icon-btn{width:30px;height:30px;min-height:0}
+  /* Yazma paneli: etiket satırı kelime satırının boş sol tarafına alınır (kelime ortada, "sonraki" sağda). */
+  #pvp-root .tt{padding:4px 16px}
+  #pvp-root .tt-type{position:relative;gap:3px}
+  #pvp-root .tt-type>.tt-head{position:absolute;left:0;top:0;max-width:40%;z-index:1;gap:8px}
+  #pvp-root .tt-head .tt-reset{height:24px;min-height:0;padding:0 8px;font-size:12px}
+  #pvp-root .tt-word{min-height:30px}
+  #pvp-root .tt-input{padding:3px 12px;min-height:0;height:38px}
+  #pvp-root .tt-meta{gap:12px}
+  #pvp-root .tt-who{gap:2px}
+  /* Oyuncu başlığı + HP daha ince */
+  #pvp-root .pvp2-side{padding:6px 8px;gap:4px}
+  #pvp-root .pvp2-health{padding:3px 8px 4px}
+  #pvp-root .pvp2-health-meta{margin-bottom:1px}
+  #pvp-root .pvp2-health-track{height:10px}
+  /* Oyuncu başlığı ve HP yan yana tek satır; kombo satırı sahnenin üstüne biner (iki satır kazanılır). */
+  #pvp-root .pvp2-side{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;column-gap:8px}
+  #pvp-root .pvp2-player-top{min-width:0;gap:6px}
+  #pvp-root .pvp2-player-top .pvp2-identity{gap:6px}
+  #pvp-root .pvp2-player-top .pvp2-identity strong{font-size:17px}
+  #pvp-root .pvp2-player-top .pvp2-character-name{font-size:13px}
+  #pvp-root .pvp2-side>.pvp2-player-top{grid-row:1;grid-column:1}
+  #pvp-root .pvp2-side>.pvp2-health{grid-row:1;grid-column:2;align-self:center;min-width:0}
+  #pvp-root .pvp2-side>.pvp2-stage{grid-row:2;grid-column:1 / -1}
+  #pvp-root .pvp2-side>.pvp7-combo{grid-row:2;grid-column:1 / -1;align-self:start;justify-self:center;z-index:4;pointer-events:none}
+  #pvp-root .pvp2-side>.pvp2-skillrow{grid-row:3;grid-column:1 / -1}
+  #pvp-root .pvp2-player-top .pvp2-connection{display:none}
+  /* Beceri kartları: anahtar solda iki satır; ad + dolum çubuğu yanında. */
+  #pvp-root .pvp2-skillrow{gap:5px}
+  #pvp-root .sk-card{grid-template-columns:26px minmax(0,1fr);grid-template-areas:"key copy" "key foot";column-gap:7px;row-gap:2px;min-height:0;padding:4px 8px}
+  #pvp-root .sk-card .pvp2-skill-key,#pvp-root .sk-card .sk-key{width:26px;height:26px}
+  #pvp-root .sk-card .sk-foot{gap:6px}
+  #pvp-root .sk-card .sk-meter{min-width:20px}
+}
+
+/* Paket 33 — tam ekran düzeninin son yüklenen kısa ekran/telefon kuralları. */
+@media (max-height:760px){
+  #pvp-root[data-layout="fullscreen"]{--fs-bottom:200px;--fs-pad:12px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-shell>.tt{padding:4px 12px;bottom:64px}
+  #pvp-root[data-layout="fullscreen"] .tt-type{gap:4px}
+  #pvp-root[data-layout="fullscreen"] .tt-target{font-size:28px}
+  #pvp-root[data-layout="fullscreen"] .tt-head{position:static;max-width:none;min-height:20px}
+  #pvp-root[data-layout="fullscreen"] .tt-input{height:44px;min-height:44px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-health-track{height:28px}
+  #pvp-root[data-layout="fullscreen"] .tt-meta{gap:8px}
+}
+
+/* Dar tablet: araçlar tek şeritte; sayaç ve yazma alanı görünür kalır. */
+@media (max-width:1600px){
+  /* Ad ve durum, 48px kartta çakışmasın; tam ad/durum aria-label'da korunur. */
+  #pvp-root[data-layout="fullscreen"] .sk-card{grid-template-columns:24px minmax(0,1fr);grid-template-rows:1fr;grid-template-areas:"key foot"}
+  #pvp-root[data-layout="fullscreen"] .sk-card .sk-copy{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+}
+@media (max-width:900px){
+  #pvp-root[data-layout="fullscreen"]{--fs-pad:8px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-toolbar{padding-inline:8px;gap:4px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-brand,
+  #pvp-root[data-layout="fullscreen"] .pvp-status-group{display:none}
+  #pvp-root[data-layout="fullscreen"] .pvp-topbar-center{display:flex;flex:0}
+  #pvp-root[data-layout="fullscreen"] .pvp-topbar-start,
+  #pvp-root[data-layout="fullscreen"] .pvp2-actions{gap:4px;flex:none}
+  #pvp-root[data-layout="fullscreen"] .pvp5-network-controls{gap:4px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp2-health,
+  #pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp2-player-top{margin-inline-end:88px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-rune>.pvp2-health,
+  #pvp-root[data-layout="fullscreen"] .pvp2-rune>.pvp2-player-top{margin-inline-start:88px;margin-inline-end:0}
+  #pvp-root[data-layout="fullscreen"] .pvp2-player-mark,
+  #pvp-root[data-layout="fullscreen"] .pvp2-hero-tag{display:none}
+  #pvp-root[data-layout="fullscreen"] .sk-card{padding:4px;column-gap:4px;grid-template-columns:20px minmax(0,1fr)}
+  #pvp-root[data-layout="fullscreen"] .sk-card .sk-key{width:20px;height:24px}
+  #pvp-root[data-layout="fullscreen"] .sk-card .sk-copy{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+}
+
+/* Telefon: iki HP satırı → ortak sahne (en az 40vh) → yazma → tek beceri satırı.
+   Klavye/çok kısa ekran durumunda kök dikey kayar; sahne ve metin ezilmez. */
+@media (max-width:600px){
+  #pvp-root[data-layout="fullscreen"]{--fs-hud:184px;--fs-bottom:256px;overflow-y:auto;overflow-x:hidden}
+  #pvp-root[data-layout="fullscreen"] .pvp2-shell{
+    height:100dvh;min-height:calc(40px + 184px + 40vh + 256px);overflow:visible;
+  }
+  #pvp-root[data-layout="fullscreen"] .pvp2-toolbar{position:sticky;top:0;height:40px;gap:4px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-actions{gap:4px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-actions .pvp15-surrender,
+  #pvp-root[data-layout="fullscreen"] .pvp2-actions .pvp2-back{padding-inline:4px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-actions .pvp2-back{font-size:0}
+  #pvp-root[data-layout="fullscreen"] .pvp2-actions .pvp2-back::after{content:'Çık';font-size:12px}
+  #pvp-root[data-layout="fullscreen"] .pvp5-network-controls .pvp5-net-button{min-width:32px;width:32px;max-width:32px;padding-inline:0}
+  #pvp-root[data-layout="fullscreen"] .pvp4-settings-pop{position:fixed;top:44px;left:8px;right:8px;width:auto;max-width:none}
+  #pvp-root[data-layout="fullscreen"] .pvp2-duel{
+    position:absolute;inset:0;grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:224px minmax(40vh,1fr) 256px;min-height:100%;padding:0;
+  }
+  #pvp-root[data-layout="fullscreen"] .pvp2-side{display:contents}
+  #pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp2-health{
+    position:absolute;top:48px;left:8px;right:8px;margin:0;padding:0;
+  }
+  #pvp-root[data-layout="fullscreen"] .pvp2-rune>.pvp2-health{top:120px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-health-meta{margin:0 0 4px;gap:4px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-health-meta strong{font-size:14px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-health-track{height:28px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp2-player-top{
+    position:absolute;top:96px;left:8px;right:8px;margin:0;min-height:20px;max-height:24px;padding:0;
+  }
+  #pvp-root[data-layout="fullscreen"] .pvp2-rune>.pvp2-player-top{top:168px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-player-top .pvp2-identity{flex-wrap:nowrap;gap:8px;min-width:0}
+  #pvp-root[data-layout="fullscreen"] .pvp2-player-top .pvp2-identity>strong{font-size:14px;white-space:nowrap}
+  #pvp-root[data-layout="fullscreen"] .pvp2-player-top .pvp2-character-name{font-size:12px;white-space:nowrap}
+  #pvp-root[data-layout="fullscreen"] .pvp2-player-top .pvp2-player-end{display:none}
+  #pvp-root[data-layout="fullscreen"] .pvp-topbar-clock{
+    position:absolute;top:192px;left:50%;min-height:24px;padding:4px;width:176px;
+  }
+  #pvp-root[data-layout="fullscreen"] .pvp2-announce{position:absolute;top:192px;left:8px;right:8px;width:auto}
+  #pvp-root[data-layout="fullscreen"] .rui-medal,
+  #pvp-root[data-layout="fullscreen"] .aui-medal{display:flex;align-items:center;justify-content:center;gap:8px;padding:0 4px;min-height:24px}
+  #pvp-root[data-layout="fullscreen"] .rui-clock{width:24px;height:24px}
+  #pvp-root[data-layout="fullscreen"] .rui-secs{font-size:16px}
+  #pvp-root[data-layout="fullscreen"] .rui-ring,
+  #pvp-root[data-layout="fullscreen"] .rui-secs-unit,
+  #pvp-root[data-layout="fullscreen"] .aui-steps{display:none}
+  #pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp2-stage{
+    grid-row:2;grid-column:1;align-self:stretch;min-height:40vh;height:100%;margin:0;
+  }
+  #pvp-root[data-layout="fullscreen"] .pvp2-rune>.pvp2-stage{grid-column:2}
+  #pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp7-combo{display:none}
+  #pvp-root[data-layout="fullscreen"] .pvp2-shell>.tt{
+    position:absolute;bottom:64px;width:min(760px,92vw);height:auto;max-height:192px;padding:8px;gap:4px;
+  }
+  #pvp-root[data-layout="fullscreen"] .tt-word{grid-template-columns:minmax(0,1fr);min-height:36px;gap:4px}
+  #pvp-root[data-layout="fullscreen"] .tt-target{grid-column:1;font-size:28px}
+  #pvp-root[data-layout="fullscreen"] .tt-next{display:none}
+  #pvp-root[data-layout="fullscreen"] .tt-label-text{display:block;font-size:14px}
+  #pvp-root[data-layout="fullscreen"] .tt-head{gap:4px;min-height:20px}
+  #pvp-root[data-layout="fullscreen"] .tt-input{font-size:20px;min-height:44px}
+  #pvp-root[data-layout="fullscreen"] .tt-xchg-bar{display:none}
+  #pvp-root[data-layout="fullscreen"] .tt-meta{gap:8px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-side>.pvp2-skillrow{position:absolute;left:8px;right:calc(50% + 4px);bottom:8px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-rune>.pvp2-skillrow{left:calc(50% + 4px);right:8px}
+  #pvp-root[data-layout="fullscreen"] .pvp2-skillrow{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+  #pvp-root[data-layout="fullscreen"] .sk-card{
+    height:48px;min-height:0;padding:4px;gap:4px;justify-items:center;
+    grid-template-columns:minmax(0,1fr);grid-template-areas:"key" "foot";
+  }
+  #pvp-root[data-layout="fullscreen"] .sk-card .sk-key{width:20px;height:20px;font-size:12px}
+  #pvp-root[data-layout="fullscreen"] .sk-card .sk-foot{justify-content:center;width:100%}
+  #pvp-root[data-layout="fullscreen"] .sk-card .sk-meter{display:block;min-width:0;width:100%;height:4px}
+  #pvp-root[data-layout="fullscreen"] .sk-card .sk-status{display:none}
+  #pvp-root[data-layout="fullscreen"].rui-inter-open .pvp2-shell>.tt,
+  #pvp-root[data-layout="fullscreen"][data-arena-phase="prep"] .pvp2-shell>.tt,
+  #pvp-root[data-layout="fullscreen"][data-arena-phase="summary"] .pvp2-shell>.tt{max-height:192px;overflow:auto}
 }

@@ -18,3 +18,120 @@
 #pvp-loading[hidden]{display:none}
 #pvp-loading{position:fixed;inset:0;z-index:700;display:grid;place-items:center;padding:24px;background:#09071b;color:#f4f0ff;font:800 clamp(20px,5vw,32px)/1.35 system-ui,sans-serif;text-align:center}
 #pvp-loading span{display:block;width:min(100%,420px);padding:24px;border:1px solid #8a6bd6;border-radius:16px;background:#17133a}
+
+/* ===== Ana sayfa responsive düzeni (<=1280 px) ===== */
+@media(max-width:1280px){
+  html,body{height:auto!important;min-height:100%;overflow-x:hidden!important;overflow-y:auto!important}
+  #app,#app .app-layout.rogue-app{height:auto!important;min-height:100dvh!important;overflow:visible!important;min-width:0!important;width:100%!important}
+  #app .app-layout.rogue-app::before,#app .app-layout.rogue-app::after{display:none!important}
+  #app .three-windows{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;grid-auto-rows:auto!important;width:100%!important;max-width:100%!important;height:auto!important;max-height:none!important;flex:0 0 auto!important;overflow:visible!important;perspective:none!important;gap:12px!important;margin-top:8px!important}
+  #app .three-windows>.browser-window{height:auto!important;min-height:0!important;max-height:none!important;transform:none!important;overflow:visible!important}
+  #app .three-windows>.arena-window{order:1;grid-column:1/-1}
+  #app .three-windows>.commander-window{order:2}
+  #app .three-windows>.analytics-window{order:3}
+  #app .three-windows>.browser-window .window-content{height:auto!important;max-height:none!important;overflow:visible!important}
+  #app #panel-home .window-content>.home-pvp-entry{order:-1}
+  #app #panel-home :is(.phase4-player,.phase4-quest-box,.phase4-challenge,.phase4-adventure-grid,.phase4-launch,.commander-tab-body){height:auto!important;min-height:0!important}
+  #app #panel-home .phase4-launch{min-height:44px!important}
+  #app #panel-home .quest-line .quest-top{white-space:normal!important}
+  #app #panel-home .adventure strong,#app #panel-home .adventure small,#app #panel-home .adventure span,#app #panel-home .challenge-copy :is(b,span){white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere}
+  #app #panel-analytics :is(.phase4-score-grid,.phase4-analytics-grid){height:auto!important}
+  #app #panel-analytics .analysis-card,#app #panel-analytics .phase4-heading-copy p{overflow:visible!important;white-space:normal!important}
+  #app :is(.raid-eyebrow,.chart-sample-note,small,.player-progress strong,.challenge-copy b,.phase4-adventure-head button,.adventure strong,.boss-health span){font-size:12px!important}
+  #app .home-pvp-entry{margin:0 0 12px!important}
+}
+@media(max-width:900px){
+  #app .three-windows{grid-template-columns:minmax(0,1fr)!important}
+  #app .three-windows>.browser-window{grid-column:1/-1}
+  #app .global-header{position:static!important;min-width:0!important;width:100%!important;height:auto!important;flex-wrap:wrap!important;gap:6px!important}
+  #app .global-header .global-nav{order:3;width:100%!important;flex-wrap:wrap!important;overflow:visible!important}
+  #app .global-header .global-link,#app .global-header .brand,#app .global-header .notice-button,#app .global-header .profile-joined{min-height:40px!important}
+  #app .global-header .global-link{flex:1 1 auto;font-size:12px!important}
+  #app #panel-home :is(.commander-tabs button,.adventure,.challenge-card,.card-top button,.phase4-adventure-head button),#app .three-windows button{min-height:40px}
+  #app .arena-topbar .mode-button,#app .fire-mode{min-height:40px!important;font-size:12px!important}
+  #app #panel-home .phase4-adventure-grid{grid-template-columns:1fr!important}
+  #app .home-pvp-modes{grid-template-columns:1fr!important}
+  #app .home-pvp-mode{min-height:48px}
+}
+@media(max-width:1280px){
+  html body #app #panel-arena :is(.boss-health span,.boss-health small),html body #app #panel-analytics :is(.raid-eyebrow,.phase4-raid-top span){font-size:12px!important}
+  html body #app #panel-home .phase4-tabs{height:auto!important;min-height:40px!important}
+  html body #app #panel-home .challenge-copy span{display:block;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+}
+@media(max-width:900px){
+  html body #app :is(.home-pvp-online,#panel-home .phase4-tabs button,#panel-analytics .phase4-raid-bottom button,#panel-analytics .btn){min-height:40px!important}
+}
+@media(max-width:900px){
+  html body #app #panel-arena #boss-battle .boss-head-left>small{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.3!important;height:auto!important}
+}
+@media(max-width:900px){
+  html body #app #panel-arena .fire-arena-top{flex-wrap:wrap!important;height:auto!important;gap:8px!important}
+  html body #app #panel-arena .fire-arena-top>*{min-width:0!important;max-width:100%!important}
+  html body #app #panel-arena .fire-arena-modes{flex:1 1 100%!important;width:100%!important;flex-wrap:wrap!important;justify-content:flex-start!important;gap:6px!important}
+  html body #app #panel-arena .fire-arena-modes .fire-mode{flex:1 1 auto!important;width:auto!important;white-space:nowrap}
+  html body #app #panel-arena .battle-stat-row{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;height:auto!important}
+  html body #app #panel-arena .battle-stat-row>*{min-width:0!important;overflow:visible!important}
+}
+@media(max-width:900px){
+  html body #app #panel-arena .fire-bottom-stats{height:auto!important;max-height:none!important;overflow:visible!important}
+  html body #app #panel-arena .arena-window .window-content,html body #app #panel-arena .window-content{padding-bottom:12px!important}
+}
+
+/* ===== Orta/kısa masaüstü (1281-1600 px genişlik veya <=800 px yükseklik): okunaklı yazı + kompakt sol sütun ===== */
+@media (min-width:1281px) and (max-width:1600px),(min-width:1281px) and (max-height:800px){
+  html body #app :is(.challenge-copy b,.phase4-adventure-head button,.adventure strong,.adventure small,.boss-health span,.raid-eyebrow,.phase4-raid-top span){font-size:12px!important}
+  html body #app #panel-home :is(.adventure small,.adventure strong,.phase4-heading-copy p,.challenge-copy span){white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere}
+  html body #app :is(#panel-home,#panel-analytics) .phase4-heading-copy p{height:auto!important;line-height:1.25!important}
+  html body #app #panel-home .window-content{gap:4px!important}
+  html body #app #panel-home .home-pvp-entry{margin:4px 0!important;padding:10px!important;gap:6px!important}
+  html body #app #panel-home .home-pvp-entry .lb3-home-banner{min-height:0!important;height:auto!important}
+  html body #app #panel-home .home-pvp-entry .lb3-home-hero{display:none!important}
+  html body #app #panel-home .home-pvp-entry .lb3-home-foot{margin-top:0!important}
+  html body #app #panel-home .home-pvp-mode{min-height:58px!important;padding:6px 8px!important}
+  html body #app #panel-home .phase4-adventure-grid{height:auto!important;min-height:0!important}
+  html body #app #panel-home .launch-button{position:sticky!important;bottom:0;z-index:3;margin-top:4px!important;min-height:40px!important}
+}
+@media (min-width:1281px) and (max-width:1600px),(min-width:1281px) and (max-height:800px){
+  html body #app #panel-arena #boss-battle .boss-health>span,html body #app #panel-arena #boss-battle .boss-health span{font-size:12px!important}
+  html body #app #panel-analytics .phase4-weekly-raid :is(.raid-eyebrow,.phase4-raid-top span,.raid-content span){font-size:12px!important}
+  html body #app #panel-analytics .phase4-heading-copy p,html body #app #panel-analytics .raid-content p{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+}
+
+/* ===== Paket 32 · Menü denetimi (ana sayfa üst menü + menü pencereleri) =====
+   Ölçülen sorunlar: .eyebrow 10 px (phase1.css), görev rozeti .pill 10 px, ayar açıklamaları 11 px,
+   akademi "Başlat →" 11 px, pencere kapat düğmesi 32 px (≥44 hedef), boş sıralama çıkmaz sokaktı.
+   Yalnız renk/opaklık/transform geçişleri; azaltılmış hareket korunur. */
+html body #app .eyebrow{font-size:12px!important;letter-spacing:.12em}
+html body :is(#app,#modal-host) .pill{font-size:12px!important;padding:4px 8px}
+html body #modal-host .modal .muted.small,html body #modal-host .modal .toggle-row .small{font-size:13px!important;line-height:1.45}
+html body #modal-host .modal .toggle-row{min-height:52px}
+html body #modal-host .modal .toggle-row input{width:22px;height:22px;flex:0 0 22px}
+html body #app .academy-lesson :is(em,small),html body #app .academy-info p,html body #app .full-center-page p{font-size:13px!important}
+html body #modal-host .modal-close{display:inline-grid;place-items:center;min-width:44px;min-height:44px;padding:0;border-radius:10px;transition:background-color .15s ease-out,border-color .15s ease-out}
+html body #modal-host .modal-close:hover{background:#3b3f6e;border-color:#9f8cff}
+html body #modal-host .modal:focus{outline:none}
+html body #modal-host .modal :is(button,a,select,input,textarea,label[tabindex]):focus-visible{outline:3px solid #9feeff;outline-offset:3px}
+html body #modal-host .modal .btn{min-height:44px}
+/* Boş durum: başlık + tek cümle + fiille başlayan eylem. */
+html body #modal-host .menu-empty{display:grid;gap:8px;justify-items:start;padding:16px;border:1px dashed #6f68b8;border-radius:12px;background:#14193a}
+html body #modal-host .menu-empty strong{font-size:16px;color:#f1ecff}
+html body #modal-host .menu-empty p{margin:0;font-size:14px}
+/* Üst menü: dokunmatik hedef ≥44 px (telefon/tablet), seçili sekme için renk dışı ipucu (alt çizgi). */
+@media(max-width:1280px){html body #app .global-nav .global-link{height:auto!important;min-height:44px!important}html body #app .header-tools>.notice-button{min-height:44px!important;min-width:44px!important}}
+html body #app .global-nav .global-link.selected{box-shadow:inset 0 -2px 0 #c9a6ff}
+html body #app .global-nav .global-link[aria-current="page"]{box-shadow:inset 0 -2px 0 #c9a6ff}
+/* %80 yakınlaştırma (~2400 CSS px): menü pencerelerindeki 12–14 px yazılar ekranda ~10–11 px kalıyordu → ≥15 px. */
+@media(min-width:2200px){
+  html body #modal-host .modal{font-size:16px}
+  html body #modal-host .modal :is(p,.muted.small,.toggle-row .small,.pill,.form-field,.lesson span,.leaderboard-row small,small){font-size:15px!important}
+  html body #modal-host .modal h2{font-size:28px}
+  html body #app .eyebrow{font-size:15px!important}
+}
+/* %80 yakınlaştırma: üst menü 12 px (ekranda ~9,6 px) kalıyordu. */
+@media(min-width:2200px){
+  html body #app .global-header :is(.global-nav span,.global-link,small,b,.notice-count,.streak-navbar){font-size:15px!important}
+  html body #app .global-nav .global-link{min-height:48px}
+  html body #toast-host .toast{font-size:15px!important}
+}
+/* Ekran klavyesi tuşları dokunmatik/fare yardımıdır (tabindex=-1); Tab doğrudan menülere ve eylemlere gider. Yazma alanı odağı görünür. */
+html body #app #typing-stage:focus-visible{outline:2px solid #9feeff;outline-offset:2px}

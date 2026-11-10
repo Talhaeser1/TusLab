@@ -12,6 +12,9 @@
 import {pickWords as bankPickWords,createSeed} from './words.js';
 import {normalizeTyping,wordsMatch,charScore} from './typing-rules.js';
 import {ARENA_SKILLS,ARENA_MAX_USES} from './arena-skills.js';
+import {ASSIST_RULES,assistPartner,assistDamage,assistGainFromDamage} from './assist-rules.js';
+import {normalizeFighter} from './fighters.js';
+import {normalizeStage,pickStage} from './stages.js';
 // Phase 22 — intentionally opt-in. Legacy / unselected matches remain unchanged.
 export const RUNES=Object.freeze({
  none:Object.freeze({name:'Klasik Dövüş',detail:'Dengesiz güç artırımı yok'}),
@@ -200,7 +203,7 @@ export function createMatch(players,at=Date.now(),id=crypto.randomUUID(),options
     endedAt:null,winnerSeat:null,endReason:null,nextCombatId:1,pendingAttacks:[],combatEvents:[],
     participants:players.map(p=>{
       const phraseIndex=initialPhrase(p.seat);
-      return {playerId:p.playerId,seat:p.seat,name:p.name||`Oyuncu ${p.seat}`,character:p.character,
+      return {playerId:p.playerId,seat:p.seat,name:p.name||`Oyuncu ${p.seat}`,character:p.character,fighter:normalizeFighter(p.fighter,p.character),
         hp:MATCH_HP,maxHp:MATCH_HP,rune:validateRune(p.rune)?p.rune:'none',runeEnergy:0,lastSkill:null,parryCharge:false,lastStandUsed:false,combo:0,maxCombo:0,wordIndex:0,phraseIndex,phraseWordIndex:0,
         correctWords:0,wrongWords:0,correctChars:0,submittedChars:0,wpm:0,accuracy:100,lastWordAt:null,lastSubmittedAt:null,
         activeText:MATCH_WORDS[phraseIndex],currentWord:wordsOf(MATCH_WORDS[phraseIndex])[0],
@@ -208,6 +211,10 @@ export function createMatch(players,at=Date.now(),id=crypto.randomUUID(),options
         staggerUntil:0,combatStats:{damageDealt:0,damageTaken:0,casts:{q:0,e:0,r:0},counterDamage:0},defenseStats:{normalBlocks:0,perfectBlocks:0,parries:0,shieldBreaks:0,counters:0}};
     })};
   match.typing=normalizeTyping(options?.typing);
+  match.stage=normalizeStage(pickStage(options?.stage,options?.rng||Math.random)); // sahne dengeyi değiştirmez
+  // Paket 31: partner desteği yalnız açıkça istenirse açılır (oda ve bot maçı varsayılan olarak ister);
+  // seçeneksiz/eski maçlar değişmez. Bar tur aralarında sıfırlanmaz.
+  if(options?.assist===true){match.assistEnabled=true;for(const p of match.participants)p.assist={meter:0,cooldownUntil:0};}
   if(options?.exchangeMs>0&&options.rounds===undefined){
     const duration=Math.max(1,Math.trunc(options.exchangeMs));
     match.exchange={index:1,startedAt:at,endsAt:Math.min(at+duration,match.endsAt),phase:'typing',duration};
@@ -240,7 +247,7 @@ export function publicMatch(match,viewerSeat){
   const viewer=rounds&&[1,2].includes(viewerSeat)?roundPlayer(match,viewerSeat):null;
   const victim=viewer&&r?.phase==='round'&&roundPlayer(match,viewerSeat===1?2:1)?.roundSkill==='blindclock';
   return {matchId:id,version,sequence,status,startedAt,endsAt,endedAt,winnerSeat,endReason,
-    mode:rounds?'rounds':'classic',typing:normalizeTyping(match.typing),
+    mode:rounds?'rounds':'classic',stage:normalizeStage(match.stage),typing:normalizeTyping(match.typing),assistEnabled:match.assistEnabled===true,
     ...(match.exchange?{exchange:{index:match.exchange.index,endsAt:match.exchange.endsAt,phase:match.exchange.phase}}:{}),
     round:rounds&&r?{index:r.index,total:r.total,suddenDeath:r.suddenDeath,phase:r.phase,words:[...r.words],
       startedAt:victim?null:r.startedAt,endsAt:victim?null:r.endsAt,settleUntil:r.settleUntil,nextRoundAt:r.nextRoundAt,
@@ -256,12 +263,13 @@ export function publicMatch(match,viewerSeat){
     pausedAt:match.pausedAt??null,offlineSeats:match.offlineSeats||[],
     pendingAttackCount:match.pendingAttacks?.length||0,
     combatEvents:(match.combatEvents||[]).map(e=>({...e})),
-    players:match.participants.map(p=>({playerId:p.playerId,seat:p.seat,name:p.name||`Oyuncu ${p.seat}`,character:p.character,
+    players:match.participants.map(p=>({playerId:p.playerId,seat:p.seat,name:p.name||`Oyuncu ${p.seat}`,character:p.character,fighter:normalizeFighter(p.fighter,p.character),
       hp:p.hp,maxHp:p.maxHp,rune:p.rune||'none',runeEnergy:p.runeEnergy||0,activeBonuses:p.rune!=='none'?[(p.character==='fire'?'Kızıl Öfke':'Mühür Birikimi')]:[],combo:p.combo,maxCombo:p.maxCombo||0,wordIndex:p.wordIndex,correctWords:p.correctWords,
       wrongWords:p.wrongWords,correctChars:p.correctChars,submittedChars:p.submittedChars,
       wpm:p.wpm,accuracy:p.accuracy,activeText:p.activeText,currentWord:p.currentWord,
       skillCharge:{...p.skillCharge},cooldownUntil:{...p.cooldownUntil},shieldUntil:p.shieldUntil,
       staggerUntil:p.staggerUntil||0,combatStats:{...(p.combatStats||{})},defenseStats:{...(p.defenseStats||{})},
+      ...(match.assistEnabled===true?{assist:publicAssist(p)}:{}),
       ...(rounds?{streak:p.combo,multiplier:streakMultiplier(p.combo),nextSkill:nextSkillOf(p),roundWordIndex:p.roundWordIndex,
         roundCorrect:p.roundCorrect,roundWrong:p.roundWrong,roundBestStreak:p.roundBestStreak,roundDamage:p.roundDamage,
         roundDone:p.roundDone,finishedAt:p.finishedAt,...(viewer?{roundEndsAt:victim?null:p.roundEndsAt}:{})}:{})}))};
@@ -279,6 +287,22 @@ function addEvent(match,type,fields){
   return event;
 }
 const cyclicProgress=combo=>combo%5;
+/** Paket 31 — destek barı adımı (her kabul edilen kelimede). Bar doluyken gelen doğru kelime partner
+ * saldırısını döndürür (bar sıfırlanır, bekleme başlar); aksi halde barı doldurur/azaltır ve null döner.
+ * İstemciden hiçbir değer okunmaz. */
+function assistStep(match,mine,target,correct,at,extra){
+  const a=match.assistEnabled?mine.assist:null;
+  if(!a)return null;
+  if(!correct){a.meter=Math.max(0,a.meter-ASSIST_RULES.wrong);return null;}
+  if(a.meter<ASSIST_RULES.max){a.meter=Math.min(ASSIST_RULES.max,a.meter+ASSIST_RULES.correct);return null;}
+  if(at<a.cooldownUntil||at<(mine.staggerUntil||0))return null;
+  a.meter=0;a.cooldownUntil=at+ASSIST_RULES.cooldownMs;
+  const partner=assistPartner(mine.character);
+  return {fromSeat:mine.seat,toSeat:target.seat,skill:'assist',assist:true,partner,character:partner,
+    amount:assistDamage(target.maxHp),bonus:0,bonusTags:[],issuedAt:at,resolveAt:at+SHIELD_WINDOW_MS,...extra};
+}
+const publicAssist=p=>({meter:p.assist?.meter||0,ready:(p.assist?.meter||0)>=ASSIST_RULES.max,
+  cooldownUntil:p.assist?.cooldownUntil||0,partner:assistPartner(p.character)});
 /** Each cycle of five correct words awards Q at 2, E at 4, R at 5.
  * No physical Q/E/S/R key is intercepted. Cooldowns are server enforced. */
 export function submitWord(match,{playerId,matchId,wordIndex,text,round},at=Date.now()){
@@ -338,11 +362,19 @@ export function submitWord(match,{playerId,matchId,wordIndex,text,round},at=Date
       if(!next.exchange)cast=addEvent(next,'SKILL_CAST',{...attack,at});
     }
   }
+  let assistCast=null;
+  const support=assistStep(next,mine,next.participants.find(x=>x.seat!==mine.seat),correct,at);
+  if(support){
+    if(next.exchange)support.resolveAt=Infinity;
+    next.pendingAttacks.push(support);
+    if(!next.exchange)assistCast=addEvent(next,'ASSIST_CAST',{...support,at});
+  }
   next.sequence++;
   return {match:next,result:{accepted:true,correct,seat:mine.seat,wordIndex,submitted:attempt,
     expected,combo:mine.combo,correctWords:mine.correctWords,wrongWords:mine.wrongWords,
     accuracy:mine.accuracy,wpm:mine.wpm,nextIndex:mine.wordIndex,
-    nextWord:mine.currentWord,skillCharge:{...mine.skillCharge},cast}};
+    nextWord:mine.currentWord,skillCharge:{...mine.skillCharge},cast,
+    ...(next.assistEnabled?{assistCast,assist:publicAssist(mine)}:{})}};
 }
 function ultimateTotal(character,bonus,multiplier){
   const phases=ULTIMATE_PHASES[character];
@@ -400,7 +432,7 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
       multiplier,streak:mine.combo,round:round.index,roundWordIndex:index,chain:mine.combo>=8,
       ...(skill==='r'?{ultimateId:next.nextCombatId,phaseIndex:0}: {})};
     // Clash (spec 5): the opponent already cast on the very same word within the shield window.
-    const partner=next.pendingAttacks.find(a=>a.fromSeat===target.seat&&a.toSeat===mine.seat&&!a.counter&&!a.clashId
+    const partner=next.pendingAttacks.find(a=>a.fromSeat===target.seat&&a.toSeat===mine.seat&&!a.counter&&!a.assist&&!a.clashId
       &&a.round===round.index&&a.roundWordIndex===index&&(a.phaseIndex===undefined||a.phaseIndex===0)
       &&Math.abs(a.issuedAt-at)<=SHIELD_WINDOW_MS);
     if(partner){
@@ -412,6 +444,13 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
     if(next.resolveAtEnd)attack.resolveAt=Infinity;
     next.pendingAttacks.push(attack);
     if(!next.resolveAtEnd)cast=addEvent(next,'SKILL_CAST',{...attack,at});
+  }
+  let assistCast=null;
+  const support=assistStep(next,mine,target,correct,at,{round:round.index,roundWordIndex:index});
+  if(support){
+    if(next.resolveAtEnd)support.resolveAt=Infinity;
+    next.pendingAttacks.push(support);
+    if(!next.resolveAtEnd)assistCast=addEvent(next,'ASSIST_CAST',{...support,at});
   }
   next.sequence++;
   const roundEvents=[];
@@ -429,6 +468,7 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
     expected,combo:mine.combo,correctWords:mine.correctWords,wrongWords:mine.wrongWords,
     accuracy:mine.accuracy,wpm:mine.wpm,nextIndex:mine.wordIndex,
     nextWord:mine.currentWord,skillCharge:{...mine.skillCharge},cast,
+    ...(next.assistEnabled?{assistCast,assist:publicAssist(mine)}:{}),
     round:round.index,streak:mine.combo,multiplier:streakMultiplier(mine.combo),nextSkill:nextSkillOf(mine),
     roundWordIndex:mine.roundWordIndex,roundDone:mine.roundDone,roundEvents}};
 }
@@ -446,7 +486,7 @@ export function resolveDueAttacks(match,at=Date.now(),rng=Math.random){
     const attack=next.pendingAttacks.shift();
     if(attack.resolve){next.activeTurn=attack.turn;next.activeResolveAt=attack.resolveAt;
       if(!attack.counter&&(!Number.isInteger(attack.phaseIndex)||attack.phaseIndex===0))
-        events.push(addEvent(next,'SKILL_CAST',{...attack,at:attack.resolveAt}));}
+        events.push(addEvent(next,attack.assist?'ASSIST_CAST':'SKILL_CAST',{...attack,at:attack.resolveAt}));}
     if(rounds)next.round.lastResolvedAt=Math.max(next.round.lastResolvedAt??-Infinity,attack.resolveAt);
     const defender=next.participants.find(x=>x.seat===attack.toSeat);
     const attacker=next.participants.find(x=>x.seat===attack.fromSeat);
@@ -546,6 +586,8 @@ export function resolveDueAttacks(match,at=Date.now(),rng=Math.random){
       if(attack.counter)attacker.combatStats.counterDamage+=dealt;
       defender.combatStats.damageTaken+=dealt;
       if(rounds)attacker.roundDamage=(attacker.roundDamage||0)+dealt;
+      // Paket 31: yenen hasar destek barına küçük bir geri dönüş payı ekler.
+      if(next.assistEnabled&&defender.assist)defender.assist.meter=Math.min(ASSIST_RULES.max,defender.assist.meter+assistGainFromDamage(dealt));
     }
     if(ultimate){
       const phase=phases[attack.phaseIndex];
@@ -558,7 +600,7 @@ export function resolveDueAttacks(match,at=Date.now(),rng=Math.random){
     }
     events.push(addEvent(next,'DAMAGE_APPLIED',{fromSeat:attack.fromSeat,toSeat:defender.seat,
       skill:attack.skill,amount,blocked,blockKind,shieldBreak,counter:Boolean(attack.counter),bonusTags:attack.bonusTags||[],
-      at:attack.issuedAt,hpAfter:defender.hp,
+      at:attack.issuedAt,hpAfter:defender.hp,...(attack.assist?{assist:true,partner:attack.partner}:{}),
       ...(ultimate?{ultimateId:attack.ultimateId,phase:attack.phaseIndex+1,totalPhases:phases.length}: {})}));
     if(defender.hp===0&&rounds){
       // KO ends only the round; advanceMatch closes it. Nothing carries over.
@@ -717,7 +759,7 @@ export function nextDeadline(match){
 export function matchResult(match){
   if(!match||match.status!=='ended')return null;
   const players=match.participants.map(p=>({
-    seat:p.seat,playerId:p.playerId,name:p.name||`Oyuncu ${p.seat}`,character:p.character,
+    seat:p.seat,playerId:p.playerId,name:p.name||`Oyuncu ${p.seat}`,character:p.character,fighter:normalizeFighter(p.fighter,p.character),
     hp:p.hp,maxHp:p.maxHp,wpm:p.wpm,accuracy:p.accuracy,combo:p.combo,maxCombo:p.maxCombo||0,
     correctWords:p.correctWords,wrongWords:p.wrongWords,
     damageDealt:p.combatStats?.damageDealt||0,damageTaken:p.combatStats?.damageTaken||0,
@@ -741,7 +783,7 @@ export function surrenderMatch(match,loserSeat,at=Date.now()){
   next.pendingAttacks=[];next.offlineSeats=[];next.sequence++;return next;
 }
 export const SERVER_ONLY_EVENTS=new Set(['MATCH_START','STATE_UPDATE','MATCH_END','WORD_RESULT','DAMAGE_APPLIED','SKILL_CAST','SHIELD_TRIGGERED','PARRY_TRIGGERED','COUNTERATTACK_CAST','SHIELD_BROKEN','ULTIMATE_PHASE','MATCH_PAUSED','MATCH_RESUMED','REMATCH_STATUS','REMATCH_COUNTDOWN','REMATCH_CANCELLED','MATCH_HISTORY',
-  'ROUND_START','ROUND_LAST_CALL','ROUND_END','ROUND_RESOLVE','EXCHANGE_START','EXCHANGE_RESOLVE','ROUND_SKILL_ACK','WORD_CLASH']);
+  'ROUND_START','ROUND_LAST_CALL','ROUND_END','ROUND_RESOLVE','EXCHANGE_START','EXCHANGE_RESOLVE','ROUND_SKILL_ACK','WORD_CLASH','ASSIST_CAST']);
 
 /** Package 11: server-authoritative pause/recovery. Never advance combat clocks
  * while both peers cannot play. Pauses are persisted in DO storage. */
@@ -766,6 +808,7 @@ export function resumeMatch(match,at){
     for(const skill of ['q','e','s','r'])if(p.cooldownUntil[skill]>0)p.cooldownUntil[skill]+=delta;
     if(p.shieldUntil!==null)p.shieldUntil+=delta;
     if(p.staggerUntil>0)p.staggerUntil+=delta;
+    if(p.assist?.cooldownUntil>0)p.assist.cooldownUntil+=delta;
     if(p.lastWordAt!==null)p.lastWordAt+=delta;
     if(Number.isFinite(p.lastCorrectAt))p.lastCorrectAt+=delta;
     if(Number.isFinite(p.finishedAt))p.finishedAt+=delta;

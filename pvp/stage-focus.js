@@ -17,6 +17,11 @@ export const INTER_CLASS = 'rui-inter-open';
 export function attachStageFocus({root, isReduced = () => false, scheduler = globalThis, observe = globalThis.MutationObserver} = {}) {
   if (!root?.addEventListener) return {destroy() {}, set() {}};
   let releaseTimer = null, outTimer = null, flipAnim = null;
+  const reduced = () => {
+    if (root.classList?.contains?.('pvp4-reduced')) return true;
+    try { if ((root.ownerDocument?.defaultView || globalThis).matchMedia?.('(prefers-reduced-motion: reduce)').matches) return true; } catch {}
+    try { return Boolean(isReduced()); } catch { return false; }
+  };
   const duel = () => root.querySelector?.('.pvp2-duel') || null;
   const endOut = () => {
     if (outTimer !== null) { scheduler.clearTimeout(outTimer); outTimer = null; }
@@ -33,7 +38,7 @@ export function attachStageFocus({root, isReduced = () => false, scheduler = glo
     apply();
     const after = d?.getBoundingClientRect?.().top;
     focusTop = on && Number.isFinite(after) ? after : null;
-    if (!d || before === undefined || isReduced() || typeof d.animate !== 'function') return;
+    if (!d || !Number.isFinite(before) || !Number.isFinite(after) || reduced() || typeof d.animate !== 'function') return;
     const dy = before - after;
     if (Math.abs(dy) < 4) return;
     try { flipAnim = d.animate([{transform: `translateY(${Math.round(dy)}px)`}, {transform: 'none'}], {duration: FLIP_MS, easing: 'cubic-bezier(.2,.9,.3,1)'}); } catch { return; /* yalnız süs */ }
@@ -65,7 +70,7 @@ export function attachStageFocus({root, isReduced = () => false, scheduler = glo
   const onRound = e => {
     const type = e.detail?.type;
     if (type === 'ROUND_RESOLVE' || type === 'EXCHANGE_RESOLVE') set(true);
-    else if (type === 'ROUND_END') releaseLater(isReduced() ? 0 : FOCUS_RELEASE_AFTER_ROUND_END_MS);
+    else if (type === 'ROUND_END') releaseLater(reduced() ? 0 : FOCUS_RELEASE_AFTER_ROUND_END_MS);
     else if (type === 'ROUND_START' || type === 'EXCHANGE_START') set(false);
   };
   const onMatch = e => { const s = e.detail?.match?.status; if (s && s !== 'running' && s !== 'paused') set(false); };
@@ -93,6 +98,8 @@ export function attachStageFocus({root, isReduced = () => false, scheduler = glo
     set,
     destroy() {
       if (releaseTimer !== null) scheduler.clearTimeout(releaseTimer);
+      try { flipAnim?.cancel?.(); } catch { /* yalnız süs */ }
+      flipAnim = null;
       endOut();
       mo?.disconnect?.();
       root.removeEventListener('tuslab:pvp-round', onRound);

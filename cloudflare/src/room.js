@@ -4,6 +4,9 @@
 import {createMatch,publicMatch,submitWord,advanceMatch,nextDeadline,roundStartPayload,ROUND_OPTIONS,SERVER_ONLY_EVENTS,pauseMatch,resumeMatch,endDisconnectedMatch,surrenderMatch,matchResult,validateRune} from './match.js';
 import {pickRoundSkill} from '../../pvp/shared/match.js';
 import {normalizeTyping,isTypingPayload} from '../../pvp/shared/typing-rules.js';
+import {normalizeAssist,isAssistPayload} from '../../pvp/shared/assist-rules.js';
+import {normalizeStageChoice,isStageChoicePayload,pickStage} from '../../pvp/shared/stages.js';
+import {FIGHTERS,isFighterId,normalizeFighter} from '../../pvp/shared/fighters.js';
 import {createArenaMatch,submitArenaPick,submitArenaWord,advanceArenaMatch,nextArenaDeadline,arenaPublicMatch,arenaMatchResult,surrenderArenaMatch,ARENA_SERVER_ONLY_EVENTS} from './match.js';
 const VERSION=1;
 const MAX_BYTES=4096;
@@ -61,8 +64,8 @@ export class PvPRoom {
   summary(data){
     const online=this.connectedIds();
     const connected=data.players.filter(p=>online.has(p.playerId)).map(({playerId,seat})=>({playerId,seat}));
-    return {phase:data.phase,startAt:data.startAt,capacity:2,connected,mode:roomMode(data),rounds:roomRounds(data),typing:normalizeTyping(data.typing),hostPlayerId:data.hostPlayerId||data.players[0]?.playerId||null,
-      players:data.players.map(({playerId,seat,name,character,rune,ready,reservedUntil})=>({playerId,seat,name,character,rune:rune||'none',ready,online:online.has(playerId),reconnectUntil:online.has(playerId)?null:reservedUntil||null}))};
+    return {phase:data.phase,startAt:data.startAt,capacity:2,connected,mode:roomMode(data),rounds:roomRounds(data),typing:normalizeTyping(data.typing),assist:normalizeAssist(data.assist),stage:normalizeStageChoice(data.stage),hostPlayerId:data.hostPlayerId||data.players[0]?.playerId||null,
+      players:data.players.map(({playerId,seat,name,character,fighter,rune,ready,reservedUntil})=>({playerId,seat,name,character,fighter:normalizeFighter(fighter,character),rune:rune||'none',ready,online:online.has(playerId),reconnectUntil:online.has(playerId)?null:reservedUntil||null}))};
   }
   broadcast(type,payload){for(const {ws} of authenticated(this.ctx))safeSend(ws,type,payload);}
   sendMatch(ws,type,payload,match,seat){safeSend(ws,type,{...payload,match:snapshot(match,seat)});}
@@ -113,7 +116,7 @@ export class PvPRoom {
     if(!player){
       if(data.players.length>=2){safeSend(ws,'ERROR',{code:'ROOM_FULL'});ws.close(1008,'Room full');return;}
       const seat=data.players.some(p=>p.seat===1)?2:1;
-      player={playerId:crypto.randomUUID(),seat,name,character:payload.character,rune:'none',ready:false,tokenHash:hash,profileId:guestHash,reservedUntil:0};
+      player={playerId:crypto.randomUUID(),seat,name,character:payload.character,fighter:normalizeFighter(isFighterId(payload.fighter)?payload.fighter:null,payload.character),rune:'none',ready:false,tokenHash:hash,profileId:guestHash,reservedUntil:0};
       data.players.push(player);if(!data.hostPlayerId)data.hostPlayerId=player.playerId;
     }
     // Reclaim the same seat; disconnect a stale socket if one is still alive.
@@ -161,7 +164,11 @@ export class PvPRoom {
       player.rune=payload.rune;player.ready=false;
     }else if(type==='CHARACTER_SELECT'){
       if(!CHARACTERS.has(payload.character))return safeSend(ws,'ERROR',{code:'INVALID_CHARACTER'});
-      player.character=payload.character;player.ready=false;
+      player.character=payload.character;player.fighter=normalizeFighter(player.fighter,player.character);player.ready=false;
+    }else if(type==='FIGHTER_SELECT'){
+      // Paket 32: karakter seçimi arketipi (character) de belirler; yalnız kadro kimlikleri kabul edilir.
+      if(!isFighterId(payload.fighter))return safeSend(ws,'ERROR',{code:'INVALID_FIGHTER'});
+      player.fighter=payload.fighter;player.character=FIGHTERS[payload.fighter].archetype;player.ready=false;
     }else{
       if(typeof payload.ready!=='boolean')return safeSend(ws,'ERROR',{code:'INVALID_READY'});
       player.ready=payload.ready;
@@ -336,6 +343,7 @@ export class PvPRoom {
     const {roundEvents=[],...result}=outcome.result;
     this.sendMatch(ws,'WORD_RESULT',{...result,serverTime:now},outcome.match,session.seat);
     if(outcome.result.cast)this.broadcastCombat([outcome.result.cast]);
+    if(outcome.result.assistCast)this.broadcastCombat([outcome.result.assistCast]);
     if(roundEvents.length)this.broadcastRound(roundEvents,outcome.match,now);
     // Both players finished → the round closes immediately (ALL_DONE) when nothing is in flight.
     const step=advanceMatch(outcome.match,now);
@@ -352,6 +360,14 @@ export class PvPRoom {
       // Paket 30: yazma kuralları (büyük/küçük harf, noktalama). Yalnız iki boolean kabul edilir.
       if(!isTypingPayload(payload.typing))return safeSend(ws,'ERROR',{code:'INVALID_MATCH_CONFIG'});
       data.typing=normalizeTyping({...normalizeTyping(data.typing),...payload.typing});
+    }else if(keys.length===1&&keys[0]==='assist'){
+      // Paket 31: partner desteği açık/kapalı. Yalnız boolean kabul edilir; bar ve tetikleme istemciden gelmez.
+      if(!isAssistPayload(payload.assist))return safeSend(ws,'ERROR',{code:'INVALID_MATCH_CONFIG'});
+      data.assist=payload.assist;
+    }else if(keys.length===1&&keys[0]==='stage'){
+      // Paket 33: sahne seçimi. Yalnız bilinen sahne kimliği ya da 'random' kabul edilir; 'random' maç başında çözülür.
+      if(!isStageChoicePayload(payload.stage))return safeSend(ws,'ERROR',{code:'INVALID_MATCH_CONFIG'});
+      data.stage=payload.stage;
     }else if(payload.mode===undefined){
       if(keys.length!==1||!ROUND_OPTIONS.includes(payload.rounds))return safeSend(ws,'ERROR',{code:'INVALID_ROUNDS'});
       data.mode='rounds';data.rounds=payload.rounds;
@@ -371,8 +387,10 @@ export class PvPRoom {
   }
   startMatch(data,now,extra={}){
     const typing=normalizeTyping(data.typing);
-    const match=roomMode(data)==='arena'?createArenaMatch(data.players,now,undefined,{typing}):
-      createMatch(data.players,now,undefined,roomMode(data)==='classic'?{exchangeMs:10000,typing}:{rounds:roomRounds(data),resolveAtEnd:true,typing});
+    const assist=normalizeAssist(data.assist); // paket 31: yalnız klasik + tur modunda; arenada kapalı
+    const stage=pickStage(normalizeStageChoice(data.stage)); // paket 33: 'random' her maç başında somut sahneye çözülür
+    const match=roomMode(data)==='arena'?createArenaMatch(data.players,now,undefined,{typing,stage}):
+      createMatch(data.players,now,undefined,roomMode(data)==='classic'?{exchangeMs:10000,typing,assist,stage}:{rounds:roomRounds(data),resolveAtEnd:true,typing,assist,stage});
     return {match,announce:()=>{
       this.broadcastMatch('MATCH_START',{serverTime:now,...extra},match);
       if(match.mode==='arena'){
@@ -485,7 +503,7 @@ export class PvPRoom {
     if(!session.verified){if(data.type!=='JOIN')return safeSend(ws,'ERROR',{code:'JOIN_REQUIRED'});return this.enqueue(()=>this.join(ws,data.payload,session));}
     if(data.type==='HOST_KICK'||data.type==='HOST_CLOSE')return this.enqueue(()=>this.hostAction(ws,session,data.type,data.payload));
     if(data.type==='MATCH_CONFIG')return this.enqueue(()=>this.matchConfig(ws,session,data.payload));
-    if(data.type==='READY_SET'||data.type==='CHARACTER_SELECT'||data.type==='RUNE_SELECT')return this.enqueue(()=>this.readyOrSelect(ws,data.type,data.payload,session));
+    if(data.type==='READY_SET'||data.type==='CHARACTER_SELECT'||data.type==='FIGHTER_SELECT'||data.type==='RUNE_SELECT')return this.enqueue(()=>this.readyOrSelect(ws,data.type,data.payload,session));
     if(data.type==='STATE_REQUEST')return this.enqueue(()=>this.stateRequest(ws,session));
     if(data.type==='ARENA_PICK')return this.enqueue(()=>this.arenaPick(ws,data.payload,session));
     if(data.type==='ROUND_SKILL_PICK')return this.enqueue(()=>this.roundSkillPick(ws,data.payload,session));

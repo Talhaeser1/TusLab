@@ -117,7 +117,7 @@ test('arena ui: round summary and result models (names stay text)',()=>{
   const m=arenaPublicMatch(fresh(),1);
   const s=arenaSummaryModel({round:2,scores:[{seat:1,correct:8,wrong:2,bestStreak:5,damageDealt:0,hpLeft:4000},{seat:2,correct:6,wrong:4,bestStreak:3,damageDealt:0,hpLeft:3500}]},
     m,'me',{damage:{1:1234,2:567}});
-  assert.equal(s.title,'RAUND 2 ÖZETİ');
+  assert.equal(s.title,'RAUND 2 BİTTİ');
   assert.deepEqual(s.rows.find(r=>r.label==='Verilen hasar').values,['1.234','567']);
   assert.ok(s.names[0].includes('(sen)'));assert.ok(s.names[1].includes('<img'));
   assert.ok(s.nextText.includes('RAUND 3'));
@@ -196,7 +196,7 @@ test('arena DOM: summary overlay after the round and destroy clears timers',()=>
   ui.handle({type:'ARENA_ROUND_END',payload:{round:1,scores:[{seat:1,correct:0,wrong:0,bestStreak:0,damageDealt:0,hpLeft:5000},{seat:2,correct:0,wrong:0,bestStreak:0,damageDealt:0,hpLeft:5000}]}});
   ui.update(pub,'me');
   const summary=byRole(overlay,'summary')[0];
-  assert.equal(summary.hidden,false);assert.ok(summary.textContent.includes('RAUND 1 ÖZETİ'));
+  assert.equal(summary.hidden,false);assert.ok(summary.textContent.includes('RAUND 1 BİTTİ'));
   assert.ok(timers.live.size>0);
   ui.destroy();assert.equal(timers.live.size,0);
 });

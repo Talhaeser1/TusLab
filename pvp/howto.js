@@ -1,11 +1,25 @@
 // Oyun içi "Nasıl oynanır" paneli (U5). Kaynak: docs/OYUN-REHBERI.md (sayılar motordan).
+// Paket 32: "Karakterler" sekmesi kadrodan (pvp/shared/fighters.js) üretilir.
 // Sağdan açılan panel; sekmeler; Esc kapatır; odak panelde kalır ve kapanınca düğmeye döner.
+
+import {FIGHTERS, FIGHTER_IDS} from './shared/fighters.js';
+
+const fighterItems = () => [
+  ...FIGHTER_IDS.map(id => {
+    const f = FIGHTERS[id], k = f.skills;
+    return [`${f.name} · ${f.title} (${f.archetype === 'fire' ? 'Ateş' : 'Rün'})`,
+      `Q ${k.q.name} · E ${k.e.name} · R ${k.r.name} · S ${k.s.name}. ${f.blurb}`];
+  }),
+  ['Denge', 'Hasar ve süreler tarafa göre aynıdır: Ateş karakterleri saldırgan, Rün karakterleri savunmacı arketipi kullanır. Karakter; görünüş, animasyon, efekt ve beceri adlarını değiştirir.']
+];
 
 export const HOWTO_TABS = Object.freeze([
   {id: 'modlar', title: 'Modlar', items: [
-    ['Klasik', '90 sn, 2000 HP. Maç 10 saniyelik pencerelere bölünür: pencerede yazdığın kelimeler beceri doldurur, pencere bitince saldırılar sırayla (sen, rakip, sen…) oynatılır. Q 2, E 4, R 5 doğru kelimede dolar.'],
-    ['Zamana Karşı', '30 sn turlar, 5 / 7 / 10 tur. Turda 10 kelime; tur bitince saldırılar sırayla çözülür. Tur arasında bir süre becerisi seçebilirsin.'],
-    ['Raund Arena', '6 raund: 5 · 10 · 15 · 15 · 15 · 20 kelime. 3000 HP raundlar arasında taşınır. İlk bitiren raundu kapatır, sonra vuruşlar sırayla uygulanır.']
+    ['Arena seçimi', 'Bot bölümünde veya oda ayarlarında Neon Kolezyum, Gök Demirhanesi, Rün Bahçesi, Fırtına Limanı ya da Rastgele seç. Odada sahneyi yalnız oda sahibi değiştirir. Sahne hasarı ve kuralları değiştirmez.'],
+    ['Klasik', '120 sn, 2000 HP. Maç 10 saniyelik pencerelere bölünür: pencerede yazdığın kelimeler beceri doldurur, pencere bitince saldırılar sırayla (sen, rakip, sen…) oynatılır. Q 2, E 4, R 5 doğru kelimede dolar.'],
+    ['Zamana Karşı', '40 sn turlar, 5 / 7 / 10 tur. Turda 10 kelime; tur bitince saldırılar sırayla çözülür. Tur arasında bir süre becerisi seçebilirsin.'],
+    ['Raund Arena', '6 raund (raund 40 sn, hazırlık 15 sn): 5 · 10 · 15 · 15 · 15 · 20 kelime. 3000 HP raundlar arasında taşınır. İlk bitiren raundu kapatır, sonra vuruşlar sırayla uygulanır.'],
+    ['Tur sonu ekranı', 'Kazanan, iki oyuncunun doğru / yanlış sayısı, verilen hasarı ve en iyi kombosu yan yana görünür. Pipler tur galibiyetlerini, halka sonraki tura kalan süreyi gösterir. Zamana Karşı tur arasında süre becerisi seç: 1–3 seçer, Enter kilitler, Esc seçmeden geçer.']
   ]},
   {id: 'hasar', title: 'Hasar ve kombo', items: [
     ['Taban hasar', 'Arena: raunda göre doğru kelime başına 100 · 90 · 80 · 80 · 80 · 75.'],
@@ -27,12 +41,14 @@ export const HOWTO_TABS = Object.freeze([
     ['🌑 Karanlık Saat', 'Rakip o raund süreleri göremez.'],
     ['Kural', 'Raund öncesi en fazla 1 beceri; her beceri maçta 2 kez. Rakibin seçimi raund bitince açıklanır.']
   ]},
+  {id: 'karakterler', title: 'Karakterler', items: fighterItems()},
   {id: 'kontrol', title: 'Kontroller', items: [
     ['Yaz + Space', 'Kelimeyi gönderir.'],
     ['1–5 / 6–9', 'Arena hazırlığında beceri / eşya seç.'],
     ['1–3', 'Zamana Karşı tur arasında süre becerisi seç.'],
     ['Enter / Esc', 'Seçimi kilitle / seçmeden geç. Esc açık paneli veya menüyü kapatır.'],
-    ['⚙ Ayarlar', 'Müzik, ses, efektleri azalt, 3B arena.']
+    ['⚙ Ayarlar', 'Müzik, ses, efektleri azalt, 3B arena.'],
+    ['Yazım kuralları', 'Lobide "Büyük/küçük harf duyarlı" ve "Noktalama yazılsın ( . , )" ayarlarını açıp kapatabilirsin.']
   ]}
 ]);
 

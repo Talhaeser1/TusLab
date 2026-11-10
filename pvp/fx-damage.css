@@ -1,133 +1,67 @@
-/* TuşLab Neon Arena — piksel hasar sayıları (pvp/fx-damage.js).
- * Only transform and opacity are animated. Fades use steps() so they look
- * like a low-colour-depth sprite blinking out rather than a smooth tween. */
-
-/* ---- Floating number container ------------------------------------------ */
-.pxd-num {
-  --pxd-x: 0px;          /* random horizontal start offset (set from JS)   */
-  --pxd-y: 0px;          /* vertical stack offset, e.g. ultimate phase      */
-  --pxd-drift: 0px;      /* random horizontal drift during the arc          */
-  --pxd-dur: 800ms;      /* total lifetime (set from JS)                    */
-  --pxd-pop: 1.35;       /* overshoot scale of the initial pop              */
-  --pxd-rise: -64px;     /* how far the number floats up                    */
+/* Paket 33: sharp DOM text. Game choreography uses the brief's explicit
+   90/80ms pop and 900/1100ms lifetimes; only transform and opacity animate. */
+.pxd-float {
+  --pxd-x: 0px; --pxd-y: 0px; --pxd-lx: 0px; --pxd-ly: 0px;
+  --pxd-drift: 0px; --pxd-dur: 820ms; --pxd-rise: -60px;
   position: absolute;
-  left: calc(50% + var(--pxd-x));
-  top: calc(34% + var(--pxd-y));
-  z-index: 42;
-  pointer-events: none;
-  will-change: transform, opacity;
+  left: calc(50% + var(--pxd-x) + var(--pxd-lx));
+  top: calc(34% + var(--pxd-y) + var(--pxd-ly));
+  z-index: 42; pointer-events: none;
   transform: translate(-50%, -50%);
-  animation:
-    pxd-drift var(--pxd-dur) cubic-bezier(.2, .7, .3, 1) both,
-    pxd-fade var(--pxd-dur) both;
 }
-
-/* Inner body: vertical arc + overshoot pop (outer element handles drift). */
+.pxd-animate {
+  animation: pxd-drift calc(var(--pxd-dur) - 170ms) 170ms ease-out both,
+    pxd-fade var(--pxd-dur) linear both;
+}
 .pxd-body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
   transform-origin: 50% 80%;
-  animation: pxd-rise var(--pxd-dur) both;
 }
-
-/* The bitmap canvases. Width/height are set inline as logical px × --pxd-px. */
+.pxd-animate .pxd-body { animation: pxd-pop 170ms linear both; }
 .pxd-line {
-  display: block;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
+  display: block; margin: 0;
+  font: 900 clamp(28px, 3vw, 46px)/1 system-ui, 'Segoe UI', sans-serif;
+  letter-spacing: .02em; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transform: skewX(-8deg);
+  color: var(--pxd-fill, #fff);
+  -webkit-text-stroke: 3px #120818; paint-order: stroke fill;
+  text-shadow: 0 3px 0 #120818, 0 0 18px var(--pxd-line, #ff5a1f);
+  -webkit-font-smoothing: antialiased;
 }
-
-/* ---- Meaning-based variants -------------------------------------------- */
-.pxd-skill    { --pxd-pop: 1.5;  --pxd-rise: -72px; }
-.pxd-ultimate { --pxd-pop: 1.6;  --pxd-rise: -58px; z-index: 44; }
-.pxd-counter  { --pxd-pop: 1.45; --pxd-rise: -70px; }
-.pxd-block    { --pxd-pop: 1.15; --pxd-rise: -38px; }
-.pxd-parry,
-.pxd-perfect  { --pxd-pop: 1.5;  --pxd-rise: -46px; z-index: 43; }
-.pxd-shatter  { --pxd-pop: 1.55; --pxd-rise: -30px; z-index: 43; }
-.pxd-heavy    { --pxd-pop: 1.85; }
-.pxd-heavy .pxd-body { animation-name: pxd-rise-heavy; }
-
-/* ---- Combo ticker ("KOMBO xN · toplam") -------------------------------- */
+.pxd-line.pxd-label, .pxd-combo-line {
+  font-size: clamp(15px, 1.5vw, 18px);
+  text-transform: uppercase;
+}
+.pxd-line.pxd-main { margin-top: -.04em; }
+.pxd-ultimate { z-index: 44; }
+.pxd-parry, .pxd-perfect, .pxd-shatter { z-index: 43; }
 .pxd-combo {
-  position: absolute;
-  left: 50%;
-  top: 12%;
-  z-index: 45;
-  pointer-events: none;
-  transform: translateX(-50%);
+  position: absolute; left: 50%; top: 12%; z-index: 45;
+  pointer-events: none; transform: translateX(-50%);
 }
-.pxd-combo.pxd-bump-a { animation: pxd-bump-a 260ms steps(4, end) both; }
-.pxd-combo.pxd-bump-b { animation: pxd-bump-b 260ms steps(4, end) both; }
-
-/* ---- Keyframes ---------------------------------------------------------- */
+.pxd-combo.pxd-bump-a { animation: pxd-bump-a 200ms ease-out both; }
+.pxd-combo.pxd-bump-b { animation: pxd-bump-b 200ms ease-out both; }
+@keyframes pxd-pop {
+  0% { transform: scale(0); }
+  52.941176% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
 @keyframes pxd-drift {
   from { transform: translate(-50%, -50%); }
-  to   { transform: translate(calc(-50% + var(--pxd-drift)), -50%); }
+  to { transform: translate(calc(-50% + var(--pxd-drift)), calc(-50% + var(--pxd-rise))); }
 }
-
-/* Pixel-stepped fade: hard jumps between a few opacity levels. */
 @keyframes pxd-fade {
-  0%   { opacity: 0; animation-timing-function: steps(1, end); }
-  4%   { opacity: 1; animation-timing-function: steps(1, end); }
-  66%  { opacity: 1; animation-timing-function: steps(1, end); }
-  76%  { opacity: .66; animation-timing-function: steps(1, end); }
-  86%  { opacity: .33; animation-timing-function: steps(1, end); }
+  0%, 70% { opacity: 1; }
   100% { opacity: 0; }
 }
-
-@keyframes pxd-rise {
-  0%   { transform: translateY(10px) scale(.35); animation-timing-function: cubic-bezier(.2, .9, .3, 1.2); }
-  14%  { transform: translateY(-14px) scale(var(--pxd-pop)); animation-timing-function: ease-in-out; }
-  26%  { transform: translateY(-18px) scale(.94); }
-  34%  { transform: translateY(-20px) scale(1); animation-timing-function: steps(12, end); }
-  100% { transform: translateY(var(--pxd-rise)) scale(1); }
-}
-
-/* Heavy hits: bigger overshoot plus a tiny two-frame jolt. */
-@keyframes pxd-rise-heavy {
-  0%   { transform: translateY(12px) scale(.3); animation-timing-function: cubic-bezier(.2, .9, .3, 1.3); }
-  12%  { transform: translate(-3px, -16px) scale(var(--pxd-pop)) rotate(-3deg); animation-timing-function: steps(1, end); }
-  17%  { transform: translate(3px, -16px) scale(calc(var(--pxd-pop) - .2)) rotate(3deg); animation-timing-function: ease-in-out; }
-  28%  { transform: translateY(-20px) scale(.92); }
-  36%  { transform: translateY(-22px) scale(1); animation-timing-function: steps(12, end); }
-  100% { transform: translateY(var(--pxd-rise)) scale(1); }
-}
-
-@keyframes pxd-bump-a {
-  0%   { transform: translateX(-50%) scale(1.35); }
-  100% { transform: translateX(-50%) scale(1); }
-}
-@keyframes pxd-bump-b {
-  0%   { transform: translateX(-50%) scale(1.35); }
-  100% { transform: translateX(-50%) scale(1); }
-}
-
-/* Reduced motion: no movement at all, just a short static stepped fade. */
-@keyframes pxd-static-fade {
-  0%   { opacity: 1; animation-timing-function: steps(1, end); }
-  60%  { opacity: .6; animation-timing-function: steps(1, end); }
-  80%  { opacity: .3; animation-timing-function: steps(1, end); }
-  100% { opacity: 0; }
-}
-.pxd-num.pxd-reduced { animation: pxd-static-fade var(--pxd-dur) both; }
-.pxd-reduced .pxd-body,
-.pxd-combo.pxd-reduced { animation: none; }
-
+@keyframes pxd-bump-a { from { transform: translateX(-50%) scale(1.1); } to { transform: translateX(-50%) scale(1); } }
+@keyframes pxd-bump-b { from { transform: translateX(-50%) scale(1.1); } to { transform: translateX(-50%) scale(1); } }
+/* Static, readable feedback for both application and OS motion preferences. */
+.pxd-reduced, .pxd-reduced .pxd-body,
+#pvp-root.pvp4-reduced .pxd-float,
+#pvp-root.pvp4-reduced .pxd-body,
+#pvp-root.pvp4-reduced .pxd-combo { animation: none !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
-  .pxd-num { animation: pxd-static-fade var(--pxd-dur) both; }
-  .pxd-body,
-  .pxd-combo { animation: none; }
-}
-
-/* Smaller screens: shrink the pixel size of every canvas a notch. */
-@media (max-width: 720px) {
-  .pxd-num  { --pxd-px: 3; }
-  .pxd-ultimate { --pxd-px: 4; }
-  .pxd-combo,
-  .pxd-num .pxd-tag,
-  .pxd-block .pxd-line,
-  .pxd-shatter .pxd-line { --pxd-px: 2; }
+  .pxd-float, .pxd-body, .pxd-combo { animation: none !important; transition: none !important; }
 }

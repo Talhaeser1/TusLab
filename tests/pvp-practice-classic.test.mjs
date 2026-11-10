@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createPracticeSession} from '../pvp/practice.js';
 import {MATCH_DURATION_MS,MATCH_WORDS} from '../pvp/shared/match.js';
 
-test('klasik bot orijinal createMatch akışını ve 90 saniyelik maçı kullanır',()=>{
+test('klasik bot orijinal createMatch akışını ve 120 saniyelik maçı kullanır',()=>{
   const packets=[];const tasks=new Map();let seq=0;const at=1_700_000_000_000;
   const scheduler={setInterval:(fn,ms)=>{const id=++seq;tasks.set(id,{fn,ms});return id;},clearInterval:id=>tasks.delete(id),
     setTimeout:(fn,ms)=>{const id=++seq;tasks.set(id,{fn,ms});return id;},clearTimeout:id=>tasks.delete(id)};

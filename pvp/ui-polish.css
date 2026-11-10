@@ -1,5 +1,7 @@
 /* PvP okunabilirlik, eylem hiyerarşisi ve klavye odağı. */
 #pvp-root{--ui-focus:#a6f2ff;--ui-text:#f4f0ff}
+/* Vuruş etiketleri ("RÜN SAVUNMASI") telefonda 11 px'e iniyordu (combat-fx.css clamp alt sınırı). */
+#pvp-root .pvp4-cue-label{font-size:clamp(12px,1.1vw,17px)}
 #pvp-root button,#pvp-root summary,#pvp-root select,#pvp-root input{font-family:inherit}
 #pvp-root button:focus-visible,#pvp-root summary:focus-visible,#pvp-root select:focus-visible,#pvp-root input:focus-visible,#pvp-root a:focus-visible{
   outline:3px solid var(--ui-focus);outline-offset:3px;position:relative;z-index:5
@@ -28,6 +30,13 @@
 #pvp-root .pvp15-buttons button{min-height:44px;min-width:150px;font-size:14px}
 #pvp-root .pvp15-card{max-width:min(94vw,760px)}
 #pvp-root .pvp15-backdrop{backdrop-filter:none}
+/* Paket 33: maçta tüm açılır yüzeyler opak; 2B rol/zemin de filtresiz. */
+#pvp-root[data-layout="fullscreen"] *,
+#pvp-root[data-layout="fullscreen"] *::before,
+#pvp-root[data-layout="fullscreen"] *::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+#pvp-root[data-layout="fullscreen"] .pvp5-network-panel{background:#14102c}
+#pvp-root[data-layout="fullscreen"] .pvp2-floor{filter:none}
+#pvp-root[data-layout="fullscreen"] .pvp2-role{background:#100b2d;font-size:12px}
 #pvp-root .pvp15-eyebrow,#pvp-root .pvp15-reason,#pvp-root .pvp15-player-name small,#pvp-root .pvp15-figures small,#pvp-root .pvp15-detail,#pvp-root .pvp15-meta{font-size:12px}
 #pvp-root [data-arena-result] .aui-res-mvp{display:block;padding:8px 12px;border-radius:9px;background:#3c2a13;color:#ffe2a7;font-size:15px;text-align:center}
 #pvp-root [data-arena-result] .aui-res-hp{display:block;font-size:20px}
@@ -58,3 +67,8 @@
   #pvp-root .pvp15-card{width:min(100%,calc(100vw - 16px));max-height:calc(100dvh - 16px);overflow:auto}
   #pvp-root .pvp15-buttons button{flex:1 1 140px}
 }
+/* Paket 32 · Menü denetimi: ⚙ ayarlar açılır menüsü telefonda sola 5 px taşıyordu; ses kaydırıcıları 16 px yüksekti. */
+#pvp-root .pvp4-settings-pop input[type=range]{min-height:32px;cursor:pointer}
+@media(max-width:820px){#pvp-root .pvp4-settings-pop{position:fixed;top:auto;left:8px;right:8px;min-width:0;max-width:none}}
+/* compact-height.css'in 30 px araç çubuğu kilidi ⚙ açılır menüsüne de uyuyordu; menü öğeleri ≥36 px kalır. */
+#pvp-root .pvp2-toolbar .pvp4-settings-pop[class] .pvp4-toggle{height:auto;min-height:36px;padding-top:6px;padding-bottom:6px}

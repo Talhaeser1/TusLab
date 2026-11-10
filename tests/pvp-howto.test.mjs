@@ -5,7 +5,7 @@ import {HOWTO_TABS, howtoButtonHTML, attachHowto} from '../pvp/howto.js';
 import {ARENA_MATCH_HP} from '../pvp/shared/arena.js';
 
 test('howto: tabs cover modes, damage, items, skills, controls', () => {
-  assert.deepEqual(HOWTO_TABS.map(t => t.id), ['modlar', 'hasar', 'esya', 'beceri', 'kontrol']);
+  assert.deepEqual(HOWTO_TABS.map(t => t.id), ['modlar', 'hasar', 'esya', 'beceri', 'karakterler', 'kontrol']);
   const text = JSON.stringify(HOWTO_TABS);
   assert.match(text, new RegExp(`${ARENA_MATCH_HP} HP`), 'arena HP motorla aynı');
   assert.match(text, /5 · 10 · 15 · 15 · 15 · 20/);

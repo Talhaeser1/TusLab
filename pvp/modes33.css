@@ -1,0 +1,75 @@
+/* Paket 33 — iki mod için ortak tur sonu. Brief: giriş 220 ms, çıkış 160 ms. */
+#pvp-root{--m33-enter:220ms;--m33-exit:160ms;--m33-line:#ffffff24;--m33-muted:#c2bed5}
+#pvp-root .m33-result{display:grid;gap:16px;min-width:0;color:#f4f2ff;font-family:inherit;font-size:14px;line-height:1.5;font-weight:400}
+#pvp-root .m33-result header{display:flex;align-items:baseline;gap:8px}
+#pvp-root .m33-result .rui-ko{font-weight:600;transform:none}
+#pvp-root .m33-title{margin:0;color:#f4f2ff;font-size:clamp(32px,3vw,40px);line-height:1.2;letter-spacing:.08em;font-weight:600}
+#pvp-root .m33-winner{font-size:24px;line-height:1.2;font-weight:600;color:var(--m33-winner);text-transform:uppercase;overflow-wrap:anywhere}
+#pvp-root .m33-players{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;min-width:0}
+#pvp-root .m33-player{min-width:0;padding:16px;background:#19162b;border:1px solid var(--m33-line);border-radius:8px}
+#pvp-root .m33-player.is-winner{border-color:var(--m33-player);box-shadow:inset 0 3px 0 var(--m33-player)}
+#pvp-root .m33-player h3{margin:0 0 8px;font-size:16px;line-height:1.5;font-weight:600;color:var(--m33-player);overflow-wrap:anywhere}
+#pvp-root .m33-stats{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;margin:0;font-size:14px;line-height:1.5}
+#pvp-root .m33-stats dt{color:var(--m33-muted);overflow-wrap:anywhere}
+#pvp-root .m33-stats dd{margin:0;text-align:right;font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;max-width:18ch}
+#pvp-root .m33-footer{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 16px}
+#pvp-root .m33-pips{grid-column:1 / -1;display:flex;justify-content:center;flex-wrap:wrap;gap:8px 32px}
+#pvp-root .m33-pip-side{display:flex;flex-wrap:wrap;justify-content:center;gap:4px}
+#pvp-root .m33-pip{font-size:16px;color:var(--m33-muted);line-height:1.5}
+#pvp-root .m33-pip.is-won{color:var(--m33-player)}
+#pvp-root .m33-next{font-size:12px;line-height:1.4;color:var(--m33-muted)}
+#pvp-root .m33-countdown{position:relative;display:grid;grid-template-columns:auto auto;align-items:center;justify-content:center;gap:4px;width:64px;height:64px;font-size:14px;font-variant-numeric:tabular-nums}
+#pvp-root .m33-countdown svg{position:absolute;inset:0;width:64px;height:64px;transform:rotate(-90deg)}
+#pvp-root .m33-countdown strong{font-size:16px;font-weight:600}
+#pvp-root .m33-countdown small{font-size:12px}
+#pvp-root .m33-count-track{stroke:#ffffff24;stroke-width:3}
+#pvp-root .m33-count-fill{stroke:#c4adff;stroke-width:3;stroke-linecap:round}
+/* Özet ve beceri seçimi tek yüzeyde; eski tabloların iki sütunlu kısaltması uygulanmaz. */
+#pvp-root .rui-inter>.rui-summary:has(.m33-result){display:block;padding:16px;min-width:0}
+#pvp-root .rui-inter>.rui-skill-picker{padding:16px;min-width:0}
+#pvp-root .rui-inter .rui-skill-picker>strong{font-weight:600}
+#pvp-root .rui-inter .rui-skill-cards{grid-template-columns:1fr;align-content:start;gap:8px}
+#pvp-root .rui-inter .rui-skill-cards .aui-card{min-height:72px;padding:16px;box-shadow:none;border-radius:8px;transition:none}
+#pvp-root .rui-inter .rui-skill-cards .aui-card[aria-pressed="true"]{border-color:#c4adff;background:#2a2340}
+#pvp-root .rui-inter .rui-skill-cards .aui-card-copy strong{font-size:16px;font-weight:600;line-height:1.5}
+#pvp-root .rui-inter .rui-skill-cards .aui-card-copy small{font-size:14px;line-height:1.5}
+#pvp-root .rui-inter .aui-uses{position:static;font-size:12px}
+#pvp-root .rui-inter .rui-pick-lock,#pvp-root .rui-inter .rui-pick-skip{min-height:44px;font-size:14px;font-weight:500}
+#pvp-root .rui-inter button:focus-visible{outline:2px solid #9feeff;outline-offset:2px}
+/* Fullscreen: iki HUD arasında 110'ar px ayrılır; taşan içerik panel içinde kayar. */
+#pvp-root[data-layout="fullscreen"] .rui-inter.is-centered,
+#pvp-root[data-layout="fullscreen"] .aui-overlay>.aui-summary{
+  position:fixed;inset:auto;left:50%;top:50%;transform:translate(-50%,-50%);z-index:40;
+  box-sizing:border-box;width:min(960px,calc(100vw - 32px));height:auto;
+  max-height:calc(100vh - 220px);max-height:calc(100dvh - 220px);min-height:0;overflow:auto;
+  padding:16px;border:1px solid var(--m33-line);border-radius:16px;background:#100e20;
+  visibility:visible;box-shadow:0 8px 32px #00000033;
+  animation:m33-enter var(--m33-enter) ease-out both;
+  transition:opacity var(--m33-exit) ease-in,transform var(--m33-exit) ease-in,display var(--m33-exit) allow-discrete;
+}
+#pvp-root[data-layout="fullscreen"] .rui-inter.is-centered{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);align-items:start;gap:16px}
+#pvp-root[data-layout="fullscreen"]:is(.rui-inter-open,.cin-round-end) .rui-inter.is-centered:not(.is-floating){animation:m33-enter var(--m33-enter) ease-out both}
+#pvp-root[data-layout="fullscreen"] .rui-inter.is-centered.is-solo{grid-template-columns:minmax(0,1fr)}
+#pvp-root[data-layout="fullscreen"] .rui-inter.is-centered>*{width:100%;max-width:none;margin:0;border:0;box-shadow:none;background:transparent;overflow:visible}
+#pvp-root[data-layout="fullscreen"] .rui-inter.is-centered[hidden],
+#pvp-root[data-layout="fullscreen"] .aui-overlay>.aui-summary[hidden]{display:none;opacity:0;transform:translate(-50%,-50%) scale(.98);animation:none}
+#pvp-root[data-layout="fullscreen"].rui-inter-open .rui-inter.is-centered[hidden]{animation:none}
+#pvp-root[data-layout="fullscreen"].rui-inter-open .pvp2-duel{scale:none}
+@keyframes m33-enter{from{opacity:0;transform:translate(-50%,-50%) scale(.98)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+/* Çözüm özeti, tur sonuyla aynı anda görünmez. :has eski istemcide de bayrağı tamamlar. */
+#pvp-root:is(.rui-inter-open,.aui-summary-open) .rsv-banner,
+#pvp-root:has(.aui-summary:not([hidden])) .rsv-banner{display:none}
+#pvp-root:is(.rui-inter-open,.aui-summary-open) .cin.cin-banner{display:none}
+@media(max-width:767.98px){
+  #pvp-root[data-layout="fullscreen"] .rui-inter.is-centered,#pvp-root[data-layout="fullscreen"] .aui-overlay>.aui-summary{width:100%;padding:8px;border-radius:8px}
+  #pvp-root[data-layout="fullscreen"] .rui-inter.is-centered{grid-template-columns:minmax(0,1fr)}
+  #pvp-root .m33-players{gap:8px}#pvp-root .m33-player{padding:8px}
+  #pvp-root .m33-stats{grid-template-columns:minmax(0,1fr)}#pvp-root .m33-stats dd{text-align:left;margin-bottom:4px}
+}
+@media(prefers-reduced-motion:reduce){
+  #pvp-root[data-layout="fullscreen"] .rui-inter.is-centered,#pvp-root[data-layout="fullscreen"] .aui-overlay>.aui-summary{animation:none;transition:none}
+  #pvp-root[data-layout="fullscreen"]:is(.rui-inter-open,.cin-round-end) .rui-inter.is-centered:not(.is-floating){animation:none}
+}
+#pvp-root.pvp4-reduced[data-layout="fullscreen"] .rui-inter.is-centered,
+#pvp-root.pvp4-reduced[data-layout="fullscreen"] .aui-overlay>.aui-summary{animation:none;transition:none}
+#pvp-root.pvp4-reduced[data-layout="fullscreen"]:is(.rui-inter-open,.cin-round-end) .rui-inter.is-centered:not(.is-floating){animation:none}

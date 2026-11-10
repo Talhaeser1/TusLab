@@ -16,12 +16,12 @@
 #pvp-root .cin-band.cin-tone-draw{border-color:#c9b6ff}
 #pvp-root .cin-sweep{position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,#ffffff33 46%,#ffffff66 50%,#ffffff33 54%,transparent 70%);
   transform:translateX(-100%);animation:cin-sweep 620ms 120ms ease-out both}
-#pvp-root .cin-title{position:relative;transform:skewY(4deg);font:italic 1000 clamp(52px,7vw,104px)/.95 system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:.04em;color:#fff;
+#pvp-root .cin-title{position:relative;transform:skewY(4deg);font:italic 900 clamp(56px,7vw,104px)/.95 system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:.04em;color:#fff;
   -webkit-text-stroke:2px #1a0b3a;paint-order:stroke fill;text-shadow:0 0 22px #b77bffaa,0 4px 0 #2b1263;
   animation:cin-slam 300ms 60ms cubic-bezier(.2,1.4,.3,1) both}
 #pvp-root .cin-tone-ko .cin-title{color:#ffd1d9;text-shadow:0 0 26px #ff3b5ccc,0 4px 0 #4a0716}
 #pvp-root .cin-tone-time .cin-title{color:#dff7ff;text-shadow:0 0 24px #5ad8ffbb,0 4px 0 #062a44}
-#pvp-root .cin-sub{position:relative;transform:skewY(4deg);font:850 clamp(16px,1.4vw,22px)/1.2 system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:.14em;color:#ffd98a;
+#pvp-root .cin-sub{position:relative;transform:skewY(4deg);font:850 clamp(22px,1.4vw,28px)/1.2 system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:.14em;color:#ffd98a;
   animation:cin-rise 260ms 220ms ease-out both}
 @keyframes cin-band-in{from{transform:translateY(-50%) skewY(-4deg) scaleX(0)}to{transform:translateY(-50%) skewY(-4deg) scaleX(1)}}
 @keyframes cin-sweep{to{transform:translateX(100%)}}
@@ -45,6 +45,11 @@
 #pvp-root .cin-player{font:800 14px/1 system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:.2em;color:#ffd98a}
 #pvp-root .cin-name{font:italic 1000 clamp(30px,3.4vw,52px)/1 system-ui,-apple-system,'Segoe UI',sans-serif;color:#fff;text-shadow:0 3px 0 #0008}
 #pvp-root .cin-char{font:700 clamp(15px,1.2vw,19px)/1.2 system-ui,-apple-system,'Segoe UI',sans-serif;color:#e8defa}
+#pvp-root .cin-char{color:var(--cin-accent,#e8defa);font-weight:900}
+#pvp-root .cin-fighter-title{font:700 clamp(12px,1.1vw,18px)/1.2 system-ui,'Segoe UI',sans-serif;color:#e8defa}
+#pvp-root .cin-arena{position:absolute;bottom:16px;left:16px;right:16px;text-align:center;
+  font:800 clamp(14px,1.5vw,22px)/1.2 system-ui,'Segoe UI',sans-serif;color:#fff;
+  text-shadow:0 2px 0 #120818,0 0 12px #120818}
 #pvp-root .cin-vs-text{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);
   font:italic 1000 clamp(90px,12vw,190px)/1 system-ui,-apple-system,'Segoe UI',sans-serif;color:#fff;-webkit-text-stroke:4px #1a0b3a;paint-order:stroke fill;
   text-shadow:0 0 30px #ffc87acc,0 8px 0 #2b1263;animation:cin-vs-slam 280ms 320ms cubic-bezier(.2,1.5,.3,1) both}
@@ -85,20 +90,26 @@
 
 /* ---------- Hareket azaltma: yalnız kısa solma ---------- */
 #pvp-root .cin.cin-still *,#pvp-root.pvp4-reduced .cin *{animation:none!important}
-#pvp-root .cin.cin-still,#pvp-root.pvp4-reduced .cin{animation:cin-still-in 160ms ease-out both}
+#pvp-root .cin.cin-still,#pvp-root.pvp4-reduced .cin{animation:none!important;transition:none!important}
 #pvp-root .cin.cin-still .cin-flash,#pvp-root.pvp4-reduced .cin .cin-flash{display:none}
 @keyframes cin-still-in{from{opacity:0}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){
-  #pvp-root .cin *,#pvp-root .rui-flash *{animation:none!important}
+  #pvp-root .cin,#pvp-root .cin *,#pvp-root .rui-flash *{animation:none!important;transition:none!important}
   #pvp-root .cin-flash{display:none}
-  #pvp-root.cin-round-end .tt-type,#pvp-root .pvp2-duel{transition:none}
+  #pvp-root.cin-round-end .tt-type,#pvp-root .pvp2-duel,#pvp-root .tt{transition:none;transform:none}
   #pvp-root.rui-inter-open .pvp2-duel{scale:none}
   #pvp-root.rui-inter-open:not(.cin-round-end) .rui-inter,#pvp-root.cin-round-start .tt-type{animation:none}
 }
+#pvp-root.pvp4-reduced.cin-round-end .tt-type{transform:none;transition:none}
+#pvp-root.pvp4-reduced .pvp2-duel{transition:none;scale:none}
+#pvp-root.pvp4-reduced .tt{transition:none}
+#pvp-root.pvp4-reduced .rui-inter,#pvp-root.pvp4-reduced .rui-flash *,#pvp-root.pvp4-reduced.cin-round-start .tt-type{animation:none!important}
 @media (max-width:767.98px){
   #pvp-root .cin-half{width:62%}
   #pvp-root .cin-fighter{height:70%}
   #pvp-root .cin-tag{margin-bottom:18%}
+  #pvp-root .cin-tag{max-width:65%;padding:8px;margin-inline:6%}
+  #pvp-root .cin-name{font-size:clamp(22px,5vw,30px);overflow-wrap:anywhere}
 }
 
 /* Kutulu VS (maç saati çalışırken): yalnız arena alanı; yazı alanına dokunmaz. */
@@ -123,12 +134,19 @@
 /* Tur arası: kelime şeridi gizlenir, panel ince şeride iner → arena büyür. */
 #pvp-root.rui-inter-open .rui-words{display:none}
 #pvp-root.rui-inter-open .tt{height:clamp(150px,20vh,190px);overflow:hidden}
+/* Telefonda özet ve seçim alt alta dizilir: kutu uzar (taşan içerik HP panellerinin üstüne biniyordu). */
+@media (max-width:900px){#pvp-root.rui-inter-open .tt{height:min(64dvh,520px)}}
 #pvp-root.rui-inter-open .tt-type{display:none}
 #pvp-root .rui-inter>.rui-summary{padding:8px 12px}
 #pvp-root .rui-inter>.rui-summary .rui-sum-winner{font-size:18px;margin:2px 0 4px}
 #pvp-root .rui-inter>.rui-summary .rui-sum-table th,#pvp-root .rui-inter>.rui-summary .rui-sum-table td{padding:1px 6px;line-height:1.25}
-/* 1920×940'ta özet 198 px, kutu 186 px idi (son satır "Tur skoru" kayıyordu). */
-#pvp-root .rui-inter>.rui-summary{padding-top:6px;padding-bottom:6px}
+/* Özet yazma panelinin kutusuna sığmıyordu (1920×940: 198/186 px, 2400×1175: 223/188 px, 1366×650: 191/148 px):
+   başlık ("RAUND 1 SONU · SÜRE DOLDU") ve kazanan tek satırda, tablo altta. */
+#pvp-root .rui-inter>.rui-summary{display:grid;grid-template-columns:auto minmax(0,1fr);align-content:start;column-gap:10px;padding-top:6px;padding-bottom:6px}
+#pvp-root .rui-inter>.rui-summary>.rui-sum-head{grid-column:1;align-self:center;margin:0}
+#pvp-root .rui-inter>.rui-summary>.rui-sum-winner{grid-column:2;align-self:center;text-align:right;margin:0}
+#pvp-root .rui-inter>.rui-summary>:not(.rui-sum-head):not(.rui-sum-winner){grid-column:1 / -1}
+#pvp-root .rui-inter>.rui-summary>.rui-sum-foot{margin-top:2px}
 #pvp-root .rui-inter>.rui-skill-picker{padding:8px 12px}
 #pvp-root .rui-inter .rui-skill-picker>strong{margin-bottom:4px}
 /* "Rakip: …" bildirimi raund başında yazma alanını kapatıyordu: arenanın orta çizgisine (dövüşçülerin arası). */

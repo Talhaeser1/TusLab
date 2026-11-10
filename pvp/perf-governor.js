@@ -16,7 +16,9 @@
 
 /** Cihaz pikseli bütçeleri (backing store = genişlik × yükseklik). */
 export const PIXEL_BUDGETS = Object.freeze({
-  arenaHigh: 2.0e6,     // 3B canvas, en yüksek kademe (bloom açık/kapalı)
+  // Paket 33: tam ekran 1920×940 CSS @ dpr 1.25 = 2.82 MP; eski 2.0 MP bütçesi oranı 1.05'e
+  // indiriyordu (ekran pikselinin %84'ü → yumuşak görüntü). Ölçüldü: 3.0 MP'de ≥ 55 FPS.
+  arenaHigh: 3.0e6,     // 3B canvas, en yüksek kademe (bloom açık/kapalı)
   arenaMedium: 1.4e6,   // 3B canvas, "DPR düşür" kademesi
   arenaLow: 1.0e6,      // 3B canvas, düşük kalite
   particlesHigh: 1.0e6, // 2B parçacık canvas'ı

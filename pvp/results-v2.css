@@ -25,4 +25,19 @@
 #pvp-root .pvp15-meta,#pvp-root .pvp15-votes{font-size:13px}
 #pvp-root .pvp15-eyebrow{font-size:12px}
 #pvp-root .pvp15-buttons button{min-height:44px;font-size:15px}
+/* Raund Arena maç sonu tablosu: toplam satırındaki <small> tarayıcı varsayılanıyla 10 px'e düşüyordu. */
+#pvp-root .aui-res-table small{font-size:12px}
+@media (min-width:2200px){#pvp-root .aui-res-table,#pvp-root .aui-res-table small,#pvp-root .aui-result small{font-size:15px}}
+/* %80 yakınlaştırma (~2400 CSS px): kartın 12–13 px yazıları ekranda ~10 px kalıyordu → ≥15 px (ekranda ≥12 px). */
+@media (min-width:2200px){
+  #pvp-root .pvp15-card{width:min(1120px,92vw)}
+  #pvp-root .pvp15-eyebrow,#pvp-root .pvp15-card small,#pvp-root .rui-res-round small{font-size:15px}
+  #pvp-root .pvp15-reason,#pvp-root .pvp15-detail,#pvp-root .pvp15-detail span,#pvp-root .pvp15-meta,#pvp-root .pvp15-votes,
+  #pvp-root .rui-res-len,#pvp-root .rui-res-round{font-size:16px}
+  #pvp-root .rui-res-round b{font-size:17px}
+  #pvp-root .pvp15-buttons button{font-size:17px;min-height:50px}
+}
 @media (max-width:650px){#pvp-root .rui-res-rounds{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Paket 32 · Menü denetimi: 375 px'te kart, arka planın 24 px iç boşluğuna sığmayıp sağdan 2 px taşıyordu. */
+@media (max-width:650px){#pvp-root .pvp15-backdrop{padding:8px}#pvp-root .pvp15-card{width:100%;max-width:100%}}
+#pvp-root .pvp15-buttons button:focus-visible{outline:3px solid #a6f2ff;outline-offset:3px}

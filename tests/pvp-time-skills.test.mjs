@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createMatch,pickRoundSkill,advanceMatch,submitWord,publicMatch,roundStartPayload,nextDeadline} from '../pvp/shared/match.js';
+import {createMatch,pickRoundSkill,advanceMatch,submitWord,publicMatch,roundStartPayload,nextDeadline,
+  ROUND_DURATION_MS,ROUND_LAST_CALL_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS} from '../pvp/shared/match.js';
+import {ARENA_TIME_THIEF_MS,ARENA_FREEZE_MS} from '../pvp/shared/arena-skills.js';
 import {PvPRoom} from '../cloudflare/src/room.js';
 import {createPracticeSession,HUMAN_ID,BOT_ID} from '../pvp/practice.js';
 import {MessageType,makeEnvelope} from '../pvp/contracts.js';
@@ -44,11 +46,12 @@ test('picks remain private through intermission and are announced at ROUND_START
 });
 
 test('personal deadlines, combined picks, submission cutoff and round close',()=>{
+  // Süreler motordan gelir (paket 30: ROUND_DURATION_MS 30 → 40 sn); burada yalnız beceri deltaları sabittir.
   const cases=[
-    ['timethief',null,30000,25000],
-    [null,'freeze',30000,33000],
-    ['timethief','timethief',25000,25000],
-    ['timethief','freeze',30000,28000]
+    ['timethief',null,ROUND_DURATION_MS,ROUND_DURATION_MS-ARENA_TIME_THIEF_MS],
+    [null,'freeze',ROUND_DURATION_MS,ROUND_DURATION_MS+ARENA_FREEZE_MS],
+    ['timethief','timethief',ROUND_DURATION_MS-ARENA_TIME_THIEF_MS,ROUND_DURATION_MS-ARENA_TIME_THIEF_MS],
+    ['timethief','freeze',ROUND_DURATION_MS,ROUND_DURATION_MS-ARENA_TIME_THIEF_MS+ARENA_FREEZE_MS]
   ];
   for(const [a,b,one,two] of cases){
     let m=intermission(create());
@@ -70,21 +73,25 @@ test('personal deadlines, combined picks, submission cutoff and round close',()=
 });
 
 test('last call shortens only the unfinished player and respects an earlier stolen deadline',()=>{
+  const stolen=ROUND_DURATION_MS-ARENA_TIME_THIEF_MS; // hırsız kurbanının kişisel bitişi
   let m=intermission(create());m=pick(m,1,'timethief').match;m=next(m);
   const start=m.round.startedAt;
   const one=m.participants[0];
   one.roundWordIndex=9;one.wordIndex=9;one.currentWord=m.round.words[9];
-  const outcome=submitWord(m,{playerId:one.playerId,matchId:m.id,wordIndex:9,text:'yanlis',round:m.round.index},start+19_000);
+  const finishAt=start+stolen-6_000;
+  const shortened=Math.min(start+stolen,finishAt+ROUND_LAST_CALL_MS);
+  const outcome=submitWord(m,{playerId:one.playerId,matchId:m.id,wordIndex:9,text:'yanlis',round:m.round.index},finishAt);
   assert.equal(outcome.result.roundEvents[0].type,'ROUND_LAST_CALL');
-  assert.equal(outcome.match.participants[1].roundEndsAt,start+24_000);
-  assert.equal(outcome.match.round.endsAt,start+24_000);
-  assert.equal(outcome.result.roundEvents[0].payload.endsAt,start+24_000);
+  assert.equal(outcome.match.participants[1].roundEndsAt,shortened);
+  assert.equal(outcome.match.round.endsAt,shortened);
+  assert.equal(outcome.result.roundEvents[0].payload.endsAt,shortened);
   // An already shortened deadline is never extended by last call.
   m=intermission(create());m=pick(m,1,'timethief').match;m=next(m);
   const p=m.participants[0];p.roundWordIndex=9;p.wordIndex=9;p.currentWord=m.round.words[9];
-  const late=submitWord(m,{playerId:p.playerId,matchId:m.id,wordIndex:9,text:'yanlis',round:m.round.index},m.round.startedAt+24_000);
-  assert.equal(late.match.participants[1].roundEndsAt,m.round.startedAt+25_000);
-  assert.equal(late.match.round.endsAt,m.round.startedAt+25_000);
+  const lateAt=m.round.startedAt+stolen-1_000;
+  const late=submitWord(m,{playerId:p.playerId,matchId:m.id,wordIndex:9,text:'yanlis',round:m.round.index},lateAt);
+  assert.equal(late.match.participants[1].roundEndsAt,m.round.startedAt+stolen);
+  assert.equal(late.match.round.endsAt,m.round.startedAt+stolen);
 });
 
 test('blindclock hides both deadlines only for the victim during the active round',()=>{
@@ -160,10 +167,10 @@ test('practice human pick, bot pick and packets use the same round contract',()=
   assert.equal(ack.payload.skill,'freeze');
   assert.equal(ack.payload.match.roundSkillPick,'freeze');
   assert.equal(ack.payload.match.roundSkillUsesLeft.freeze,1);
-  advance(5_000);
+  advance(ROUND_SUMMARY_MS+ROUND_INTRO_MS);
   const start=packets.filter(p=>p.type==='ROUND_START').at(-1);
   assert.deepEqual(start.payload.skills,{1:'freeze',2:'timethief'});
-  assert.equal(start.payload.match.round.personalEndsAt[1],start.payload.startedAt+28_000);
+  assert.equal(start.payload.match.round.personalEndsAt[1],start.payload.startedAt+ROUND_DURATION_MS+ARENA_FREEZE_MS-ARENA_TIME_THIEF_MS);
   assert.equal(MessageType.ROUND_SKILL_PICK,'ROUND_SKILL_PICK');
   assert.deepEqual(makeEnvelope('ROUND_SKILL_PICK',{skill:null}).payload,{skill:null});
   assert.equal(session.match.participants.find(p=>p.playerId===HUMAN_ID).roundSkillUses.freeze,1);

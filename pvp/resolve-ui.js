@@ -67,6 +67,7 @@ export function attachResolveUi({root, getSeat = () => null, isReduced = () => f
     clearTimers();
     Object.assign(st, {active: true, label, index: Number(index) || 0, total: Number(total) || 0, turn: 0, dmg: {1: 0, 2: 0}});
     show(resolveBannerText(st), 'run');
+    cue();
   }
   function finish() {
     if (!st.active) return;
@@ -74,6 +75,7 @@ export function attachResolveUi({root, getSeat = () => null, isReduced = () => f
     clearTimers(); clearSides();
     const me = getSeat() === 2 ? 2 : 1, op = me === 1 ? 2 : 1;
     show(resolveSummaryText({label: st.label, index: st.index, mine: st.dmg[op], theirs: st.dmg[me]}), 'sum');
+    cue();
     st.hideTimer = scheduler.setTimeout(() => { st.hideTimer = null; hide(); }, 1500);
   }
   // Son vuruştan sonra yeni olay gelmezse özet kendiliğinden çıkar (arena gibi başlangıç olayı olmayan akışlar için).
@@ -86,7 +88,8 @@ export function attachResolveUi({root, getSeat = () => null, isReduced = () => f
     const {type, payload = {}} = event.detail || {};
     if (type === 'EXCHANGE_RESOLVE') begin('PENCERE', payload.index, payload.turns);
     else if (type === 'ROUND_RESOLVE') begin('RAUND', payload.round, payload.turns);
-    else if (type === 'EXCHANGE_START' || type === 'ROUND_START' || type === 'ROUND_END') finish();
+    else if (type === 'ROUND_END') {st.active=false;clearTimers();hide();}
+    else if (type === 'EXCHANGE_START' || type === 'ROUND_START') finish();
   };
   const onCombat = event => {
     const e = event.detail || {};

@@ -1,5 +1,7 @@
 /** Server-owned Arena match transitions. All public mutations clone their input. */
 import {pickWords as bankPickWords,createSeed,createRng} from './words.js';
+import {normalizeFighter} from './fighters.js';
+import {normalizeStage,pickStage} from './stages.js';
 import {normalizeTyping,wordsMatch,charScore} from './typing-rules.js';
 import {resolveRoundAttacks,ARENA_ITEMS} from './arena-damage.js';
 import {validatePick,scrambleWord,ARENA_OVERTIME_MS,ARENA_FREEZE_MS,ARENA_TIME_THIEF_MS,ARENA_SKILL_IDS,ARENA_MAX_USES} from './arena-skills.js';
@@ -57,8 +59,8 @@ export function createArenaMatch(players,at=Date.now(),id=crypto.randomUUID(),op
   const seed=options.seed??createSeed(),pick=options.pickWords||bankPickWords;
   const m={id,version:1,mode:'arena',sequence:0,status:'running',startedAt:at,clockAt:at,endsAt:null,endedAt:null,
     winnerSeat:null,endReason:null,seed,totalRounds:ARENA_TOTAL_ROUNDS,roundPlan:planWords(pick,seed),
-    typing:normalizeTyping(options.typing),roundHistory:[],nextCombatId:1,pendingAttacks:[],combatEvents:[],participants:players.map(p=>({
-      playerId:p.playerId,seat:p.seat,name:p.name||`Oyuncu ${p.seat}`,character:p.character||'fire',rune:p.rune||'none',
+    typing:normalizeTyping(options.typing),stage:normalizeStage(pickStage(options.stage,options.rng||Math.random)),roundHistory:[],nextCombatId:1,pendingAttacks:[],combatEvents:[],participants:players.map(p=>({
+      playerId:p.playerId,seat:p.seat,name:p.name||`Oyuncu ${p.seat}`,character:p.character||'fire',fighter:normalizeFighter(p.fighter,p.character||'fire'),rune:p.rune||'none',
       hp:ARENA_MATCH_HP,maxHp:ARENA_MATCH_HP,wordIndex:0,correctWords:0,wrongWords:0,correctChars:0,submittedChars:0,
       wpm:0,accuracy:100,maxCombo:0,lastWordAt:null,lastSubmittedAt:null,combatStats:{damageDealt:0,damageTaken:0},
       skillUses:{},itemUses:{}}))};
@@ -240,7 +242,7 @@ export function advanceArenaMatch(match,at=Date.now(),rng=Math.random){
 }
 export function arenaMatchResult(match){
   if(!match||match.status!=='ended')return null;
-  const players=match.participants.map(p=>({seat:p.seat,playerId:p.playerId,name:p.name,character:p.character,
+  const players=match.participants.map(p=>({seat:p.seat,playerId:p.playerId,name:p.name,character:p.character,fighter:normalizeFighter(p.fighter,p.character),
     hp:p.hp,maxHp:p.maxHp,wpm:p.wpm,accuracy:p.accuracy,combo:p.combo,maxCombo:p.maxCombo,
     correctWords:p.correctWords,wrongWords:p.wrongWords,damageDealt:p.combatStats.damageDealt,
     damageTaken:p.combatStats.damageTaken}));
@@ -255,11 +257,11 @@ export function arenaPublicMatch(match,viewerSeat){
   const r=match.round,me=bySeat(match,viewerSeat),opponent=bySeat(match,other(viewerSeat));
   // Karanlık Saat: rakibi bu beceriyi seçtiyse KURBAN o raund ne kendi ne rakibin kalan süresini görür.
   const hidden=opponent?.roundSkill==='blindclock'&&r.phase==='round';
-  const view=p=>({playerId:p.playerId,seat:p.seat,name:p.name,character:p.character,hp:p.hp,maxHp:p.maxHp,
+  const view=p=>({playerId:p.playerId,seat:p.seat,name:p.name,character:p.character,fighter:normalizeFighter(p.fighter,p.character),hp:p.hp,maxHp:p.maxHp,
     wordIndex:p.wordIndex,roundWordIndex:p.roundWordIndex,roundDone:p.roundDone,correctWords:p.correctWords,
     wrongWords:p.wrongWords,wpm:p.wpm,accuracy:p.accuracy,combo:p.combo,maxCombo:p.maxCombo,
     combatStats:{...p.combatStats}});
-  return {matchId:match.id,version:match.version,sequence:match.sequence,status:match.status,mode:'arena',phase:r.phase,typing:normalizeTyping(match.typing),
+  return {matchId:match.id,version:match.version,sequence:match.sequence,status:match.status,mode:'arena',phase:r.phase,stage:normalizeStage(match.stage),typing:normalizeTyping(match.typing),assistEnabled:false,
     startedAt:match.startedAt,endsAt:hidden?null:match.endsAt,endedAt:match.endedAt,winnerSeat:match.winnerSeat,endReason:match.endReason,
     round:{index:r.index,total:ARENA_TOTAL_ROUNDS,phase:r.phase,words:me?[...me.roundWords]:[],
       startedAt:r.startedAt,endsAt:hidden?null:r.endsAt,summaryEndsAt:r.summaryEndsAt},
@@ -269,6 +271,8 @@ export function arenaPublicMatch(match,viewerSeat){
         items:Object.fromEntries(Object.keys(ARENA_ITEMS).map(id=>[id,ARENA_MAX_USES-(me.itemUses[id]||0)]))}}:null,
     opponent:opponent?{...view(opponent),remainingMs:hidden?null:(r.phase==='round'?Math.max(0,opponent.personalEndsAt-match.clockAt):0)}:null,
     ...(r.phase==='resolve'||r.phase==='summary'?{lastRoundPicks:{round:r.index,picks:roundPicks(match)}}:{}),
+    ...(r.phase==='summary'?{roundSummary:structuredClone(match.roundHistory.at(-1)),
+      roundResults:match.roundHistory.map(h=>({round:h.round,winnerSeat:h.winnerSeat}))}:{}),
     players:match.participants.map(view),combatEvents:structuredClone(match.combatEvents),
     result:match.status==='ended'?arenaMatchResult(match):null};
 }

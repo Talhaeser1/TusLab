@@ -439,6 +439,301 @@ EFFECTS = {
 }
 
 
+# ======================================================= paket 32: fighter SFX
+# Character-specific cues (vargr / sira / doran / nyx). Each effect gets its own
+# RNG seed (see __main__) so adding or tuning one never changes the others or
+# the legacy set. All synthesised; no voice or game samples.
+def swoosh(sec, lo=250, hi=3500, peak=0.45, bands=5, sharp=1.6):
+    """Air whoosh: noise band whose centre sweeps up to `peak` and back down,
+    amplitude swelling towards the passing moment (pass-by)."""
+    t = T(sec)
+    pos = np.clip(t / sec, 0, 1)
+    rise = np.minimum(1, pos / peak)
+    fall = np.clip((pos - peak) / (1 - peak), 0, 1)
+    centre = rise * (1 - 0.6 * fall)
+    edges = np.geomspace(lo, hi, bands + 1)
+    out = np.zeros_like(t)
+    for i in range(bands):
+        w = np.exp(-((centre * (bands - 1) - i) ** 2) / 0.9)
+        out += bandnoise(sec, edges[i], edges[i + 1]) * w
+    env = np.where(pos < peak, (pos / peak) ** sharp, np.exp(-(pos - peak) / max(1e-3, (1 - peak) * 0.35)))
+    return out * env
+
+
+def metal_ring(sec, hz, decay=0.25, ratios=(1, 2.41, 3.87, 5.13, 6.9), amps=(1, 0.6, 0.4, 0.25, 0.15), beat=1.7):
+    """Struck metal: inharmonic partials, each a detuned pair (shimmering beat)."""
+    t = T(sec)
+    out = np.zeros_like(t)
+    for r, a in zip(ratios, amps):
+        f = hz * r
+        if f < NYQ * 0.95:
+            out += a * (np.sin(2 * np.pi * f * t) + 0.6 * np.sin(2 * np.pi * (f + beat * r) * t))
+    return out * np.exp(-t / decay) / 1.6
+
+
+def rumble(sec, hi=110, tau=0.4, attack=0.01):
+    return bandnoise(sec, 22, hi, order=3) * expdec(sec, tau, attack)
+
+
+def debris(sec, count, lo=700, hi=5500, spread=0.12, gain=(0.2, 0.7)):
+    """Scattered short noise grains: splinters, stone chips."""
+    out = blank(sec)
+    for _ in range(count):
+        at = min(sec - 0.03, RNG.exponential(spread))
+        c = bandnoise(0.025, lo * RNG.uniform(0.7, 1.4), hi) * expdec(0.025, RNG.uniform(0.002, 0.006), 0.0004)
+        place(out, at, c, RNG.uniform(*gain) * (1 - at / sec))
+    return out
+
+
+def growl(sec, f0=78, f1=62, formants=((320, 650), (750, 1250), (1900, 2700))):
+    """Roar-like texture: noise through vowel-ish formant bands, gated by a low
+    wavering pulse, plus a filtered saw body. Synthetic, not a voice sample."""
+    t = T(sec)
+    f = f0 * (f1 / f0) ** (t / sec) * (1 + 0.04 * np.sin(2 * np.pi * 5.3 * t))
+    pulse = (0.5 + 0.5 * np.sin(2 * np.pi * np.cumsum(f) / RATE)) ** 2.5
+    noise = sum(bandnoise(sec, lo, hi) * g for (lo, hi), g in zip(formants, (1.0, 0.7, 0.35)))
+    saw = lowpass(sweep(sec, f0, f1, 'saw'), 900)
+    return noise * (0.35 + 0.65 * pulse) + 0.45 * saw * pulse
+
+
+def spear_buzz(sec, f0=210, f1=150):
+    """Shaft vibrating in flight with a doppler drop as it passes."""
+    t = T(sec)
+    pos = t / sec
+    f = f0 + (f1 - f0) / (1 + np.exp(-(pos - 0.5) * 10))
+    ph = 2 * np.pi * np.cumsum(f) / RATE
+    vib = lowpass(np.sin(ph) + 0.4 * np.sign(np.sin(2.01 * ph)), 2400)
+    air = bandnoise(sec, 1500, 5000)
+    return (0.6 * vib + 0.4 * air) * np.sin(np.pi * pos) ** 1.4
+
+
+# ---------------------------------------------------- vargr (heavy axe, fire)
+def fx_vargr_q():
+    s = blank(0.62)
+    place(s, 0, swoosh(0.34, 120, 1800, peak=0.7, sharp=2.2), 0.75)
+    place(s, 0.25, thump(0.36, 120, 38, 0.11, 3.2), 1.0)
+    place(s, 0.25, bandnoise(0.22, 180, 900) * expdec(0.22, 0.045), 0.65)
+    place(s, 0.252, crack(0.05, 1200, 5000, 0.008), 0.35)
+    return s
+
+
+def fx_vargr_e():
+    s = blank(0.95)
+    for i, at in enumerate((0.0, 0.22, 0.44)):
+        place(s, at, swoosh(0.26, 160 + 40 * i, 2600 + 300 * i, peak=0.55, sharp=1.8), 0.55 + 0.08 * i)
+    place(s, 0.6, metal_ring(0.34, 540, 0.11), 0.42)
+    place(s, 0.6, crack(0.04, 2500, 9000, 0.006), 0.4)
+    place(s, 0.6, thump(0.3, 150, 55, 0.07, 2.4), 0.6)
+    return s
+
+
+def fx_vargr_r():
+    s = blank(1.45)
+    t = T(0.9)
+    place(s, 0, growl(0.9) * np.minimum(1, t / 0.12) * np.exp(-np.maximum(0, t - 0.55) / 0.15), 0.6)
+    place(s, 0.55, swoosh(0.4, 120, 2200, peak=0.8, sharp=2.0), 0.5)
+    place(s, 0.9, thump(0.55, 110, 30, 0.22, 3.4), 1.0)
+    place(s, 0.9, rumble(0.55, 120, 0.22), 0.9)
+    place(s, 0.92, debris(0.5, 22, 500, 3500, 0.1), 0.6)
+    place(s, 0.9, crack(0.07, 900, 5000, 0.015), 0.4)
+    return s
+
+
+# ------------------------------------------------- sira (thrown spear, fire)
+def fx_sira_q():
+    s = blank(0.8)
+    place(s, 0, swoosh(0.16, 900, 7000, peak=0.35, sharp=1.2), 0.6)
+    place(s, 0.1, spear_buzz(0.46), 0.42)
+    place(s, 0.56, thump(0.2, 260, 90, 0.04, 2.6), 0.75)
+    place(s, 0.56, bandnoise(0.12, 400, 2200) * expdec(0.12, 0.018), 0.55)
+    place(s, 0.565, tone(0.2, 180, ((1, 1), (2.7, 0.4)), 0.05, hz=True), 0.35)
+    return s
+
+
+def fx_sira_e():
+    s = blank(0.46)
+    for at, hz in ((0.0, 2350), (0.12, 2780)):
+        place(s, at, swoosh(0.08, 1500, 8000, peak=0.6, sharp=1.0), 0.4)
+        place(s, at + 0.06, crack(0.03, 3500, 11000, 0.004), 0.55)
+        place(s, at + 0.062, metal_ring(0.22, hz, 0.06, ratios=(1, 1.53, 2.31), amps=(1, 0.5, 0.3), beat=6), 0.4)
+    return s
+
+
+def fx_sira_r():
+    s = blank(1.15)
+    for i, at in enumerate((0.0, 0.21, 0.42)):
+        place(s, at, swoosh(0.12, 1000, 7500, peak=0.4, sharp=1.2), 0.5)
+        place(s, at + 0.07, spear_buzz(0.32, 230 + 25 * i, 160 + 20 * i), 0.28)
+        place(s, at + 0.38, thump(0.18, 280, 95, 0.035, 2.4), 0.6)
+        place(s, at + 0.38, crack(0.04, 1500, 6000, 0.008), 0.35)
+    return s
+
+
+# ---------------------------------------------- doran (sword & shield, rune)
+def fx_doran_q():
+    s = blank(0.58)
+    place(s, 0, swoosh(0.16, 500, 5000, peak=0.6, sharp=1.4), 0.4)
+    place(s, 0.12, crack(0.04, 3000, 11000, 0.006), 0.6)
+    place(s, 0.12, metal_ring(0.44, 880, 0.17), 0.55)
+    place(s, 0.12, thump(0.18, 210, 90, 0.04, 2.0), 0.4)
+    return s
+
+
+def fx_doran_e():
+    s = blank(0.82)
+    place(s, 0, thump(0.3, 180, 70, 0.07, 2.8), 0.85)
+    place(s, 0, metal_ring(0.32, 205, 0.09, ratios=(1, 1.59, 2.14, 2.95), amps=(1, 0.7, 0.45, 0.3), beat=3), 0.65)
+    place(s, 0.14, crack(0.06, 1800, 9000, 0.012), 0.55)
+    place(s, 0.14, debris(0.6, 30, 900, 7000, 0.09, (0.25, 0.8)), 0.55)
+    for _ in range(7):
+        at = 0.16 + RNG.exponential(0.1)
+        if at < 0.7:
+            place(s, at, metal_ring(0.08, RNG.uniform(1400, 3000), 0.02, beat=8), 0.12)
+    return s
+
+
+def fx_doran_r():
+    s = blank(1.32)
+    place(s, 0, swoosh(0.3, 200, 2500, peak=0.3, sharp=1.0), 0.35)
+    place(s, 0, thump(0.12, 160, 90, 0.03, 1.6), 0.3)
+    place(s, 0.3, swoosh(0.45, 150, 1800, peak=0.9, sharp=2.6), 0.5)
+    place(s, 0.74, thump(0.55, 120, 32, 0.2, 3.4), 1.0)
+    place(s, 0.74, rumble(0.5, 130, 0.2), 0.75)
+    place(s, 0.75, crack(0.12, 700, 4500, 0.03), 0.5)
+    place(s, 0.76, debris(0.52, 28, 500, 4000, 0.12, (0.25, 0.75)), 0.55)
+    place(s, 0.74, metal_ring(0.3, 330, 0.09), 0.2)
+    return s
+
+
+# ----------------------------------------------------- nyx (rune magic, rune)
+def fx_nyx_q():
+    s = blank(0.72)
+    for i, m in enumerate((86, 91, 98)):
+        place(s, i * 0.03, bell(0.5, m, 0.28, inharm=(1, 2.0, 3.01, 4.2)), 0.22)
+    t = T(0.5)
+    place(s, 0.08, sweep(0.5, 1900, 900, 'tri') * np.sin(np.pi * t / 0.5) ** 1.2, 0.2)
+    place(s, 0.08, swoosh(0.5, 2500, 9000, peak=0.5, sharp=1.2), 0.3)
+    place(s, 0.52, bell(0.2, 100, 0.07), 0.25)
+    place(s, 0.52, crack(0.04, 4000, 11000, 0.006), 0.25)
+    return s
+
+
+def fx_nyx_e():
+    s = blank(1.1)
+    t = T(0.85)
+    hum = lowpass(sweep(0.85, 48, 115, 'saw'), 700) * (t / 0.85) ** 1.3
+    place(s, 0, hum * (1 + 0.25 * np.sin(2 * np.pi * 7 * t)), 0.55)
+    place(s, 0, rumble(0.85, 90, 1.0, 0.3) * (t / 0.85), 0.5)
+    place(s, 0.7, bell(0.4, 67, 0.5, inharm=(1, 2.01, 2.76, 4.07, 5.4), amps=(1, 0.5, 0.5, 0.3, 0.2)), 0.45)
+    place(s, 0.7, bell(0.4, 79, 0.4), 0.22)
+    place(s, 0.7, thump(0.3, 140, 50, 0.1, 2.2), 0.5)
+    return s
+
+
+def fx_nyx_r():
+    s = blank(1.55)
+    t = T(0.85)
+    place(s, 0, sweep(0.85, 700, 2600, 'sine') * (t / 0.85) ** 1.6, 0.22)
+    place(s, 0, bandnoise(0.85, 800, 6000) * (t / 0.85) ** 2.2, 0.35)
+    place(s, 0, crackle(0.85, 40) * (t / 0.85), 0.25)
+    place(s, 0.85, thump(0.65, 100, 26, 0.26, 3.6), 1.0)
+    place(s, 0.85, rumble(0.68, 160, 0.28), 1.0)
+    place(s, 0.85, bandnoise(0.6, 200, 3000) * expdec(0.6, 0.12), 0.55)
+    place(s, 0.86, debris(0.6, 26, 600, 6000, 0.14), 0.45)
+    place(s, 0.85, sum(bell(0.6, m, 0.3) for m in (74, 81, 86)) / 2, 0.16)
+    return s
+
+
+# --------------------------------------------- per-character hit / knock-out
+def fx_vargr_hit():      # leather + fur, heavy body
+    s = blank(0.3)
+    place(s, 0, thump(0.28, 140, 45, 0.08, 2.6), 0.9)
+    place(s, 0, bandnoise(0.16, 250, 1400) * expdec(0.16, 0.03), 0.6)
+    place(s, 0.003, bandnoise(0.05, 1200, 4000) * expdec(0.05, 0.008), 0.3)
+    return s
+
+
+def fx_sira_hit():       # light leather slap
+    s = blank(0.24)
+    place(s, 0, thump(0.18, 230, 90, 0.04, 2.0), 0.55)
+    place(s, 0, bandnoise(0.1, 900, 5000) * expdec(0.1, 0.012, 0.0004), 0.8)
+    place(s, 0.03, bandnoise(0.08, 400, 2000) * expdec(0.08, 0.02), 0.25)
+    return s
+
+
+def fx_doran_hit():      # armoured plate
+    s = blank(0.34)
+    place(s, 0, thump(0.25, 190, 70, 0.05, 2.2), 0.6)
+    place(s, 0, metal_ring(0.32, 470, 0.08, ratios=(1, 1.71, 2.62, 3.9), amps=(1, 0.7, 0.4, 0.25), beat=4), 0.6)
+    place(s, 0, crack(0.04, 2500, 10000, 0.006), 0.5)
+    return s
+
+
+def fx_nyx_hit():        # cloth + magic ward flicker
+    s = blank(0.3)
+    place(s, 0, thump(0.18, 200, 80, 0.04, 1.8), 0.45)
+    place(s, 0, bandnoise(0.12, 600, 3000) * expdec(0.12, 0.025), 0.45)
+    place(s, 0.01, sweep(0.22, 2400, 700, 'sine') * expdec(0.22, 0.06, 0.002), 0.3)
+    place(s, 0.01, bell(0.25, 93, 0.08), 0.15)
+    return s
+
+
+def fx_vargr_ko():
+    s = blank(1.15)
+    t = T(0.55)
+    place(s, 0, growl(0.55, 70, 44, ((250, 520), (600, 1000), (1500, 2200))) * np.minimum(1, t / 0.05) * np.exp(-t / 0.3), 0.55)
+    place(s, 0.5, thump(0.5, 110, 32, 0.18, 3.0), 1.0)
+    place(s, 0.5, rumble(0.5, 110, 0.18), 0.6)
+    place(s, 0.72, thump(0.3, 90, 40, 0.1, 2.0), 0.45)
+    place(s, 0.62, metal_ring(0.4, 300, 0.12), 0.2)
+    return s
+
+
+def fx_sira_ko():
+    s = blank(0.95)
+    place(s, 0, bandnoise(0.3, 600, 4000) * expdec(0.3, 0.06), 0.35)
+    place(s, 0.32, thump(0.4, 170, 50, 0.12, 2.4), 0.85)
+    place(s, 0.32, bandnoise(0.2, 300, 2000) * expdec(0.2, 0.04), 0.45)
+    for at, hz in ((0.46, 2600), (0.58, 3100), (0.66, 2900)):
+        place(s, at, metal_ring(0.18, hz, 0.04, ratios=(1, 1.53, 2.31), amps=(1, 0.5, 0.3), beat=7), 0.25)
+    return s
+
+
+def fx_doran_ko():
+    s = blank(1.2)
+    place(s, 0, metal_ring(0.4, 260, 0.12), 0.35)
+    place(s, 0.35, thump(0.5, 130, 34, 0.18, 3.0), 1.0)
+    place(s, 0.35, crack(0.08, 1500, 8000, 0.015), 0.45)
+    for _ in range(9):
+        at = 0.37 + RNG.exponential(0.12)
+        if at < 1.0:
+            place(s, at, metal_ring(0.15, RNG.uniform(500, 1600), 0.04, beat=5), RNG.uniform(0.1, 0.25))
+    place(s, 0.6, metal_ring(0.5, 205, 0.18, ratios=(1, 1.59, 2.14), amps=(1, 0.6, 0.4)), 0.35)
+    return s
+
+
+def fx_nyx_ko():
+    s = blank(1.2)
+    for i, m in enumerate((93, 88, 84, 79, 74)):
+        place(s, i * 0.1, bell(0.5, m, 0.3), 0.18)
+    t = T(0.8)
+    place(s, 0, sweep(0.8, 1600, 220, 'tri') * np.exp(-t / 0.35), 0.22)
+    place(s, 0, bandnoise(0.8, 3000, 9000) * np.exp(-t / 0.25), 0.15)
+    place(s, 0.45, thump(0.4, 150, 45, 0.13, 2.0), 0.7)
+    place(s, 0.45, bandnoise(0.25, 300, 2000) * expdec(0.25, 0.05), 0.35)
+    return s
+
+
+FIGHTER_EFFECTS = {
+    'vargr-q': fx_vargr_q, 'vargr-e': fx_vargr_e, 'vargr-r': fx_vargr_r,
+    'sira-q': fx_sira_q, 'sira-e': fx_sira_e, 'sira-r': fx_sira_r,
+    'doran-q': fx_doran_q, 'doran-e': fx_doran_e, 'doran-r': fx_doran_r,
+    'nyx-q': fx_nyx_q, 'nyx-e': fx_nyx_e, 'nyx-r': fx_nyx_r,
+    'vargr-hit': fx_vargr_hit, 'sira-hit': fx_sira_hit, 'doran-hit': fx_doran_hit, 'nyx-hit': fx_nyx_hit,
+    'vargr-ko': fx_vargr_ko, 'sira-ko': fx_sira_ko, 'doran-ko': fx_doran_ko, 'nyx-ko': fx_nyx_ko,
+}
+
+
 def finish(x):
     x = x - x.mean()
     fi = int(0.002 * RATE)
@@ -466,15 +761,23 @@ def write_wav(path, y):
 
 
 if __name__ == '__main__':
-    total = 0
+    import sys
+    # `--fighters` regenerates only the paket-32 character set; legacy files stay untouched.
+    # A full run reproduces the legacy files byte-for-byte (legacy RNG stream runs first, unchanged).
+    only_fighters = '--fighters' in sys.argv
+    groups = [('fighter', FIGHTER_EFFECTS)] if only_fighters else [('legacy', EFFECTS), ('fighter', FIGHTER_EFFECTS)]
     print(f"{'name':12} {'sec':>5} {'peak':>6} {'rms':>6} {'dc':>8} {'first':>5} {'last':>5} {'bytes':>7}")
-    for name, fn in EFFECTS.items():
-        y = finish(fn())
-        path = OUT / f'{name}.wav'
-        pcm = write_wav(path, y)
-        x = pcm / 32768
-        size = path.stat().st_size
-        total += size
-        print(f"{name:12} {len(x) / RATE:5.2f} {20 * np.log10(np.abs(x).max()):6.2f} "
-              f"{20 * np.log10(np.sqrt(np.mean(x ** 2))):6.2f} {x.mean():8.5f} {pcm[0]:5d} {pcm[-1]:5d} {size:7d}")
-    print(f'total sfx bytes: {total} ({total / 1e6:.2f} MB)')
+    for group, effects in groups:
+        total = 0
+        for idx, (name, fn) in enumerate(effects.items()):
+            if group == 'fighter':
+                RNG = np.random.default_rng(32_000 + idx)   # isolated seed per fighter effect
+            y = finish(fn())
+            path = OUT / f'{name}.wav'
+            pcm = write_wav(path, y)
+            x = pcm / 32768
+            size = path.stat().st_size
+            total += size
+            print(f"{name:12} {len(x) / RATE:5.2f} {20 * np.log10(np.abs(x).max()):6.2f} "
+                  f"{20 * np.log10(np.sqrt(np.mean(x ** 2))):6.2f} {x.mean():8.5f} {pcm[0]:5d} {pcm[-1]:5d} {size:7d}")
+        print(f'total {group} sfx bytes: {total} ({total / 1e6:.2f} MB)')

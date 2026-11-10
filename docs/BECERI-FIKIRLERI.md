@@ -31,7 +31,7 @@ uzun vadede kazanır.**
 
 | Tuş | Ad | Yeni mekanik | Sayılar |
 |---|---|---|---|
-| Q | Alev Kesişi | **Kor birikimi**: hedefe 4 sn yanma bırakır; yeni Q süreyi tazeler, katman başına +10/sn (azami 3 katman) | 75 ani + 10/sn × 4 sn → 1. Q = 105, 3 katmanda 75 + 120 = 195 eşdeğer (DoT tavanı 90 ile sınırlı, bkz. §5) |
+| Q | Alev Kesişi | **Kor birikimi**: hedefe 4 sn yanma bırakır; yeni Q süreyi tazeler, katman başına +10/sn (azami 3 katman) | 65 ani + 40 yanma (10/sn × 4 sn) → 1. Q eşdeğeri 105; 3 katman tazelenince 65 + 120 = 185'e dek (tek hedefte toplam DoT 90 ile sınırlı, bkz. §5) |
 | E | Yer Yaran Darbe | **Kalkan kırıcı**: bekçi kalkanını koşulsuz kırar + 3 sn "Kırık Savunma" (blok şansı yarıya iner). Yanan hedefe +%25 | 175 (+44 yanan hedefte); ağır delme ×0.4 → ×0.6 |
 | R | Kızıl Fırtına | **Çok aşamalı + infaz**: 3 faz korunur; her faz Kor katmanı başına +10 vurur; son faz hedef %15 can altındaysa ×1.5 | 65/100/140 (0/180/420 ms) + 10 × katman/faz (azami +90); infaz ≈ +70 |
 | S | Kor Kalkanı | **Zamanlama parry'si**: saldırı anonsundan 600 ms içinde S: ≤150 ms → PARRY, ≤400 ms → BLOK, sonrası yalnız %30 azaltım. Ateş parry'si saldıranı tutuşturur | PARRY: karşı 65 + stagger 350 ms + **Kor Siperi** (saldırana 30 hasar / 3 sn) |
@@ -53,10 +53,12 @@ Oyun tarzı: sabırla Q ile işaretle, S ile rakibin serisini kır, E → R ile 
 
 Akış: iki oyuncu kendi kelimesini yazar → sunucu kuyruğu kurar → A'nın vuruşu sahneye konarken B'ye
 600 ms reaksiyon penceresi (S) açılır → sonra B'nin vuruşu, A reaksiyonu; sıralar dönüşümlü ilerler.
+Motor bu sırayı zaten kurabiliyor: `scheduleAlternating` + `RESOLVE_STEP_MS` (1300 ms/adım) —
+600 ms'lik S penceresi her adımın içine sığar, yeni zamanlayıcı gerekmez.
 
 | Beceri | Saldırı sırasında | Savunma sırasında |
 |---|---|---|
-| Ateş Q | 75 + Kor katmanı bırakır | Kor işlemeye devam eder; rakip yanarken E/R bonusu hazır bekler |
+| Ateş Q | 65 + Kor katmanı bırakır | Kor işlemeye devam eder; rakip yanarken E/R bonusu hazır bekler |
 | Ateş E | Kalkanı kırar + Kırık Savunma; yanan hedefe +%25 | (opsiyonel) E'yi feda et: gelen vuruş %20 azalır — kararı sen verirsin |
 | Ateş R | 3 faz dönüşümlü çözülür; Kor ile güçlenir | Kanalda savunma yok: all-in riski |
 | Ateş S | — | PARRY / BLOK / %30 azaltım; parry saldıranı yakar (Kor Siperi) |
@@ -77,12 +79,12 @@ Net = ham hasar − bloklar − parry karşıları (65) − bariyerler (100).
 
 | Senaryo | Bugünkü ham | Öneri ham — ateş | Öneri ham — rün | Öneri net (iyi S ile) |
 |---|---|---|---|---|
-| %100 (~6 doğru: Q+E+R) | 585 | 585-660 (Kor hâlâ yanıyorsa üst sınıra) | 580-605 (1-2 mühür) | 150-350 |
+| %100 (~6 doğru: Q+E+R) | 585 | 585-660 (Kor hâlâ yanıyorsa üst sınıra) | 555-605 (1-3 mühür) | 150-350 |
 | %80 (~4-5 doğru: Q+E veya tam döngü) | 280-585 | 280-585 (yanma kısmî kesilir) | 260-560 | 100-280 |
 | %60 (~3 doğru: Q, belki E) | 105-280 | 105-255 | 80-230 | 40-150 |
 
 - Ateş kısa pencerede +%0-12 güçlenir (yanma hızlı oyuncuda tam işler); rün 2+ mühürlü kapanışta
-  E→R ile eşitlenir (170 + 330 = 500 / 5-word döngü karşılığı 580).
+  E→R ile farkı kapatır (170 + 330 = 500; 5 kelimelik döngü karşılığı 585).
 - Tur modu değişmezi: 10/10 rünsüz ateş ≈ 1417 ± 90 (DoT tavanı), rün ≈ 1352 + mühür patlamaları
   (≤ +75) → KO yine en erken 9. doğru kelimede mümkün.
 - Net etki: savunma becerisi artık gerçek fark yaratıyor — iyi zamanlama ~%45-55 azaltım (bugün ~%30).
@@ -103,7 +105,7 @@ Riskler ve önlemler:
    uygulanır; toplam DoT ≤ 90 ile sınırlanır → KO en erken 9. doğru korunur.
 2. **Aktif S + ağ gecikmesi** → pencere yalnız sunucu saatiyle doğrulanır, istemciye +100 ms tolerans;
    Space kelime gönderir, S düğmesi odağı çalmaz (giriş alanı yazmaya devam eder).
-3. **Ateş/rün tempo asimetrisi** → ateş kısa (90 sn klasik), rün uzun (tur serileri) maçta güçlü;
+3. **Ateş/rün tempo asimetrisi** → ateş kısa (120 sn klasik), rün uzun (tur serileri) maçta güçlü;
    `SKILL_EFFECTS` tek yerden ayarlanabilir tutulur, sahiple canlı test sonrası kalibre edilir.
 4. **Protokol koordinasyonu** → `DEFEND_INTENT` ve sıralı çözüm, sıra-akışı ajanıyla ortak sözleşme
    gerektirir (`pvp/contracts.js`); `pvp/index.js` paylaşılıyor: yalnız `ability()` bölgesine dokunulur.

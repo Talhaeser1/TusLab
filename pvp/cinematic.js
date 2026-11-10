@@ -6,7 +6,10 @@
 // Yalnız görseldir: oyun durumunu değiştirmez, tıklamayı engellemez, herhangi bir tuş sinematiği hızla kapatır.
 // Yalnız transform/opacity animasyonu; sonsuz animasyon yok; hareket azaltmada kısa solma.
 
-export const CIN_TIMES = Object.freeze({vs: 2600, vsLite: 1500, banner: 1150, bannerShort: 900, roundEndHold: 1250, roundStart: 650});
+import {getFighter} from './shared/fighters.js';
+import {getStage} from './shared/stages.js';
+
+export const CIN_TIMES = Object.freeze({vs: 2200, vsLite: 1500, banner: 900, bannerShort: 900, roundEndHold: 1250, roundStart: 650});
 
 const CHAR = Object.freeze({
   fire: {name: 'Alev Celladı', image: './assets/arena-king.webp'},
@@ -29,7 +32,9 @@ export function vsModel(match) {
   return [1, 2].map(seat => {
     const p = players.find(x => x.seat === seat) || {};
     const id = p.character === 'rune' || (!p.character && seat === 2) ? 'rune' : 'fire';
-    return {seat, side: id, name: String(p.name || `Oyuncu ${seat}`), character: CHAR[id].name, image: CHAR[id].image};
+    const fighter = getFighter(p.fighter, id);
+    return {seat, side: id, name: String(p.name || `Oyuncu ${seat}`), character: fighter.name,
+      title: fighter.title, accent: fighter.palette.accent, image: CHAR[id].image, arena: `ARENA: ${getStage(match?.stage).name}`};
   });
 }
 
@@ -45,11 +50,15 @@ export const CIN_SFX = Object.freeze({
 
 export function attachCinematic({root, isReduced = () => false, scheduler = globalThis, doc = globalThis.document, sfx = null} = {}) {
   if (!root?.addEventListener || !doc?.createElement) return {destroy() {}, play() {}};
-  let layer = null, timers = [], keyHandler = null;
+  let layer = null, timers = [], keyHandler = null, warmTimer = null, warmIdle = null;
   const later = (fn, ms) => { const id = scheduler.setTimeout(fn, ms); timers.push(id); return id; };
   const clearAll = () => { for (const id of timers) scheduler.clearTimeout(id); timers = []; };
   const el = (tag, cls, text) => { const n = doc.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
-  const reduced = () => Boolean(isReduced());
+  const reduced = () => {
+    if (root.classList?.contains?.('pvp4-reduced')) return true;
+    try { if (doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return true; } catch {}
+    try { return Boolean(isReduced()); } catch { return false; }
+  };
   const sound = key => { if (typeof sfx !== 'function') return; for (const [name, gain, delay] of CIN_SFX[key] || []) { if (delay) later(() => { try { sfx(name, gain); } catch {} }, delay); else { try { sfx(name, gain); } catch {} } } };
   // Güçlü vuruş: şok dalgası + renkli patlama + kıvılcımlar + kısa ekran sarsıntısı (tek seferlik; hareket azaltmada yok).
   const impact = (tone, delay = 0) => {
@@ -72,11 +81,13 @@ export function attachCinematic({root, isReduced = () => false, scheduler = glob
   // VS girişindeki dövüşçü resimleri ilk maçta hazır olsun (~400 KB, bir kez; boşta indirilir).
   try {
     const warm = () => {
+      warmTimer = null; warmIdle = null;
       if (typeof globalThis.Image !== 'function') return;
       try { for (const c of Object.values(CHAR)) { const im = new globalThis.Image(); im.decoding = 'async'; im.src = c.image; } } catch { /* yalnız iyileştirme */ }
     };
     const idle = globalThis.requestIdleCallback;
-    idle ? idle(warm, {timeout: 4000}) : scheduler.setTimeout(warm, 2500);
+    if (idle) warmIdle = idle(warm, {timeout: 4000});
+    else warmTimer = scheduler.setTimeout(warm, 2500);
   } catch { /* önyükleme yalnız iyileştirmedir */ }
 
   function ensureLayer() {
@@ -121,21 +132,23 @@ export function attachCinematic({root, isReduced = () => false, scheduler = glob
     }
     const half = m => {
       const box = el('div', `cin-half cin-${m.side} cin-seat-${m.seat}`);
+      box.style?.setProperty?.('--cin-accent', m.accent);
       const img = el('img', 'cin-fighter'); img.alt = ''; img.src = m.image; img.decoding = 'async';
       const tag = el('div', 'cin-tag');
-      tag.append(el('small', 'cin-player', `OYUNCU ${m.seat}`), el('strong', 'cin-name', m.name), el('span', 'cin-char', m.character));
+      tag.append(el('small', 'cin-player', `OYUNCU ${m.seat}`), el('strong', 'cin-name', m.name),
+        el('span', 'cin-char', m.character), el('span', 'cin-fighter-title', m.title));
       box.append(img, tag);
       return box;
     };
     const ms = reduced() ? 900 : lite ? CIN_TIMES.vsLite : CIN_TIMES.vs;
-    show('vs', [half(a), half(b), el('div', 'cin-flash'), ...impact('vs', 320), el('strong', 'cin-vs-text', 'VS')], ms, box);
+    show('vs', [half(a), half(b), el('div', 'cin-flash'), ...impact('vs', 320), el('strong', 'cin-vs-text', 'VS'), el('span', 'cin-arena', a.arena)], ms, box);
     sound('vs'); shake(320);
   }
   function playBanner({title, sub = '', tone = 'start'}, ms = CIN_TIMES.banner) {
     const band = el('div', `cin-band cin-tone-${tone}`);
     band.append(el('i', 'cin-sweep'), el('strong', 'cin-title', title));
     if (sub) band.append(el('span', 'cin-sub', sub));
-    show('banner', [el('div', 'cin-flash'), ...impact(tone, 60), band], reduced() ? Math.min(ms, 800) : ms);
+    show('banner', [el('div', 'cin-flash'), ...impact(tone, 60), band], Math.min(ms, reduced() ? 800 : 900));
     sound(tone); shake(60);
   }
   // Zamana Karşı raund sonu sıralaması: bant → (yazma paneli aşağı iner, arena öne çıkar) → tur arası paneli.
@@ -186,6 +199,9 @@ export function attachCinematic({root, isReduced = () => false, scheduler = glob
     play: {vs: playVs, banner: playBanner, roundEnd: roundEndSequence, roundStart: roundStartSequence},
     destroy() {
       stop();
+      if (warmTimer !== null) scheduler.clearTimeout(warmTimer);
+      if (warmIdle !== null) globalThis.cancelIdleCallback?.(warmIdle);
+      warmTimer = warmIdle = null;
       for (const k of Object.keys(seq)) if (seq[k] !== null) { scheduler.clearTimeout(seq[k]); seq[k] = null; }
       root.removeEventListener('tuslab:pvp-cinematic', onMatch);
       root.removeEventListener('tuslab:pvp-round', onRound);

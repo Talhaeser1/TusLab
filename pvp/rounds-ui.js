@@ -6,14 +6,14 @@
  * Klasik maçta (mode!=='rounds' ya da round alanı yok) kök gizli kalır ve eski HUD aynen çalışır.
  */
 
+import {FIGHTERS,normalizeFighter} from './shared/fighters.js';
+import {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS} from './shared/match.js';
+export {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS};
 // Spec §1 sabitleri. Motor henüz yüklenmemiş olabileceği için burada aynalanır (yalnız sunum).
 export const ROUND_OPTIONS=Object.freeze([5,7,10]);
 export const DEFAULT_ROUNDS=5;
 export const ROUND_WORDS=10;
-export const ROUND_DURATION_MS=30_000;
 export const ROUND_LAST_CALL_MS=5_000;
-export const ROUND_SUMMARY_MS=3_000;
-export const ROUND_INTRO_MS=2_000;
 export const STREAK_SKILLS=Object.freeze({3:'q',5:'e',7:'r',8:'q',9:'q',10:'q'});
 export const STREAK_TICKS=Object.freeze([{at:3,key:'Q'},{at:5,key:'E'},{at:7,key:'R'}]);
 export const PRACTICE_ROUNDS_KEY='tuslab-pvp-practice-rounds';
@@ -125,21 +125,23 @@ export function roundsViewModel(match,myId,serverNow,marks,{lastCallRound=null}=
       progress:`Kelime ${idx}/${ROUND_WORDS}`,progressValue:idx,done:Boolean(p?.roundDone),doneText:p?.roundDone?'Tamamlandı ✓':'',
       streak:streakModel(streakOf(p),p?.nextSkill),pips:{filled,total:Math.max(needed,filled)}};
   });
-  const phaseLabel=round.phase==='settling'?'ÇÖZÜLÜYOR':round.phase==='intermission'?'TUR ARASI':match.status==='paused'?'DURAKLADI':'SANİYE';
+  const phaseLabel=['settling','resolve'].includes(round.phase)?'ÇÖZÜLÜYOR':round.phase==='intermission'?'TUR ARASI':match.status==='paused'?'DURAKLADI':'SANİYE';
   return {visible:true,index,total,title:suddenDeath?'ANİ ÖLÜM':`RAUND ${index} / ${total}`,suddenDeath,phase:round.phase,phaseLabel,
     timer,lastCall:{active:lastCallActive&&!timer.hidden,text:lastCallActive&&!timer.hidden?`SON ÇAĞRI · ${timer.seconds} sn`:''},sides,words,mySeat};
 }
 
 /** Tur sonu kilidi: sunucu saatiyle `serverNow ≥ endsAt` olunca da kilitlenir (§8). */
 export function roundInputLock(match,myId,serverNow){
+  if(match?.status==='running'&&match.exchange?.phase==='resolve')return {locked:true,clearInput:true,reason:'Saldırı sırası · dövüşü izle'};
   if(!isRoundMatch(match)||match.status!=='running')return {locked:false,reason:null};
   const round=match.round;
-  if(round.phase==='intermission')return {locked:true,reason:'Tur arası · sonraki raund bekleniyor'};
-  if(round.phase==='settling')return {locked:true,reason:'Süre doldu · saldırılar çözülüyor'};
+  if(round.phase==='resolve')return {locked:true,clearInput:true,reason:'Saldırı sırası · dövüşü izle'};
+  if(round.phase==='intermission')return {locked:true,clearInput:true,reason:'Tur arası · sonraki raund bekleniyor'};
+  if(round.phase==='settling')return {locked:true,clearInput:true,reason:'Süre doldu · saldırılar çözülüyor'};
   const me=match.players?.find(p=>p.playerId===myId);
-  if(me?.roundDone)return {locked:true,reason:'Tamamlandı ✓ · rakip bekleniyor'};
+  if(me?.roundDone)return {locked:true,clearInput:true,reason:'Tamamlandı ✓ · rakip bekleniyor'};
   const deadline=round.personalEndsAt?.[me?.seat]??me?.roundEndsAt??(match.blindClock?null:round.endsAt);
-  if(Number.isFinite(deadline)&&serverNow>=deadline)return {locked:true,reason:'Süre doldu · tur kapanıyor'};
+  if(Number.isFinite(deadline)&&serverNow>=deadline)return {locked:true,clearInput:true,reason:'Süre doldu · tur kapanıyor'};
   return {locked:false,reason:null};
 }
 
@@ -152,10 +154,11 @@ export function summaryModel(roundEnd,match,myId){
   const names=[1,2].map(seat=>nameOf(match,seat)+(playerBySeat(match,seat)?.playerId===myId?' (sen)':''));
   const row=(label,key)=>({label,values:scores.map(s=>num(s[key]))});
   const next=round+1;
-  return {round,title:`${round>total?'ANİ ÖLÜM':`RAUND ${round}`} SONU`,winnerSeat,draw:winnerSeat===null,
-    winnerText:winnerSeat?`KAZANAN · ${nameOf(match,winnerSeat)}`:'BERABERE',
+  return {round,title:`TUR ${round} BİTTİ`,winnerSeat,draw:winnerSeat===null,
+    winnerText:winnerSeat?`${nameOf(match,winnerSeat)} TURU ALDI`:'BERABERE',
     ko:roundEnd?.reason==='KO',reasonText:REASON_LABELS[roundEnd?.reason]||'',names,
     rows:[row('Doğru','correct'),row('Yanlış','wrong'),row('En iyi seri','bestStreak'),row('Hasar','damageDealt'),row('RP','rp')],
+    colors:summaryColors(match),pips:[1,2].map(seat=>({filled:Number(wins[seat])||0,total:Math.max(total,Number(wins[seat])||0)})),
     scoreline:`${Number(wins[1])||0} – ${Number(wins[2])||0}`,
     nextText:roundEnd?.nextRoundAt?`Sıradaki: ${roundLabel(next,total)}`:'Maç sonucu hazırlanıyor'};
 }
@@ -231,6 +234,36 @@ const setFlag=(el,c,on)=>{if(el&&el.classList.contains(c)!==Boolean(on))el.class
 const RING_R=26,RING_C=2*Math.PI*RING_R;
 const SVG_NS='http://www.w3.org/2000/svg';
 
+/** Her iki modun sonuç kartı: güvenilmeyen adlar yalnız textContent ile yazılır. */
+export function summaryColors(match){
+  return [1,2].map(seat=>{const p=playerBySeat(match,seat);return FIGHTERS[normalizeFighter(p?.fighter,p?.character)].palette.accent;});
+}
+export function createRoundEndCard(doc,model){
+  const h=builder(doc);
+  const players=h('div',{cls:'m33-players'},...model.names.map((name,i)=>{
+    const stats=h('dl',{cls:'m33-stats'},...model.rows.flatMap(row=>[h('dt',{text:row.label==='En iyi seri'?'En iyi kombo':row.label==='Hasar'?'Verilen hasar':row.label}),h('dd',{text:row.values[i]})]));
+    return h('article',{cls:`m33-player${model.winnerSeat===i+1?' is-winner':''}`,attrs:{style:`--m33-player:${model.colors[i]}`}},h('h3',{text:name}),stats);
+  }));
+  const pips=h('div',{cls:'m33-pips',attrs:{'aria-label':'Tur galibiyetleri'}},...model.pips.map((p,i)=>h('div',{cls:'m33-pip-side',attrs:{'aria-label':`${model.names[i]}: ${p.filled} galibiyet`,style:`--m33-player:${model.colors[i]}`}},
+    ...Array.from({length:p.total},(_,j)=>h('span',{cls:`m33-pip${j<p.filled?' is-won':''}`,text:j<p.filled?'●':'○',attrs:{'aria-hidden':'true'}})))));
+  const svg=doc.createElementNS(SVG_NS,'svg');
+  svg.setAttribute('viewBox','0 0 64 64');svg.setAttribute('aria-hidden','true');
+  const track=doc.createElementNS(SVG_NS,'circle'),fill=doc.createElementNS(SVG_NS,'circle');
+  for(const c of [track,fill])for(const [k,v] of Object.entries({cx:32,cy:32,r:RING_R,fill:'none'}))c.setAttribute(k,String(v));
+  track.setAttribute('class','m33-count-track');fill.setAttribute('class','m33-count-fill');
+  fill.setAttribute('stroke-dasharray',RING_C.toFixed(2));svg.append(track,fill);
+  const seconds=h('strong',{text:'0'});
+  const countdown=h('div',{cls:'m33-countdown',attrs:{role:'timer','aria-label':'Sonraki tura kalan süre'}},svg,seconds,h('small',{text:'sn'}));
+  const node=h('div',{cls:'m33-result'},h('header',{},h('h2',{cls:'m33-title',text:model.title}),model.ko?h('span',{cls:'rui-ko',text:'KO'}):null),
+    h('div',{cls:'m33-winner',text:model.winnerText,attrs:{style:`--m33-winner:${model.winnerSeat?model.colors[model.winnerSeat-1]:'#e4dcff'}`}}),players,
+    h('footer',{cls:'m33-footer'},pips,h('span',{cls:'m33-next',text:model.nextText}),countdown));
+  return {node,update(deadline,at,duration){
+    const remaining=Number.isFinite(deadline)?Math.max(0,deadline-at):0;
+    setHidden(countdown,!Number.isFinite(deadline));setText(seconds,Math.ceil(remaining/1000));
+    fill.setAttribute('stroke-dashoffset',(RING_C*(1-clamp01(remaining/duration))).toFixed(2));
+  }};
+}
+
 /**
  * createRoundsUi(root,{now}) → {update(match,myId), handle(packet), tick(), destroy()}
  * DOM tek kökte (`[data-rounds-ui]`) üretilir.
@@ -300,7 +333,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
 
   const state={match:null,myId:null,visible:false,destroyed:false,interval:null,clashTimer:null,
     marks:new Map(),marksKey:null,lastRoundEnd:null,lastCallRound:null,announced:null,lockKey:'',summaryKey:null,shownClash:null,
-    selected:null,pending:false,pickKey:null,revealUntil:0};
+    selected:null,pending:false,pickKey:null,revealUntil:0,endCard:null,skillCards:[]};
   const later=(fn,ms)=>timers.setTimeout(fn,ms);
   const announce=text=>{live.textContent='';live.textContent=text;};
 
@@ -360,14 +393,20 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     const key=`${match.matchId}:${match.round.index}`;
     if(state.pickKey!==key){state.pickKey=key;state.selected=null;state.pending=false;}
     if(model.locked){state.pending=false;state.selected=model.pick;}
-    const cards=model.cards.map((c,i)=>{
+    if(!state.skillCards.length){state.skillCards=model.cards.map((c,i)=>{
+      const uses=h('span',{cls:'aui-uses'});
       const button=h('button',{cls:'aui-card',attrs:{type:'button','data-round-skill':c.id,'aria-pressed':String(state.selected===c.id),'aria-label':`${i+1}. ${c.name}, ${c.effect}, ${c.left}/2 hak`}},
         h('span',{cls:'aui-card-key',text:String(i+1)}),h('span',{cls:'aui-card-icon',text:c.icon}),
-        h('span',{cls:'aui-card-copy'},h('strong',{text:c.name}),h('small',{text:c.effect})),h('span',{cls:'aui-uses',text:`${c.left}/2`}));
+        h('span',{cls:'aui-card-copy'},h('strong',{text:c.name}),h('small',{text:c.effect})),uses);
+      return {button,uses};
+    });pickerCards.replaceChildren(...state.skillCards.map(c=>c.button));}
+    state.skillCards.forEach(({button,uses},i)=>{
+      const c=model.cards[i];
+      button.setAttribute('aria-pressed',String(state.selected===c.id));
+      button.setAttribute('aria-label',`${i+1}. ${c.name}, ${c.effect}, ${c.left}/2 hak`);
+      setText(uses,`${c.left}/2 hak`);
       button.disabled=model.locked||state.pending||c.left===0;
-      return button;
     });
-    pickerCards.replaceChildren(...cards);
     setText(pickerStatus,model.locked?`Onaylandı: ${model.pick?ROUND_SKILL_CARDS.find(c=>c.id===model.pick)?.name:'Seçme'} · Rakibin seçimi gizli`:state.pending?'Onay bekleniyor…':'1–3 seç · Enter kilitle · Rakibin seçimi gizli');
     pickerLock.disabled=model.locked||state.pending;
     pickerSkip.disabled=model.locked||state.pending;
@@ -393,14 +432,8 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     const key=`${match.matchId}:${source.round}:${match.sequence}`;
     if(state.summaryKey===key)return;state.summaryKey=key;
     const m=summaryModel(source,match,state.myId);
-    const head=h('header',{cls:'rui-sum-head'},h('span',{cls:'rui-sum-title',text:m.title}),
-      m.ko?h('span',{cls:'rui-ko',text:'KO'}):null,m.reasonText&&!m.ko?h('span',{cls:'rui-sum-reason',text:m.reasonText}):null);
-    const winner=h('div',{cls:`rui-sum-winner${m.draw?' is-draw':` is-seat-${m.winnerSeat}`}`,text:m.winnerText});
-    const table=h('table',{cls:'rui-sum-table'});
-    const thead=h('tr',{},h('th',{attrs:{scope:'col'},text:''}),...m.names.map((n,i)=>h('th',{cls:`rui-col-${i+1}`,attrs:{scope:'col'},text:n})));
-    table.append(thead,...m.rows.map(r=>h('tr',{cls:r.label==='RP'?'rui-rp':''},h('th',{attrs:{scope:'row'},text:r.label}),...r.values.map((v,i)=>h('td',{cls:`rui-col-${i+1}${m.winnerSeat===i+1?' is-win':''}`,text:v})))));
-    const foot=h('footer',{cls:'rui-sum-foot'},h('span',{cls:'rui-sum-score',text:`Tur skoru ${m.scoreline}`}),h('span',{text:m.nextText}));
-    summary.replaceChildren(head,winner,table,foot);
+    state.endCard=createRoundEndCard(doc,m);
+    summary.replaceChildren(state.endCard.node);
     setFlag(summary,'is-ko',m.ko);
   }
   function tick(){
@@ -436,6 +469,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
       showFlash=true;setText(flashTitle,vm.suddenDeath?'ANİ ÖLÜM':`RAUND ${vm.index}`);
     }
     setHidden(summary,!showSummary);setHidden(intro,!showIntro);setHidden(flash,!showFlash);
+    if(showSummary)state.endCard?.update(nextRoundAt,t,ROUND_SUMMARY_MS+ROUND_INTRO_MS);
     setHidden(reveal,t>=state.revealUntil);
     setFlag(el,'is-sudden',vm.suddenDeath);
     syncInter();
@@ -447,6 +481,13 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     setFlag(inter,'is-solo',summary.hidden||picker.hidden);
     const pvp=el.closest?.('#pvp-root')||null;
     if(pvp)setFlag(pvp,'rui-inter-open',open);
+    if(pvp?.dataset?.layout==='fullscreen'){
+      inter.classList.add('is-centered');
+      inter.classList.remove('is-floating');
+      if(inter.style.removeProperty)for(const key of ['top','left','width','height'])inter.style.removeProperty(key);
+      return;
+    }
+    inter.classList.remove('is-centered');
     if(!open)return;
     const tt=pvp?.querySelector('.tt');
     const r=tt?.getBoundingClientRect?.();
@@ -544,7 +585,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
       ensureTicker(false);
       if(state.clashTimer!==null)timers.clearTimeout(state.clashTimer);
       for(const s of sideEls){if(s.breakTimer!==null)timers.clearTimeout(s.breakTimer);if(s.pulseTimer!==null)timers.clearTimeout(s.pulseTimer);s.breakTimer=s.pulseTimer=null;}
-      state.clashTimer=null;el.remove();
+      state.clashTimer=null;(el.closest?.('#pvp-root'))?.classList.remove('rui-inter-open');el.remove();
     }
   };
 }

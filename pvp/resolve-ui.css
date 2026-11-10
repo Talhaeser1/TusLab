@@ -26,4 +26,6 @@
 #pvp-root:not(.stage-focus) .pvp2-duel>.rsv-banner{display:none}
 /* Maç sonu ekranı açıkken ikinci katman olmasın. */
 #pvp-root:has(.pvp15-backdrop:not([hidden])) .rsv-banner{display:none}
+#pvp-root:is(.rui-inter-open,.aui-summary-open) .rsv-banner,
+#pvp-root:has(.aui-summary:not([hidden])) .rsv-banner{display:none}
 @media (prefers-reduced-motion:reduce){#pvp-root .rsv-banner{animation:none}}

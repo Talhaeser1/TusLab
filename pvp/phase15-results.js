@@ -1,4 +1,6 @@
 /** Results are server-derived; client renders presentation only. */
+import {getFighter} from './shared/fighters.js';
+const BOT_ID='practice-bot';
 const escapeHTML=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=n=>Number(n||0).toLocaleString('tr-TR');
 export const END_LABELS=Object.freeze({KNOCKOUT:'NAKAVT',TIME_LIMIT:'SÜRE DOLDU',DISCONNECT_FORFEIT:'BAĞLANTI HÜKMEN YENİLGİ',SURRENDER:'TESLİM OLMA',BOTH_DISCONNECTED:'MAÇ İPTALİ'});
@@ -10,16 +12,21 @@ export function resultPanelHTML(){return `<div class="pvp15-backdrop" data-pvp15
     <div class="pvp15-scorecards" data-pvp15-scores></div>
     <div class="pvp15-meta" data-pvp15-meta></div>
     <div class="pvp15-votes" data-pvp15-votes aria-live="polite"></div>
-    <div class="pvp15-buttons"><button class="pvp15-rematch" type="button" data-pvp15-action="rematch">⚔ Rövanş İste</button><button class="pvp15-exit" type="button" data-pvp15-action="leave">Odadan Çık</button></div>
+    <div class="pvp15-buttons"><button class="pvp15-rematch" type="button" data-pvp15-action="rematch">⚔ Rövanş iste</button><button class="pvp15-exit" type="button" data-pvp15-action="leave">Odadan çık</button></div>
   </section>
 </div>`;}
+/* Kart alt başlığı: seçilen dövüşçünün özgün adı ("Vargr · Kızıl Balta"); eski kayıtlar arketipten varsayılana düşer. */
+function fighterLabel(player){
+  try{const f=getFighter(player.fighter,player.character);if(f)return escapeHTML(`${f.name} · ${f.title}`.toLocaleUpperCase('tr-TR'));}catch{}
+  return player.character==='rune'?'RÜN MUHAFIZI':'ALEV CELLADI';
+}
 export function resultCardHTML(player,winnerSeat,mvpSeat){
   const winner=player.seat===winnerSeat;
   const d=player.defense||{};const cast=player.skillCasts||{};
   return `<article class="pvp15-player pvp15-${player.character==='rune'?'rune':'fire'} ${winner?'pvp15-winner':''}">
-    <div class="pvp15-player-name"><span>${winner?'👑 ':''}${escapeHTML(player.name)}</span><small>${player.character==='rune'?'RÜN MUHAFIZI':'ALEV CELLADI'}${player.seat===mvpSeat?' · MVP':''}</small></div>
+    <div class="pvp15-player-name"><span>${winner?'👑 ':''}${escapeHTML(player.name)}</span><small>${fighterLabel(player)}${player.seat===mvpSeat?' · MVP':''}</small></div>
     <div class="pvp15-figures"><div><strong>${num(player.wpm)}</strong><small>WPM</small></div><div><strong>%${num(player.accuracy)}</strong><small>DOĞRULUK</small></div><div><strong>${num(player.damageDealt)}</strong><small>HASAR</small></div></div>
-    <div class="pvp15-detail"><span>🔥 Q / E / R: ${num(cast.q)} / ${num(cast.e)} / ${num(cast.r)}</span><span>🛡 ${num(d.normalBlocks)} blok · ${num(d.perfectBlocks)} perfect · ${num(d.parries)} parry</span><span>⚔ ${num(d.counters)} karşı saldırı · ${num(d.shieldBreaks)} kalkan kırma</span><span>⌨ ${num(player.correctWords)} doğru / ${num(player.wrongWords)} yanlış · ${num(player.maxCombo)} en yüksek kombo</span></div>
+    <div class="pvp15-detail"><span>🔥 Q / E / R: ${num(cast.q)} / ${num(cast.e)} / ${num(cast.r)}</span><span>🛡 ${num(d.normalBlocks)} blok · ${num(d.perfectBlocks)} kusursuz blok · ${num(d.parries)} savuşturma</span><span>⚔ ${num(d.counters)} karşı saldırı · ${num(d.shieldBreaks)} kalkan kırma</span><span>⌨ ${num(player.correctWords)} doğru / ${num(player.wrongWords)} yanlış · ${num(player.maxCombo)} en yüksek kombo</span></div>
   </article>`;
 }
 export function renderResult(root,match,network){
@@ -33,11 +40,13 @@ export function renderResult(root,match,network){
   title.textContent=text;title.dataset.outcome=isCancelled?'cancelled':result.winnerSeat===null?'draw':myWon?'victory':'defeat';
   overlay.querySelector('[data-pvp15-reason]').textContent=END_LABELS[result.endReason]||'MAÇ SONUCU';
   overlay.querySelector('[data-pvp15-scores]').innerHTML=result.players.map(p=>resultCardHTML(p,result.winnerSeat,result.mvpSeat)).join('');
-  const duration=Math.floor(result.durationMs/1000);overlay.querySelector('[data-pvp15-meta]').textContent=`Savaş süresi ${Math.floor(duration/60)}:${String(duration%60).padStart(2,'0')} · İki oyuncunun sunucuda doğrulanmış sonuçları`;
   const votes=network.rematchVotes||[],mine=votes.includes(network.myId);
+  // Bot maçında "iki oyuncu/sunucu" dili yanıltıcıydı: bot hep hazırdır, sonuç bu cihazda hesaplanır.
+  const vsBot=votes.includes(BOT_ID)||result.players.some(p=>p.playerId===BOT_ID);
+  const duration=Math.floor(result.durationMs/1000);overlay.querySelector('[data-pvp15-meta]').textContent=`Savaş süresi ${Math.floor(duration/60)}:${String(duration%60).padStart(2,'0')} · ${vsBot?'Bot maçı · sonuçlar bu cihazda hesaplandı':'İki oyuncunun sunucuda doğrulanmış sonuçları'}`;
   const button=overlay.querySelector('[data-pvp15-action="rematch"]');
   button.disabled=!network.myId||network.phase==='rematch_countdown';
-  button.textContent=network.phase==='rematch_countdown'?'⏳ Rövanş hazırlanıyor…':mine?'✕ Rövanş isteğini geri çek':'⚔ Rövanş İste';
+  button.textContent=network.phase==='rematch_countdown'?'⏳ Rövanş hazırlanıyor…':mine?'✕ Rövanş isteğini geri çek':vsBot?'⚔ Rövanşa başla':'⚔ Rövanş iste';
   const votesText=overlay.querySelector('[data-pvp15-votes]');
-  votesText.textContent=network.phase==='rematch_countdown'&&network.startAt?`RÖVANŞ: ${Math.max(0,Math.ceil((network.startAt-network.serverNow())/1000))} · Yeni maç başlıyor`:`Rövanş onayı: ${votes.length} / 2 · İki oyuncu da kabul etmeli`;
+  votesText.textContent=network.phase==='rematch_countdown'&&network.startAt?`RÖVANŞ: ${Math.max(0,Math.ceil((network.startAt-network.serverNow())/1000))} · Yeni maç başlıyor`:vsBot?'Bot rövanşa hazır · tek tıkla yeni maç başlar':`Rövanş onayı: ${votes.length} / 2 · İki oyuncu da kabul etmeli`;
 }

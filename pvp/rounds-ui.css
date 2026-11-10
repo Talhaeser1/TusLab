@@ -187,6 +187,9 @@
 /* Panel açıkken boştaki yazma paneli görünmez ama yerini korur → sayfa kaymaz. */
 #pvp-root.rui-inter-open .tt-type{visibility:hidden}
 @media(max-width:900px){.rui-inter{flex-wrap:wrap}.rui-inter>.rui-summary,.rui-inter>.rui-skill-picker{flex:1 1 100%}}
+/* Telefonda özet + seçim alt alta (182 + 306 px) ama kutu yazma paneli kadardı (162 px): taşan kısım arenanın,
+   HP panellerinin üstüne biniyordu. Kutu uzar (cinematic.css) ve içerik kutuda kalır. */
+@media(max-width:900px){.rui-inter{overflow-y:auto}}
 
 .rui-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 

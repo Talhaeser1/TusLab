@@ -17,6 +17,10 @@ for(const file of keep){
     await cp(join(root,'pvp','shared'),join(dest,'pvp','shared'),{recursive:true});
     // Yerel three.js (CSP yalnızca 'self' script'e izin verir; CDN kullanılamaz).
     await cp(join(root,'pvp','vendor'),join(dest,'pvp','vendor'),{recursive:true});
+  } else if(file==='assets'){
+    // Paket 32: ham karakter kaynakları (assets/characters-src, ~14 MB) yayına gitmez; oyun
+    // assets/characters/<id>.glb optimize kopyalarını kullanır (scripts/optimize-characters.mjs).
+    await cp(join(root,file),join(dest,file),{recursive:true,filter:src=>!/[\\/]characters-src([\\/]|$)/.test(src)});
   } else await cp(join(root,file),join(dest,file),{recursive:true});
 }
 console.log('Cloudflare static assets prepared at:',dest);
