@@ -13,6 +13,7 @@ derleme kontrolü: `npm run cf:validate`. Dev sunucu yok sayılır (tarayıcı d
 ## Kesin kurallar
 1. YALNIZ şeridinin "Sahip olduğun dosyalar" listesindeki dosyalara yaz. Başka dosyaya dokunman gerekirse yapma; raporda "GEREKEN DEĞİŞİKLİK: dosya → ne" diye yaz.
 2. `index.html`'e dokunma. Satır sonlarını koru (LF dosyayı CRLF yapma).
+   İstisna (2026-11-10, kullanıcı onayı): yalnızca visual-enrich.css <link> ve visual-enrich.js <script defer> satırları eklendi; compact-height.css son sırada kalır.
 3. Paket indirme yok, ağ yok (npm install yok).
 4. Hiçbir ticari oyunun (Street Fighter, 2XKO vb.) adını, karakterini, görselini, sahnesini kopyalama; özgün TuşLab neon kimliği.
 5. Erişilebilirlik: görünen yazı ≥ 12 px; `prefers-reduced-motion: reduce` ve `#pvp-root.pvp4-reduced` altında animasyon yok/sade; odak halkası görünür.

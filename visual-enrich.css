@@ -1,0 +1,234 @@
+/* TuşLab: existing home dashboard, quiet surfaces; no match-screen rules. */
+#app {
+  --ve-space-1: 4px;
+  --ve-space-2: 8px;
+  --ve-space-3: 12px;
+  --ve-space-4: 16px;
+  --ve-space-6: 24px;
+  --ve-radius-sm: 8px;
+  --ve-radius: 16px;
+  --ve-canvas: #070719;
+  --ve-surface: #090f2b;
+  --ve-surface-raised: #111631;
+  --ve-purple: var(--purple, #a66cff);
+  --ve-cyan: var(--cyan, #46dffd);
+  --ve-warn: var(--warn, #ffca6a);
+  --ve-ink: #f5f1ff;
+  --ve-muted: #d6cdec;
+  --ve-hairline: rgb(166 108 255 / 24%);
+  --ve-text-meta: 12px;
+  --ve-text-secondary: 14px;
+  --ve-text-body: 16px;
+  /* Major second scale, based on 16px. */
+  --ve-heading-sm: 1.125rem;
+  --ve-heading: 1.424rem;
+  --ve-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath d='M1 1h1' stroke='%2346dffd' stroke-opacity='.04'/%3E%3C/svg%3E");
+}
+
+/* Panels keep their existing geometry; texture is only 4% ink. */
+#app :is(#panel-home, #panel-analytics).browser-window {
+  background-image: var(--ve-texture), linear-gradient(160deg, var(--ve-surface-raised), var(--ve-canvas)) !important;
+}
+#app :is(#panel-home, #panel-analytics) .panel-rim {
+  border-bottom-color: var(--ve-hairline);
+}
+#app :is(#panel-home, #panel-analytics) :is(.section-heading, .subsection-title, .analysis-card h3) {
+  background-image: linear-gradient(90deg, var(--ve-hairline), rgb(70 223 253 / 12%), transparent);
+  background-position: left bottom;
+  background-size: 100% 1px;
+  background-repeat: no-repeat;
+}
+#app #panel-home .home-pvp-entry.lb3-home {
+  gap: var(--ve-space-2);
+  border-color: var(--ve-hairline);
+  background: var(--ve-texture), linear-gradient(150deg, var(--ve-surface-raised), var(--ve-surface));
+  box-shadow: none;
+}
+#app #panel-home .lb3-home-banner {
+  isolation: isolate;
+  background: var(--ve-surface);
+}
+#app #panel-home .lb3-home-copy {
+  position: relative;
+  z-index: 1;
+}
+#app #panel-home .lb3-home-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Original perspective grid and opposing runes; ink <=6%. */
+  background-image: linear-gradient(90deg, transparent, rgb(7 7 25 / 85%) 36%, rgb(7 7 25 / 85%) 64%, transparent), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 120' fill='none'%3E%3Cg stroke='%2346dffd' stroke-opacity='.06' stroke-width='1'%3E%3Cpath d='M0 64h600M0 80h600M0 108h600M300 50 0 120M300 50 100 120M300 50 200 120M300 50v70M300 50l100 70M300 50l200 70M300 50l300 70'/%3E%3Cpath d='m520 18 25 24-25 24-25-24Zm0 0v48m-12-36 24 24m-24 0 24-24M70 18l22 24-22 24-22-24Zm0 0v48M48 42h44'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: cover;
+}
+#app #panel-home .lb3-home :is(h3, strong) {
+  color: var(--ve-ink);
+  font-weight: 600;
+}
+#app #panel-home .home-pvp-entry.lb3-home h3 {
+  font-size: var(--ve-heading-sm);
+  line-height: 1.25;
+  letter-spacing: .015em;
+}
+#app #panel-home .home-pvp-entry.lb3-home .lb3-home-copy p {
+  color: var(--ve-muted);
+  line-height: 1.5;
+}
+#app #panel-home .lb3-home :is(.home-pvp-modes, .lb3-home-foot) {
+  padding-inline: var(--ve-space-2);
+  gap: var(--ve-space-2);
+}
+#app #panel-home .lb3-home .home-pvp-mode {
+  gap: var(--ve-space-1);
+  border-color: var(--ve-hairline);
+  background: var(--ve-surface);
+  box-shadow: none;
+}
+#app #panel-home .lb3-home .home-pvp-mode::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  mask: var(--ve-mode-icon) center / contain no-repeat;
+}
+#app #panel-home .home-pvp-mode[data-mode-card="classic"] {
+  --ve-mode-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 3 12 12-2 2L3 5V3h2Zm14 0-6 6m6-6h2v2l-6 6M4 16l4 4m-5 1 4-4m9-1 4 4m1 1-4-4'/%3E%3C/svg%3E");
+}
+#app #panel-home .home-pvp-mode[data-mode-card="rounds"] {
+  --ve-mode-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='13' r='8'/%3E%3Cpath d='M9 2h6m-3 0v3m0 4v4l3 2M19 5l2 2'/%3E%3C/svg%3E");
+}
+#app #panel-home .home-pvp-mode[data-mode-card="arena"] {
+  --ve-mode-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 7 5 4 4-7 4 7 5-4-2 11H5L3 7Zm2 14h14'/%3E%3C/svg%3E");
+}
+#app #panel-home .lb3-home .home-pvp-mode em {
+  color: var(--ve-cyan);
+  font-weight: 600;
+}
+#app #panel-home .lb3-home-foot span {
+  color: var(--ve-muted);
+  line-height: 1.5;
+}
+
+/* Existing !important geometry/type in exact-ui.css and ui-polish-home.css
+   requires matching priority. Never target arena/HUD/typing geometry. */
+#app #panel-home :is(.phase4-player, .phase4-quest-box, .phase4-challenge),
+#app #panel-analytics .analysis-card {
+  padding: var(--ve-space-2) !important;
+  background: var(--ve-texture), var(--ve-surface) !important;
+  box-shadow: none !important;
+}
+#app :is(#panel-home, #panel-analytics) .phase4-heading h2 {
+  font-size: var(--ve-heading) !important;
+  line-height: 1.2 !important;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  white-space: normal;
+}
+#app #panel-analytics .phase4-analytics-grid .analysis-card h3 {
+  white-space: normal !important;
+  line-height: 1.25;
+}
+#app #panel-analytics .performance-heading .phase4-heading-copy h2 {
+  white-space: normal !important;
+}
+#app #panel-home .mini-shop > .small,
+#app #panel-home .mini-shop-item :is(small, em) {
+  font-size: var(--ve-text-meta);
+  line-height: 1.4;
+}
+#app #panel-home .phase4-quest-box {
+  height: auto !important;
+  gap: var(--ve-space-4) !important;
+}
+#app #panel-home .quest-line {
+  flex: 0 0 auto !important;
+  min-height: 40px !important;
+}
+#app :is(#panel-home, #panel-analytics) .phase4-heading .panel-title-icon {
+  box-shadow: none;
+}
+#app :is(#panel-home, #panel-analytics) :is(p, .lb3-home-foot) {
+  max-width: 70ch;
+}
+#app #panel-home :is(.player-progress strong, .adventure strong, .challenge-copy b),
+#app #panel-analytics .analysis-card h3 {
+  font-size: var(--ve-text-secondary) !important;
+  font-weight: 600;
+}
+#app .global-header .global-link {
+  font-size: var(--ve-text-meta) !important;
+}
+#app .global-header :is(.brand small, .profile-details small) {
+  font-size: var(--ve-text-meta) !important;
+}
+#app .global-header .profile-details b {
+  font-size: var(--ve-text-meta) !important;
+}
+
+/* New decorative SVGs only; existing functional icon classes are preserved. */
+#app svg[data-ve-icon] {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  min-width: 1em;
+  vertical-align: -.125em; /* Optical cap-height alignment. */
+  flex-shrink: 0;
+}
+#app .global-header :is(.nav-emoji, .brand-crown) svg[data-ve-icon] {
+  width: 20px;
+  height: 20px;
+}
+#app :is(.mini-shop-item, .hub-grid, .academy-lesson) > span > svg[data-ve-icon] {
+  width: 24px;
+  height: 24px;
+}
+
+/* Match the existing character-hidden breakpoint exactly. Warm beam uses
+   existing lobby fire accent; center scrim protects AA copy contrast. */
+@media (min-width:1281px) and (max-width:1600px), (min-width:1281px) and (max-height:800px) {
+  #app #panel-home .lb3-home-banner {
+    grid-template-columns: minmax(0, 1fr);
+    background-image: linear-gradient(90deg, rgb(255 180 138 / 16%), transparent 36%, transparent 64%, rgb(70 223 253 / 14%));
+  }
+  #app #panel-home .lb3-home-copy {
+    grid-column: 1;
+    padding: var(--ve-space-2) var(--ve-space-3);
+  }
+  #app #panel-home .lb3-home .home-pvp-mode {
+    padding-inline-start: 28px !important;
+  }
+}
+/* Existing fixed desktop columns need an internal scroll region as the
+   entry grows. Keep all cards reachable without a sticky action covering them. */
+@media (min-width:1281px) {
+  #app #panel-home.browser-window .window-content {
+    justify-content: flex-start !important;
+    gap: var(--ve-space-6) !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin !important;
+  }
+  #app #panel-home :is(.phase4-quest-box, .phase4-adventure-grid) {
+    flex-shrink: 0 !important;
+  }
+  #app #panel-home.browser-window .launch-button {
+    position: static !important;
+  }
+}
+@media (max-width:900px) {
+  #app .global-header {
+    max-height: none !important;
+  }
+  #app :is(#panel-home, #panel-analytics) .phase4-heading h2 {
+    white-space: normal;
+  }
+}
+@media (max-width:1280px) {
+  #app #panel-home .phase4-quest-box {
+    height: auto !important;
+    gap: var(--ve-space-2) !important;
+  }
+  #app #panel-home .quest-line {
+    flex: 0 0 auto !important;
+    min-height: 40px !important;
+  }
+}
