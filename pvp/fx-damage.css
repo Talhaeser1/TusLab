@@ -65,3 +65,6 @@
 @media (prefers-reduced-motion: reduce) {
   .pxd-float, .pxd-body, .pxd-combo { animation: none !important; transition: none !important; }
 }
+
+/* Damage-weighted size on the existing text, preserving its overshoot animation. */
+.pxd-num { font-size: calc(clamp(28px, 3vw, 46px) * var(--pxd-impact-scale, 1)); }

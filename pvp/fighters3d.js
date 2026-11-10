@@ -464,24 +464,29 @@ export function createFighterRig(THREE, asset, {
     state.yaw = Number(rad) || 0;
   }
 
+  // Capture each cloned material's actual rest values, once (never snapshot a flash).
+  const restMaterials = materials.map(m => ({color:m.color?.clone?.(),
+    emissive:m.emissive?.clone?.(), intensity:m.emissiveIntensity}));
   /** Flaş/parıltı/karartma (arena pozundan). */
-  function setTint({flash = 0, glow = 0, dark = 0} = {}) {
+  function setTint({flash = 0, red = 0, glow = 0, dark = 0} = {}) {
     if (ghost) return;
-    const pr = ((palette.main >> 16) & 255) / 255;
-    const pg = ((palette.main >> 8) & 255) / 255;
-    const pb = (palette.main & 255) / 255;
     const shade = 1 - clamp(dark, 0, 1);
-    for (const m of materials) {
-      if (m.emissive?.setRGB) {
-        m.emissive.setRGB(
-          (1 + flash * 4 + glow * pr * 2.2) * shade,
-          (1 + flash * 4 + glow * pg * 2.2) * shade,
-          (1 + flash * 4 + glow * pb * 2.2) * shade,
-        );
-        m.emissiveIntensity = view.emissive;
+    materials.forEach((m, i) => {
+      const rest = restMaterials[i];
+      if (rest.color && m.color?.copy) {
+        m.color.copy(rest.color).multiplyScalar(shade);
+        if (flash) m.color.lerp(new THREE.Color(0xffffff), flash * .8);
+        if (red) m.color.lerp(new THREE.Color(0xff3028), red);
       }
-      m.color?.setScalar?.(shade);
-    }
+      if (rest.emissive && m.emissive?.copy) {
+        m.emissive.copy(rest.emissive);
+        m.emissive.r += flash * 3 + red * 2 + glow * ((palette.main >> 16) & 255) / 255;
+        m.emissive.g += flash * 3 + glow * ((palette.main >> 8) & 255) / 255;
+        m.emissive.b += flash * 3 + glow * (palette.main & 255) / 255;
+        m.emissive.multiplyScalar(shade);
+        m.emissiveIntensity = rest.intensity;
+      }
+    });
   }
 
   function setOpacity(value) {
@@ -502,6 +507,7 @@ export function createFighterRig(THREE, asset, {
 
   function reset() {
     state.disposed || (mixer.stopAllAction(), state.current = null, goIdle(0));
+    setTint();
     state.yaw = 0;
     state.paused = false;
     state.timeScale = 1;

@@ -173,6 +173,7 @@ export function createDamageNumbers({
     let y = spec.y ?? 0;
     // Ultimate phase offsets and random drift must not collapse two occupied slots.
     while (list.some(e => Math.abs(e.x - (slot.x + x)) < 54 && Math.abs(e.y - (slot.y + y)) < 48)) y -= 48;
+    el.style.setProperty?.('--pxd-impact-scale', String(Math.min(1.6, 1 + (spec.amount || 0) / 400 + (spec.heavy ? .18 : 0))));
     el.style.setProperty?.('--pxd-x', `${x}px`);
     el.style.setProperty?.('--pxd-y', `${y}px`);
     el.style.setProperty?.('--pxd-lx', `${slot.x}px`);

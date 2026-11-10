@@ -1,3 +1,4 @@
+import {createImpactDirector, stepImpact, addTrauma, beginHitstop, restoreHitstop} from './impact-feel.js';
 import {createArenaBloom} from './arena3d-bloom.js';
 import {budgetRatio, createFrameGovernor, PIXEL_BUDGETS} from './perf-governor.js';
 import {buildStage} from './stages3d.js';
@@ -495,6 +496,7 @@ const FLOOR_GLOW_FRAGMENT = /* glsl */ `
 export async function createArena3D({
   root,
   isReduced = () => false,
+  onImpact = () => {},
   THREE = null,
   env = globalThis,
   createRenderer = null,
@@ -1777,6 +1779,35 @@ export async function createArena3D({
     return Promise.all(jobs).then(results => results.length > 0 && results.every(Boolean));
   }
 
+  // One contact owns damage feedback across the existing render adapters.
+  const impactFeel = createImpactDirector({now, isReduced: reduced,
+    contact(event, spec) {
+      if (!reduced() && !event.blocked) {
+        const t = now();
+        const travelling = ult && ult.def === event.toSeat && fighters.get(event.toSeat)?.seg;
+        // Plane fallback retains the existing ultimate's timed travel beats.
+        if (travelling && !fighters.get(event.fromSeat)?.model) {
+          impactFeel.state.stopUntil = 0;
+          impactFeel.state.slowUntil = 0;
+        } else {
+          Object.assign(hitStop, {start:t, last:t, until:t + spec.hitstopMs, seat:event.toSeat, amp:0});
+          const id = impactFeel.state.stopId;
+          env.setTimeout?.(() => restoreHitstop(impactFeel.state, id, now()), spec.hitstopMs);
+        }
+        kicks.push({start:t, dur:240});
+      }
+      handleCore(event);
+      // Damage plugins share this exact contact; no second resolve delay.
+      forwardToPlugins({...event, impactContact: true});
+      if (!event.blocked && event.amount > 0) {
+        const f = fighters.get(event.toSeat);
+        if (f) f.impactFlash = {at: now(), whiteMs: spec.flashMs};
+      }
+    },
+    deliver: event => safeCall(onImpact, event),
+  });
+  let impactFrame = {shakeX:0, shakeY:0, punch:0, zoom:0, timeScale:1};
+
   /** Karaktere özel beceri: klip adımları + kök hareketi izi + zamanlı efektler. false → model yok. */
   function playModelSkill(seat, skill, {fx = true} = {}) {
     const fighter = fighters.get(seat);
@@ -1785,12 +1816,24 @@ export async function createArena3D({
     const spec = rig.choreo[skill];
     if (!spec) return false;
     rig.play(skill);
-    fighter.lastCast = {at: now(), hitMs: spec.hitMs || 0};
+    fighter.lastCast = {at: now(), hitMs: spec.hitMs || 0,
+      clock: fighter.modelClock, arrived: false,
+      ranged: (spec.fx || []).some(x => ['spear','dagger','rune','meteor','column'].includes(x.kind))};
+    const cast = fighter.lastCast;
+    const opponent = fighters.get(otherSeat(seat));
+    const scale = fighter.root.scale.x || 1;
+    const contactDistance = Math.max(0, Math.abs(opponent.root.position.x - fighter.root.position.x) / scale - 1.25);
     const dur = skillDuration(spec);
     const spinOk = !reduced();
     addTrack(fighter, dur, (p, o, m) => {
       const r = rootMotionAt(spec, p * dur);
-      o.fwd += r.fwd * m;
+      const elapsed = p * dur;
+      if (!cast.ranged && skill !== 'r') {
+        const hit = Math.max(1, cast.hitMs);
+        const approach = clamp((elapsed - hit * .15) / (hit * .7), 0, 1);
+        const back = clamp((elapsed - hit - 100) / Math.max(1, dur - hit - 100), 0, 1);
+        o.fwd += contactDistance * approach * approach * (1 - easeOutCubic(back)) * m;
+      } else o.fwd += r.fwd * m;
       o.lift += r.lift * m;
       if (spinOk) o.yaw += r.yaw; // azaltılmış harekette kendi ekseninde dönüş yok
       o.glow += skill === 'r' ? 1.1 * (1 - p) : 0.3 * Math.sin(Math.PI * p);
@@ -1798,7 +1841,7 @@ export async function createArena3D({
     if (fx) {
       const def = otherSeat(seat);
       for (const item of spec.fx || []) {
-        fighter.fxQueue.push({at: fighter.modelClock + (item.at || 0), fn: () => spawnSkillFx(seat, def, item)});
+        fighter.fxQueue.push({at: fighter.modelClock + (item.at || 0), fn: () => spawnSkillFx(seat, def, item, cast)});
       }
       if (fighter.fxQueue.length > 12) fighter.fxQueue.splice(0, fighter.fxQueue.length - 12);
     }
@@ -1806,7 +1849,7 @@ export async function createArena3D({
   }
 
   /** Bir efekt örneği: mermi/rün oku/meteor/sütun/kalkan kırıkları/girdap/yer darbesi. */
-  function spawnSkillFx(seat, def, item) {
+  function spawnSkillFx(seat, def, item, cast = fighterCast(seat)) {
     const fighter = fighters.get(seat);
     const rig = fighter?.model;
     if (!rig || destroyed) return;
@@ -1815,9 +1858,11 @@ export async function createArena3D({
     const s = fighter.root.scale.x || 1;
     const quiet = reduced();
     const impact = power => {
-      api.flash(color, 0.08 + 0.12 * power, 140 + 120 * power);
+      if (cast) { cast.arrived = true; cast.contact = true; }
+      impactFeel.flush();
+      // The contact director owns damage flashes/camera; this cue only lights the floor.
+      api.flash(color, 0.04, 100);
       spawnFloorWave(def, seat, 0.4 + 0.6 * power);
-      if (power >= 0.6) api.shake(0.2 + 0.35 * power, 200 + 200 * power);
       if (power >= 0.8) { pulseFog(color, 0.5 * power); cheer(0.4 * power); }
     };
     if (item.kind === 'slam') {
@@ -1853,6 +1898,8 @@ export async function createArena3D({
     }
   }
 
+  function fighterCast(seat) { return fighters.get(seat)?.lastCast; }
+
   /** Mixer + efekt kuyruğu (tick içinde, poz güncellemesinden sonra). */
   function updateModels(dt, timeScale, frozenFighter, stopped) {
     for (const fighter of fighters.values()) {
@@ -1885,7 +1932,7 @@ export async function createArena3D({
     if (!rig) return;
     const reactive = state === 'hit' || state === 'block' || state === 'blockHit';
     const cast = reactive ? fighters.get(otherSeat(seat))?.lastCast : null;
-    const wait = cast ? cast.at + cast.hitMs - now() : 0;
+    const wait = cast && !cast.contact ? cast.at + cast.hitMs - now() : 0;
     if (wait > 16 && wait < 2000) {
       cue(wait, () => { if (fighters.get(seat)?.model === rig && !fighters.get(seat).ko) safeCall(() => rig.play(state, opts)); });
       return;
@@ -2038,7 +2085,7 @@ export async function createArena3D({
   const emptyPose = () => ({fwd: 0, lift: 0, tilt: 0, squash: 0, weapon: 0, guard: 0, flash: 0, glow: 0, dark: 0, yaw: 0, koTilt: 0});
 
   /** Amplitude for gameplay motion (reduced mode keeps a small hint only). */
-  const amp = () => (reduced() ? 0.25 : 1);
+  const amp = () => (reduced() ? 0 : 1);
 
   function addTrack(fighter, dur, fn, {replace = true} = {}) {
     if (!fighter || fighter.ko) return; // downed fighters stay down
@@ -2096,13 +2143,13 @@ export async function createArena3D({
     modelPlay(seat, 'hit', {heavy: a > 0.6});
     const dist = 0.25 + 0.95 * a;
     addTrack(fighter, 420 + 260 * a, (p, o, m) => {
-      const env = p < 0.3 ? easeOutCubic(p / 0.3) : 1 - easeInOutSine((p - 0.3) / 0.7);
+      const env = p < .18 ? .18 + easeOutCubic(p / .18) * .94
+        : Math.exp(-5 * (p - .18)) * Math.cos((p - .18) * 5.8) * (1 - p) / .82;
       o.fwd += -dist * env * m;
       o.tilt += (0.18 + 0.32 * a) * env * m;
       o.squash += 0.05 * env * m;
       o.weapon += -0.4 * env * m;
       o.guard += 0.3 * env * m;
-      o.flash += Math.max(0, 1 - p * 3.2);
     });
   }
 
@@ -2268,7 +2315,7 @@ export async function createArena3D({
     if (ult && ult.key !== key) ult = null;               // a new ultimate takes over (tweens blend)
     if (!ult) {
       if (fighters.get(def)?.ko || fighters.get(atk)?.ko) return;
-      ult = {key, atk, def, blocked: false, shown: 0, queue: [], nextAt: 0, watchdogAt: Infinity, ending: false, knockout: false};
+      ult = {key, atk, def, contacts: new Set(), blocked: false, shown: 0, queue: [], nextAt: 0, watchdogAt: Infinity, ending: false, knockout: false};
       // First phase seen is late (1 lost): still show the pull/hit before a throw.
       if (n === 3) ult.queue.push(2);
       api.dolly(atk, 1800);
@@ -2286,7 +2333,8 @@ export async function createArena3D({
       const n = ult.queue.shift();
       runPhase(n);
       ult.shown = n;
-      ult.nextAt = tNow + ULTIMATE_TIMING.minGapMs;
+      ult.nextAt = tNow + (fighters.get(ult.atk)?.model && n < 3
+        ? (n === 1 ? ULTIMATE_TIMING.pullMs : ULTIMATE_TIMING.strikeMs) : ULTIMATE_TIMING.minGapMs);
       const segMs = n === 1 ? ULTIMATE_TIMING.pullMs : ULTIMATE_TIMING.hitStopMs + ULTIMATE_TIMING.hitMs;
       ult.watchdogAt = tNow + segMs + ULTIMATE_TIMING.watchdogMs;
     }
@@ -2308,8 +2356,10 @@ export async function createArena3D({
     const T = ULTIMATE_TIMING;
     const span = ultGeometry(atk, def, tmpTarget);
     const roles = {atk, def};
+    const sequence = ult;
+    const markContact = () => { sequence.contacts.add(n); impactFeel.flush(); };
     if (n === 1) {
-      startSeg(attacker, {...roles, target: blocked ? 'atkBlocked' : 'atkCentre', dur: T.dashMs, ease: easeOutCubic, arc: 0.04 * span});
+      startSeg(attacker, {...roles, target: blocked ? 'atkBlocked' : 'atkCentre', dur: T.dashMs, ease: easeOutCubic, arc: 0.04 * span, onEnd: markContact});
       addTrack(attacker, 520, (p, o, m) => {           // raised weapon, energy glow
         o.weapon += -1.1 * bump(Math.min(1, p * 1.4)) * m;
         o.glow += 1.2 * (1 - p * 0.5);
@@ -2322,7 +2372,7 @@ export async function createArena3D({
       api.flash(attacker.palette.main, 0.16, 220);
       cheer(0.35);
     } else if (n === 2) {
-      startSeg(attacker, {...roles, target: blocked ? 'atkBlocked' : 'atkStrike', dur: T.strikeMs, ease: easeOutCubic});
+      startSeg(attacker, {...roles, target: blocked ? 'atkBlocked' : 'atkStrike', dur: T.strikeMs, ease: easeOutCubic, onEnd: markContact});
       if (!attacker.model) playLunge(atk, {wind: 40, strike: 120, recover: 200, dist: 0.25, swing: 1.4, glow: 1});
       if (!blocked) {
         startSeg(defender, {
@@ -2342,7 +2392,7 @@ export async function createArena3D({
         startSeg(defender, {
           target: 'home', dur: T.throwMs, ease: easeInOutSine, arc: 0.32 * span,
           spinTo: TAU * (Math.floor(spinFrom / TAU) + 1),  // one full backflip, lands upright
-          onEnd: () => landSlam(def, atk, {auto}),
+          onEnd: () => { markContact(); landSlam(def, atk, {auto}); },
         });
         api.shake(auto ? 0.25 : 0.45, 260);
       } else if (defender.offset.lengthSq() || defender.spin) {
@@ -2435,7 +2485,6 @@ export async function createArena3D({
     // Hit-stop tremble on the struck fighter (tracks are paused in tick()).
     if (tNow < hitStop.until && hitStop.seat === fighter.seat && !fighter.ko) {
       const k = 1 - (tNow - hitStop.start) / Math.max(1, hitStop.until - hitStop.start);
-      o.fwd += Math.sin(tNow * 0.11) * 0.05 * hitStop.amp * k;
       o.flash += 0.35 * hitStop.amp * k;
     }
 
@@ -2484,7 +2533,13 @@ export async function createArena3D({
     const spin = face * fighter.spin;
     const waist = WAIST_Y;
     fighter.actor.position.set(face * o.fwd + waist * Math.sin(spin), Math.max(0, o.lift) + waist * (1 - Math.cos(spin)), 0);
-    const flash = clamp(o.flash, 0, 1);
+    const hitFlash = fighter.impactFlash;
+    const age = hitFlash ? tNow - hitFlash.at : Infinity;
+    const white = hitFlash && age < hitFlash.whiteMs ? (quiet ? .15 : 1) : 0;
+    const red = hitFlash && age >= hitFlash.whiteMs ? Math.max(0, 1 - (age - hitFlash.whiteMs) / 110) * (quiet ? .12 : .65) : 0;
+    if (age > (hitFlash?.whiteMs || 0) + 110) fighter.impactFlash = null;
+    const flash = clamp(o.flash + white, 0, 1);
+    o.flash = flash;
     const glow = clamp(o.glow, 0, 1.5);
     if (fighter.model) {
       // Paket 32: klip baskın — düzlem eğimi/ezilmesi modele kısık uygulanır, dönüş (yaw) koreografiden.
@@ -2492,7 +2547,7 @@ export async function createArena3D({
       const sq = o.squash * MODEL_VIEW.squashScale;
       fighter.actor.scale.set(1 + sq * 0.5, 1 - sq, 1);
       fighter.model.setYaw(o.yaw);
-      fighter.model.setTint({flash, glow, dark: o.dark});
+      fighter.model.setTint({flash, red, glow, dark: o.dark});
     } else {
       fighter.actor.rotation.z = face * o.tilt + spin;
       fighter.actor.scale.set(1 + o.squash * 0.5, 1 - o.squash, 1);
@@ -2821,38 +2876,16 @@ export async function createArena3D({
       lookOffset.y += 0.1 * d.k;
     }
 
-    // Shake: decaying pseudo-noise.
-    let shakeAmp = 0;
+    // Add after framing: trauma and punch never affect layout/HUD measurements.
     for (let i = shakes.length - 1; i >= 0; i--) {
-      const s = shakes[i];
-      const p = (tNow - s.start) / s.dur;
-      if (p >= 1) {
-        shakes.splice(i, 1);
-        continue;
-      }
-      shakeAmp += s.amp * (1 - p) * (1 - p);
+      if (tNow - shakes[i].start >= shakes[i].dur) shakes.splice(i, 1);
     }
-    if (shakeAmp > 0) {
-      const a = Math.min(shakeAmp, 1.2) * 0.14;
-      const q = tNow / 1000;
-      cameraOffset.x += (Math.sin(q * 71.3) + Math.sin(q * 43.1 + 1.3)) * 0.5 * a;
-      cameraOffset.y += (Math.sin(q * 59.7 + 2.1) + Math.sin(q * 37.9)) * 0.5 * a;
-      lookOffset.x += Math.sin(q * 64.1 + 0.7) * a * 0.4;
-    }
-
-    // Directional kick: snap toward the hit direction, ease back (no noise).
     for (let i = kicks.length - 1; i >= 0; i--) {
-      const k = kicks[i];
-      const p = (tNow - k.start) / k.dur;
-      if (p >= 1) {
-        kicks.splice(i, 1);
-        continue;
-      }
-      const env = p < 0.15 ? easeOutCubic(p / 0.15) : 1 - easeInOutSine((p - 0.15) / 0.85);
-      cameraOffset.x += k.x * env;
-      cameraOffset.y += k.y * env;
-      lookOffset.x += k.x * env * 0.6;
+      if (tNow - kicks[i].start >= kicks[i].dur) kicks.splice(i, 1);
     }
+    cameraOffset.x += impactFrame.shakeX + impactFrame.punch;
+    cameraOffset.y += impactFrame.shakeY;
+    cameraOffset.z -= impactFrame.zoom;
 
     camera.position.copy(baseCamera.position).add(cameraOffset);
     lookPoint.copy(baseTarget).add(lookOffset);
@@ -2865,7 +2898,7 @@ export async function createArena3D({
       camera.position.copy(lookPoint).add(orbit);
       lookPoint.y += 0.45 * sweepK;
     }
-    const fov = LAYOUT.fov + 8 * sweepK;
+    const fov = LAYOUT.fov + 8 * sweepK - impactFrame.zoom * 3;
     if (sweepK > 0 ? Math.abs(camera.fov - fov) > 1e-4 : camera.fov !== fov) {
       camera.fov = fov;
       camera.updateProjectionMatrix();
@@ -2988,11 +3021,13 @@ export async function createArena3D({
       frameSubs.add(fn);
       return () => frameSubs.delete(fn);
     },
+    impactManaged: true,
     /** Camera shake, intensity 0..1 for `ms`. No-op in reduced mode. */
     shake(intensity = 0.5, ms = 300) {
       if (destroyed || reduced()) return;
       const value = clamp(Number(intensity) || 0, 0, 1);
       if (!value) return;
+      addTrauma(impactFeel.state, value);
       shakes.push({start: now(), dur: clamp(Number(ms) || 300, 30, 3000), amp: value});
       if (shakes.length > 6) shakes.shift();
     },
@@ -3006,6 +3041,9 @@ export async function createArena3D({
       if (!dur) return;
       const t = now();
       if (t + dur <= hitStop.until) return;
+      const id = beginHitstop(impactFeel.state, t, dur);
+      // Real-time safety release: stale callbacks cannot restore a newer stop.
+      env.setTimeout?.(() => restoreHitstop(impactFeel.state, id, now()), dur);
       if (t >= hitStop.until) {
         hitStop.start = t;
         hitStop.last = t;
@@ -3020,6 +3058,7 @@ export async function createArena3D({
       const value = clamp(Number(intensity) || 0, 0, 1);
       if (!value) return;
       const dx = Math.sign(Number(dirX) || 0);
+      impactFeel.state.punch = clamp(impactFeel.state.punch + dx * .16 * value, -.4, .4);
       kicks.push({start: now(), dur: clamp(Number(ms) || 220, 60, 1000), x: dx * 0.16 * value, y: -0.05 * value});
       if (kicks.length > 4) kicks.shift();
     },
@@ -3165,10 +3204,7 @@ export async function createArena3D({
         }
         const a = clamp((Number(event.amount) || 0) / HEAVY_DAMAGE, 0, 1);
         const crit = Array.isArray(event.bonusTags) && event.bonusTags.length > 0;
-        // Bigger hits freeze longer: Q ≈ 60 ms, E ≈ 95 ms, crit/heavy up to 140 ms.
-        if (!inUltTravel) api.hitStop(45 + 80 * a + (crit ? 25 : 0), seat, 0.5 + a);
-        api.kick(away, 0.25 + 0.6 * a + (crit ? 0.15 : 0), 200 + 160 * a);
-        if (a > 0.35) api.shake(0.2 + a * 0.4, 220 + a * 200);
+        // Contact policy already applied the tier's stop, trauma and camera punch.
         if (a >= 0.7) cheer(0.35 + a * 0.4);
         // Floor light wave + depth-fog pulse in the attacker's colour.
         const from = isSeat(event.fromSeat) ? event.fromSeat : otherSeat(seat);
@@ -3222,6 +3258,22 @@ export async function createArena3D({
   function handle(event) {
     if (destroyed || !event || typeof event !== 'object' || typeof event.type !== 'string') return;
     try {
+      if (event.type === 'DAMAGE_APPLIED' && isSeat(event.toSeat)) {
+        const attacker = fighters.get(event.fromSeat);
+        const cast = attacker?.lastCast;
+        if (cast && event.skill === 'r' && event.phase && !reduced() && ult) {
+          const sequence = ult;
+          impactFeel.queue(event, () => event.phase === 1 && cast.ranged
+            ? cast.arrived : sequence.contacts.has(event.phase));
+        } else if (cast && event.skill !== 'r' && !reduced()) {
+          impactFeel.queue(event, () => {
+            const ready = cast.ranged ? cast.arrived : attacker.modelClock - cast.clock >= cast.hitMs;
+            if (ready) cast.contact = true;
+            return ready;
+          });
+        } else impactFeel.hit(event);
+        return;
+      }
       handleCore(event);
     } catch {
       /* cosmetic layer: never break the combat listener */
@@ -3231,6 +3283,7 @@ export async function createArena3D({
 
   function onMatchEnd({winnerSeat} = {}) {
     if (destroyed) return;
+    clear(false); // End cinematics retain the plugins' existing lifecycle.
     if (!isSeat(winnerSeat)) {
       for (const fighter of fighters.values()) fighter.tracks.length = 0;
       return;
@@ -3241,7 +3294,7 @@ export async function createArena3D({
       startVictory(winnerSeat);
       if (env3d?.colosseum) env3d.colosseum.focusSeat = winnerSeat; // spotlights find the winner
       if (!reduced()) {
-        dollyTo(winnerSeat, 2600, true); // slow, held cinematic push-in
+        dollyTo(winnerSeat, 2600, false); // bounded finish, then return to the layout camera
       }
       api.flash(fighters.get(winnerSeat).palette.main, 0.2, 500);
     } catch {
@@ -3250,8 +3303,9 @@ export async function createArena3D({
     // Plugins get the KNOCKOUT event through handle(); index.js sends it itself.
   }
 
-  function clear() {
+  function clear(notifyPlugins = true) {
     if (destroyed) return;
+    impactFeel.clear();
     for (const fighter of fighters.values()) {
       fighter.tracks.length = 0;
       fighter.bubblePulses.length = 0;
@@ -3261,6 +3315,7 @@ export async function createArena3D({
       fighter.bubbleMaterial.uniforms.uColor.value.setHex(fighter.palette.shield);
       resetTravel(fighter);
       fighter.lastCast = null;
+      fighter.impactFlash = null;
       if (fighter.model) {
         fighter.fxQueue = [];
         fighter.modelClock = 0;
@@ -3284,8 +3339,9 @@ export async function createArena3D({
     dollyState.k = 0;
     dollyState.seat = null;
     resetCinematics();
+    impactFrame = stepImpact(impactFeel.state, 0, now(), reduced());
     for (const fighter of fighters.values()) fighter.clock = 0;
-    for (const plugin of plugins.slice()) {
+    for (const plugin of notifyPlugins ? plugins.slice() : []) {
       if (typeof plugin.clear === 'function') {
         try {
           plugin.clear();
@@ -3294,6 +3350,8 @@ export async function createArena3D({
         }
       }
     }
+    for (const fighter of fighters.values()) updateFighter(fighter, 0, now());
+    updateCamera(0, now(), 0);
     renderFrame(); // show the reset pose immediately (also while paused)
   }
 
@@ -3463,7 +3521,9 @@ export async function createArena3D({
     }
 
     // Cinematic snapshot for this frame (paket 29).
-    const timeScale = timeScaleAt(tNow);
+    impactFeel.flush();
+    impactFrame = stepImpact(impactFeel.state, Math.max(0, rawDt) / 1000, tNow, reduced());
+    const timeScale = Math.min(timeScaleAt(tNow), impactFrame.timeScale);
     cine.timeScale = timeScale;
     cine.superK = superEnvelope(tNow);
     cine.superSeat = cine.superK > 0 ? superState.seat : null;
@@ -3559,7 +3619,7 @@ export async function createArena3D({
   }
 
   const onVisibility = () => {
-    if (doc.hidden) stopLoop();
+    if (doc.hidden) { clear(); stopLoop(); }
     else {
       lastTime = now(); // no giant dt after a hidden tab
       governor.reset(); // sekme dönüşündeki takılmalar kaliteyi düşürmesin
@@ -3612,6 +3672,7 @@ export async function createArena3D({
 
   function destroy() {
     if (destroyed) return;
+    impactFeel.clear();
     stopLoop();
     for (const plugin of plugins.splice(0)) {
       try {
@@ -3707,6 +3768,7 @@ export async function createArena3D({
       },
       camera: () => ({shakes: shakes.length, kicks: kicks.length, flashes: flashes.length, dolly: dollyState.k, dollySeat: dollyState.seat}),
       hitStop: () => ({...hitStop}),
+      impact: () => ({...impactFeel.state}),
       cinematic: () => ({
         superK: cine.superK, superSeat: cine.superSeat, superLight: cine.superLight,
         timeScale: cine.timeScale, sweepK: cine.sweepK,

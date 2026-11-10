@@ -127,7 +127,7 @@ async function arena3dCreate(){
   try{
     const [{createArena3D},{createArena3DFx},{createArena3DHpBars},{createArena3DAssist}]=await Promise.all([import('./arena3d.js'),import('./arena3d-fx.js'),import('./arena3d-hpbars.js'),import('./arena3d-assist.js')]);
     if(token!==arena3d.token||root.hidden)return;
-    const instance=await createArena3D({root,isReduced:fx24Reduced});
+    const instance=await createArena3D({root,isReduced:fx24Reduced,onImpact:playImpactFeedback});
     if(!instance){arena3dButtonSync();return;}
     if(token!==arena3d.token||root.hidden){instance.destroy();return;}
     instance.registerPlugin(createArena3DFx(instance.api));
@@ -182,6 +182,7 @@ function arena3dDestroy(){
 function fighterSkillCue(side,cue,action){
   const name=soundForCue(side,cue,action);
   if(!name||!/-(q|e|r)$/.test(name)||!['q','e','r'].includes(action))return false;
+  if(arena3d.instance)return true; // 3D contact plays this sample alongside the hit.
   return playFighterSfx(side==='rune'?2:1,action,action==='r'?.88:1);
 }
 let reducedEffects=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches??false;
@@ -613,9 +614,10 @@ function playCombat(action){
   if(action.type==='WORD_CLASH')pvpAudio.play('clash',{character:'center',gain:.78});
   // Paket 31: partner desteği girişi — yeni ses dosyası yok, mevcut 'counter' örneği kısık çalınır.
   if(action.type==='ASSIST_CAST')pvpAudio.play('counter',{character:action.fromSeat===2?'rune':'fire',gain:.62});
-  fx24.damage?.handle(action);
+  if(action.type!=='DAMAGE_APPLIED')fx24.damage?.handle(action);
   if(arena3d.instance)arena3d.instance.handle(action);
   else{fx24.motion?.handle(action);fx24.particles?.handle(action);}
+  if(!arena3d.instance&&action.type==='DAMAGE_APPLIED')playImpactFeedback(action);
   const actor=action.fromSeat===2?'rune':'fire';
   const defender=action.toSeat===2?'rune':'fire';
   if(action.type==='SKILL_CAST'){
@@ -637,7 +639,7 @@ function playCombat(action){
     fxDirectors[kind]?.play({cue:action.phase===3?'final-blast':kind==='fire'?'blade-trail':'aftershock',action:'r'});
     choreographers[kind]?.onUltimateBeat(action.phase);
     if(action.phase>1)projectiles?.launch({fromSeat:action.fromSeat,skill:'r',character:kind});
-    pvpAudio.play(action.phase===3?(kind==='fire'?'fire-r':'rune-r'):(kind==='fire'?'fire-q':'rune-e'),{character:kind,gain:action.phase===3?.60:.26});
+    if(!arena3d.instance)pvpAudio.play(action.phase===3?(kind==='fire'?'fire-r':'rune-r'):(kind==='fire'?'fire-q':'rune-e'),{character:kind,gain:action.phase===3?.60:.26});
   }else if(action.type==='SHIELD_TRIGGERED'){
     const kind=action.seat===2?'rune':'fire';
     controllers[kind]?.trigger('s');
@@ -664,15 +666,18 @@ function playCombat(action){
     fxDirectors[kind]?.play({cue:'damage-react'});choreographers[kind]?.onDefense('SHIELD_BROKEN');
     pvpAudio.play('shatter',{character:kind,gain:1});
     pvp13Banner(action.seat,'✹ SHIELD BREAK!', 'shatter');
-  }else if(action.type==='DAMAGE_APPLIED'){
-    // Paket 32: temiz isabet hedefin kendi sesiyle; blok/kritik sesleri aynı kalır.
-    const plainHit=!action.blocked&&!action.critical&&(Number(action.amount)||0)>0&&(action.toSeat===1||action.toSeat===2);
-    if(!(plainHit&&playFighterSfx(action.toSeat,'hit')))pvpAudio.combat(action);
-    if(!action.blocked&&(Number(action.amount)||0)>0)hitFeelDamage(action);
-    projectiles?.impact({toSeat:action.toSeat,blocked:action.blocked});
-    if(!action.blocked)controllers[defender]?.trigger('hit');
-    // Hasar sayıları artık fx-damage.js tarafından piksel yazıyla çiziliyor.
   }
+}
+function playImpactFeedback(action){
+  fx24.damage?.handle(action);
+  const defender=action.toSeat===2?'rune':'fire';
+  if(arena3d.instance&&!action.blocked&&['q','e','r'].includes(action.skill))playFighterSfx(action.fromSeat,action.skill,.8);
+  // Paket 32: temiz isabet hedefin kendi sesiyle; blok/kritik sesleri aynı kalır.
+  const plainHit=!action.blocked&&!action.critical&&(Number(action.amount)||0)>0&&(action.toSeat===1||action.toSeat===2);
+  if(!(plainHit&&playFighterSfx(action.toSeat,'hit')))pvpAudio.combat(action);
+  if(!action.blocked&&(Number(action.amount)||0)>0)hitFeelDamage(action);
+  projectiles?.impact({toSeat:action.toSeat,blocked:action.blocked});
+  if(!action.blocked)controllers[defender]?.trigger('hit');
 }
 function syncMusic(){
   const m=network.match;
@@ -789,6 +794,10 @@ function flushQueued(id){
 }
 // Pencere/raund yeniden açılınca: sıradaki kelimeyi gönder ve odak <body>'de kaldıysa yazma kutusuna dön.
 // (Kutu çözüm sırasında stage-focus ile gizlenir; kilit, gizliyken açıldığında focus() işe yaramıyordu.)
+root?.addEventListener('tuslab:pvp-recovered',()=>arena3d.instance?.clear());
+root?.addEventListener('tuslab:pvp-arena',event=>{
+  if(['ARENA_ROUND_START','ARENA_ROUND_END','ARENA_PREP_START'].includes(event.detail?.type))arena3d.instance?.clear();
+});
 root?.addEventListener('tuslab:pvp-round',event=>{
   const type=event.detail?.type;if(type!=='EXCHANGE_START'&&type!=='ROUND_START')return;
   flushQueued(myKey());
@@ -894,6 +903,7 @@ root?.addEventListener('click',event=>{
 root?.addEventListener('tuslab:pvp-match',()=>roundsUi?.update(network.match,network.myId));
 root?.addEventListener('tuslab:pvp-round',event=>{
   const detail=event.detail||{};
+  if(['ROUND_START','ROUND_END'].includes(detail.type))arena3d.instance?.clear();
   if(detail.type==='ROUND_START')pvpAudio.play('round-start',{character:'center',gain:.6});
   if(detail.type==='ROUND_SKILL_ACK'){
     pvpAudio.play('skill-lock',{character:'center',gain:.45});

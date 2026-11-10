@@ -1061,7 +1061,7 @@ export function createArena3DFx(api) {
       end: 0.3, grav: palName === 'fire' ? -1 * U : 0.4 * U, drag: 1.5, alpha: 0.7, pal});
     spawnRing(g.x, g.y + 0.02 * U, g.z, 'floor', 'circle', pal.cool[0], 0.3 * U, (1.5 + 0.6 * k) * U, 0.5);
     flashLight(c.x, c.y, c.z, pal.light, 0.6 + 0.4 * k, 0.22, U);
-    shake(clamp(amount / 350, 0.12, 0.85), Math.round(120 + amount * 0.8));
+    if (!api.impactManaged) shake(clamp(amount / 350, 0.12, 0.85), Math.round(120 + amount * 0.8));
   }
 
   /** Bloklanan isabet: kalkandan sekmiş birkaç camgöbeği kıvılcım. */
@@ -1347,7 +1347,7 @@ export function createArena3DFx(api) {
       case 'COUNTERATTACK_CAST': onCounter(event); break;
       case 'ULTIMATE_PHASE': onUltimatePhase(event); break;
       case 'DAMAGE_APPLIED': {
-        if ((event.resolve === true || event.arena === true) && resolveBeats.length < 8) {
+        if (!event.impactContact && (event.resolve === true || event.arena === true) && resolveBeats.length < 8) {
           resolveBeats.push({event, remaining: 0.235});
           break;
         }
