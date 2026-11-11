@@ -1,21 +1,25 @@
-# KONTROL LİSTESİ — "Gerçek dövüş hissi" paketi
+# KONTROL LİSTESİ — TuşLab "gerçek dövüş hissi" hedefi (6. oturum düzeni)
 
-Durum: ⬜ başlanmadı · 🟡 sürüyor · ✅ bitti (test + gözle doğrulandı) · ⚠️ engelli
+Durum: ⬜ başlanmadı · 🟡 sürüyor · ✅ bitti (test + tarayıcıda ölçüldü) · ⚠️ engelli
+Dal: `is-4-dovus` (push/deploy yok). Görev tanımları: docs/codex/.
 
 | # | İş | Durum | Kanıt / not |
 |---|----|-------|-------------|
-| 1 | Animasyon: ışınlanma yok, doğal hız (timeScale ≤1.2), temas karesinde efekt, ulti sinematik | 🟡 | Codex çalışıyor (3. oturum) |
-| 2 | Raund özeti: görsel kuyruk bitince açılır (≤~3 sn), sonra geri sayım | 🟡 | Codex |
-| 3 | Raund geçiş ekranı: "RAUND X" tek başına → kompakt beceri paneli; taşma/çakışma yok | 🟡 | Codex |
-| 4 | Karakter seçimi tüm modlarda maça taşınır | 🟡 | GLM analiz ediyor |
-| 5a | Sira/Doran/Nyx Meshy modelleri tüm modlara bağlı (≤1,2 MB) | 🟡 | Modeller üretildi; bağlama bekliyor |
-| 5b | Ana menü orta karakter 3D modeli (idle) | ⚠️ | Meshy API anahtarı harcama sınırı (402) |
-| 6 | Sesler: karakter, silah/skill, seyirci, seri anonsları, spiker; temas senkron, ≤40 KB, sessiz mod | ⬜ | ses-taslak/ hazır, entegre değil |
-| 7 | Mekanik: zamana karşı kelime akışı + saniye; sayılı sabit kelime; skill/süper bar, can/hasar uçtan uca | ⬜ | |
-| 8 | Ekran düzeni: 1920x1080, 1366x768, 375x812 taşma/çakışma yok | ⬜ | docs/EKRAN-KONTROL-KURALLARI.md |
-| 9 | Son denetim: Playwright ile her modda bot maçı | ⬜ | |
+| 1 | DÖVÜŞ: "N KOMBO!" sayacı + tek yaklaşmada zincir; ultide boş bekleme yok; bot yürüyüp saldırır; KRİTİK arka planda görünür; savunma efekti; ışınlanma/animasyonsuz hasar yok | 🟡 | W1 (hesap1 Fable) çalışıyor; ara durum 894d0bf, f9fb91a |
+| 2 | MAÇ EKRANI: "SEN" etiketi; yazılan kelimeler can barı altında; süre/raund net; kazanan (nakavt) hatası; Donmuş An vb. görsel etki | 🟡 | W2 (hesap1 Sonnet), görev I |
+| 3 | MEKANİK: zamana karşıda süre bitene kadar kelime; sayılı raundda 10 kelime; zorlaşma; skill/süper/can uçtan uca test | 🟡 | W2, görev I |
+| 4 | YENİ MODLAR: atasözü, şiir, Osmanlıca oyuna bağlı | 🟡 | 0f3c912 yarım; içerik hazır |
+| 5 | HACI USTA: model + portre bağlı; Q etli ekmek, E sema dönüşü, R ney ultisi; sesler | ⬜ | varlıklar hazır (d7d6a9c, 030e2f2) |
+| 6 | PvP LOBİ: üstte kaydırmalı mod seçici; ikon karakterler + bilgi kartı; 3D arena karuseli; maç ayarları alanı; kurallar paneli yok; eski model parlaması yok | ⬜ | görev J2 |
+| 7 | RAUND ARASI: "Tur bitti / sonraki raund" ekranları | ⬜ | görev L |
+| 8 | SES: skill replikleri, saldırı/darbe/zafer, efektler, seyirci, seri anonsu, spiker, Anadolu müziği, sessiz mod | ⬜ | dosyalar hazır, bağlanmadı (görev S) |
+| 9 | AÇIKLAR: karakter tüm modlarda maça geçer + etiket uyumu; seçme kartları sığar; küçük yazılar; turkuaz kristal; "SALDIRI SIRASI"na binen kelimeler; ana menü 3D modeli | 🟡 | ana menü 3D ✅ cefd596 |
+| 10 | SON ÖLÇÜM: her modda 1920×1080, 1366×768, 375×812 tam maç | ⬜ | |
 
 ## Her işten sonra
 - [ ] Diff'te izinsiz kural değişikliği yok (pvp/shared/match.js, cloudflare/, raund/kelime/süre/hasar sabitleri)
 - [ ] `npm test` tamamen geçti
 - [ ] Commit atıldı (push yok)
+
+## Elle test maddeleri
+(Oturum sonunda doldurulacak.)
