@@ -9,7 +9,7 @@ import {initSocialUI,friendPanelHTML} from './phase17-social.js';
 // Offline practice vs bot: runs the real engine locally and emits server-shaped packets.
 import {createPracticeSession,ensurePracticeStyles,normalizeDifficulty,BOT_DIFFICULTIES} from './practice.js';
 // Tur sistemi (docs/TUR-SISTEMI.md §10): maç uzunluğu seçici, tur paketleri, seri tahmini.
-import {PRACTICE_ROUNDS_KEY,DEFAULT_ROUNDS,normalizeRounds,phaseOverdueMs,PHASE_STALL_MS,roundsPickDecision,roundsPickerHTML,syncRoundsPicker,predictedSkill,roundInputLock,isRoundMatch,ensureRoundsStyles} from './rounds-ui.js';
+import {PRACTICE_ROUND_STYLE_KEY,PRACTICE_ROUND_WORDS_KEY,normalizeRoundStyle,normalizeRoundWords,roundStylePickDecision,roundStylePickerHTML,syncRoundStylePicker,PRACTICE_ROUNDS_KEY,DEFAULT_ROUNDS,normalizeRounds,phaseOverdueMs,PHASE_STALL_MS,roundsPickDecision,roundsPickerHTML,syncRoundsPicker,predictedSkill,roundInputLock,isRoundMatch,ensureRoundsStyles} from './rounds-ui.js';
 // Sıralı çözüm (Ajan A): klasik değiş tokuş pencereleri ve tur sonu çözümü de maç görüntüsü taşır.
 const ROUND_PACKETS=new Set(['ROUND_START','ROUND_LAST_CALL','ROUND_END','ROUND_SKILL_ACK','ROUND_RESOLVE','EXCHANGE_START','EXCHANGE_RESOLVE']);
 // Arena modu (docs/ARENA-MODU.md §7.1): her paket kişisel anlık görüntü (`match`) taşır.
@@ -135,6 +135,8 @@ export class PvPNetworkConsole {
     // Practice session (null when playing online). While set, send() is routed to it.
     this.practice=null;this.practiceDifficulty=normalizeDifficulty(safeStore(localStorage,'tuslab-pvp-practice-difficulty'));
     this.practiceRounds=normalizeRounds(safeStore(localStorage,PRACTICE_ROUNDS_KEY));this.roomRounds=DEFAULT_ROUNDS;
+    this.practiceRoundStyle=normalizeRoundStyle(safeStore(localStorage,PRACTICE_ROUND_STYLE_KEY));this.practiceRoundWords=normalizeRoundWords(Number(safeStore(localStorage,PRACTICE_ROUND_WORDS_KEY)));
+    this.roomRoundStyle=normalizeRoundStyle();this.roomRoundWords=normalizeRoundWords();
     this.practiceMode=normalizeMode(safeStore(localStorage,PRACTICE_MODE_KEY));this.roomMode='rounds';
     this.practiceTyping=readTypingPref();this.roomTyping=normalizeTyping();
     this.practiceAssist=safeStore(localStorage,ASSIST_KEY)!=='off';this.roomAssist=true;
@@ -187,6 +189,21 @@ export class PvPNetworkConsole {
         const decision=roundsPickDecision({scope,value:b.dataset.rounds,isHost:Boolean(this.myId)&&!this.practice&&this.hostPlayerId===this.myId,phase:this.phase,current:this.roomRounds});
         if(decision?.store){this.practiceRounds=decision.store;safeStore(localStorage,PRACTICE_ROUNDS_KEY,String(decision.store));}
         else if(decision?.type==='MATCH_CONFIG'){this.send('MATCH_CONFIG',decision.payload);this.roomRounds=decision.payload.rounds;this.log(`Maç uzunluğu: ${decision.payload.rounds} tur. Hazır durumları sıfırlandı.`);}
+        this.render();
+      }
+      if(action==='roundstyle'||action==='roundwords'){
+        const kind=action==='roundstyle'?'style':'words';
+        const scope=b.dataset.styleScope==='practice'?'practice':'room';
+        const value=kind==='style'?b.dataset.roundStyle:b.dataset.roundWords;
+        const decision=roundStylePickDecision({scope,kind,value,isHost:Boolean(this.myId)&&!this.practice&&this.hostPlayerId===this.myId,phase:this.phase,current:kind==='style'?this.roomRoundStyle:this.roomRoundWords});
+        if(decision&&'store' in decision){
+          if(kind==='style'){this.practiceRoundStyle=decision.store;safeStore(localStorage,PRACTICE_ROUND_STYLE_KEY,String(decision.store));}
+          else{this.practiceRoundWords=decision.store;safeStore(localStorage,PRACTICE_ROUND_WORDS_KEY,String(decision.store));}
+        }else if(decision?.type==='MATCH_CONFIG'){
+          this.send('MATCH_CONFIG',decision.payload);
+          if(kind==='style')this.roomRoundStyle=decision.payload.roundStyle;else this.roomRoundWords=decision.payload.roundWords;
+          this.log('Raund biçimi değişti. Hazır durumları sıfırlandı.');
+        }
         this.render();
       }
       if(action==='mode'){
@@ -280,7 +297,7 @@ export class PvPNetworkConsole {
     if(isFighterId(fighter)){this.fighter=fighter;this.character=FIGHTERS[fighter].archetype;}
     else if((character==='fire'||character==='rune')&&character!==this.character){this.character=character;this.fighter=normalizeFighter(this.fighter,character);}
     const session=createPracticeSession({
-      difficulty:this.practiceDifficulty,character:this.character,fighter:this.fighter,rune:this.rune,name:this.readName()||'Savaşçı',rounds:this.practiceRounds,mode:this.practiceMode,typing:this.practiceTyping,assist:this.practiceAssist,stage:normalizeStageChoice(stage||this.practiceStage),
+      difficulty:this.practiceDifficulty,character:this.character,fighter:this.fighter,rune:this.rune,name:this.readName()||'Savaşçı',rounds:this.practiceRounds,roundStyle:this.practiceRoundStyle,roundWords:this.practiceRoundWords,mode:this.practiceMode,typing:this.practiceTyping,assist:this.practiceAssist,stage:normalizeStageChoice(stage||this.practiceStage),
       // Deliver asynchronously (like a socket) and drop packets from a disposed session.
       onPacket:packet=>queueMicrotask(()=>{if(this.practice===session)this.receive(packet);})
     });
@@ -452,6 +469,8 @@ export class PvPNetworkConsole {
       this.players=Array.isArray(p.players)?p.players:[];this.hostPlayerId=p.hostPlayerId||null;
       this.phase=p.phase||'waiting';
       const rounds=p.rounds??p.summary?.rounds;if(rounds!==undefined)this.roomRounds=normalizeRounds(rounds);
+      const rstyle=p.roundStyle??p.summary?.roundStyle;if(rstyle!==undefined)this.roomRoundStyle=normalizeRoundStyle(rstyle);
+      const rwords=p.roundWords??p.summary?.roundWords;if(rwords!==undefined)this.roomRoundWords=normalizeRoundWords(rwords);
       const mode=p.mode??p.summary?.mode;if(mode!==undefined)this.roomMode=normalizeMode(mode);
       const typing=p.typing??p.summary?.typing;if(typing!==undefined)this.roomTyping=normalizeTyping(typing);
       const assist=p.assist??p.summary?.assist;if(assist!==undefined)this.roomAssist=normalizeAssist(assist);
@@ -700,6 +719,8 @@ export class PvPNetworkConsole {
     const roomEditable=host&&['waiting','countdown'].includes(this.phase);
     syncRoundsPicker(panel,'room',{value:this.roomRounds,editable:roomEditable,note:roomEditable?'Değiştirmek iki oyuncunun hazır durumunu sıfırlar.':host?'Maç başladı; rövanş aynı uzunlukta oynanır.':'Maç uzunluğunu oda sahibi belirler.'});
     syncRoundsPicker(panel,'practice',{value:this.practiceRounds,editable:true,note:''});
+    syncRoundStylePicker(panel,'room',{style:this.roomRoundStyle,words:this.roomRoundWords,editable:roomEditable,note:roomEditable?'Değiştirmek iki oyuncunun hazır durumunu sıfırlar.':'Raund biçimini oda sahibi belirler.'});
+    syncRoundStylePicker(panel,'practice',{style:this.practiceRoundStyle,words:this.practiceRoundWords,editable:true,note:''});
     syncModePicker(panel,'room',{value:this.roomMode,editable:roomEditable,note:roomEditable?'Modu değiştirmek hazır durumlarını sıfırlar.':host?'Maç başladı; rövanş aynı modda oynanır.':'Oyun modunu oda sahibi belirler.'});
     syncTypingPicker(panel,'practice',{value:this.practiceTyping,editable:true,note:''});
     syncTypingPicker(panel,'room',{value:this.roomTyping,editable:roomEditable,note:roomEditable?'Değiştirmek hazır durumlarını sıfırlar.':host?'Maç başladı; rövanş aynı kurallarla oynanır.':'Yazma kurallarını oda sahibi belirler.'});
@@ -759,6 +780,7 @@ export function networkConsoleHTML(){
             <label>Bot zorluğu<select data-practice-difficulty><option value="kolay">Kolay · ~25 WPM</option><option value="orta" selected>Orta · ~45 WPM</option><option value="zor">Zor · ~70 WPM</option></select></label>
             ${roundsPickerHTML('practice')}
           </div>
+          ${roundStylePickerHTML('practice')}
           ${typingPickerHTML('practice')}
           <button type="button" class="pvp24-practice-start ui-button-primary lb3-fight" data-lobby-action="practice"><span class="lb3-fight-main" data-practice-main>Savaşa gir</span><span class="lb3-fight-sub" data-practice-sub>🤖 Seçili modda bot maçını başlat</span></button>
           <button type="button" class="pvp24-practice-stop ui-button-ghost" data-lobby-action="practice-stop" hidden>Bot maçını bitir</button>
@@ -792,6 +814,7 @@ export function networkConsoleHTML(){
           <div class="pvp6-charlabel" id="lb3-room-fighter-label">SAVAŞÇINI SEÇ</div>
           ${roomFighterChoicesHTML()}
           ${stagePickerHTML('room')}
+          ${roundStylePickerHTML('room')}
           <div class="pvp22-runes"><div class="pvp6-charlabel">⚡ RÜNÜNÜ SEÇ · HER OYUNCU 1 RÜN</div><div class="pvp22-rune-grid"><button type="button" data-lobby-action="rune" data-rune="none" aria-pressed="true" title="Bonus yok">⚔ Klasik</button><button type="button" data-lobby-action="rune" data-rune="ember" aria-pressed="false" title="Q hasarı +8">🔥 Alev Mührü</button><button type="button" data-lobby-action="rune" data-rune="crystal" aria-pressed="false" title="Savunma cooldown -200 ms">🛡 Kristal Kalkan</button><button type="button" data-lobby-action="rune" data-rune="rhythm" aria-pressed="false" title="E/R hasarı +6">♫ Savaş Ritimcisi</button><button type="button" data-lobby-action="rune" data-rune="laststand" aria-pressed="false" title="Düşük HP son çare">♥ Son Direniş</button><button type="button" data-lobby-action="rune" data-rune="reflex" aria-pressed="false" title="Perfect pencere +25 ms">✦ Keskin Refleks</button><button type="button" data-lobby-action="rune" data-rune="lightning" aria-pressed="false" title="Her üçüncü Q +18">⚡ Yıldırım Kesişi</button></div></div>${modePickerHTML('room')}${roundsPickerHTML('room')}${typingPickerHTML('room')}
           <p class="pvp6-help">İkiniz de <b>Hazırım</b> dediğinizde 3-2-1 sayımı başlar. Bağlantı koparsa maç 20 saniye duraklar; geri gelince kaldığı yerden sürer.</p>
         </div>

@@ -39,7 +39,7 @@ function fakeClock(start=1_700_000_000_000){
 }
 function setup({seed=7,difficulty='orta',character='fire',ids=true}={}){
   const clock=fakeClock();const packets=[],combat=[],words=[],snapshots=[];let n=0;
-  const session=createPracticeSession({difficulty,character,rng:seeded(seed),now:clock.now,scheduler:clock.scheduler,
+  const session=createPracticeSession({roundStyle:'counted',difficulty,character,rng:seeded(seed),now:clock.now,scheduler:clock.scheduler,
     createId:ids?()=>`practice-test-${++n}`:undefined,
     onPacket:p=>packets.push(p),onCombat:e=>combat.push(e),onWordResult:r=>words.push(r),onMatch:m=>snapshots.push(m)});
   return {clock,session,packets,combat,words,snapshots};

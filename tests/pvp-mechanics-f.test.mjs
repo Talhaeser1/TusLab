@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 import {createMatch,publicMatch,submitWord,advanceMatch,nextDeadline,resolveStepMs,
   ROUND_WORDS,ROUND_WORDS_MIN,ROUND_WORDS_MAX,ROUND_VIEW_AHEAD,ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,
   RESOLVE_STEP_MS,RESOLVE_MIN_STEP_MS,RESOLVE_BUDGET_MS,SKILL_THRESHOLDS,STREAK_SKILLS,normalizeRoundStyle,normalizeRoundWords,
-  roundSkillMs} from '../pvp/shared/match.js';
+  roundSkillMs,DEFAULT_ROUND_STYLE} from '../pvp/shared/match.js';
 import {roundsViewModel,phaseOverdueMs,PHASE_STALL_MS} from '../pvp/rounds-ui.js';
 import {SKILL_THRESHOLDS as SKILLBAR_THRESHOLDS,readSkillState} from '../pvp/skillbar.js';
 import {createPracticeSession,HUMAN_ID} from '../pvp/practice.js';
@@ -23,10 +23,11 @@ function type(m,seat,at,{wrong=false}={}){
 }
 
 // ── 1. roundStyle / roundWords ────────────────────────────────────────────────
-test('F1: varsayılan counted, 10 kelime; normalize geçersiz değerleri düşürür',()=>{
+test('F1: varsayılan timed (Zamana Karşı), roundWords 10; normalize geçersiz değerleri düşürür',()=>{
   const m=make();
-  assert.equal(m.roundStyle,'counted');assert.equal(m.roundWords,ROUND_WORDS);assert.equal(m.round.words.length,10);
-  assert.equal(normalizeRoundStyle('x'),'counted');assert.equal(normalizeRoundStyle('timed'),'timed');
+  assert.equal(m.roundStyle,'timed');assert.equal(DEFAULT_ROUND_STYLE,'timed');assert.equal(m.round.style,undefined);
+  assert.equal(make({roundStyle:'counted'}).roundStyle,'counted');assert.equal(m.roundWords,ROUND_WORDS);assert.equal(m.round.words.length,10);
+  assert.equal(normalizeRoundStyle('x'),'timed');assert.equal(normalizeRoundStyle('counted'),'counted');assert.equal(normalizeRoundStyle('timed'),'timed');
   for(const bad of [4,21,10.5,'10',null,undefined,NaN])assert.equal(normalizeRoundWords(bad),10,String(bad));
   assert.equal(normalizeRoundWords(5),5);assert.equal(normalizeRoundWords(20),20);
   assert.equal(ROUND_WORDS_MIN,5);assert.equal(ROUND_WORDS_MAX,20);
@@ -79,7 +80,7 @@ test('F1: timed anlık görüntü yalnız pencereyi taşır (küçük), words[ro
   assert.ok(m.round.words.length>view.round.words.length-1);
 });
 test('F1: counted anlık görüntü hâlâ tüm listeyi içerir (eski davranış)',()=>{
-  const m=make();const v=publicMatch(m,1);
+  const m=make({roundStyle:'counted'});const v=publicMatch(m,1);
   assert.equal(v.round.style,'counted');assert.deepEqual(v.round.words,m.round.words);
 });
 
@@ -280,6 +281,61 @@ test('F4: timed HUD kelime şeridi pencere öncesi boş girdileri göstermez, sa
   assert.ok(vm.words.length>0&&vm.words.every(w=>w.text!==''));
   assert.ok(vm.words.some(w=>w.state==='active'));
   assert.equal(vm.sides[0].progress,'Kelime 25');
-  const c=roundsViewModel(publicMatch(make({roundWords:14}),1),'a',T0+500,new Map());
+  const c=roundsViewModel(publicMatch(make({roundStyle:'counted',roundWords:14}),1),'a',T0+500,new Map());
   assert.equal(c.sides[0].progress,'Kelime 0/14');assert.ok(c.words.length<=ROUND_WORDS);
+});
+
+// ── 6. lobi roundStyle seçicisi ───────────────────────────────────────────────
+import {roundStylePickDecision,roundStylePickerHTML,syncRoundStylePicker,PRACTICE_ROUND_STYLE_KEY,PRACTICE_ROUND_WORDS_KEY,ROUND_WORD_CHOICES} from '../pvp/rounds-ui.js';
+test('G1: seçici kararı — practice yerel kaydeder, odada yalnız host/lobi fazında MATCH_CONFIG üretir',()=>{
+  assert.deepEqual(roundStylePickDecision({scope:'practice',kind:'style',value:'counted'}),{store:'counted'});
+  assert.deepEqual(roundStylePickDecision({scope:'practice',kind:'words',value:'15'}),{store:15});
+  assert.equal(roundStylePickDecision({scope:'practice',kind:'style',value:'x'}),null);
+  assert.equal(roundStylePickDecision({scope:'practice',kind:'words',value:12}),null,'yalnız 5/10/15');
+  assert.deepEqual([...ROUND_WORD_CHOICES],[5,10,15]);
+  const room={scope:'room',isHost:true,phase:'waiting',current:'timed'};
+  assert.deepEqual(roundStylePickDecision({...room,kind:'style',value:'counted'}),{type:'MATCH_CONFIG',payload:{roundStyle:'counted'}});
+  assert.deepEqual(roundStylePickDecision({...room,kind:'words',value:5,current:10}),{type:'MATCH_CONFIG',payload:{roundWords:5}});
+  assert.equal(roundStylePickDecision({...room,kind:'style',value:'timed'}),null,'aynı değer gönderilmez');
+  assert.equal(roundStylePickDecision({...room,isHost:false,kind:'style',value:'counted'}),null);
+  assert.equal(roundStylePickDecision({...room,phase:'started',kind:'style',value:'counted'}),null);
+});
+test('G1: seçici HTML varsayılan olarak Zamana karşı basılı gelir; kelime satırı yalnız Sayılı\'da görünür',()=>{
+  const html=roundStylePickerHTML('practice');
+  assert.match(html,/data-round-style="timed"[^>]*aria-pressed="true"/);
+  assert.match(html,/data-round-style="counted"[^>]*aria-pressed="false"/);
+  assert.match(html,/Zamana karşı/);assert.match(html,/Sayılı/);
+  for(const n of [5,10,15])assert.match(html,new RegExp(`data-round-words="${n}"`));
+  const mk=()=>{const els=[];const mkEl=(attrs,sel)=>{const e={dataset:{},attrs:{...attrs},hidden:false,disabled:false,textContent:'',getAttribute(k){return this.attrs[k];},setAttribute(k,v){this.attrs[k]=v;}};Object.assign(e.dataset,sel);return e;};
+    const st=[mkEl({'aria-pressed':'true'},{roundStyle:'timed'}),mkEl({'aria-pressed':'false'},{roundStyle:'counted'})];
+    const wd=[5,10,15].map(n=>mkEl({'aria-pressed':'false'},{roundWords:String(n)}));
+    const lab=mkEl({},{}),grp=mkEl({},{}),note=mkEl({},{});
+    const box={dataset:{},querySelectorAll:s=>s==='[data-round-style]'?st:s==='[data-round-words]'?wd:[lab,grp],querySelector:()=>note};
+    return {st,wd,lab,grp,note,root:{querySelector:()=>box}};};
+  const a=mk();syncRoundStylePicker(a.root,'room',{style:'counted',words:15,editable:false,note:'x'});
+  assert.equal(a.st[1].attrs['aria-pressed'],'true');assert.equal(a.st[0].attrs['aria-pressed'],'false');
+  assert.equal(a.wd[2].attrs['aria-pressed'],'true');assert.equal(a.grp.hidden,false);assert.equal(a.st[0].disabled,true);
+  const b=mk();syncRoundStylePicker(b.root,'room',{style:'timed',words:10,editable:true});
+  assert.equal(b.grp.hidden,true);assert.equal(b.st[0].disabled,false);
+});
+test('G1: practice tercihi localStorage\'da (try/catch ile) saklanır ve başlangıçta okunur; maça aktarılır',()=>{
+  assert.equal(PRACTICE_ROUND_STYLE_KEY,'tuslab-pvp-practice-round-style');assert.equal(PRACTICE_ROUND_WORDS_KEY,'tuslab-pvp-practice-round-words');
+  const net=readFileSync(new URL('../pvp/network.js',import.meta.url),'utf8');
+  assert.match(net,/safeStore\(localStorage,PRACTICE_ROUND_STYLE_KEY,String\(decision\.store\)\)/);
+  assert.match(net,/safeStore\(localStorage,PRACTICE_ROUND_WORDS_KEY,String\(decision\.store\)\)/);
+  assert.match(net,/this\.practiceRoundStyle=normalizeRoundStyle\(safeStore\(localStorage,PRACTICE_ROUND_STYLE_KEY\)\)/);
+  assert.match(net,/roundStyle:this\.practiceRoundStyle,roundWords:this\.practiceRoundWords/);
+  assert.match(net,/this\.send\('MATCH_CONFIG',decision\.payload\)/);
+  assert.match(net,/p\.roundStyle\?\?p\.summary\?\.roundStyle/);
+  assert.match(net,/\$\{roundStylePickerHTML\('practice'\)\}/);assert.match(net,/\$\{roundStylePickerHTML\('room'\)\}/);
+  const safe=net.match(/const safeStore=\(storage,key,value\)=>\{try\{/);assert.ok(safe,'safeStore try/catch');
+});
+test('G1: varsayılanlar timed — motor, room.js ve practice',async()=>{
+  const m=createMatch(players(),T0,'d',{rounds:5,seed:1});assert.equal(m.roundStyle,'timed');
+  const s=createPracticeSession({rounds:5,now:()=>T0,rng:()=>.5,createId:()=>'dd',onPacket(){},scheduler:{setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){}}});
+  s.start();assert.equal(s.match.roundStyle,'timed');
+  const f=fixture();await f.room.fetch(new Request('https://local.test/initialize',{method:'POST'}));
+  await join(f.room,1);await join(f.room,2);
+  assert.equal(f.room.summary(await f.room.roster()).roundStyle,'timed');
+  assert.match(readFileSync(new URL('../pvp/rounds-ui.css',import.meta.url),'utf8'),/\.rui-seg button\{[^}]*font-size:12px/);
 });

@@ -11,7 +11,7 @@ const R=ROUND_DURATION_MS;                     // tur yazma süresi
 const INTER=ROUND_SUMMARY_MS+ROUND_INTRO_MS;    // tur kapanışı → sonraki tur başlangıcı
 const players=(c1='fire',c2='rune',r1='none',r2='none')=>[
   {playerId:'a',seat:1,character:c1,rune:r1,name:'A'},{playerId:'b',seat:2,character:c2,rune:r2,name:'B'}];
-const make=(opts={},chars=[])=>createMatch(players(...chars),T0,'m1',{rounds:5,seed:123,...opts});
+const make=(opts={},chars=[])=>createMatch(players(...chars),T0,'m1',{rounds:5,seed:123,roundStyle:'counted',...opts});
 const seatOf=(m,seat)=>m.participants.find(p=>p.seat===seat);
 function type(m,seat,at,{wrong=false,round}={}){
   const p=seatOf(m,seat);const word=m.round.words[p.roundWordIndex];

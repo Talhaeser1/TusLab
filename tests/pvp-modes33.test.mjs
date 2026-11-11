@@ -7,7 +7,7 @@ import {arenaInputLock} from '../pvp/arena-ui.js';
 import {createPracticeSession} from '../pvp/practice.js';
 
 const players=[{playerId:'a',seat:1,name:'Sira',fighter:'sira',character:'fire'},{playerId:'b',seat:2,name:'Nyx',fighter:'nyx',character:'rune'}];
-const fresh=(options={})=>createMatch(players,1000,'modes33',{rounds:5,seed:33,...options});
+const fresh=(options={})=>createMatch(players,1000,'modes33',{rounds:5,seed:33,roundStyle:'counted',...options});
 function secondRound(skillA,skillB){
   let m=fresh({resolveAtEnd:true});m=advanceMatch(m,41000).match;
   for(const [playerId,skill] of [['a',skillA],['b',skillB]])if(skill)m=pickRoundSkill(m,{playerId,skill},41001).match;

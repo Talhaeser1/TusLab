@@ -24,7 +24,7 @@ const received=(ws,type)=>ws.messages.filter(m=>m.type===type);
 async function join(room,i){await room.fetch(new Request('https://local.test/connect',{headers:{Upgrade:'websocket'}}));const ws=last;
  await request(room,ws,'JOIN',{name:`Oyuncu ${i}`,character:i===1?'fire':'rune',resumeToken:token(i)});return ws;}
 async function lobby(){const f=fixture();await f.room.fetch(new Request('https://local.test/initialize',{method:'POST'}));
- const a=await join(f.room,1),b=await join(f.room,2);return Object.assign(f,{a,b});}
+ const a=await join(f.room,1),b=await join(f.room,2);await request(f.room,a,'MATCH_CONFIG',{roundStyle:'counted'});return Object.assign(f,{a,b});}
 async function start(f){
  await request(f.room,f.a,'READY_SET',{ready:true});await request(f.room,f.b,'READY_SET',{ready:true});
  const l=await f.room.roster();l.startAt=Date.now()-5;await f.room.save(l);await f.room.alarm();

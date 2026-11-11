@@ -7,7 +7,8 @@
  */
 
 import {FIGHTERS,normalizeFighter} from './shared/fighters.js';
-import {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,RESOLVE_BUDGET_MS,roundSkillMs} from './shared/match.js';
+import {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,RESOLVE_BUDGET_MS,roundSkillMs,
+  ROUND_STYLES,DEFAULT_ROUND_STYLE,normalizeRoundStyle,normalizeRoundWords,validRoundWords} from './shared/match.js';
 export {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS};
 // Spec §1 sabitleri. Motor henüz yüklenmemiş olabileceği için burada aynalanır (yalnız sunum).
 export const ROUND_OPTIONS=Object.freeze([5,7,10]);
@@ -17,6 +18,11 @@ export const ROUND_LAST_CALL_MS=5_000;
 export const STREAK_SKILLS=Object.freeze({3:'q',5:'e',7:'r',8:'q',9:'q',10:'q'});
 export const STREAK_TICKS=Object.freeze([{at:3,key:'Q'},{at:5,key:'E'},{at:7,key:'R'}]);
 export const PRACTICE_ROUNDS_KEY='tuslab-pvp-practice-rounds';
+export const PRACTICE_ROUND_STYLE_KEY='tuslab-pvp-practice-round-style';
+export const PRACTICE_ROUND_WORDS_KEY='tuslab-pvp-practice-round-words';
+export const ROUND_STYLE_LABELS=Object.freeze({timed:'Zamana karşı',counted:'Sayılı'});
+export const ROUND_WORD_CHOICES=Object.freeze([5,10,15]);
+export {DEFAULT_ROUND_STYLE,normalizeRoundStyle,normalizeRoundWords};
 const START_FLASH_MS=900;
 const CLASH_MS=1300;
 const BREAK_MS=900;
@@ -218,6 +224,43 @@ export function roundsPickerHTML(scope){
     +`<div class="rui-seg" role="group" aria-labelledby="rui-picker-${s}">`
     +ROUND_OPTIONS.map(n=>`<button type="button" data-lobby-action="rounds" data-rounds-scope="${s}" data-rounds="${n}" aria-pressed="${n===DEFAULT_ROUNDS}" title="${n} turluk maç seç"><b>${n}</b> tur</button>`).join('')
     +`</div><small class="rui-picker-note" data-rounds-note></small></div>`;
+}
+/** Raund biçimi seçici kararı. kind='style'|'words'. practice: yerel tercih; room: yalnız host, waiting/countdown, değişiklikte MATCH_CONFIG. */
+export function roundStylePickDecision({scope,kind,value,isHost,phase,current}={}){
+  const v=kind==='words'?Number(value):value;
+  if(kind==='style'?!ROUND_STYLES.includes(v):kind!=='words'||!ROUND_WORD_CHOICES.includes(v)||!validRoundWords(v))return null;
+  if(scope==='practice')return {store:v};
+  if(scope!=='room'||!isHost||!['waiting','countdown'].includes(phase)||v===current)return null;
+  return {type:'MATCH_CONFIG',payload:kind==='style'?{roundStyle:v}:{roundWords:v}};
+}
+export function roundStylePickerHTML(scope){
+  const s=scope==='practice'?'practice':'room';
+  return `<div class="rui-picker" data-style-picker="${s}"><span class="rui-picker-label" id="rui-style-${s}">Raund biçimi</span>`
+    +`<div class="rui-seg" role="group" aria-labelledby="rui-style-${s}">`
+    +ROUND_STYLES.slice().reverse().map(k=>`<button type="button" data-lobby-action="roundstyle" data-style-scope="${s}" data-round-style="${k}" aria-pressed="${k===DEFAULT_ROUND_STYLE}" title="${k==='timed'?'Süre bitene kadar sürekli yeni kelime':'Raund başına sabit kelime sayısı'}">${ROUND_STYLE_LABELS[k]}</button>`).join('')
+    +`</div><span class="rui-picker-label" id="rui-words-${s}" data-words-label hidden>Kelime sayısı</span>`
+    +`<div class="rui-seg" role="group" aria-labelledby="rui-words-${s}" data-words-group hidden>`
+    +ROUND_WORD_CHOICES.map(n=>`<button type="button" data-lobby-action="roundwords" data-style-scope="${s}" data-round-words="${n}" aria-pressed="${n===10}" title="Raund başına ${n} kelime"><b>${n}</b> kelime</button>`).join('')
+    +`</div><small class="rui-picker-note" data-style-note></small></div>`;
+}
+/** Biçim seçicisini eşitle; sayılı olmayan modda kelime sayısı satırı gizlenir. */
+export function syncRoundStylePicker(container,scope,{style,words,editable,note=''}={}){
+  const box=container?.querySelector(`[data-style-picker="${scope}"]`);if(!box)return;
+  const st=normalizeRoundStyle(style),wn=normalizeRoundWords(words);
+  box.dataset.readonly=String(!editable);
+  box.querySelectorAll('[data-round-style]').forEach(b=>{
+    const pressed=String(b.dataset.roundStyle===st);
+    if(b.getAttribute('aria-pressed')!==pressed)b.setAttribute('aria-pressed',pressed);
+    if(b.disabled!==!editable)b.disabled=!editable;
+  });
+  box.querySelectorAll('[data-round-words]').forEach(b=>{
+    const pressed=String(Number(b.dataset.roundWords)===wn);
+    if(b.getAttribute('aria-pressed')!==pressed)b.setAttribute('aria-pressed',pressed);
+    if(b.disabled!==!editable)b.disabled=!editable;
+  });
+  const hide=st!=='counted';
+  for(const el of box.querySelectorAll('[data-words-label],[data-words-group]'))if(el.hidden!==hide)el.hidden=hide;
+  const n=box.querySelector('[data-style-note]');if(n&&n.textContent!==note)n.textContent=note;
 }
 /** Seçici durumunu eşitle; host olmayan oyuncu için salt-okunur. */
 export function syncRoundsPicker(container,scope,{value,editable,note=''}={}){

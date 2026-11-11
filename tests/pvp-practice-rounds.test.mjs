@@ -30,7 +30,7 @@ function clock(){
 function setup(options={}){
   const time=clock(),packets=[];
   let id=0;
-  const session=createPracticeSession({now:time.now,scheduler:time.scheduler,rng:()=>.99,createId:()=>`round-practice-${++id}`,
+  const session=createPracticeSession({roundStyle:'counted',now:time.now,scheduler:time.scheduler,rng:()=>.99,createId:()=>`round-practice-${++id}`,
     onPacket:p=>packets.push(p),...options});
   return {time,packets,session};
 }

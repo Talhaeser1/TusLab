@@ -20,3 +20,8 @@ Orkestratör: Claude (bu oturum Opus 5.5 üzerinde çalışıyor; istenen "Fable
 - Teşhis: Sonnet alt ajan (salt okuma). Kök nedenler: rounds modu 10 kelimeyle sınırlı → boş ekran; sayaç yalnız round fazında sayıyor; resolve fazı 1300 ms aralıkla uzun "ÇÖZÜLÜYOR"; "TUR ARASI" 58px daireye sığmıyor, "RAUND n/m" ile çakışıyor.
 - Karar: rounds moduna `roundStyle: timed|counted` (varsayılan counted=10 kelime). Klasik düello modu korunur.
 - Uygulama: `codex exec --full-auto` otomatik izin sınıflandırıcısı tarafından engellendi → görev Sonnet alt ajana (Agent aracı) verildi. Görev tanımı: docs/codex/F-MEKANIK.md.
+- ✅ c297ae6: roundStyle timed/counted, faz sayacı, çözüm ≤~6 sn, takılma senkronu, TUR ARASI çakışması. 711/711 test, cf:validate 77/77. (Sonnet alt ajan; denetim + commit: orkestratör)
+- Not: tests/pvp-rounds-plan6.test.mjs (önceki ajandan takipsiz, motorla çelişen 6 raundluk plan) → tests/_pending/ altına taşındı.
+- Devam: lobi seçicisi (varsayılan timed) Sonnet alt ajanda.
+- ✅ Lobi raund biçimi seçicisi (practice + online host), varsayılan timed; 715/715 test, cf:validate 77/77. Tarayıcı: bot maçında sayaç 34→31 sn/3 sn aktı (doğrulandı).
+- Açık: oda lobisinde raund sayısı (5/7/10) seçicisi basılmıyor (önceden de yoktu) — E aşamasında bakılacak.

@@ -9,7 +9,7 @@ import {MessageType,makeEnvelope} from '../pvp/contracts.js';
 
 const T=1_700_000_000_000;
 const players=[{seat:1,playerId:'one',character:'fire'},{seat:2,playerId:'two',character:'rune'}];
-const create=()=>createMatch(players,T,'time-skills',{rounds:5,seed:42});
+const create=()=>createMatch(players,T,'time-skills',{rounds:5,seed:42,roundStyle:'counted'});
 const intermission=m=>advanceMatch(m,m.round.endsAt+1).match;
 const next=m=>advanceMatch(m,m.round.nextRoundAt).match;
 const pick=(m,seat,skill)=>pickRoundSkill(m,{playerId:players[seat-1].playerId,skill},m.round.endedAt+1);

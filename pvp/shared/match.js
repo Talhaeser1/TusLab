@@ -90,7 +90,7 @@ export const ROUND_OPTIONS=Object.freeze([5,7,10]);
 export const ROUND_WORDS=10;
 // Paket F: raund biçimi. counted = roundWords kelime (varsayılan, eski davranış); timed = süre dolana kadar kelime akar.
 export const ROUND_STYLES=Object.freeze(['counted','timed']);
-export const DEFAULT_ROUND_STYLE='counted';
+export const DEFAULT_ROUND_STYLE='timed';
 export const ROUND_WORDS_MIN=5;
 export const ROUND_WORDS_MAX=20;
 export const ROUND_VIEW_AHEAD=4;   // timed: anlık görüntüye mevcut kelime + 4 ileri
