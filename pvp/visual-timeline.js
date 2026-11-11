@@ -1,32 +1,47 @@
-// Şerit H: görsel zaman çizelgesi (saf mantık; three.js/DOM/ağ bağımsız).
-// Sunucu/motor olayları geldiği an değil, sıraya alınıp oynatılır: her saldırı =
-// yolculuk + klip(temasa kadar) + toparlanma + dönüş. Hasar hesabı DEĞİŞMEZ: yalnız
-// hasarın GÖSTERİMİ (vuruş efekti, sarsıntı, hasar sayısı) temas karesine ertelenir.
+// Şerit H / Görev 4: görsel zaman çizelgesi (saf mantık; three.js/DOM/ağ bağımsız).
+// Sunucu/motor olayları geldiği an değil, sıraya alınıp oynatılır. Hasar hesabı DEĞİŞMEZ:
+// yalnız hasarın GÖSTERİMİ (vuruş efekti, sarsıntı, hasar sayısı) temas karesine ertelenir.
 //
 //   const tl = createVisualTimeline({now, isReduced});
-//   tl.enqueue({seat, estimateMs, start(ctx) → {contactMs, durationMs}, onContact(), onEnd(), complete(forced)});
+//   tl.enqueue({seat, estimateMs, keep, start(ctx, entry) → {contacts?, contactMs?, durationMs},
+//               onContact(), onEnd(), complete(forced)});
 //   tl.tick(dtMs)         // her kare, rig ile AYNI simülasyon dt'si (hitstop'ta 0)
 //   tl.drain(1500)        // KO/raund sonu: kuyruk en geç 1,5 s'de boşalır
 //   tl.flush()            // raund geçişi: son durumu anında uygula
 //   tl.isBusy() / tl.remainingMs() / tl.whenIdle(maxWaitMs)    // okuma API'si
 //
-// ctx (start'a verilir): {compress, skipReturn, backlogMs} — kuyruk birikimi.
-// Tavan aşılırsa bekleyen eski sahneler temas üretmeden tamamlanır.
+// SIRA (Görev 4): aynı anda tek koltuk oynar. Farklı koltukların girdileri arasında kısa
+// "nefes" (TURN.breathMs, 150–250 ms) bırakılır; aynı koltuğun girdisi (kombo devamı) arksız
+// başlar. Görsel kuyruk boş beklediyse nefes atlanır (gereksiz gecikme yok).
+//
+// Çoklu temas (kombo): start {contacts: [{ms, fn}]} döndürebilir; her temas kendi fn'sini
+// kendi karesinde çağırır. Eski tekli sözleşme (contactMs + onContact) aynen çalışır.
+// Girdi tutamacı (enqueue dönen nesne): aktifken süre uzatılabilir, yeni tema eklenebilir:
+//   entry.extend(ms) · entry.addContact({ms, fn}) · entry.reestimate(ms)
+// Bekleyen girdiler birikirse eskiler themesiz tamamlanır; `keep: true` girdileri (kombo)
+// yalnız maxItems sınırında düşer — baskı yerine arena katmanı komboyu SIKIŞTIRIR.
 
 export const VISUAL_QUEUE = Object.freeze({
-  maxBacklogMs: 2500,   // birikim bu değeri aşarsa sıkıştırma
+  maxBacklogMs: 2500,   // bekleyen sıradan sahnelere ilişkin birikim eşiği (keep:true hariç)
   drainMs: 1500,        // KO/raund sonu boşalma üst sınırı
-  idleWaitMs: 3000,     // whenIdle varsayılan üst bekleme
+  idleWaitMs: 3000,     // whenIdle varsayılan üst bekleme (raund özeti tavanı ~3 sn)
   maxItems: 12,         // koruma: daha fazlasında en eskiler anında tamamlanır
 });
 
-export function createVisualTimeline({now = () => Date.now(), isReduced = () => false, setTimer = null, clearTimer = null} = {}) {
+/** İki koltuk arasındaki kısa nefes (ms): saldıran değişince karakter yerine oturur.
+ *  Varsayılan KAPALIdır (breathMs: 0) — arena3d açar; saf zaman çizelgesi testleri etkilenmez. */
+export const TURN = Object.freeze({breathMs: 200, minMs: 150, maxMs: 250});
+
+export function createVisualTimeline({now = () => Date.now(), isReduced = () => false, setTimer = null, clearTimer = null, breathMs = 0} = {}) {
   const queue = [];
   let active = null;
-  let clock = 0;            // simülasyon saati (ms)
+  let clock = 0;             // simülasyon saati (ms)
   let drainUntil = Infinity; // clock bu değere varınca kalan her şey anında tamamlanır
+  let lastSeat = null;       // son BAŞLATILAN girdinin koltuğu (nefes hesabı)
+  let lastEndClock = -Infinity; // son girdinin bittiği an (boşta geçen süre nefesi emer)
+  let breathLeft = 0;        // kalan nefes (ms)
   const waiters = [];
-  const stats = {started: 0, completed: 0, compressed: 0, skippedReturns: 0, forced: 0, maxBacklogMs: 0, lastLagMs: 0};
+  const stats = {started: 0, completed: 0, compressed: 0, skippedReturns: 0, forced: 0, maxBacklogMs: 0, lastLagMs: 0, breaths: 0};
   const timer = setTimer || ((fn, ms) => globalThis.setTimeout?.(fn, ms));
   const untimer = clearTimer || (id => globalThis.clearTimeout?.(id));
 
@@ -44,37 +59,78 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
     for (const w of waiters.splice(0)) { untimer(w.timer); w.resolve(true); }
   }
 
-  function safe(fn, arg) { try { return fn?.(arg); } catch { return undefined; /* kozmetik katman */ } }
+  function safe(fn, arg, extra) { try { return fn?.(arg, extra); } catch { return undefined; /* kozmetik katman */ } }
+
+  /** Temas noktalarını ateşle (ms küçükten büyüğe; her biri bir kez). */
+  function pumpContacts(item) {
+    if (!item || item.done) return;
+    for (const c of item.contacts) {
+      if (c.fired || item.elapsed < c.ms) continue;
+      c.fired = true;
+      safe(c.fn, {forced: false, ms: c.ms});
+    }
+  }
 
   function finish(item, forced) {
     if (item.done) return;
     item.done = true;
-    if (!item.contactFired && !forced) { item.contactFired = true; safe(item.onContact, {forced}); }
+    if (!forced) pumpContacts(item); // sıfır süreli girdi temasını yine de verir
     if (forced) { stats.forced++; safe(item.complete, true); }
     safe(item.onEnd, {forced});
     stats.completed++;
+    lastEndClock = clock;
     if (active === item) active = null;
+  }
+
+  /** start planından temas listesi: yeni çoklu sözleşme + eski tekli sözleşme. */
+  function buildContacts(item, plan) {
+    const list = [];
+    if (Array.isArray(plan?.contacts)) {
+      for (const c of plan.contacts) {
+        if (c && typeof c.fn === 'function') list.push({ms: Math.max(0, Number(c.ms) || 0), fn: c.fn, fired: false});
+      }
+      list.sort((a, b) => a.ms - b.ms);
+    }
+    if (typeof item.onContact === 'function') {
+      list.push({ms: Math.max(0, Number(plan?.contactMs) || 0), fn: item.onContact, fired: false});
+    }
+    return list;
   }
 
   function startNext() {
     while (!active && queue.length) {
+      const next = queue[0];
+      // Nefes (yalnız breathMs > 0 isteyen katman): farklı koltuk geçişi ve kuyruk henüz
+      // boşken beklememişsek kısa duraklama. Aynı koltuk (kombo devamı) arksız başlar.
+      if (breathMs > 0 && next.seat !== undefined && lastSeat !== null && next.seat !== lastSeat) {
+        const waited = Math.max(0, clock - lastEndClock);
+        if (waited < breathMs) {
+          breathLeft = breathMs - waited;
+          stats.breaths++;
+          return;
+        }
+      }
       const item = queue.shift();
+      breathLeft = 0; // bir girdi başladı: bekleyen nefes artık geçerli değil
       const backlog = (item.estimateMs || 0) + queue.reduce((s, q) => s + (q.estimateMs || 0), 0);
       const compress = backlog > VISUAL_QUEUE.maxBacklogMs;
       const skipReturn = false;
       if (compress) stats.compressed++;
-      if (skipReturn) stats.skippedReturns++;
       stats.lastLagMs = backlog;
       stats.maxBacklogMs = Math.max(stats.maxBacklogMs, backlog);
-      const plan = safe(item.start, {compress, skipReturn, backlogMs: backlog}) || {};
       item.elapsed = 0;
-      item.contactMs = Math.max(0, Number(plan.contactMs) || 0);
-      item.durationMs = Math.max(item.contactMs, Number(plan.durationMs) || item.contactMs);
-      item.contactFired = false;
       item.done = false;
+      const plan = safe(item.start, {compress, skipReturn, backlogMs: backlog}, item) || {};
+      item.contacts = buildContacts(item, plan);
+      item.contactMs = item.contacts.length ? item.contacts[0].ms : Math.max(0, Number(plan.contactMs) || 0);
+      item.durationMs = Math.max(item.contactMs, item.contacts.length ? item.contacts[item.contacts.length - 1].ms : 0,
+        Number(plan.durationMs) || item.contactMs);
       active = item;
       stats.started++;
-      if (item.durationMs <= 0) finish(item, false);
+      pumpContacts(item); // ms=0 temasları aynı karede
+      if (item.durationMs <= 0 && !item.contacts.length) finish(item, false);
+      else if (item.elapsed >= item.durationMs) finish(item, false);
+      lastSeat = item.seat ?? lastSeat;
     }
   }
 
@@ -83,52 +139,95 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
     if (active) finish(active, true);
     while (queue.length) {
       const item = queue.shift();
-      item.contactFired = false; item.done = false;
       finish(item, true);
     }
     settle();
   }
 
+  /** Girdi tutamacı: kombo denetleyicisi aktif girdiyi canlı uzatır/besler. */
+  function makeHandle(entry) {
+    return {
+      get elapsed() { return entry.elapsed; },
+      get done() { return entry.done; },
+      get durationMs() { return entry.durationMs; },
+      set durationMs(ms) { if (!entry.done) entry.durationMs = Math.max(0, Number(ms) || 0); },
+      extend(ms) { if (!entry.done) entry.durationMs += Math.max(0, Number(ms) || 0); },
+      reestimate(ms) { entry.estimateMs = Math.max(0, Number(ms) || 0); },
+      addContact({ms, fn} = {}) {
+        if (entry.done || typeof fn !== 'function') return null;
+        const c = {ms: Math.max(0, Number(ms) || 0), fn, fired: false};
+        entry.contacts.push(c);
+        entry.durationMs = Math.max(entry.durationMs, c.ms);
+        if (active === entry) pumpContacts(entry);
+        return c;
+      },
+    };
+  }
+
+  function enqueue(item) {
+    if (!item || typeof item.start !== 'function') return null;
+    const entry = {seat: item.seat, estimateMs: Number(item.estimateMs) || 0, keep: Boolean(item.keep),
+      start: item.start, onContact: item.onContact, onEnd: item.onEnd, complete: item.complete,
+      enqueuedAt: clock, elapsed: 0, done: false, contacts: [], contactMs: 0, durationMs: 0, meta: item.meta};
+    entry.handle = makeHandle(entry);
+    if (isReduced()) {                // azaltılmış hareket: sıra yok, anında (animasyonsuz)
+      const plan = safe(entry.start, {compress: true, skipReturn: false, backlogMs: 0}, entry) || {};
+      entry.contacts = buildContacts(entry, plan);
+      entry.done = true;
+      for (const c of entry.contacts) { c.fired = true; safe(c.fn, {forced: false, ms: c.ms}); }
+      safe(entry.onEnd, {forced: false});
+      stats.completed++;
+      return entry.handle;
+    }
+    queue.push(entry);
+    while (queue.length > VISUAL_QUEUE.maxItems) { const old = queue.shift(); finish(old, true); }
+    while (queue.length > 1 && remainingMs() > VISUAL_QUEUE.maxBacklogMs) {
+      const i = queue.findIndex(q => !q.keep);   // kombo (keep) düşürülmez: arena katmanı sıkıştırır
+      if (i < 0) break;
+      const [old] = queue.splice(i, 1); finish(old, true);
+    }
+    if (!active) startNext();
+    return entry.handle;
+  }
+
+  function tick(dtMs) {
+    const dt = Math.max(0, Number(dtMs) || 0);
+    clock += dt;
+    if (breathLeft > 0) {
+      breathLeft -= dt;
+      if (breathLeft > 0) { settle(); return; }   // nefes: iki koltuk arası kısa boşluk
+      breathLeft = 0;
+    }
+    if (active) {
+      active.elapsed += dt;
+      pumpContacts(active);
+      if (active.elapsed >= active.durationMs) finish(active, false);
+    }
+    if (clock >= drainUntil && isBusy()) { flush(); return; }
+    startNext();
+    settle();
+  }
+
+  function drain(budgetMs = VISUAL_QUEUE.drainMs) {
+    const budget = Math.max(0, Number(budgetMs) || 0);
+    if (!isBusy()) return;
+    drainUntil = Math.min(drainUntil, clock + budget);
+  }
+
+  function clear() {
+    queue.length = 0; active = null; drainUntil = Infinity; breathLeft = 0;
+    lastSeat = null; lastEndClock = -Infinity;
+    settle();
+  }
+
   return {
-    stats, VISUAL_QUEUE,
-    /** Sıraya ekle. Çok birikirse en eskiler anında tamamlanır (sınırsız backlog yok). */
-    enqueue(item) {
-      if (!item || typeof item.start !== 'function') return null;
-      const entry = {seat: item.seat, estimateMs: Number(item.estimateMs) || 0, start: item.start, onContact: item.onContact,
-        onEnd: item.onEnd, complete: item.complete, enqueuedAt: clock, elapsed: 0, done: false, contactFired: false, meta: item.meta};
-      if (isReduced()) {                // azaltılmış hareket: sıra yok, anında
-        entry.contactFired = false;
-        safe(entry.start, {compress: true, skipReturn: false, backlogMs: 0});
-        finish(entry, false);
-        return entry;
-      }
-      queue.push(entry);
-      while (queue.length > VISUAL_QUEUE.maxItems || (queue.length > 1 && remainingMs() > VISUAL_QUEUE.maxBacklogMs)) {
-        const old = queue.shift(); finish(old, true);
-      }
-      if (!active) startNext();
-      return entry;
-    },
-    tick(dtMs) {
-      const dt = Math.max(0, Number(dtMs) || 0);
-      clock += dt;
-      if (active) {
-        active.elapsed += dt;
-        if (!active.contactFired && active.elapsed >= active.contactMs) { active.contactFired = true; safe(active.onContact, {forced: false}); }
-        if (active.elapsed >= active.durationMs) finish(active, false);
-      }
-      if (clock >= drainUntil && isBusy()) { flush(); return; }
-      startNext();
-      settle();
-    },
+    stats, VISUAL_QUEUE, TURN,
+    enqueue,
+    tick,
     /** KO / raund sonu / zafer: kuyruk en geç budgetMs içinde boşalır, HP son değere oturur. */
-    drain(budgetMs = VISUAL_QUEUE.drainMs) {
-      const budget = Math.max(0, Number(budgetMs) || 0);
-      if (!isBusy()) return;
-      drainUntil = Math.min(drainUntil, clock + budget);
-    },
+    drain,
     flush,
-    clear() { queue.length = 0; active = null; drainUntil = Infinity; settle(); },
+    clear,
     isBusy, remainingMs,
     /** Kuyruk boşalınca (ya da en fazla maxWaitMs sonra) çözülen Promise: true = boşaldı, false = zaman aşımı. */
     whenIdle(maxWaitMs = VISUAL_QUEUE.idleWaitMs) {
@@ -144,6 +243,6 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
       });
     },
     snapshot: () => ({busy: isBusy(), remainingMs: remainingMs(), queued: queue.length, active: Boolean(active),
-      activeSeat: active?.seat ?? null, clock, ...stats}),
+      activeSeat: active?.seat ?? null, lastSeat, clock, ...stats}),
   };
 }

@@ -5,16 +5,18 @@
 export const ANIM_KIND = Object.freeze({
   idle: 'idle', q: 'attack', e: 'attack', r: 'attack',
   hit: 'hit', block: 'block', blockHit: 'block',
+  walkBack: 'return',   // Görev 4: kombo sonu eve dönüş yürüyüşü
   ko: 'knockdown', defeat: 'knockdown', win: 'victory', victory: 'victory',
 });
 
-export const ANIM_PRIORITY = Object.freeze({idle: 0, attack: 1, block: 2, hit: 3, victory: 4, knockdown: 5});
+export const ANIM_PRIORITY = Object.freeze({idle: 0, attack: 1, return: 1, block: 2, hit: 3, victory: 4, knockdown: 5});
 
 /** Crossfade süreleri (ms). */
 export const FADE_MS = Object.freeze({
   idleToAttack: 100, attackToIdle: 180, toHit: 50, toBlock: 60, toKnockdown: 40, toVictory: 250,
   attackCut: 80,      // temas geçtikten sonra yeni saldırıya kısa kesin geçiş (<= 0.08 s)
   toIdle: 180,
+  toReturn: 140,      // Görev 4: son vuruştan eve dönüş yürüyüşüne geçiş
 });
 
 /** Vuruş durması (ms): hafif 50, ağır 90, ulti 120. */
@@ -36,6 +38,7 @@ export function fadeMs(fromName, toName) {
   if (to === 'victory') return FADE_MS.toVictory;
   if (to === 'hit') return FADE_MS.toHit;
   if (to === 'block') return FADE_MS.toBlock;
+  if (to === 'return') return from === 'attack' ? FADE_MS.toReturn : FADE_MS.toIdle;
   if (to === 'idle') return from === 'attack' ? FADE_MS.attackToIdle : FADE_MS.toIdle;
   if (to === 'attack') return from === 'attack' ? FADE_MS.attackCut : FADE_MS.idleToAttack;
   return FADE_MS.idleToAttack;
