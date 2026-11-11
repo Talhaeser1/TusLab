@@ -75,6 +75,12 @@ export const MODEL_VARIANTS = Object.freeze({
     clips: Object.freeze({idle:'Combat_Stance',idleHeavy:'Combat_Stance',run:'Standard_Forward_Charge_inplace',walkBack:'Standard_Forward_Charge_inplace',block:'Block3',blockHit:'Block3',hit:Object.freeze(['Hit_Reaction']),ko:'dying_backwards',win:'victory'}),
     skills: Object.freeze({q:Object.freeze({clip:'mage_soell_cast',peakMs:900}),e:Object.freeze({clip:'Charged_Spell_Cast',peakMs:1200}),r:Object.freeze({clip:'Charged_Ground_Slam',peakMs:1700})}),
   })}),
+  // Hacı Usta: peakMs = klibin ölçülen el/kol hız zirvesi (Over_Shoulder_Throw sağ kol bırakışı ≈1,95 sn; spin sıçrama ≈1,3 sn; ney ulti orta kare).
+  konyali: Object.freeze({meshy: Object.freeze({
+    url: modelUrl('konyali'),
+    clips: Object.freeze({idle:'Combat_Stance',idleHeavy:'Combat_Stance',run:'Standard_Forward_Charge_inplace',walkBack:'Standard_Forward_Charge_inplace',block:'Block1',blockHit:'Block1',hit:Object.freeze(['Hit_Reaction']),ko:'Knock_Down',win:'Victory_Cheer'}),
+    skills: Object.freeze({q:Object.freeze({clip:'Over_Shoulder_Throw',peakMs:1950,speed:1.2,recoverMs:380}),e:Object.freeze({clip:'360_Power_Spin_Jump',peakMs:1300,speed:1.2,recoverMs:360}),r:Object.freeze({clip:'Ney_Ulti',peakMs:2000})}),
+  })}),
 });
 
 /**
@@ -148,6 +154,7 @@ const PALETTE_FALLBACK = Object.freeze({
   sira: {main: 0x9a4dff, accent: 0xd9a6ff},
   doran: {main: 0x4f8fd6, accent: 0xcfe3ff},
   nyx: {main: 0x22d6e8, accent: 0x9bf6ff},
+  konyali: {main: 0xd6a53a, accent: 0xb8512f},
 });
 
 /**
@@ -211,6 +218,19 @@ export const CHOREOGRAPHY = Object.freeze({
     r: {steps: [{clip: 'Spellcast_Long', at: 0, speed: 1.15}], hitMs: 900,
       motion: {jump: 0.25, jumpAt: 200, jumpMs: 700},
       fx: [{kind: 'meteor', at: 380, flight: 520, target: true}]},
+  }),
+  // Hacı Usta: Q menzilli etli ekmek, E sıçrayıp dönen alan vuruşu, R ney sesi halka şok dalgası.
+  konyali: Object.freeze({
+    idle: 'Idle',
+    q: {steps: [{clip: 'Over_Shoulder_Throw', at: 0, speed: 1.2}], hitMs: 820,
+      motion: {back: -0.2, backAt: 0, backMs: 240},
+      fx: [{kind: 'bread', at: 540, flight: 280, from: 'handslot.r'}]},
+    e: {steps: [{clip: '360_Power_Spin_Jump', at: 0, speed: 1.2}], hitMs: 700,
+      motion: {dash: 1.2, dashAt: 40, dashMs: 420, back: 1.2, backAt: 1250, backMs: 400},
+      fx: [{kind: 'swirl', at: 300, ms: 800}, {kind: 'slam', at: 700}]},
+    r: {steps: [{clip: 'Ney_Ulti', at: 0, speed: 1}], hitMs: 1100,
+      motion: {jump: 0.15, jumpAt: 900, jumpMs: 600},
+      fx: [{kind: 'shockring', at: 700, ms: 900}, {kind: 'shockring', at: 1000, ms: 900}, {kind: 'slam', at: 1100}]},
   }),
 });
 
@@ -396,7 +416,7 @@ export function chainProgress(elapsedMs, {travelMs = COMBO.leadMs, returnStart =
 }
 
 /** q/e menzilli (mermi/rün/sütun/meteor) değilse yakın dövüştür → yolculuk uygulanır. */
-const RANGED_FX = ['spear', 'dagger', 'rune', 'meteor', 'column'];
+const RANGED_FX = ['spear', 'dagger', 'rune', 'meteor', 'column', 'bread'];
 export const isMeleeSkill = (skill, spec) => skill !== 'r' && !(spec?.fx || []).some(f => RANGED_FX.includes(f.kind));
 
 /** Koreografiyi yolculuk kadar kaydır (adım/efekt/hareket zamanları + hitMs). Girdiyi bozmaz. */
@@ -1192,6 +1212,9 @@ export const SKILL_PROFILES = Object.freeze({
   nyx: Object.freeze({color: 0x22d6e8, accent: 0xa56bff, // camgöbeği-mor rün + meteor kıvılcımı
     burst: Object.freeze([{color: 0x22d6e8, n: 7, speed: 3.2, up: 1.6, g: -2.2, life: 560}, {color: 0xa56bff, n: 7, speed: 2.4, up: 1.0, g: -1.8, life: 620}]),
     trail: Object.freeze({color: 0x9bf6ff, speed: 0.4, up: -0.3, g: -1.2, life: 360})}),
+  konyali: Object.freeze({color: 0xe0a93a, accent: 0xb8512f, // sıcak buğday sarısı + kiremit; ekmek kırıntısı ve ney tozu
+    burst: Object.freeze([{color: 0xe8b84a, n: 10, speed: 2.2, up: 1.5, g: -1.4, life: 700}, {color: 0xb8512f, n: 7, speed: 1.6, up: 0.8, g: -1.2, life: 820}]),
+    trail: Object.freeze({color: 0xd9a441, speed: 0.35, up: 0.4, g: -0.4, life: 440})}),
 });
 export const PARTICLE_POOL = Object.freeze({high: 128, low: 48});
 
@@ -1237,6 +1260,8 @@ export function createSkillFx(THREE, scene) {
     column: g(new THREE.CylinderGeometry(0.55, 0.7, 1, 18, 1, true).translate(0, 0.5, 0)),
     shard: g(new THREE.TetrahedronGeometry(0.13, 0)),
     swirl: g(new THREE.TorusGeometry(1.1, 0.06, 6, 40).rotateX(Math.PI / 2)),
+    bread: g(new THREE.SphereGeometry(0.3, 12, 8).scale(1.5, 0.45, 1)), // yassı oval etli ekmek
+    wave: g(new THREE.TorusGeometry(1, 0.05, 6, 48).rotateX(Math.PI / 2)),
   };
   const live = [];
   const v = new THREE.Vector3();
@@ -1346,6 +1371,8 @@ export function createSkillFx(THREE, scene) {
     if (kind === 'spear') { add(shapes.shaft, accent); add(shapes.tip, color); }
     else if (kind === 'dagger') { add(shapes.blade, color); }
     else if (kind === 'rune') { add(shapes.rune, accent); add(shapes.ring, color); }
+    else if (kind === 'bread') { add(shapes.bread, color); }
+    else if (kind === 'shockring') { add(shapes.wave, color); const w2 = add(shapes.wave, accent); w2.scale.setScalar(0.8); w2.position.y = 0.3; }
     else if (kind === 'meteor') { add(shapes.orb, accent); const h = add(shapes.halo, color); h.material.opacity = 0.35; }
     else if (kind === 'column') { add(shapes.column, color); }
     else if (kind === 'swirl') { add(shapes.swirl, color); const s2 = add(shapes.swirl, accent); s2.scale.setScalar(0.75); s2.position.y = 0.4; }
@@ -1356,12 +1383,12 @@ export function createSkillFx(THREE, scene) {
         s.userData.vel = new THREE.Vector3(Math.cos(a) * 2.4, 1.6 + (i % 3) * 0.9, Math.sin(a) * 1.4);
       }
     }
-    if (['spear', 'dagger', 'rune', 'meteor'].includes(kind)) {
+    if (['spear', 'dagger', 'rune', 'meteor', 'bread'].includes(kind)) {
       const coreMaterial = new THREE.MeshBasicMaterial({color: accent, opacity: 0.98, transparent: true, toneMapped: false});
       own.push(coreMaterial);
-      const core = new THREE.Mesh(kind === 'spear' ? shapes.shaft : kind === 'dagger' ? shapes.blade : shapes.orb, coreMaterial);
+      const core = new THREE.Mesh(kind === 'spear' ? shapes.shaft : kind === 'dagger' ? shapes.blade : kind === 'bread' ? shapes.bread : shapes.orb, coreMaterial);
       core.name = 'pvp33-projectile-core';
-      core.scale.setScalar(kind === 'spear' || kind === 'dagger' ? 0.6 : kind === 'rune' ? 0.25 : 0.55);
+      core.scale.setScalar(kind === 'spear' || kind === 'dagger' ? 0.6 : kind === 'bread' ? 0.8 : kind === 'rune' ? 0.25 : 0.55);
       group.add(core);
     }
     return {group, own};
@@ -1380,8 +1407,8 @@ export function createSkillFx(THREE, scene) {
       flight: Math.max(1, flight), ms: Math.max(1, ms),
     };
     if (kind === 'meteor') item.from = item.to.clone().add(new THREE.Vector3(-(item.to.x - item.from.x) * 0.35, 7, -2));
-    group.position.copy(kind === 'column' || kind === 'shards' || kind === 'swirl' ? item.to : item.from);
-    if (['spear', 'dagger', 'rune', 'meteor'].includes(kind)) {
+    group.position.copy(kind === 'column' || kind === 'shards' || kind === 'swirl' || kind === 'shockring' ? item.to : item.from);
+    if (['spear', 'dagger', 'rune', 'meteor', 'bread'].includes(kind)) {
       const positions = new Float32Array(25 * 3);
       for (let i = 0; i < 25; i++) group.position.toArray(positions, i * 3);
       const geometry = new THREE.BufferGeometry();
@@ -1429,7 +1456,7 @@ export function createSkillFx(THREE, scene) {
       item.age += step;
       const k = item.age;
       const grp = item.group;
-      if (item.kind === 'spear' || item.kind === 'dagger' || item.kind === 'rune' || item.kind === 'meteor') {
+      if (item.kind === 'spear' || item.kind === 'dagger' || item.kind === 'rune' || item.kind === 'meteor' || item.kind === 'bread') {
         const p = clamp(k / item.flight, 0, 1);
         prevPos.copy(grp.position);
         v.lerpVectors(item.from, item.to, item.kind === 'meteor' ? p * p : easeOutCubic(p) * 0.15 + p * 0.85);
@@ -1447,6 +1474,7 @@ export function createSkillFx(THREE, scene) {
           item.trail.material.opacity = 0.7 * (1 - p * 0.6);
         }
         if (item.kind === 'rune') { grp.rotation.x += step * 0.012; grp.rotation.y += step * 0.02; }
+        else if (item.kind === 'bread') { grp.rotation.z += step * 0.018; grp.rotation.y += step * 0.01; }
         else if (item.kind === 'meteor') { grp.rotation.x += step * 0.006; grp.rotation.z += step * 0.004; }
         else {
           const dx = v.x - prevPos.x, dy = v.y - prevPos.y;
@@ -1480,6 +1508,13 @@ export function createSkillFx(THREE, scene) {
         }
         const p = clamp(k / item.ms, 0, 1);
         for (const m of item.own) m.opacity = 1 - p;
+        if (p >= 1) kill(item);
+      } else if (item.kind === 'shockring') {
+        const p = clamp(k / item.ms, 0, 1);
+        grp.scale.setScalar((item.baseScale || (item.baseScale = grp.scale.x || 1)) * (0.4 + 5.2 * easeOutCubic(p)));
+        grp.position.y = 0.12;
+        for (const m of item.own) m.opacity = 0.9 * (1 - p);
+        if (k >= 80) arrive(item);
         if (p >= 1) kill(item);
       } else if (item.kind === 'swirl') {
         const p = clamp(k / item.ms, 0, 1);

@@ -11,10 +11,10 @@ import {fighterSkillLabels,applyFighterNames} from '../pvp/skillbar.js';
 import {callFor,ultimateCall,CALLS} from '../pvp/fight-hud.js';
 import {HOWTO_TABS} from '../pvp/howto.js';
 
-test('kadro sözleşmesi: 4 karakter, arketip, varsayılanlar ve normalizeFighter',()=>{
-  assert.deepEqual(FIGHTER_IDS,['vargr','sira','doran','nyx']);
-  assert.deepEqual(FIGHTER_IDS.map(id=>FIGHTERS[id].archetype),['fire','fire','rune','rune']);
-  assert.deepEqual(FIGHTER_IDS.map(id=>FIGHTERS[id].source),['Barbarian','Rogue','Knight','Mage']);
+test('kadro sözleşmesi: 5 karakter, arketip, varsayılanlar ve normalizeFighter',()=>{
+  assert.deepEqual(FIGHTER_IDS,['vargr','sira','doran','nyx','konyali']);
+  assert.deepEqual(FIGHTER_IDS.map(id=>FIGHTERS[id].archetype),['fire','fire','rune','rune','rune']);
+  assert.deepEqual(FIGHTER_IDS.map(id=>FIGHTERS[id].source),['Barbarian','Rogue','Knight','Mage','Meshy']);
   for(const id of FIGHTER_IDS){
     const f=FIGHTERS[id];
     assert.equal(f.model,`./assets/models/${id}/${id}.glb`);
@@ -62,7 +62,7 @@ test('bot maçı: insan karakteri arketipi belirler; bot karşı arketipten kara
   assert.deepEqual([nyx.character,nyx.fighter,nyx.botCharacter],['rune','nyx','fire']);
   assert.equal(practiceFighters({fighter:'nyx',rng:()=>0.7}).botFighter,'vargr','deterministik oturumda bot karakteri sabit');
   assert.ok(['vargr','sira'].includes(practiceFighters({fighter:'nyx'}).botFighter));
-  assert.equal(practiceFighters({fighter:'sira',fighterRng:()=>0.99}).botFighter,'nyx');
+  assert.equal(practiceFighters({fighter:'sira',fighterRng:()=>0.99}).botFighter,'konyali');
   assert.equal(practiceFighters({fighter:'sira',fighterRng:()=>0}).botFighter,'doran');
   assert.equal(practiceFighters({fighter:'sira',botFighter:'nyx'}).botFighter,'nyx');
   assert.equal(practiceFighters({fighter:'sira',botFighter:'vargr'}).botFighter!=='vargr',true,'bot aynı arketipi alamaz');
@@ -138,12 +138,12 @@ test('oda: geçersiz FIGHTER_SELECT ve maç başladıktan sonra seçim reddedili
   assert.ok(JSON.stringify(sent(a,'ROOM_STATE').at(-1)).length<1500);
 });
 
-test('lobi işaretlemesi: 4 karakter kartı, radyo grubu, rozet, hikâye, Q/E/R adları, portre yeri',()=>{
+test('lobi işaretlemesi: 5 karakter kartı, radyo grubu, rozet, hikâye, Q/E/R adları, portre yeri',()=>{
   const html=networkConsoleHTML();
   const cards=html.match(/class="lb3-fighter (fire|rune)"/g)||[];
-  assert.equal(cards.length,4);
+  assert.equal(cards.length,5);
   assert.match(html,/role="radiogroup" aria-labelledby="lb3-hero-title"/);
-  assert.equal((html.match(/data-fighter-portrait="/g)||[]).length,4);
+  assert.equal((html.match(/data-fighter-portrait="/g)||[]).length,5);
   assert.equal((html.match(/role="radio" aria-checked="true"/g)||[]).length,2,'lobi + oda içi grupta birer seçili');
   for(const id of FIGHTER_IDS){
     const f=FIGHTERS[id];
@@ -169,6 +169,6 @@ test('maç içi adlar: beceri kartları, ULTİ anonsu ve Nasıl oynanır',()=>{
   assert.deepEqual(callFor({type:'SKILL_CAST',skill:'r',fromSeat:1},seat=>seat===1?'sira':null),{text:'GÖLGE YAĞMURU!',seat:1});
   assert.deepEqual(callFor({type:'SKILL_CAST',skill:'r',fromSeat:2}),{text:CALLS.ultimate,seat:2});
   const tab=HOWTO_TABS.find(t=>t.id==='karakterler');
-  assert.ok(tab);assert.equal(tab.items.filter(([t])=>FIGHTER_IDS.some(id=>t.startsWith(FIGHTERS[id].name))).length,4);
+  assert.ok(tab);assert.equal(tab.items.filter(([t])=>FIGHTER_IDS.some(id=>t.startsWith(FIGHTERS[id].name))).length,5);
   assert.ok(JSON.stringify(tab).includes('Rün Sütunu'));
 });

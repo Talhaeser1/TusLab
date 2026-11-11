@@ -161,7 +161,7 @@ test('kadraj: orta noktayi izler, yaklasinca hafif zoom', () => {
 
 // ---- madde 4: karakter profilleri ve parcacik havuzu
 test('skill fx: dort karakter profili, havuz sabit, dusuk cihazda azalir', () => {
-  assert.deepEqual(Object.keys(SKILL_PROFILES).sort(), ['doran', 'nyx', 'sira', 'vargr']);
+  assert.deepEqual(Object.keys(SKILL_PROFILES).sort(), ['doran', 'konyali', 'nyx', 'sira', 'vargr']);
   const scene = new THREE.Scene();
   const fx = createSkillFx(THREE, scene);
   const pos = new THREE.Vector3(0, 1, 0);

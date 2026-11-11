@@ -9,7 +9,7 @@ import {FIGHTER_IDS} from '../pvp/shared/fighters.js';
 const base=join(dirname(fileURLToPath(import.meta.url)),'..');
 
 test('paket 32: every fighter has q/e/r/hit/ko names, kept out of the eager SFX_NAMES set',()=>{
-  assert.deepEqual([...FIGHTER_IDS].sort(),['doran','nyx','sira','vargr']);
+  assert.deepEqual([...FIGHTER_IDS].sort(),['doran','konyali','nyx','sira','vargr']);
   assert.deepEqual([...FIGHTER_SFX_KEYS],['q','e','r','hit','ko']);
   assert.equal(FIGHTER_SFX_NAMES.length,FIGHTER_IDS.length*5);
   for(const id of FIGHTER_IDS)for(const key of FIGHTER_SFX_KEYS){
@@ -24,7 +24,8 @@ test('paket 32: every fighter has q/e/r/hit/ko names, kept out of the eager SFX_
 test('paket 32: fighter WAVs are mono 16-bit 22.05 kHz, 0.05–1.6 s, -1 dBFS peak, clean edges, DC≈0, ≤1.2 MB total',()=>{
   let total=0;
   const seen=new Set();
-  for(const name of FIGHTER_SFX_NAMES){
+  // konyali: sesleri mp3 (ses bağlama ayrı görev); WAV sözleşmesi ilk dört karakter için.
+  for(const name of FIGHTER_SFX_NAMES.filter(n=>!n.startsWith('konyali-'))){
     const path=join(base,'assets/sfx',name+'.wav');
     assert.ok(existsSync(path),name);
     const buf=readFileSync(path);total+=statSync(path).size;

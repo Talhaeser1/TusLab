@@ -54,6 +54,18 @@ export const FIGHTERS=freezeDeep({
    r:{name:'Yıldız Çöküşü',short:'Gökten meteor indirir',desc:'Uzun bir büyüyle gökten meteor indirir; üç evreli ulti.',clip:'Spellcast_Long',fx:'meteor'},
    s:{name:'Rün Perdesi',short:'Eş kelimede %30 blok',desc:'Önüne rün perdesi örer; tam zamanlamada savuşturur.',clip:'Blocking',fx:'guard'}
   }
+ },
+ konyali:{
+  id:'konyali',name:'Hacı Usta',title:'Ney Ustası',archetype:'rune',source:'Meshy',weapon:'Etli ekmek & ney',
+  model:'./assets/models/konyali/konyali.glb',
+  palette:{main:'#d6a53a',accent:'#b8512f',hex:0xd6a53a},
+  blurb:'Konya pazarının fırınından çıkıp meydanlara düşen usta; etli ekmeği fırlatır, neyini üfleyince meydan susar.',
+  skills:{
+   q:{name:'Etli Ekmek Fırlatışı',short:'Sıcak etli ekmek fırlatır',desc:'Omuz üstünden sıcak etli ekmeği rakibe fırlatır; menzilli vuruş.',clip:'Over_Shoulder_Throw',fx:'projectile-bread'},
+   e:{name:'Sema Dönüşü',short:'Dönerek alan hasarı',desc:'Sema dönüşüyle sıçrayıp çevresine dönerek alan hasarı verir.',clip:'360_Power_Spin_Jump',fx:'spin'},
+   r:{name:'Ney Feryadı',short:'Ses dalgasıyla ulti',desc:'Neyi öyle bir üfler ki ses dalgası rakibin kulaklarını patlatır; sinematik ulti.',clip:'Ney_Ulti',fx:'ney-shockwave'},
+   s:{name:'Hacı Duruşu',short:'Eş kelimede %30 blok',desc:'Yere sağlam basıp darbeyi karşılar; tam zamanlamada savuşturur.',clip:'Block1',fx:'guard'}
+  }
  }
 });
 

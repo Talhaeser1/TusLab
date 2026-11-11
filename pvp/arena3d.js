@@ -1859,7 +1859,7 @@ export async function createArena3D({
     const hitMs = chain ? chain.contacts[0].ms : plan ? plan.hitMs : skill === 'r' && rig.ultimatePeakMs ? rig.ultimatePeakMs : spec.hitMs || 0;
     fighter.lastCast = {at: now(), hitMs,
       clock: fighter.modelClock, arrived: false,
-      ranged: (spec.fx || []).some(x => ['spear','dagger','rune','meteor','column'].includes(x.kind))};
+      ranged: (spec.fx || []).some(x => ['spear','dagger','rune','meteor','column','bread'].includes(x.kind))};
     const cast = fighter.lastCast;
     if (entry) entry.cast = cast;
     if (entry && chain) {
@@ -1952,15 +1952,19 @@ export async function createArena3D({
     }
     const anchor = api.seatAnchor(def);
     const ground = api.seatGround(def);
-    if (item.kind === 'spear' || item.kind === 'dagger' || item.kind === 'rune') {
+    if (item.kind === 'spear' || item.kind === 'dagger' || item.kind === 'rune' || item.kind === 'bread') {
       const from = rig.boneWorld(item.from || 'handslot.r');
       skillFx.spawn({kind: item.kind, from, to: anchor, color, accent, flight: item.flight || 260, scale: s, profile: rig.fighterId,
-        onArrive: () => impact(item.kind === 'spear' ? 0.45 : 0.3)});
+        onArrive: () => impact(item.kind === 'spear' ? 0.45 : item.kind === 'bread' ? 0.4 : 0.3)});
     } else if (item.kind === 'meteor') {
       skillFx.spawn({kind: 'meteor', from: api.seatAnchor(seat), to: ground, color, accent, flight: item.flight || 500, scale: s * 1.2, profile: rig.fighterId,
         onArrive: () => impact(1.2)});
     } else if (item.kind === 'column') {
       skillFx.spawn({kind: 'column', to: ground, color, accent, ms: item.ms || 900, scale: s, profile: rig.fighterId, onArrive: () => impact(0.6)});
+    } else if (item.kind === 'shockring') {
+      // Ney Feryadı: kullanıcının ayağından yayılan ses halkası + ekran dalgası (zemin halkası, sis nabzı, flaş).
+      skillFx.spawn({kind: 'shockring', to: api.seatGround(seat), color, accent, ms: item.ms || 900, scale: s, profile: rig.fighterId,
+        onArrive: () => { impact(1); api.flash(color, 0.1, 220); }});
     } else if (item.kind === 'shards') {
       shatterBubble(def);
       skillFx.spawn({kind: 'shards', to: anchor, color: fighters.get(def)?.palette.shield ?? 0xffffff, accent, ms: 650, scale: s});

@@ -488,6 +488,7 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
 #pvp-root .lb3-f-art[data-fighter-portrait="sira"]{background-image:url('../assets/higgsfield/final/portre-sira.webp')}
 #pvp-root .lb3-f-art[data-fighter-portrait="doran"]{background-image:url('../assets/higgsfield/final/portre-doran.webp')}
 #pvp-root .lb3-f-art[data-fighter-portrait="nyx"]{background-image:url('../assets/higgsfield/final/portre-nyx.webp')}
+#pvp-root .lb3-f-art[data-fighter-portrait="konyali"]{background-image:url('../assets/models/konyali/portre-konyali.webp')}
 #pvp-root .lb3-fighter:hover:not(:disabled) .lb3-f-art,
 #pvp-root .lb3-fighter[aria-checked="true"] .lb3-f-art{opacity:1;filter:none}
 /* Amblem temeli oda içi kısa seçim (.lb3-room-fighter) için gerekli; kadro kartlarında portre geldiği için gizlenir. */

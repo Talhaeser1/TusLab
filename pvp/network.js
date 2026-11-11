@@ -35,7 +35,7 @@ export const errorText=code=>ERROR_TEXT[code]||String(code||'Bilinmeyen hata');
  * exactly as it does for a room invite; mount() then starts a practice match. */
 const PRACTICE_URL_FLAG='__practice__';
 const practiceFromUrl=href=>{try{return ['practice','arena'].includes(new URL(href).searchParams.get('pvp'));}catch{return false;}};
-/** URL'den karakter: ?karakter=vargr|sira|doran|nyx (eski: ?fighter=). Geçersiz/yoksa null → kayıtlı tercih ya da varsayılan. */
+/** URL'den karakter: ?karakter=vargr|sira|doran|nyx|konyali (eski: ?fighter=). Geçersiz/yoksa null → kayıtlı tercih ya da varsayılan. */
 export const fighterFromUrl=href=>{try{const q=new URL(href).searchParams;const v=String(q.get('karakter')??q.get('fighter')??'').trim().toLowerCase();return isFighterId(v)?v:null;}catch{return null;}};
 const ROOM_CODE=/^[A-Z2-9]{16}$/;
 const CHARACTERS={fire:'Alev Celladı',rune:'Rün Muhafızı'};
@@ -43,7 +43,7 @@ const CHARACTERS={fire:'Alev Celladı',rune:'Rün Muhafızı'};
 export const FIGHTER_KEY='tuslab-pvp-fighter';
 const SIDE_LABEL={fire:'ATEŞ',rune:'RÜN'};
 const FX_ICON={'axe-chop':'🪓',spin:'🌀','blood-storm':'🩸','projectile-spear':'🗡','dual-stab':'⚔','shadow-volley':'🌑',
-  'sword-chop':'⚔','shield-bash':'🛡','wall-crash':'🏰','projectile-rune':'✴',pillar:'🔆',meteor:'☄'};
+  'sword-chop':'⚔','shield-bash':'🛡','wall-crash':'🏰','projectile-rune':'✴',pillar:'🔆',meteor:'☄','projectile-bread':'🥖','ney-shockwave':'🎶'};
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fighterStyle=f=>`--f-main:${f.palette.main};--f-accent:${f.palette.accent}`;
 /** Lobi vitrini: 4 karakterli seçim ızgarası (radyo grubu; ok tuşlarıyla gezilir). */
