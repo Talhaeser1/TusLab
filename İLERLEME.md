@@ -70,3 +70,14 @@ Sıradaki adım: H-ANIM-ZAMAN.md'yi uygulamak (önce Vargr koşu kliplerini varg
 
 ### Diğer dallar
 - `glm-yedek-vargr-ip2`: GLM'in izinsiz 6 raund kural değişikliği (master'a alınmadı).
+
+## 2026-11-11 (2. oturum) — Devam, orkestratör: Claude Fable 5.2
+- Başlangıç: `yarim-is` master'a birleştirildi (ses-taslak/ + H-ANIM-ZAMAN.md). CLAUDE.md'de "onay bekle" kuralı yok (zaten "Onay bekleme" yazıyor) → değişiklik gerekmedi. `npm run serve` açık (5176).
+- MCP: meshy ✅ (1029 kredi), higgsfield ✅ (7 kredi, kullanılmayacak), playwright ✅, elevenlabs ⚠️ bakiye yine okunamıyor (anahtarda `user_read` yok) → %70 kuralı ölçülemiyor; üretim adet bazında küçük tutulacak.
+- Görsel engeli yok: görselleri okuyabiliyorum (Token Optimizer engeli bu oturumda çıkmadı).
+- Ajanlar: Sonnet alt ajan H (animasyon zamanlaması, Playwright) + Sonnet alt ajan R (raund geçiş ekranı + karakter seçimi, yerleşik tarayıcı) paralel, dosya kümeleri ayrık.
+- **Meshy (madde 5):** Sira, Doran, Nyx üretildi → assets/models/<id>/<id>.glb (1,17 / 1,11 / 1,07 MB; 9'ar klip: idle, koşu, Q, E, R, blok, hit, düşme, zafer).
+  - Karar: ilk 3B denemede (pose_mode a-pose) Doran'ın kılıç+kalkanı ve Nyx'in asası modele girmedi, Sira'nın mızrağı elden ayrıydı → silah ele oturan yeni referans (nano-banana-2) + pose_mode'suz yeniden üretim. İlk deneme (60 kredi) boşa gitti.
+  - Klipler — Sira: Thrust_Slash / Double_Blade_Spin / Triple_Combo_Attack, Sword_Parry, Knock_Down, Victory_Cheer. Doran: Right_Hand_Sword_Slash / Shield_Push_Left / Sword_Judgment, Block1, Hit_Reaction_1, Knock_Down_1, Victory_Fist_Pump. Nyx: mage_soell_cast / Charged_Spell_Cast / Charged_Ground_Slam, Block3, dying_backwards, victory. Hepsi: Combat_Stance + Standard_Forward_Charge_inplace.
+  - Harcama bu oturum: 219 kredi (45 boşa 3B + 15 boşa rig + 18 referans + 45 3B + 15 rig + 81 animasyon). Bakiye 810. Toplam paket: 243/500.
+  - ⚠️ **Ana menü orta karakteri (Harf Muhafızı, assets/arena-king) 3B modeli ÜRETİLEMEDİ:** Meshy API anahtarının kendi harcama sınırı doldu (402 "API key credit limit reached"; hesapta 810 kredi var). Sınır kullanıcı tarafından konmuş bir kısıt → aşılmadı. Meshy panelinde anahtar limitini yükseltince: image-to-3d (assets/arena-king.png, meshy-t2.5 + meshy-n1, ~15) + rig (5) + idle (3) ≈ 23 kredi.

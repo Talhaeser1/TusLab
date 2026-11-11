@@ -22,3 +22,6 @@ api.txt
 # Gecici test/dogrulama klasorleri
 .verification_evren_data/
 .verification_video/
+
+# Meshy ham üretim arşivleri (büyük; yayına ve git'e girmez)
+assets/models/*/kaynak/*.glb

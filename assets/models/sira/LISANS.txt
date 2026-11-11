@@ -1,0 +1,8 @@
+Sira — MESHY MODELİ LİSANS NOTU (2026-11-11)
+
+Bu model (assets/models/sira/sira.glb ve kaynak/sira-meshy-ham.glb) kullanıcının kendi
+Meshy AI (Pro) hesabında üretilmiştir (image-to-3d meshy-t2.5 + meshy-n1 doku, otomatik rig,
+Meshy animasyon kitaplığından 9 klip). Referans: kaynak/referans.png — TuşLab portresinden
+türetilmiş özgün çalışma; üçüncü taraf telifli karakter/marka içermez.
+Oyundaki kopya scripts/optimize-vargr-meshy.py işlevleriyle sıkıştırılmıştır (1024x1024 WebP doku).
+Ham GLB yalnız üretim arşividir; git'e ve yayına girmez.
