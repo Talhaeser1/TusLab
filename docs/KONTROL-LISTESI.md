@@ -9,10 +9,10 @@ Dal: `is-4-dovus` (push/deploy yok). Görev tanımları: docs/codex/.
 | 2 | MAÇ EKRANI: "SEN" etiketi; yazılan kelimeler can barı altında; süre/raund net; kazanan (nakavt) hatası; Donmuş An vb. görsel etki | ✅ | 3d5c3df; rounds 1366 + arena 375 ölçüldü; Donmuş An canlı görünümü madde 10'da |
 | 3 | MEKANİK: zamana karşıda süre bitene kadar kelime; sayılı raundda 10 kelime; zorlaşma; skill/süper/can uçtan uca test | ✅ | 3d5c3df; tests/pvp-mac-mekanik-i.test.mjs (11 test) |
 | 4 | YENİ MODLAR: atasözü, şiir, Osmanlıca oyuna bağlı | 🟡 | 0f3c912 yarım; içerik hazır |
-| 5 | HACI USTA: model + portre bağlı; Q etli ekmek, E sema dönüşü, R ney ultisi; sesler | 🟡 | 0d0bd4c model+skill bağlı, üç modda ölçüldü; sesler görev S (W5) |
+| 5 | HACI USTA: model + portre bağlı; Q etli ekmek, E sema dönüşü, R ney ultisi; sesler | ✅ | 0d0bd4c + 9a7d800 (konyali-q/e/r.mp3 + replikler bağlı); 3B efektler gözle bakılmadı (elle test) |
 | 6 | PvP LOBİ: üstte kaydırmalı mod seçici; ikon karakterler + bilgi kartı; 3D arena karuseli; maç ayarları alanı; kurallar paneli yok; eski model parlaması yok | ⬜ | görev J2 |
 | 7 | RAUND ARASI: "Tur bitti / sonraki raund" ekranları | ⬜ | görev L |
-| 8 | SES: skill replikleri, saldırı/darbe/zafer, efektler, seyirci, seri anonsu, spiker, Anadolu müziği, sessiz mod | ⬜ | dosyalar hazır, bağlanmadı (görev S) |
+| 8 | SES: skill replikleri, saldırı/darbe/zafer, efektler, seyirci, seri anonsu, spiker, Anadolu müziği, sessiz mod | ✅ | 9a7d800; ölçüm: 74–76 ses isteği 200, cast/temas anında çalıyor, sessiz modda 0 istek. Kulakla dinlenmedi (elle test) |
 | 9 | AÇIKLAR: karakter tüm modlarda maça geçer + etiket uyumu; seçme kartları sığar; küçük yazılar; turkuaz kristal; "SALDIRI SIRASI"na binen kelimeler; ana menü 3D modeli | 🟡 | ana menü 3D ✅ cefd596 |
 | 10 | SON ÖLÇÜM: her modda 1920×1080, 1366×768, 375×812 tam maç | ⬜ | |
 
