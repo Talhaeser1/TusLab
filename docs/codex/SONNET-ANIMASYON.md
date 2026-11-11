@@ -43,3 +43,10 @@ TEST (sahte saatle birim testleri): iki koltuk aynı anda saldırırsa ikincisi 
 
 KAPSAM EKİ: gösterilen can için pvp/fight-hud.js içinde YALNIZ can barı değerini okuyan yere küçük bir "displayed HP" kancası ekleyebilirsin (VS giriş ekranı kodu, fhud-vs-*, başka işçinin: DOKUNMA). Yeni dosyalar: pvp/combo-counter.js, pvp/attack-callout.js; CSS'i mevcut pvp/impact-feel.css ya da arena3d ile ilgili mevcut bir css dosyasına ekle (index.html'e <link> ekleme YOK; index.html'de zaten yüklü bir pvp css dosyası seç ve hangisi olduğunu raporla).
 TEST EKİ: bot saldırısı da yaklaşma içerir; gösterilen can temas karesinden önce değişmez ve kuyruk bitince gerçek cana eşittir; saldırı yazısı metni "A → B · AD · −N" biçiminde; ulti yazısı büyük sınıf alır.
+
+=== 5. OTURUM GÜNCELLEMESİ (bu bölüm üsttekilerle çelişirse BU geçerli) ===
+- Yarım iş artık COMMIT'Lİ: `is-4-dovus` dalındasın (master + yarim-animasyon). "Çalışma ağacında commit'siz" notu geçersiz; `git show d9eea35 --stat` ve `git diff master -- pvp/` ile yarım işi oku. Dal değiştirme, commit/push YAPMA.
+- Önce 3 kırık testi düzelt (`npm test`), sonra eksikleri tamamla (combo-counter.js, attack-callout.js, displayed HP, KRİTİK arkada, index.js bağlantıları).
+- 13. SAVUNMA EFEKTİ: savunan blokladığında (blok/kalkan) blok klibi + görünür savunma efekti (kalkan parıltısı/kıvılcım) ve saldırı yazısında "BLOK" / azaltılmış hasar belirtilir.
+- 14. SKILL ETKİSİ HİSSEDİLSİN: her Q/E/R'nin durum etkisi (yavaşlatma, dondurma, kalkan, zehir vb.; adları/etkileri pvp/shared/fighters.js ve ilgili kural dosyalarından OKU) sahnede görünür olsun: hedefin üstünde kısa durum rozeti + renkli aura/ton, etki süresince. Özellikle "Donmuş An": kural tarafında ne yaptığını bul ve raporda yaz; etkisi gerçekten uygulanıyorsa yalnız görselini ekle, kural tarafında HİÇ uygulanmıyorsa (hata) KOD DEĞİŞTİRME — dosya/satır ile raporla.
+- Işınlanma yok: konum değişimi her zaman yürüyüş/koşu klibi + easing ile.
