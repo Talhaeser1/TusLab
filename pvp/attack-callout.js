@@ -145,19 +145,42 @@ export function createDisplayedHp({root, getPlayers = () => [], isBusy = () => f
         const n = side.querySelector(sel); if (n && n.style.transform !== scale) n.style.transform = scale;
       }
       const text = side.querySelector('[data-server-hp]');
-      if (text) text.textContent = `${hp.toLocaleString('tr-TR')} / ${max.toLocaleString('tr-TR')} HP`;
+      const label = `${hp.toLocaleString('tr-TR')} / ${max.toLocaleString('tr-TR')} HP`;
+      if (text && text.textContent !== label) text.textContent = label;
     }
   }
-  function stopPoll() { if (poll != null) { unlater(poll); poll = null; } }
+  // network.js can çubuğunu her anlık görüntüde ve 250 ms'lik tikte GERÇEK değerle yeniden yazar. Yoklama (100 ms)
+  // arada gerçek değerin bir kare görünmesine yol açıyordu (gösterilen can geri zıplıyordu). MutationObserver
+  // aynı görevin sonunda (boyamadan önce) tutulan değeri geri yazar → ekranda tek yönlü düşüş.
+  const MO = root.ownerDocument?.defaultView?.MutationObserver || globalThis.MutationObserver;
+  let observer = null;
+  function watch() {
+    if (observer || typeof MO !== 'function') return;
+    observer = new MO(() => { if (model.held()) paint(); });
+    for (const seat of [1, 2]) {
+      const side = root.querySelector?.(`.pvp2-side[data-seat="${seat}"]`);
+      for (const sel of ['[data-server-hp]', '[data-server-hp-fill]', '[data-server-hp-trail]']) {
+        const n = side?.querySelector?.(sel);
+        if (n) observer.observe(n, {childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['style']});
+      }
+    }
+  }
+  function unwatch() { observer?.disconnect?.(); observer = null; }
+  function stopPoll() { if (poll != null) { unlater(poll); poll = null; } unwatch(); }
+  function releaseAll() { model.release(); heldSince = 0; stopPoll(); paint(); }
   function tick() {
-    if (!model.held()) { stopPoll(); return; }
-    if (!isBusy() || now() - heldSince > CALLOUT.hpHoldMaxMs) { model.release(); stopPoll(); paint(); return; }
-    paint(); // network.js her 250–500 ms yeniden yazar: tutulan değeri geri uygula
+    if (!model.held()) { heldSince = 0; stopPoll(); return; }
+    if (!isBusy() || now() - heldSince > CALLOUT.hpHoldMaxMs) { releaseAll(); return; }
+    paint();
   }
   function sync() {
     model.sync(getPlayers(), Boolean(isBusy()));
-    if (model.held()) { if (!heldSince || poll == null) heldSince = heldSince || now(); if (poll == null) poll = later(tick, CALLOUT.hpPollMs); paint(); }
-    else heldSince = 0;
+    if (model.held()) {
+      if (!heldSince) heldSince = now(); // tavan bu tutuşun başından sayılır (önceki tutuştan kalmaz)
+      if (poll == null) poll = later(tick, CALLOUT.hpPollMs);
+      watch();
+      paint();
+    } else heldSince = 0;
   }
   const onMatch = () => sync();
   root.addEventListener('tuslab:pvp-match', onMatch);
@@ -165,7 +188,8 @@ export function createDisplayedHp({root, getPlayers = () => [], isBusy = () => f
     model, sync,
     /** Temas karesi: bu hasar artık ekranda görünebilir. */
     expect(action) { model.expect(action?.toSeat); },
-    impact(action) { model.impact(action?.toSeat, action?.hpAfter); paint(); if (!model.held()) heldSince = 0; },
+    // Her temas ilerlemedir: tavan (hpHoldMaxMs) son temastan sayılır; sahneler sürdükçe can sahnesiz düşmez.
+    impact(action) { model.impact(action?.toSeat, action?.hpAfter); paint(); if (!model.held()) { heldSince = 0; stopPoll(); } else heldSince = now(); },
     destroy() { stopPoll(); root.removeEventListener?.('tuslab:pvp-match', onMatch); },
   };
 }

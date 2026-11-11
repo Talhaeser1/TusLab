@@ -6,7 +6,11 @@ export const IMPACT_TIERS = Object.freeze({
 });
 const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
 export function impactTier(e={}) {
-  if(e.type==='KNOCKOUT'||e.skill==='r'||e.super||e.amount>=140)return 'large';
+  if(e.type==='KNOCKOUT')return 'large';
+  // Ulti: yalnız ana vuruş (faz 2 ya da fazsız) yavaş çekimli 'large'; çekiş (1) ve iniş (3) 'medium' —
+  // her fazda 320 ms yavaş çekim ulti sahnesini ~4 sn'ye uzatıyordu (tavan ~3 sn).
+  if(e.skill==='r')return e.phase===1||e.phase===3 ? 'medium' : 'large';
+  if(e.super||e.amount>=140)return 'large';
   return e.skill==='q'||e.skill==='e'||e.critical||e.bonusTags?.length||e.amount>=40 ? 'medium':'small';
 }
 /**

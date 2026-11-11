@@ -393,7 +393,7 @@ test('arena visual queue keeps two ranged attacks separate and exposes position 
   assert.equal(models[2].state, 'idle');
   assert.equal(typeof models[1].x, 'number');
   assert.ok(models[1].clipTime > 0);
-  run(1250); // Görev 4: 880 ms temas + kısa dönüş + 200 ms nefes sonra ikinci koltuk başlar
+  run(1950); // Görev 4: menzilli de koşarak yaklaşır (340 ms) + temas + kısa dönüş + 200 ms nefes → ikinci koltuk
   models = instance._debug.models();
   assert.equal(models[2].clip, 'Throw');
   assert.equal(impacts.length, 1);
@@ -421,7 +421,7 @@ test('arena3d + models: projectile skills spawn their effect (sira spear, nyx me
   const {instance, run} = await buildArena();
   await instance.setFighters({1: 'sira', 2: 'nyx'});
   instance.handle({type: 'SKILL_CAST', fromSeat: 1, skill: 'q'});
-  run(700);
+  run(1050); // menzilli zincir: 340 ms koşu yaklaşması, sonra atış
   assert.ok(instance._debug.skillFx().kinds.includes('spear'));
   instance.clear();
   instance.handle({type: 'SKILL_CAST', fromSeat: 2, skill: 'r'});

@@ -740,8 +740,20 @@ export function createFighterRig(THREE, asset, {
         peakMs: b.hitMs || clipMs(step.clip) / 2, speed: step.speed || 1, fx: b.fx || []};
     }
     const spec = choreo[skill];
-    const step = spec && spec.steps && spec.steps[0];
-    if (!spec || !step || !clipByName.has(step.clip)) return null;
+    if (!spec) return null;
+    // Menzilli + Meshy varyantı: tablo klibi (KayKit adı) modelde YOK → varyant klibi ve ölçülen peakMs.
+    // (Önceden null dönüyordu: nyx q/e, sira q zinciri kurulamıyor, bot saldırısı sahnesiz kalıyordu.)
+    const vs = variantReady?.skills?.[skill];
+    if (vs && clipByName.has(vs.clip)) {
+      // peakMs klip zamanıdır; zincir temas anı gerçek zaman ister (hız uygulanmış).
+      const peakMs = (vs.peakMs || clipMs(vs.clip) / 2) / clampAttackSpeed(vs.speed || 1);
+      // Efekt (mermi/sütun) zamanları tablo temasına göre yazılı: varyant zirvesine kaydır (varış = temas).
+      const shift = peakMs - (spec.hitMs || peakMs);
+      return {skill, melee: false, ranged: true, clip: vs.clip, peakMs, speed: vs.speed || 1,
+        fx: (spec.fx || []).map(f => ({...f, at: Math.max(0, (f.at || 0) + shift)}))};
+    }
+    const step = spec.steps && spec.steps[0];
+    if (!step || !clipByName.has(step.clip)) return null;
     return {skill, melee: false, ranged: true, clip: step.clip,
       peakMs: spec.hitMs || clipMs(step.clip) / 2, speed: step.speed || 1, fx: spec.fx || []};
   }
@@ -759,19 +771,24 @@ export function createFighterRig(THREE, asset, {
     const timing = chainTiming(specs.length, {compress, ranged: specs.every(s => s.ranged)});
     const gap = timing.gap;
     const steps = [];
-    // Menzilli ilk vuruş: atıcı yerinde durur (koşu klibi yok), yalnız yarım mesafe yaklaşır.
-    if (!specs[0].ranged && clipByName.has(stateRun)) steps.push({clip: stateRun, at: 0, speed: 1, endMs: 0});
+    // Her zincir koşuyla başlar (yerinde saldırı yok). Menzilli ilk vuruş: koşu ile yarım mesafe
+    // (lead ms), büyü klibi varışta başlar → konum değişimi her zaman koşu klibiyle (kayma yok).
+    const rangedLead = specs[0].ranged && clipByName.has(stateRun) ? timing.lead : 0;
+    if (clipByName.has(stateRun)) steps.push({clip: stateRun, at: 0, speed: 1, endMs: 0});
     const contacts = [];
     const fx = [];
     for (let i = 0; i < specs.length; i++) {
       const spec = specs[i];
       if (spec.ranged) {
         // Menzilli: klip BAŞTAN (ofset yok), temas = tablo hitMs'i (el bırakma + mermi uçuşu).
-        const speed = clampAttackSpeed(spec.speed || 1);
-        const startMs = i === 0 ? 0 : contacts[i - 1].ms;
+        // peakMs gerçek zamandır (spec.speed'de); sıkıştırmada klip en fazla 1,2 hızla oynar, temas orantılı öne gelir.
+        const base = clampAttackSpeed(spec.speed || 1);
+        const speed = compress ? clampAttackSpeed(Math.max(base, 1.2)) : base;
+        const k = base / speed;
+        const startMs = i === 0 ? rangedLead : contacts[i - 1].ms;
         steps.push({clip: spec.clip, at: startMs, speed, offset: 0, endMs: 0});
-        contacts.push({ms: Math.round(startMs + spec.peakMs), skill: spec.skill, prepMs: 0, speed, startMs, peakMs: spec.peakMs});
-        for (const item of spec.fx || []) fx.push({...item, at: startMs + (item.at || 0), skill: spec.skill, index: i});
+        contacts.push({ms: Math.round(startMs + spec.peakMs * k), skill: spec.skill, prepMs: 0, speed, startMs, peakMs: spec.peakMs});
+        for (const item of spec.fx || []) fx.push({...item, at: startMs + Math.round((item.at || 0) * k), skill: spec.skill, index: i});
         continue;
       }
       // Aynı klip art arda gelirse hafif hız varyasyonu (0,9–1,2 aralığında kalır).
@@ -795,7 +812,7 @@ export function createFighterRig(THREE, asset, {
       steps.push({clip: stateWalkBack, at: returnStart, speed: walkSpeed, endMs: timing.returnMs * walkSpeed});
     }
     return {skills: specs.map(s => s.skill), steps, contacts, fx,
-      travelMs: contacts[0].ms, holdMs: timing.hold, returnStart, returnMs: timing.returnMs, totalMs,
+      travelMs: rangedLead || contacts[0].ms, holdMs: timing.hold, returnStart, returnMs: timing.returnMs, totalMs,
       speed: Math.max(1, ...specs.map(s => clampAttackSpeed(s.speed || 1))),
       moveIn: specs.every(s => s.ranged) ? COMBO.rangedStop : 1, compress};
   }

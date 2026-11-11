@@ -1803,7 +1803,9 @@ export async function createArena3D({
         }
         kicks.push({start:t, dur:240});
       }
-      reactNow = boundEvents.has(event); // görsel kuyruğa bağlı olay: tepki TAM temas karesinde
+      // contact() zaten temas karesidir (kombo vuruşu ya da ulti fazı): tepki/blok klibi ŞİMDİ oynar.
+      // (Önceden yalnız kombo-bağlı olaylar sayılıyordu; ulti/blok tepkisi kuyruk meşgulken bastırılıyordu.)
+      reactNow = true;
       try { handleCore(event); } finally { reactNow = false; }
       // Damage plugins share this exact contact; no second resolve delay.
       forwardToPlugins({...event, impactContact: true});
@@ -1820,6 +1822,8 @@ export async function createArena3D({
   const boundEvents = new WeakMap(); // Görev 4: event → {entry, strike} (kombo temas sırası)
   const lastReactionAt = new Map();  // Görev 4: seat → son tepki anı (trace penceresi)
   let deferredHpSync = null;
+  let replayingUlt = false; // bekletilen ulti olayları girdi başlarken yeniden işleniyor
+  const COMBO_SCENE_MAX_MS = 3000; // tek kombo sahnesinin (yaklaşma + vuruşlar + dönüş) tavanı
 
   // ---- Şerit H / Görev 4: görsel zaman çizelgesi (sunucu olayları sıraya alınır, temas karesinde gösterilir)
   // Aynı anda tek koltuk; farklı koltuk girdileri arasında kısa nefes (TURN.breathMs, 150–250 ms).
@@ -1973,6 +1977,70 @@ export async function createArena3D({
   function fighterCast(seat) { return fighters.get(seat)?.lastCast; }
 
   /**
+   * Görev 4 / madde 11 — KRİTİK yazısı karakterlerin ARKASINDA: sahnede iki dövüşçünün gerisinde
+   * derinlik testli saydam düzlem (modeller önünde kalır, görüşü kapatmaz). DOM'daki kopyası 3B modda
+   * gizlenir (arena3d.css). Temas karesinde açılır; reduced-motion'da büyüme animasyonu yok.
+   */
+  const CRIT_BACKDROP = Object.freeze({ms: 950, opacity: 0.9, behind: 1.6, text: 'KRİTİK!'});
+  let critBackdrop = null; // {mesh, drawn, texture, start, seat, color}
+  const hexCss = n => `#${(Number(n) >>> 0).toString(16).padStart(6, '0').slice(-6)}`;
+  function showCritBackdrop(seat) {
+    const color = fighters.get(seat)?.palette?.main ?? 0xffffff;
+    if (!critBackdrop) {
+      const drawn = makeCanvas2D(1024, 256);
+      const texture = canvasTexture(drawn);
+      if (!drawn || !texture) return false;
+      const material = new THREE.MeshBasicMaterial({map: texture, transparent: true, depthWrite: false, depthTest: true, opacity: 0, toneMapped: false});
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(4, 1), material);
+      mesh.name = 'pvp4-crit-backdrop';
+      mesh.renderOrder = 1;
+      mesh.frustumCulled = false;
+      mesh.visible = false;
+      scene.add(mesh);
+      critBackdrop = {mesh, drawn, texture, start: -Infinity, seat, color: null};
+    }
+    const b = critBackdrop;
+    if (b.color !== color) {
+      const {c, ctx} = b.drawn;
+      safeCall(() => {
+        ctx.clearRect(0, 0, c.width, c.height);
+        ctx.font = '900 168px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineJoin = 'round';
+        ctx.shadowColor = hexCss(color);
+        ctx.shadowBlur = 36;
+        ctx.lineWidth = 14;
+        ctx.strokeStyle = 'rgba(8,4,20,0.85)';
+        ctx.strokeText(CRIT_BACKDROP.text, c.width / 2, c.height / 2);
+        ctx.fillStyle = hexCss(color);
+        ctx.fillText(CRIT_BACKDROP.text, c.width / 2, c.height / 2);
+      });
+      b.texture.needsUpdate = true;
+      b.color = color;
+    }
+    b.seat = seat;
+    b.start = now();
+    b.mesh.visible = true;
+    probeMark('crit', {seat});
+    return true;
+  }
+  function updateCritBackdrop(tNow) {
+    const b = critBackdrop;
+    if (!b || !b.mesh.visible) return;
+    const p = (tNow - b.start) / CRIT_BACKDROP.ms;
+    if (!(p >= 0 && p < 1)) { b.mesh.visible = false; b.mesh.material.opacity = 0; return; }
+    const a1 = api.seatAnchor(1), a2 = api.seatAnchor(2);
+    const s = fighters.get(1)?.root.scale.x || 1;
+    const width = Math.max(2.4 * s, Math.abs(a1.x - a2.x) * 1.25);
+    const pop = reduced() ? 1 : 0.9 + 0.1 * Math.min(1, p / 0.18);
+    b.mesh.scale.set(width / 4 * pop, width / 4 * pop, 1);
+    // Göğüs hizasının biraz üstü, iki dövüşçünün gerisinde (kamera +z'de).
+    b.mesh.position.set((a1.x + a2.x) / 2, Math.max(a1.y, a2.y) + 0.35 * s, Math.min(a1.z, a2.z) - CRIT_BACKDROP.behind * s);
+    b.mesh.material.opacity = CRIT_BACKDROP.opacity * (p < 0.12 ? p / 0.12 : p > 0.65 ? (1 - p) / 0.35 : 1);
+  }
+
+  /**
    * Şerit H — ulti sinematiği: 250–400 ms yavaş çekim (yalnız görsel; api.slowMo 0,42), kamera
    * önce saldırana yaklaşır (ultimatePhase 2'de temas noktasına geçer). Reduced-motion'da yok.
    */
@@ -2017,6 +2085,12 @@ export async function createArena3D({
     const rig = fighter?.model;
     if (!rig || entry.dead || entry.ultimate) return false;
     if (entry.strikes.length >= COMBO.maxStrikes) return false; // süre tavanı: yeni girdi
+    // Sahne tavanı (~3 sn): uzatılmış zincir bunu aşacaksa zincir kapanır; saldırı katlanır ya da yeni girdi açar.
+    const skills = [...entry.strikes.map(s => s.skill), skill];
+    const probe = entry.started && entry.chain
+      ? rig.chainPlan?.(skills, {compress: entry.compress || false, fixed: entry.chain.contacts.map(c => c.ms), notBefore: entry.handle?.elapsed || 0})
+      : rig.chainPlan?.(skills, {compress: entry.compress || false});
+    if (probe && probe.totalMs > COMBO_SCENE_MAX_MS) { entry.open = false; return false; }
     const prevContacts = entry.chain ? entry.chain.contacts.length : 0;
     let plan = null;
     if (entry.started) {
@@ -2069,6 +2143,9 @@ export async function createArena3D({
     if (!ultimate) {
       const open = fighter.castQueue.find(e => e.open && !e.dead && !e.ultimate);
       if (open && extendMeleeEntry(open, skill)) return true;
+      // Süre tavanı (madde 6): kuyruk tavanı aşmışsa yeni sahne AÇILMAZ; bu saldırının hasarı koltuğun
+      // henüz temas etmemiş son vuruşunda toplu gösterilir (bindCastEntry yedeği). Işınlanma/hızlandırma yok.
+      if (timeline.remainingMs() > timeline.VISUAL_QUEUE.maxBacklogMs && foldTarget(seat)) return true;
     }
     const entry = {seat, skill, ultimate, strikes: [{skill, bound: false, contact: false, cast: null, events: []}],
       cast: null, contact: false, bound: false, dead: false, open: true, started: false, compress: false,
@@ -2095,9 +2172,13 @@ export async function createArena3D({
           fighter.carry = chainProgress(elapsed, {travelMs: entry.chain.travelMs,
             returnStart: entry.chain.returnStart, returnMs: entry.chain.returnMs}) * entry.contactDistance * entry.chain.moveIn;
         } else fighter.carry = 0;
-        if (fighter.model && !fighter.ko) safeCall(() => fighter.model.play('idle'));
+        // Yalnız OYNAYAN girdi idle'a döner: sırada bekleyen girdinin düşmesi aynı koltuğun
+        // o an oynayan (ör. ulti) klibini kesmemeli.
+        if (entry.started && fighter.model && !fighter.ko) safeCall(() => fighter.model.play('idle'));
       }
     };
+    // Ulti, aynı koltuğun bekleyen kombosunu kapatır: sonraki q/e ultiden ÖNCE oynamaz (sıra korunur).
+    if (ultimate) for (const e of fighter.castQueue) e.open = false;
     fighter.castQueue.push(entry);
     if (fighter.castQueue.length > 8) {
       const old = fighter.castQueue.shift(); old.dead = true; old.open = false;
@@ -2107,8 +2188,10 @@ export async function createArena3D({
     const estimate = ultimate
       ? (rig.ultimateDurationMs || Math.max(rig.sceneDuration?.(skill) || 0, rig.ultimatePeakMs || 0))
       : rig.chainPlan?.([skill])?.totalMs || rig.plan?.(skill)?.totalMs || rig.sceneDuration(skill);
+    // keep: saldırı sahnesi birikim yüzünden DÜŞÜRÜLMEZ (düşen sahnenin hasarı sahnesiz görünürdü);
+    // birikim, zaman çizelgesinin sıkıştırması (ctx.compress) ve aynı koltuk zincirlemesiyle emilir.
     entry.handle = timeline.enqueue({
-      seat, estimateMs: estimate, meta: {skill, ultimate},
+      seat, estimateMs: estimate, keep: true, meta: {skill, ultimate},
       start: ctx => {
         entry.started = true;
         entry.compress = ctx.compress;
@@ -2122,8 +2205,12 @@ export async function createArena3D({
           api.flash(fighters.get(seat).palette.main, 0.14, 260);
           ultimateIntro(seat);
           const pending = fighter.pendingUltEvents ? fighter.pendingUltEvents.splice(0) : [];
-          for (const event of pending) handle(event);
-          return {contactMs: p.hitMs, durationMs: p.durationMs};
+          replayingUlt = true;
+          try { for (const event of pending) handle(event); } finally { replayingUlt = false; }
+          // Girdi süresi = ulti koreografisi (zirve → fırlatma). Klibin toparlanma kuyruğu beklenmez
+          // (boş bekleme yok; sahne ~3 sn tavanında), ama fırlatma bitmeden sıradaki saldırı başlamaz.
+          const T = ULTIMATE_TIMING;
+          return {contactMs: p.hitMs, durationMs: p.hitMs + T.strikeMs + T.throwMs};
         }
         return {
           contacts: p.contacts.map((ms, i) => ({ms, fn: () => strikeContact(entry, i)})),
@@ -2139,7 +2226,10 @@ export async function createArena3D({
       onEnd: ({forced}) => {
         // Atlanan dönüş: kalan ofset taşınır (iz silinirken poz sıçramasın diye carry = varış noktası).
         if (!forced) fighter.carry = entry.skipReturn ? entry.contactDistance * (entry.chain?.moveIn || 1) : 0;
-        if (fighter.pendingUltEvents) fighter.pendingUltEvents.length = 0;
+        if (ultimate && fighter.pendingUltEvents) {
+          // Sahnesi hiç başlamayan ulti: bekletilen hasar kaybolmaz, sahnesiz (yalnız sayı/can) teslim edilir.
+          for (const ev of fighter.pendingUltEvents.splice(0)) if (ev.type === 'DAMAGE_APPLIED') impactFeel.silent(ev);
+        }
         finishEntry(forced);
         probeMark('end', {seat, skill, forced: Boolean(forced)});
       },
@@ -2151,11 +2241,23 @@ export async function createArena3D({
    * Bu koltuğun henüz hasara bağlanmamış en eski kuyruk girdisi/vuruşu (hasar olayı sırayla eşlenir).
    * Görev 4: kombo hasarı KENDİ vuruşunun temas karesine bağlanır → {entry, strike}.
    */
+  /** Katlama hedefi: koltuğun son vuruşu henüz temas etmemiş (canlı, ulti olmayan) en son girdisi. */
+  function foldTarget(seat) {
+    const queue = fighters.get(seat)?.castQueue || [];
+    for (let i = queue.length - 1; i >= 0; i--) {
+      const e = queue[i];
+      if (e.dead || e.ultimate) continue;
+      const last = e.strikes[e.strikes.length - 1];
+      if (last && !last.contact) return {entry: e, strike: last};
+    }
+    return null;
+  }
+
   function bindCastEntry(seat) {
     const queue = fighters.get(seat)?.castQueue;
     if (!queue) return null;
     const entry = queue.find(e => !e.dead && (e.strikes || []).some(s => !s.bound));
-    if (!entry) return null;
+    if (!entry) return foldTarget(seat); // katlanan saldırı: hasar son vuruşta toplu
     const strike = entry.strikes.find(s => !s.bound) || entry.strikes[entry.strikes.length - 1];
     if (strike) strike.bound = true;
     entry.bound = true;
@@ -2598,7 +2700,12 @@ export async function createArena3D({
     const cast=caster?.lastCast;
     // Meshy ultimate's windup is long. Keep queued server phases cosmetic until
     // the full clip reaches its measured strike frame (network timing is untouched).
-    if (ult.queue[0] === 2 && cast?.hitMs > 2000 && caster.modelClock - cast.clock < cast.hitMs - ULTIMATE_TIMING.strikeMs) return;
+    // Klipli ulti: faz 1 (çekiş) ve faz 2 (vuruş) klibin vuruş karesine hizalanır → faz 2 teması = klip zirvesi
+    // (önceden yalnız >2000 ms klipler bekletiliyordu; 1700 ms'lik klipte hasar klipten ~1,2 sn önce düşüyordu).
+    const T = ULTIMATE_TIMING;
+    const clipMs = caster?.model && cast ? caster.modelClock - cast.clock : Infinity;
+    if (ult.queue[0] === 1 && cast?.hitMs > T.pullMs + T.strikeMs && clipMs < cast.hitMs - T.pullMs - T.strikeMs) return;
+    if (ult.queue[0] === 2 && cast?.hitMs > T.strikeMs && clipMs < cast.hitMs - T.strikeMs) return;
     if (ult.queue.length && tNow >= ult.nextAt) {
       const n = ult.queue.shift();
       runPhase(n);
@@ -3527,7 +3634,9 @@ export async function createArena3D({
           modelPlay(seat, 'hit', {heavy: true});
         }
         const a = clamp((Number(event.amount) || 0) / HEAVY_DAMAGE, 0, 1);
-        const crit = Array.isArray(event.bonusTags) && event.bonusTags.length > 0;
+        const crit = event.arena ? (Array.isArray(event.tags) && event.tags.includes('FİNAL'))
+          : Array.isArray(event.bonusTags) && event.bonusTags.length > 0;
+        if (crit) showCritBackdrop(isSeat(event.fromSeat) ? event.fromSeat : otherSeat(seat));
         // Contact policy already applied the tier's stop, trauma and camera punch.
         if (a >= 0.7) cheer(0.35 + a * 0.4);
         // Floor light wave + depth-fog pulse in the attacker's colour.
@@ -3535,6 +3644,9 @@ export async function createArena3D({
         spawnFloorWave(seat, from, 0.35 + a + (crit ? 0.2 : 0));
         pulseFog(fighters.get(from).palette.main, 0.35 + 0.65 * a);
       }
+    } else if ((type === 'SHIELD_TRIGGERED' || type === 'PARRY_TRIGGERED') && timeline.isBusy() && !reduced()) {
+      // Sahne oynarken savunma, bloklanan hasarın TEMAS karesinde gösterilir (DAMAGE_APPLIED blocked → playBrace);
+      // burada erken kalkan/sendeleme yok (saldırı henüz ulaşmadı).
     } else if (type === 'SHIELD_TRIGGERED') {
       if (isSeat(event.seat)) playBrace(event.seat, event.kind === 'PERFECT_BLOCK' ? 1.15 : 0.95);
     } else if (type === 'PARRY_TRIGGERED') {
@@ -3580,6 +3692,15 @@ export async function createArena3D({
     safeCall(() => env?.console?.warn?.('[arena3d] eklenti hatası', error));
   }
 
+  /** Bu koltuğun başlamamış ulti girdisi varsa olayı ona bekletir (true = bekletildi). */
+  function deferUltEvent(event) {
+    if (replayingUlt || reduced() || !isSeat(event.fromSeat)) return false;
+    const fighter = fighters.get(event.fromSeat);
+    if (!fighter?.castQueue?.some(e => e.ultimate && !e.dead && !e.started)) return false;
+    (fighter.pendingUltEvents ||= []).push(event);
+    return true;
+  }
+
   function handle(event) {
     if (destroyed || !event || typeof event !== 'object' || typeof event.type !== 'string') return;
     try {
@@ -3589,6 +3710,9 @@ export async function createArena3D({
         deferredHpSync = event;
         return;
       }
+      // Ulti sırası: sahnesi kuyrukta bekleyen ultinin faz/hasar olayları girdi BAŞLAYINCA işlenir
+      // (aksi hâlde ulti koreografisi başka koltuğun saldırısının ortasında başlıyordu).
+      if ((event.type === 'ULTIMATE_PHASE' || (event.type === 'DAMAGE_APPLIED' && event.skill === 'r')) && deferUltEvent(event)) return;
       if (event.type === 'DAMAGE_APPLIED' && isSeat(event.toSeat)) {
         const attacker = fighters.get(event.fromSeat);
         const cast = attacker?.lastCast;
@@ -3869,7 +3993,9 @@ export async function createArena3D({
     cine.superSeat = cine.superK > 0 ? superState.seat : null;
     cine.superLight = superState.light;
     cine.sweepK = reduced() ? 0 : sweepAmount(tNow);
-    const lostMs = dtMs * (1 - timeScale); // slow motion: time the simulation does NOT advance
+    // slow motion: time the simulation does NOT advance. Görev 4: uzun kare (sekme/GPU takılması, dt 100 ms'ye
+    // kırpılır) da kayıp sayılır → izler gerçek zamanla sona sıçramaz (ışınlanma yok); kuyruk/mikser ile aynı saat.
+    const lostMs = dtMs * (1 - timeScale) + Math.max(0, rawDt - dtMs);
     const frozenFighter = frozenSeat(tNow);
 
     // Hit-stop: shift every running track forward by the frozen time so poses
@@ -3909,6 +4035,7 @@ export async function createArena3D({
       updateFighter(fighter, fighter.clock, tNow);
     }
     processUltimate(tNow); // segments that just ended may finish the choreography
+    updateCritBackdrop(tNow);
     // Paket 32: mixer — slowMo'da yavaşlar, hitStop'ta ve süper donmasında durur.
     updateModels(dt, timeScale, frozenFighter, tNow < hitStop.until);
     // Deliver the queued damage on the same frame that the mixer reaches contact.
@@ -4051,6 +4178,8 @@ export async function createArena3D({
     }
     safeCall(() => skillFx?.dispose());
     skillFx = null;
+    if (critBackdrop) safeCall(() => { scene.remove(critBackdrop.mesh); critBackdrop.mesh.geometry.dispose(); critBackdrop.mesh.material.dispose(); });
+    critBackdrop = null;
     activeStage.dispose();
     destroyed = true;
     safeCall(() => resizeObserver?.disconnect());
@@ -4129,6 +4258,14 @@ export async function createArena3D({
         } : null;
       },
       ultimate: () => (ult ? {attacker: ult.atk, defender: ult.def, phase: ult.shown, queued: ult.queue.slice(), ending: ult.ending} : null),
+      /** KRİTİK arka plan düzlemi: görünür mü, opaklık, dövüşçülerin gerisinde mi (z farkı > 0). */
+      crit: () => {
+        const b = critBackdrop;
+        if (!b) return null;
+        const zMin = Math.min(...[...fighters.values()].map(f => f.root.position.z));
+        return {visible: b.mesh.visible, opacity: b.mesh.material.opacity, seat: b.seat, behind: zMin - b.mesh.position.z, renderOrder: b.mesh.renderOrder, depthTest: b.mesh.material.depthTest};
+      },
+      showCrit: seat => showCritBackdrop(seat),
       environment: () => {
         const c = env3d?.colosseum;
         if (!c) return {stage: stageId, crowd: 0, braziers: 0, banners: 0, spotlights: 0, lights: 0, embers: 0, excite: 0};
@@ -4169,6 +4306,8 @@ export async function createArena3D({
         }];
       })),
       skillFx: () => (skillFx ? skillFx.stats() : {live: 0, kinds: []}),
+      /** Zincir planı tanısı (oynatmaz): koltuğun rig'i bu becerilerden kombo kurabiliyor mu? */
+      chainPlan: (seat, skills) => fighters.get(seat)?.model?.chainPlan?.(skills) || null,
       plugins: () => plugins.length,
     },
   };
