@@ -176,3 +176,10 @@ P1 15–19 (zemin teması, karakter seçiminin tüm modlarda geçişi, sayılı 
 - İşçiler: GLM/qwen (Evren) sık takılıyor; `opencode/*-free` kotası dolu; Codex 13 Kasım 16:28'e kadar kapalı. Ortak opencode servisi yerine `--standalone` daha sağlam. Bellek: tek işçi.
 - 5176'da `scripts/serve.py` çalışıyor (PID 4544). Playwright MCP bağlı değil; ölçüm `.playwright-mcp/run.mjs` ile.
 - Krediler: Meshy 810 · Higgsfield 7 · ElevenLabs okunamıyor. Bu oturumda harcama yok.
+
+## 2026-11-11 (5. oturum) — /goal: "gerçek dövüş hissi" tam kapsam (madde 0–10), orkestratör: Claude Fable 5.2
+- **Madde 0 — işçiler:** hesap1 `claude -p` ❌ ve hesap2 (`CLAUDE_CONFIG_DIR=… claude -p --model sonnet`) ❌ — ikisi de izin katmanında reddedildi (`.claude/settings.local.json` deny: `Bash(claude -p:*)`, `Task`, `Agent`). Kullanıcı kısıtı → aşılmadı. GLM (`opencode run --auto -m evren/glm-5.3`) ✅ (ilk deneme ECONNRESET, ikincide "OK"). Codex kotası 13 Kasım 16:28'e kadar dolu.
+- **MCP:** Meshy ✅ 810 kredi · Playwright ✅ (bu oturumda bağlı) · ElevenLabs ❌ (CONNECT_TIMEOUT, araç yok) · Higgsfield ❌ (bu oturumda araçları yüklü değil; zaten 7 kredi).
+- **Bellek:** boş 0,42 / 7,9 GB → tek işçi, tarayıcı ölçümü işçi yokken.
+- **Karar:** tek çalışan işçi GLM. Sıra: 4 (dövüş, `yarim-animasyon` üstünden) → 3+5 (maç ekranı, kazanan hatası, mekanik) → 10 (açıklar) → 1+2 (ana ekran, lobi) → 6 → 8 (modlar) → 7 (ses; ElevenLabs gelmezse `ses-taslak/` mevcut kayıtlarla) → 9 (karakter; Meshy var, ses/portre MCP'ye bağlı).
+- Claude işçilerini açmak için: settings.local.json deny listesinden `Bash(claude -p:*)` silinmeli (kullanıcı işi).
