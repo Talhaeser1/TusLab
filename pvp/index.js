@@ -220,6 +220,7 @@ function liveTarget(match,serverPlayer,own){
 function progressOf(match,pl,peer){
   if(!pl)return null;
   if(isArenaMatch(match)||isRoundMatch(match)){
+    if(match.round?.style==='timed')return {text:`${Number(pl.roundWordIndex)||0} kelime`,frac:Math.min(1,(Number(pl.roundWordIndex)||0)/30)};
     const n=Array.isArray(match.round?.words)&&match.round.words.length?match.round.words.length:10;
     const i=Math.min(n,Number(pl.roundWordIndex)||0);
     return {text:`${i}/${n} kelime`,frac:i/n};

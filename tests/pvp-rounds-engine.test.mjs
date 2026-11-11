@@ -118,7 +118,7 @@ test('rounds: publicMatch never leaks the seed or future words',()=>{
   const json=JSON.stringify(view);
   assert.ok(!json.includes('4242424'));
   assert.ok(!m.roundPlan[1].some(w=>view.round.words.includes(w)));
-  assert.deepEqual(Object.keys(view.round).sort(),['endsAt','index','nextRoundAt','phase','settleUntil','startedAt','suddenDeath','total','words']);
+  assert.deepEqual(Object.keys(view.round).sort(),['endsAt','index','nextRoundAt','phase','settleUntil','startedAt','style','suddenDeath','total','words']);
   assert.equal(view.mode,'rounds');assert.equal(view.totalRounds,5);assert.deepEqual(view.roundsWon,{1:0,2:0});
   assert.deepEqual(view.roundHistory,[]);
   for(const k of ['streak','multiplier','nextSkill','roundWordIndex','roundCorrect','roundWrong','roundBestStreak','roundDamage','roundDone','finishedAt'])

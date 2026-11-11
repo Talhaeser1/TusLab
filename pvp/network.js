@@ -9,7 +9,7 @@ import {initSocialUI,friendPanelHTML} from './phase17-social.js';
 // Offline practice vs bot: runs the real engine locally and emits server-shaped packets.
 import {createPracticeSession,ensurePracticeStyles,normalizeDifficulty,BOT_DIFFICULTIES} from './practice.js';
 // Tur sistemi (docs/TUR-SISTEMI.md §10): maç uzunluğu seçici, tur paketleri, seri tahmini.
-import {PRACTICE_ROUNDS_KEY,DEFAULT_ROUNDS,normalizeRounds,roundsPickDecision,roundsPickerHTML,syncRoundsPicker,predictedSkill,roundInputLock,isRoundMatch,ensureRoundsStyles} from './rounds-ui.js';
+import {PRACTICE_ROUNDS_KEY,DEFAULT_ROUNDS,normalizeRounds,phaseOverdueMs,PHASE_STALL_MS,roundsPickDecision,roundsPickerHTML,syncRoundsPicker,predictedSkill,roundInputLock,isRoundMatch,ensureRoundsStyles} from './rounds-ui.js';
 // Sıralı çözüm (Ajan A): klasik değiş tokuş pencereleri ve tur sonu çözümü de maç görüntüsü taşır.
 const ROUND_PACKETS=new Set(['ROUND_START','ROUND_LAST_CALL','ROUND_END','ROUND_SKILL_ACK','ROUND_RESOLVE','EXCHANGE_START','EXCHANGE_RESOLVE']);
 // Arena modu (docs/ARENA-MODU.md §7.1): her paket kişisel anlık görüntü (`match`) taşır.
@@ -567,6 +567,8 @@ export class PvPNetworkConsole {
   updateArena(){
     const match=this.match;
     const serverNow=this.serverNow();
+    // Faz takılırsa (sunucu saatine göre bitiş + 2 sn geçti) en son durumu yeniden iste (istek 750 ms'de bir sınırlıdır).
+    if(match&&!document.hidden&&phaseOverdueMs(match,serverNow)>PHASE_STALL_MS)this.requestSnapshot();
     if(this.phase==='rematch_countdown'&&this.startAt){
       const countdown=this.root?.querySelector('[data-pvp15-votes]');
       if(countdown)writeText(countdown,`RÖVANŞ: ${Math.max(0,Math.ceil((this.startAt-serverNow)/1000))} · Yeni maç başlıyor`);

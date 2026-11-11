@@ -5,11 +5,10 @@
  * Hareket: yalnız transform/opacity, tek seferlik (WAAPI); sonsuz animasyon yok.
  */
 import {FIGHTERS,isFighterId} from './shared/fighters.js';
+import {SKILL_THRESHOLDS as ENGINE_THRESHOLDS} from './shared/match.js';
 export const SKILL_ORDER=Object.freeze(['Q','E','S','R']);
-export const SKILL_THRESHOLDS=Object.freeze({
-  classic:Object.freeze({Q:2,E:4,S:0,R:5}),
-  rounds:Object.freeze({Q:3,E:5,S:0,R:7})
-});
+// Eşikler tek kaynaktan (pvp/shared/match.js) gelir; burada kopya sabit tutulmaz.
+export const SKILL_THRESHOLDS=ENGINE_THRESHOLDS;
 
 const svg=body=>`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 

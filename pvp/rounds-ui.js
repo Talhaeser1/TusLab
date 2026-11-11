@@ -7,7 +7,7 @@
  */
 
 import {FIGHTERS,normalizeFighter} from './shared/fighters.js';
-import {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS} from './shared/match.js';
+import {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,RESOLVE_BUDGET_MS,roundSkillMs} from './shared/match.js';
 export {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS};
 // Spec §1 sabitleri. Motor henüz yüklenmemiş olabileceği için burada aynalanır (yalnız sunum).
 export const ROUND_OPTIONS=Object.freeze([5,7,10]);
@@ -80,16 +80,40 @@ export function roundSkillPickerModel(match,myId){
     cards:ROUND_SKILL_CARDS.map(c=>({...c,left:Math.max(0,Number(left[c.id]??2))}))};
 }
 
+/** Fazın bitiş anı: round → kişisel süre, settling → settleUntil, resolve → son saldırı, intermission → sonraki raund. */
+function phaseDeadline(match,seat){
+  const round=match.round;
+  switch(round.phase){
+    case 'round':return round.personalEndsAt?.[seat]??playerBySeat(match,seat)?.roundEndsAt??(match.blindClock?null:round.endsAt);
+    case 'settling':return round.settleUntil;
+    case 'resolve':return round.resolveEndsAt;
+    case 'intermission':return round.nextRoundAt;
+    default:return null;
+  }
+}
+/** Faz geçişi sunucu saatini bu kadar ms aştıysa (>0) anlık görüntü takılmış demektir. */
+export function phaseOverdueMs(match,serverNow){
+  if(!isRoundMatch(match)||match.status!=='running')return 0;
+  const phase=match.round.phase;
+  const deadline=phase==='round'?(match.blindClock?null:match.round.endsAt):phaseDeadline(match,null);
+  return Number.isFinite(deadline)?Math.max(0,serverNow-deadline):0;
+}
+export const PHASE_STALL_MS=2000;
+const PHASE_TOTAL_MS=Object.freeze({intermission:ROUND_SUMMARY_MS+ROUND_INTRO_MS,settling:ROUND_SETTLE_MS,resolve:RESOLVE_BUDGET_MS});
 function timerOf(match,serverNow,seat){
   const round=match.round;
   const frozen=match.status==='paused'&&Number.isFinite(match.pausedAt);
   const ref=frozen?match.pausedAt:serverNow;
   const active=round.phase==='round';
   const hidden=active&&match.blindClock===true;
-  const deadline=round.personalEndsAt?.[seat]??playerBySeat(match,seat)?.roundEndsAt??(match.blindClock?null:round.endsAt);
-  const remaining=active&&!hidden&&Number.isFinite(deadline)?Math.max(0,deadline-ref):0;
+  const deadline=phaseDeadline(match,seat);
+  const remaining=!hidden&&Number.isFinite(deadline)?Math.max(0,deadline-ref):0;
   const seconds=Math.ceil(remaining/1000);
-  return {remaining,seconds,text:hidden?'🌑 —':String(seconds),fraction:hidden?0:clamp01(remaining/ROUND_DURATION_MS),
+  // Halka toplamı: temel süre + Donmuş An (+) − rakibin Zaman Hırsızı'sı; böylece hızlı/yavaş başlangıçta halka dolu başlar.
+  const mine=round.skills?.[seat],rival=round.skills?.[seat===1?2:1];
+  const total=active?Math.max(1000,ROUND_DURATION_MS+(mine==='freeze'?roundSkillMs('freeze'):0)-(rival==='timethief'?roundSkillMs('timethief'):0))
+    :(PHASE_TOTAL_MS[round.phase]||ROUND_DURATION_MS);
+  return {remaining,seconds,text:hidden?'🌑 —':String(seconds),fraction:hidden?0:clamp01(remaining/total),
     hidden,urgent:active&&!hidden&&remaining<=ROUND_LAST_CALL_MS,frozen};
 }
 
@@ -109,24 +133,34 @@ export function roundsViewModel(match,myId,serverNow,marks,{lastCallRound=null}=
   const needed=winsNeeded(total);
   const me=playerBySeat(match,mySeat),opp=playerBySeat(match,mySeat===1?2:1);
   const myIdx=Number(me?.roundWordIndex)||0;
-  const words=(Array.isArray(round.words)?round.words:[]).slice(0,ROUND_WORDS).map((text,i)=>({
-    text:String(text??''),
-    state:i<myIdx?(marks?.get?.(i)||'done'):i===myIdx&&!me?.roundDone&&round.phase==='round'?'active':'todo',
-    opponent:Boolean(opp&&!opp.roundDone&&Number(opp.roundWordIndex)===i)
-  }));
+  // Kelime penceresi: timed modda sunucu yalnız pencereyi gönderir (öncesi '' ile dolu); counted'da 10'dan uzun listede kaydırılır.
+  const allWords=Array.isArray(round.words)?round.words:[];
+  const offset=Math.max(0,allWords.findIndex(w=>String(w)!==''));
+  const start=Math.max(offset,Math.min(myIdx-1,allWords.length-ROUND_WORDS));
+  const words=allWords.slice(start,start+ROUND_WORDS).map((text,k)=>{
+    const i=start+k;
+    return {text:String(text??''),
+      state:i<myIdx?(marks?.get?.(i)||'done'):i===myIdx&&!me?.roundDone&&round.phase==='round'?'active':'todo',
+      opponent:Boolean(opp&&!opp.roundDone&&Number(opp.roundWordIndex)===i)};
+  });
+  const timed=round.style==='timed';
+  const wordTotal=timed?0:allWords.length||ROUND_WORDS;
   const sides=[1,2].map(seat=>{
     const p=playerBySeat(match,seat);
-    const idx=Math.min(ROUND_WORDS,Number(p?.roundWordIndex)||0);
+    const idx=timed?Math.max(0,Number(p?.roundWordIndex)||0):Math.min(wordTotal,Number(p?.roundWordIndex)||0);
     const filled=Number(wins[seat])||0;
     const clock=timerOf(match,serverNow,seat);
     const skill=round.phase==='round'?round.skills?.[seat]??null:null;
     const badge=[skill==='freeze'?'❄ +3 sn':null,round.phase==='round'&&round.skills?.[seat===1?2:1]==='timethief'?'−5 sn':null].filter(Boolean).join(' · ');
     return {seat,name:nameOf(match,seat),isMe:Boolean(p&&p.playerId===myId),clock:clock.text,badge,
-      progress:`Kelime ${idx}/${ROUND_WORDS}`,progressValue:idx,done:Boolean(p?.roundDone),doneText:p?.roundDone?'Tamamlandı ✓':'',
+      progress:timed?`Kelime ${idx}`:`Kelime ${idx}/${wordTotal}`,progressValue:idx,done:Boolean(p?.roundDone),doneText:p?.roundDone?'Tamamlandı ✓':'',
       streak:streakModel(streakOf(p),p?.nextSkill),pips:{filled,total:Math.max(needed,filled)}};
   });
   const phaseLabel=['settling','resolve'].includes(round.phase)?'ÇÖZÜLÜYOR':round.phase==='intermission'?'TUR ARASI':match.status==='paused'?'DURAKLADI':'SANİYE';
-  return {visible:true,index,total,title:suddenDeath?'ANİ ÖLÜM':`RAUND ${index} / ${total}`,suddenDeath,phase:round.phase,phaseLabel,
+  // Madalyon: faz birimi her zaman kısa "sn"; başlık alanında yalnız TEK yazı (raund adı YA DA faz adı) görünür.
+  const title=suddenDeath?'ANİ ÖLÜM':`RAUND ${index} / ${total}`;
+  const medalTitle=match.status==='paused'?'DURAKLADI':round.phase==='round'?title:phaseLabel;
+  return {visible:true,index,total,title,medalTitle,unit:'sn',suddenDeath,phase:round.phase,phaseLabel,
     timer,lastCall:{active:lastCallActive&&!timer.hidden,text:lastCallActive&&!timer.hidden?`SON ÇAĞRI · ${timer.seconds} sn`:''},sides,words,mySeat};
 }
 
@@ -446,7 +480,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     if(!vm.visible){hideOverlays();return;}
     // Saat
     const tm=vm.timer;
-    setText(secs,tm.text);setText(secsUnit,vm.phaseLabel);
+    setText(secs,tm.text);setText(secsUnit,tm.hidden?'':vm.unit);setText(title,vm.medalTitle);
     sideEls.forEach((side,i)=>setText(side.clock,vm.sides[i].clock));
     ringFill.setAttribute('stroke-dashoffset',(RING_C*(1-tm.fraction)).toFixed(2));
     setFlag(medal,'is-urgent',tm.urgent);setFlag(medal,'is-frozen',tm.frozen);
@@ -507,7 +541,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     state.visible=vm.visible;
     setHidden(el,!vm.visible);
     if(!vm.visible){hideOverlays();setHidden(clash,true);ensureTicker(false);tick();return;}
-    setText(title,vm.title);setFlag(el,'me-2',vm.mySeat===2);
+    setText(title,vm.medalTitle);setFlag(el,'me-2',vm.mySeat===2);
     sideEls.forEach((side,i)=>renderSide(side,vm.sides[i]));
     renderPicker(match);syncInter();
     vm.words.forEach((w,i)=>{

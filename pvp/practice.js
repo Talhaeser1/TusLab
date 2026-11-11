@@ -17,7 +17,7 @@
  * Nothing here touches the network, /api endpoints, profiles or Elo.
  * All time, randomness and timers are injectable so tests are deterministic.
  */
-import {createMatch,submitWord,advanceMatch,nextDeadline,roundStartPayload,pickRoundSkill,ROUND_TIME_SKILLS,normalizeRounds as engineNormalizeRounds,surrenderMatch,publicMatch} from './shared/match.js';
+import {createMatch,submitWord,advanceMatch,nextDeadline,roundStartPayload,pickRoundSkill,ROUND_TIME_SKILLS,normalizeRounds as engineNormalizeRounds,surrenderMatch,publicMatch,normalizeRoundStyle,normalizeRoundWords} from './shared/match.js';
 import {normalizeTyping} from './shared/typing-rules.js';
 import {normalizeAssist} from './shared/assist-rules.js';
 import {normalizeStageChoice,pickStage} from './shared/stages.js';
@@ -105,6 +105,8 @@ export function makeTypo(word,rng=Math.random){
  * @param {(result:object)=>void} [o.onWordResult] WORD_RESULT for the human's submissions
  * @param {'kolay'|'orta'|'zor'} [o.difficulty='orta']
  * @param {5|7|10} [o.rounds=5] number of rounds, also kept for rematches
+ * @param {'counted'|'timed'} [o.roundStyle='counted'] counted = roundWords words per round; timed = words flow until the clock ends
+ * @param {number} [o.roundWords=10] counted: words per round (5..20)
  * @param {'fire'|'rune'} [o.character='fire'] human fighter; fire = seat 1 (left), rune = seat 2 (right)
  * @param {string} [o.rune='none'] human rune; the bot always plays classic
  * @param {boolean} [o.assist=true] partner support (paket 31); classic + rounds only, never in arena
@@ -127,6 +129,7 @@ export function createPracticeSession(o={}){
   const difficulty=normalizeDifficulty(o.difficulty);
   const profile=BOT_DIFFICULTIES[difficulty];
   const rounds=normalizeRounds(o.rounds);
+  const roundStyle=normalizeRoundStyle(o.roundStyle),roundWords=normalizeRoundWords(o.roundWords);
   const typing=normalizeTyping(o.typing); // paket 30: büyük/küçük harf + noktalama kuralları
   const assist=normalizeAssist(o.assist); // paket 31: partner desteği (varsayılan açık)
   const stageChoice=normalizeStageChoice(o.stage); // paket 33
@@ -202,7 +205,7 @@ export function createPracticeSession(o={}){
     // Local seed comes from the injected RNG and fresh id, so tests can replay
     // a duel exactly while each rematch still receives different words.
     const stage=pickStage(stageChoice,rng);
-    match=classic?createMatch(players,at,id,{exchangeMs:10000,typing,assist,stage}):createMatch(players,at,id,{rounds,seed:`${id}:${Math.floor(rng()*0x100000000)}`,resolveAtEnd:true,typing,assist,stage});
+    match=classic?createMatch(players,at,id,{exchangeMs:10000,typing,assist,stage}):createMatch(players,at,id,{rounds,roundStyle,roundWords,seed:`${id}:${Math.floor(rng()*0x100000000)}`,resolveAtEnd:true,typing,assist,stage});
     lastEmittedCombatId=0;rematchVotes=[];
     emit('MATCH_START',{match:snapshot(),serverTime:at,...(rematch?{rematch:true}:{})});
     if(!classic)broadcastRound([{type:'ROUND_START',payload:roundStartPayload(match)}],at);
@@ -308,7 +311,7 @@ export function createPracticeSession(o={}){
       return true;
     }
     if(type==='WORD_SUBMIT'){wordSubmit(HUMAN_ID,payload);return true;}
-    if(type==='STATE_REQUEST'){if(match)emit('STATE_UPDATE',{match:snapshot(),serverTime:now()});return true;}
+    if(type==='STATE_REQUEST'){if(match){tick();emit('STATE_UPDATE',{match:snapshot(),serverTime:now()});}return true;} // tick(): takılan fazı zorla ilerlet
     if(type==='SURRENDER'){
       if(!match||!['running','paused'].includes(match.status))return true;
       const at=now();match=surrenderMatch(match,humanSeat,at);publishEnd(at);return true;
@@ -351,7 +354,7 @@ export function createPracticeSession(o={}){
     /** Number of live timers owned by this session (0 after dispose). */
     get activeTimers(){return [tickTimer,botTimer,rematchTimer].filter(x=>x!==null).length;},
     get stage(){return match?.stage??(stageChoice==='random'?'colosseum':stageChoice);},stageChoice,
-    humanId:HUMAN_ID,botId:BOT_ID,humanSeat,botSeat,difficulty,profile,character,fighter,botFighter,rounds,typing,assist,mode:classic?'classic':'rounds'
+    humanId:HUMAN_ID,botId:BOT_ID,humanSeat,botSeat,difficulty,profile,character,fighter,botFighter,rounds,roundStyle,roundWords,typing,assist,mode:classic?'classic':'rounds'
   };
 }
 

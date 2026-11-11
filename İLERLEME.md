@@ -15,3 +15,8 @@ Orkestratör: Claude (bu oturum Opus 5.5 üzerinde çalışıyor; istenen "Fable
 
 ## Açık sorunlar
 - ElevenLabs anahtarına `user_read` izni verilirse bakiye takibi yapılabilir.
+
+## D — Mekanik (başladı)
+- Teşhis: Sonnet alt ajan (salt okuma). Kök nedenler: rounds modu 10 kelimeyle sınırlı → boş ekran; sayaç yalnız round fazında sayıyor; resolve fazı 1300 ms aralıkla uzun "ÇÖZÜLÜYOR"; "TUR ARASI" 58px daireye sığmıyor, "RAUND n/m" ile çakışıyor.
+- Karar: rounds moduna `roundStyle: timed|counted` (varsayılan counted=10 kelime). Klasik düello modu korunur.
+- Uygulama: `codex exec --full-auto` otomatik izin sınıflandırıcısı tarafından engellendi → görev Sonnet alt ajana (Agent aracı) verildi. Görev tanımı: docs/codex/F-MEKANIK.md.

@@ -2,7 +2,7 @@
  * Stage 09 additionally resolves authoritative skill damage and probabilistic shields.
  */
 import {createMatch,publicMatch,submitWord,advanceMatch,nextDeadline,roundStartPayload,ROUND_OPTIONS,SERVER_ONLY_EVENTS,pauseMatch,resumeMatch,endDisconnectedMatch,surrenderMatch,matchResult,validateRune} from './match.js';
-import {pickRoundSkill} from '../../pvp/shared/match.js';
+import {pickRoundSkill,ROUND_STYLES,normalizeRoundStyle,normalizeRoundWords,validRoundWords} from '../../pvp/shared/match.js';
 import {normalizeTyping,isTypingPayload} from '../../pvp/shared/typing-rules.js';
 import {normalizeAssist,isAssistPayload} from '../../pvp/shared/assist-rules.js';
 import {normalizeStageChoice,isStageChoicePayload,pickStage} from '../../pvp/shared/stages.js';
@@ -19,6 +19,8 @@ const CHARACTERS=new Set(['fire','rune']);
 const GUEST_TOKEN=/^[a-f0-9]{64}$/;
 const DEFAULT_ROUNDS=5;
 const roomRounds=data=>ROUND_OPTIONS.includes(data?.rounds)?data.rounds:DEFAULT_ROUNDS;
+const roomRoundStyle=data=>normalizeRoundStyle(data?.roundStyle);
+const roomRoundWords=data=>normalizeRoundWords(data?.roundWords);
 const roomMode=data=>data?.mode==='arena'?'arena':data?.mode==='classic'?'classic':'rounds';
 const snapshot=(match,seat)=>match?.mode==='arena'?arenaPublicMatch(match,seat):publicMatch(match,match?.mode==='rounds'?seat:undefined);
 const wrap=(type,payload={})=>{
@@ -64,7 +66,7 @@ export class PvPRoom {
   summary(data){
     const online=this.connectedIds();
     const connected=data.players.filter(p=>online.has(p.playerId)).map(({playerId,seat})=>({playerId,seat}));
-    return {phase:data.phase,startAt:data.startAt,capacity:2,connected,mode:roomMode(data),rounds:roomRounds(data),typing:normalizeTyping(data.typing),assist:normalizeAssist(data.assist),stage:normalizeStageChoice(data.stage),hostPlayerId:data.hostPlayerId||data.players[0]?.playerId||null,
+    return {phase:data.phase,startAt:data.startAt,capacity:2,connected,mode:roomMode(data),rounds:roomRounds(data),roundStyle:roomRoundStyle(data),roundWords:roomRoundWords(data),typing:normalizeTyping(data.typing),assist:normalizeAssist(data.assist),stage:normalizeStageChoice(data.stage),hostPlayerId:data.hostPlayerId||data.players[0]?.playerId||null,
       players:data.players.map(({playerId,seat,name,character,fighter,rune,ready,reservedUntil})=>({playerId,seat,name,character,fighter:normalizeFighter(fighter,character),rune:rune||'none',ready,online:online.has(playerId),reconnectUntil:online.has(playerId)?null:reservedUntil||null}))};
   }
   broadcast(type,payload){for(const {ws} of authenticated(this.ctx))safeSend(ws,type,payload);}
@@ -191,8 +193,13 @@ export class PvPRoom {
     const match=await this.ctx.storage.get('match');
     if(!['started','rematch_countdown'].includes(data.phase)||!match)return safeSend(ws,'ERROR',{code:'MATCH_NOT_ACTIVE'});
     if(!match.participants.some(p=>p.playerId===session.playerId))return safeSend(ws,'ERROR',{code:'NOT_MATCH_PARTICIPANT'});
-    // The client cannot mutate state. A snapshot is an idempotent operation.
-    this.sendMatch(ws,'STATE_UPDATE',{serverTime:Date.now()},match,session.seat);
+    // The client cannot mutate state. Only server-clock transitions that are already overdue (late alarm) are applied first.
+    const now=Date.now();
+    if(match.status==='running'&&match.mode==='rounds'){
+      const step=advanceMatch(match,now);
+      if(step.match!==match){await this.applyAdvance(match,step,now);await this.schedule(data);return;}
+    }
+    this.sendMatch(ws,'STATE_UPDATE',{serverTime:now},match,session.seat);
   }
   async recordResult(match){
     if(match?.status!=='ended')return;
@@ -368,6 +375,14 @@ export class PvPRoom {
       // Paket 33: sahne seçimi. Yalnız bilinen sahne kimliği ya da 'random' kabul edilir; 'random' maç başında çözülür.
       if(!isStageChoicePayload(payload.stage))return safeSend(ws,'ERROR',{code:'INVALID_MATCH_CONFIG'});
       data.stage=payload.stage;
+    }else if(keys.length===1&&keys[0]==='roundStyle'){
+      // Paket F: raund biçimi. Yalnız izinli listedeki değerler kabul edilir.
+      if(!ROUND_STYLES.includes(payload.roundStyle))return safeSend(ws,'ERROR',{code:'INVALID_MATCH_CONFIG'});
+      data.roundStyle=payload.roundStyle;
+    }else if(keys.length===1&&keys[0]==='roundWords'){
+      // Paket F: counted raund kelime sayısı, yalnız 5..20 arası tam sayı.
+      if(!validRoundWords(payload.roundWords))return safeSend(ws,'ERROR',{code:'INVALID_MATCH_CONFIG'});
+      data.roundWords=payload.roundWords;
     }else if(payload.mode===undefined){
       if(keys.length!==1||!ROUND_OPTIONS.includes(payload.rounds))return safeSend(ws,'ERROR',{code:'INVALID_ROUNDS'});
       data.mode='rounds';data.rounds=payload.rounds;
@@ -390,7 +405,7 @@ export class PvPRoom {
     const assist=normalizeAssist(data.assist); // paket 31: yalnız klasik + tur modunda; arenada kapalı
     const stage=pickStage(normalizeStageChoice(data.stage)); // paket 33: 'random' her maç başında somut sahneye çözülür
     const match=roomMode(data)==='arena'?createArenaMatch(data.players,now,undefined,{typing,stage}):
-      createMatch(data.players,now,undefined,roomMode(data)==='classic'?{exchangeMs:10000,typing,assist,stage}:{rounds:roomRounds(data),resolveAtEnd:true,typing,assist,stage});
+      createMatch(data.players,now,undefined,roomMode(data)==='classic'?{exchangeMs:10000,typing,assist,stage}:{rounds:roomRounds(data),roundStyle:roomRoundStyle(data),roundWords:roomRoundWords(data),resolveAtEnd:true,typing,assist,stage});
     return {match,announce:()=>{
       this.broadcastMatch('MATCH_START',{serverTime:now,...extra},match);
       if(match.mode==='arena'){

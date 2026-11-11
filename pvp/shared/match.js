@@ -88,6 +88,17 @@ const wordsOf=text=>text.trim().split(/\s+/u);
 // ── Round mode constants (docs/TUR-SISTEMI.md §1) ─────────────────────────
 export const ROUND_OPTIONS=Object.freeze([5,7,10]);
 export const ROUND_WORDS=10;
+// Paket F: raund biçimi. counted = roundWords kelime (varsayılan, eski davranış); timed = süre dolana kadar kelime akar.
+export const ROUND_STYLES=Object.freeze(['counted','timed']);
+export const DEFAULT_ROUND_STYLE='counted';
+export const ROUND_WORDS_MIN=5;
+export const ROUND_WORDS_MAX=20;
+export const ROUND_VIEW_AHEAD=4;   // timed: anlık görüntüye mevcut kelime + 4 ileri
+export const ROUND_VIEW_BEHIND=2;  // timed: tamamlanan son 2 kelime (HUD işaretleri için)
+const ROUND_EXTEND_CHUNK=8;
+export const normalizeRoundStyle=v=>ROUND_STYLES.includes(v)?v:DEFAULT_ROUND_STYLE;
+export const validRoundWords=v=>Number.isInteger(v)&&v>=ROUND_WORDS_MIN&&v<=ROUND_WORDS_MAX;
+export const normalizeRoundWords=v=>validRoundWords(v)?v:ROUND_WORDS;
 export const ROUND_DURATION_MS=40_000;   // paket 30: 30 → 40 sn
 export const ROUND_LAST_CALL_MS=5_000;
 export const ROUND_SETTLE_MS=1_000;
@@ -95,6 +106,14 @@ export const ROUND_SUMMARY_MS=6_000;     // paket 30: tur arası özeti 3 → 6 
 export const ROUND_INTRO_MS=3_000;       // paket 30: 2 → 3 sn
 // Saldırılar sıra sıra: her vuruş (hazırlık+atılış+vuruş+dönüş ~0,76–1 sn) ve savunanın geri savrulması görünsün.
 export const RESOLVE_STEP_MS=1300;
+// Çözüm fazı ~RESOLVE_BUDGET_MS'i geçmesin: saldırı sayısı arttıkça aralık RESOLVE_MIN_STEP_MS'e kadar kısalır.
+export const RESOLVE_MIN_STEP_MS=350;
+export const RESOLVE_BUDGET_MS=6000;
+export function resolveStepMs(count,extraMs=0){
+  const n=Math.max(1,Math.trunc(Number(count))||1);
+  const room=Math.max(0,RESOLVE_BUDGET_MS-Math.max(0,Number(extraMs)||0));
+  return Math.max(RESOLVE_MIN_STEP_MS,Math.min(RESOLVE_STEP_MS,Math.floor(room/n)));
+}
 // Ultiden sonra kısa toparlanma: ulti sinematiği bitmeden rakibin vuruşu araya girmesin.
 export const ULTIMATE_RECOVERY_MS=800;
 export const ROUND_HP=1200;
@@ -103,9 +122,17 @@ export const STREAK_SKILLS=Object.freeze({3:'q',5:'e',7:'r',8:'q',9:'q',10:'q'})
 export const MULTIPLIER_START=7;
 export const MULTIPLIER_STEP=1.2;
 export const MULTIPLIER_CAP=2.5;
+// Yetenek eşikleri tek kaynak: rounds eşikleri STREAK_SKILLS'ten türetilir; skillbar.js buradan okur.
+const firstStreakAt=k=>Number(Object.entries(STREAK_SKILLS).find(([,v])=>v===k)[0]);
+export const SKILL_THRESHOLDS=Object.freeze({
+  classic:Object.freeze({Q:2,E:4,S:0,R:5}),
+  rounds:Object.freeze({Q:firstStreakAt('q'),E:firstStreakAt('e'),S:0,R:firstStreakAt('r')})
+});
 export const ROUND_SCORE=Object.freeze({correct:100,bestStreak:50,damageDiv:10});
 export const ROUND_TIME_SKILLS=Object.freeze(['timethief','blindclock','freeze']);
 const timeSkillMs=id=>ARENA_SKILLS[id].effect.ms||0;
+/** Süre becerisinin etkisi (ms): HUD halka toplamını doğru hesaplamak için istemci de kullanır. */
+export const roundSkillMs=id=>ROUND_TIME_SKILLS.includes(id)?timeSkillMs(id):0;
 const roundPlayer=(m,seat)=>m.participants.find(p=>p.seat===seat);
 const roundEnds=m=>Math.max(...m.participants.map(p=>p.roundDone?p.finishedAt:p.roundEndsAt));
 function syncRoundEnds(m){
@@ -134,17 +161,29 @@ function wordRule(r,total){
   return r<=Math.ceil(total/2)?{minLen:3,maxLen:7,difficulty:'easy'}:{minLen:4,maxLen:9,difficulty:'normal'};
 }
 const cleanWords=list=>Array.from(list||[],w=>String(w).trim().normalize('NFC')).filter(w=>w&&!/\s/u.test(w));
-function dealWords(pick,seed,r,total,used){
+function dealWords(pick,seed,r,total,used,count=ROUND_WORDS){
   const rule=wordRule(r,total);
   const words=[];const taken=new Set(used);
-  const add=list=>{for(const w of cleanWords(list))if(words.length<ROUND_WORDS&&!taken.has(w)){taken.add(w);words.push(w);}};
-  add(pick({seed:`${seed}:r${r}`,count:ROUND_WORDS,...rule,exclude:[...used]}));
-  if(words.length<ROUND_WORDS){ // exhausted pool: allow words from earlier rounds rather than a short list
+  const add=list=>{for(const w of cleanWords(list))if(words.length<count&&!taken.has(w)){taken.add(w);words.push(w);}};
+  add(pick({seed:`${seed}:r${r}`,count,...rule,exclude:[...used]}));
+  if(words.length<count){ // exhausted pool: allow words from earlier rounds rather than a short list
     for(const w of used)taken.delete(w);
-    add(pick({seed:`${seed}:r${r}:fill`,count:ROUND_WORDS*3,...rule,exclude:[]}));
+    add(pick({seed:`${seed}:r${r}:fill`,count:count*3,...rule,exclude:[]}));
   }
-  for(let i=0;words.length<ROUND_WORDS&&i<ROUND_WORDS;i++)words.push(words[i%Math.max(1,words.length)]||'tuşlab');
+  for(let i=0;words.length<count&&i<count;i++)words.push(words[i%Math.max(1,words.length)]||'tuşlab');
   return words;
+}
+/** timed: kuyruk `needed` kelimeden kısaysa aynı tohumdan deterministik yeni kelimeler ekler (sunucu ve practice aynı sonucu üretir). */
+function ensureRoundWords(match,needed){
+  const r=match.round;
+  if(match.roundStyle!=='timed')return;
+  while(r.words.length<needed){
+    const k=(r.extended||0)+1;r.extended=k;
+    const rule=wordRule(r.index,match.totalRounds);
+    let more=cleanWords(bankPickWords({seed:`${match.seed}:r${r.index}:x${k}`,count:ROUND_EXTEND_CHUNK,...rule,exclude:r.words.slice(-ROUND_EXTEND_CHUNK*2)}));
+    if(!more.length)more=r.words.slice(0,ROUND_EXTEND_CHUNK);
+    r.words.push(...(more.length?more:['tuşlab']));
+  }
 }
 function resetForRound(p,words){
   Object.assign(p,{hp:ROUND_HP,maxHp:ROUND_HP,combo:0,runeEnergy:0,lastSkill:null,parryCharge:false,lastStandUsed:false,
@@ -160,6 +199,7 @@ function startRound(match,at){
     startedAt:at,endsAt:at+ROUND_DURATION_MS,settleUntil:null,nextRoundAt:null,
     koSeat:null,koAt:null,allDone:false,lastResolvedAt:null,endedAt:null};
   match.usedWords.push(...words);
+  ensureRoundWords(match,ROUND_VIEW_AHEAD+1);
   match.endsAt=match.round.endsAt;match.pendingAttacks=[];
   for(const p of match.participants){
     resetForRound(p,words);
@@ -184,9 +224,10 @@ function setupRounds(match,options,at){
   const seed=Number.isFinite(options.seed)?Math.trunc(options.seed)>>>0
     :(typeof options.seed==='string'&&options.seed?options.seed:randomSeed());
   const pick=typeof options.pickWords==='function'?options.pickWords:bankPickWords;
+  const roundStyle=normalizeRoundStyle(options.roundStyle),roundWords=normalizeRoundWords(options.roundWords);
   const plan=[],used=[];
-  for(let r=1;r<=total+SUDDEN_DEATH_MAX;r++){const words=dealWords(pick,seed,r,total,used);plan.push(words);used.push(...words);}
-  Object.assign(match,{mode:'rounds',totalRounds:total,seed,roundPlan:plan,usedWords:[],roundsWon:{1:0,2:0},
+  for(let r=1;r<=total+SUDDEN_DEATH_MAX;r++){const words=dealWords(pick,seed,r,total,used,roundWords);plan.push(words);used.push(...words);}
+  Object.assign(match,{mode:'rounds',totalRounds:total,roundStyle,roundWords,seed,roundPlan:plan,usedWords:[],roundsWon:{1:0,2:0},
     roundHistory:[],clashes:{},activeMs:0,round:null,roundSkillPicks:{1:null,2:null},roundSkillPickLocked:{1:false,2:false}});
   if(options.resolveAtEnd===true)match.resolveAtEnd=true;
   for(const p of match.participants)p.roundSkillUses={timethief:0,blindclock:0,freeze:0};
@@ -239,6 +280,20 @@ export function pickRoundSkill(match,{playerId,skill},at=Date.now()){
   return {match:m,result:{seat:p.seat,skill,round:m.round.index+1,
     usesLeft:Object.fromEntries(ROUND_TIME_SKILLS.map(id=>[id,ARENA_MAX_USES-(mine.roundSkillUses[id]||0)]))}};
 }
+/** counted: tüm kelimeler (en çok 20). timed: yalnız görünen pencere; pencere öncesi indeksler '' ile doldurulur,
+ * böylece words[roundWordIndex] her istemci kodunda doğru kelimeyi verir ve anlık görüntü küçük kalır (geçmiş kelime metni gitmez). */
+function publicWords(match,viewer){
+  const r=match.round;
+  if(match.roundStyle!=='timed')return {words:[...r.words]};
+  const idx=Math.max(0,viewer?.roundWordIndex||0);
+  const from=Math.max(0,idx-ROUND_VIEW_BEHIND);
+  return {words:[...Array(from).fill(''),...r.words.slice(from,idx+ROUND_VIEW_AHEAD+1)]};
+}
+/** Çözüm fazının biteceği an (bekleyen son saldırı); yoksa null. */
+function resolveEndsAt(match){
+  const t=(match.pendingAttacks||[]).map(a=>a.resolveAt).filter(Number.isFinite);
+  return t.length?Math.max(...t):null;
+}
 export function publicMatch(match,viewerSeat){
   if(!match)return null;
   const {id,version,sequence,status,startedAt,endsAt,endedAt,winnerSeat,endReason}=match;
@@ -249,8 +304,10 @@ export function publicMatch(match,viewerSeat){
   return {matchId:id,version,sequence,status,startedAt,endsAt,endedAt,winnerSeat,endReason,
     mode:rounds?'rounds':'classic',stage:normalizeStage(match.stage),typing:normalizeTyping(match.typing),assistEnabled:match.assistEnabled===true,
     ...(match.exchange?{exchange:{index:match.exchange.index,endsAt:match.exchange.endsAt,phase:match.exchange.phase}}:{}),
-    round:rounds&&r?{index:r.index,total:r.total,suddenDeath:r.suddenDeath,phase:r.phase,words:[...r.words],
+    round:rounds&&r?{index:r.index,total:r.total,suddenDeath:r.suddenDeath,phase:r.phase,...publicWords(match,viewer),
+      style:normalizeRoundStyle(match.roundStyle),
       startedAt:victim?null:r.startedAt,endsAt:victim?null:r.endsAt,settleUntil:r.settleUntil,nextRoundAt:r.nextRoundAt,
+      ...(r.phase==='resolve'||r.phase==='settling'?{resolveEndsAt:resolveEndsAt(match)}:{}),
       ...(viewer?{personalEndsAt:victim?null:Object.fromEntries(match.participants.map(p=>[p.seat,p.roundEndsAt])),
         skills:Object.fromEntries(match.participants.map(p=>[p.seat,p.roundSkill]))}:{})}:null,
     ...(rounds&&viewer?{blindClock:!!victim,
@@ -387,8 +444,10 @@ function scheduleAlternating(match,at){
   const ordered=[];
   while(queues[1].length||queues[2].length)for(const seat of [1,2])if(queues[seat].length)ordered.push(queues[seat].shift());
   let nextAt=at;
+  const extra=ordered.reduce((sum,a)=>sum+(a.skill==='r'?ULTIMATE_PHASES[a.character].at(-1).offset+ULTIMATE_RECOVERY_MS:0),0);
+  const step=resolveStepMs(ordered.length,extra);
   match.pendingAttacks=ordered.map((attack,i)=>{
-    nextAt+=RESOLVE_STEP_MS;
+    nextAt+=step;
     const scheduled={...attack,turn:i+1,resolve:true,resolveAt:nextAt};
     if(attack.skill==='r')nextAt+=ULTIMATE_PHASES[attack.character].at(-1).offset+ULTIMATE_RECOVERY_MS;
     return scheduled;
@@ -414,7 +473,9 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
   mine.wpm=Math.round(mine.correctChars/5/activeMinutes);
   mine.wordIndex++;mine.lastWordAt=correct?at:null;
   if(correct){mine.lastCorrectAt=at;mine.lastCorrectRoundIndex=index;}
-  mine.roundWordIndex++;mine.currentWord=round.words[mine.roundWordIndex]??'';
+  mine.roundWordIndex++;
+  if(next.roundStyle==='timed')ensureRoundWords(next,mine.roundWordIndex+ROUND_VIEW_AHEAD+1);
+  mine.currentWord=round.words[mine.roundWordIndex]??'';
   let cast=null;
   const skill=correct?STREAK_SKILLS[mine.combo]:null;
   if(skill&&at>=(mine.staggerUntil||0)){
@@ -454,7 +515,7 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
   }
   next.sequence++;
   const roundEvents=[];
-  if(mine.roundWordIndex>=ROUND_WORDS){
+  if(next.roundStyle!=='timed'&&mine.roundWordIndex>=(next.roundWords||ROUND_WORDS)){
     mine.roundDone=true;mine.finishedAt=at;
     if(target.roundDone){round.allDone=true;}
     else{
