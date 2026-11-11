@@ -1,6 +1,6 @@
 // Cosmetic contact policy. No DOM, three.js, game state or network dependency.
 export const IMPACT_TIERS = Object.freeze({
-  small: Object.freeze({hitstopMs:60, trauma:.2, flashMs:60, slowMs:0, slowScale:1, zoom:.08}),
+  small: Object.freeze({hitstopMs:50, trauma:.2, flashMs:60, slowMs:0, slowScale:1, zoom:.08}),
   medium: Object.freeze({hitstopMs:90, trauma:.45, flashMs:75, slowMs:0, slowScale:1, zoom:.16}),
   large: Object.freeze({hitstopMs:120, trauma:.8, flashMs:90, slowMs:320, slowScale:.3, zoom:.38}),
 });

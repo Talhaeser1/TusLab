@@ -4,7 +4,7 @@ import {IMPACT_TIERS, impactTier, createImpactState, addTrauma, stepImpact,
   beginHitstop, restoreHitstop, triggerImpact, resetImpact, createImpactDirector, sampleImpact} from '../pvp/impact-feel.js';
 
 test('impact tiers derive from damage and skill with fixed contact durations', () => {
-  assert.deepEqual(Object.values(IMPACT_TIERS).map(x => [x.hitstopMs,x.trauma]), [[60,.2],[90,.45],[120,.8]]);
+  assert.deepEqual(Object.values(IMPACT_TIERS).map(x => [x.hitstopMs,x.trauma]), [[50,.2],[90,.45],[120,.8]]);
   assert.equal(impactTier({amount:12}), 'small');
   assert.equal(impactTier({amount:45,skill:'q'}), 'medium');
   assert.equal(impactTier({amount:160}), 'large');

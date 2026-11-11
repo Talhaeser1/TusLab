@@ -19,6 +19,7 @@
  * GLTFLoader / SkeletonUtils dinamik import edilir (CSP: yalnız 'self').
  */
 import {FIGHTERS, FIGHTER_IDS, SHARED_CLIPS} from './shared/fighters.js';
+import {createAnimState, fadeMs as animFadeMs} from './anim-state.js';
 
 export const FIGHTER_MODEL_BASE = './assets/characters/';
 export const modelUrl = (fighterId, base = FIGHTER_MODEL_BASE) => `${base}${fighterId}.glb`;
@@ -563,6 +564,8 @@ export function createFighterRig(THREE, asset, {
     }
   }
 
+  const anim = createAnimState();
+  const fading = []; // {action, left(ms)}: fade bitince stop() edilir
   function fadeTo(name, {loop = false, speed = 1, clamp: clampEnd = !loop, fade = view.fadeMs, offset = 0, endMs = 0} = {}) {
     const next = action(name);
     if (!next) return false;
@@ -576,7 +579,17 @@ export function createFighterRig(THREE, asset, {
     next.play();
     if (offset > 0) next.time = Math.min(offset, Math.max(0, (next.getClip?.()?.duration || 0) - 1e-3));
     state.endMs = endMs || 0;
-    if (prev && prev !== next) prev.crossFadeTo?.(next, fade / 1000, false);
+    if (prev && prev !== next) {
+      // Önceki fade'de kalan eski action'lar hemen kesilir: iki klipten fazlası karışıp yarım poz vermesin.
+      for (let i = 0; i < fading.length; i++) {
+        const f = fading[i];
+        if (f.action && f.action !== prev && f.action !== next) { f.action.stop?.(); f.action = null; }
+      }
+      prev.crossFadeTo?.(next, fade / 1000, false);
+      let slot = fading.find(x => !x.action);
+      if (!slot) { slot = {action: null, left: 0}; fading.push(slot); }
+      slot.action = prev; slot.left = fade + 30;
+    }
     state.current = next;
     state.clip = name;
     return true;
@@ -588,34 +601,49 @@ export function createFighterRig(THREE, asset, {
     fadeTo(idleClip, {loop: true, fade});
   }
 
+  /** Klip bitti → idle ya da kuyruktaki tek saldırı (anim durum makinesi karar verir). */
+  function finishToIdle(fade) {
+    const queued = anim.finish();
+    if (queued) { playNow(queued, {fade: animFadeMs('idle', queued)}); return; }
+    goIdle(fade);
+  }
+
   /**
    * Durum oynat: 'idle' | 'q' | 'e' | 'r' | 'block' | 'blockHit' | 'hit' | 'ko' | 'win'.
    * Saldırılar LoopOnce + clampWhenFinished, bitince Idle; ko/win kalıcı.
    */
   function play(next, opts = {}) {
     if (state.disposed) return false;
-    if (state.name === 'ko' && next !== 'idle' && !opts.force) return false; // yere düşen kalkmaz
+    const contactMs = SKILLS.includes(next) ? (variantReady?.skills?.[next]?.contactMs || choreo[next]?.hitMs || 0) : 0;
+    const d = anim.request(next, {contactMs, force: opts.force});
+    if (d.action === 'drop') return false; // öncelik / kilit (ko, zafer) reddetti
+    if (d.action === 'queue') return true; // temas karesinden önce yeni saldırı: 1 kuyruk
+    return playNow(next, {...opts, fade: d.fade});
+  }
+
+  function playNow(next, opts = {}) {
     state.plays++;
     state.elapsed = 0;
     state.queue.length = 0;
-    if (next === 'idle') { goIdle(); return true; }
+    if (next === 'idle') { goIdle(opts.fade); return true; }
     if (SKILLS.includes(next)) {
       const spec = choreo[next];
       state.name = next;
       state.queue = (variantSteps[next] || spec.steps).map(s => ({...s}));
+      state.fade = opts.fade;
       advanceQueue();
       return true;
     }
     state.name = next;
-    if (next === 'ko') return fadeTo(stateClips.ko, {loop: false, clamp: true, fade: 90});
-    if (next === 'win') return fadeTo(stateClips.win, {loop: true});
-    if (next === 'block') return fadeTo(stateClips.block, {loop: false, speed: 1.4, fade: 80});
-    if (next === 'blockHit') return fadeTo(stateClips.blockHit, {loop: false, speed: 1.2, fade: 60});
+    if (next === 'ko') return fadeTo(stateClips.ko, {loop: false, clamp: true, fade: opts.fade});
+    if (next === 'win') return fadeTo(stateClips.win, {loop: true, fade: opts.fade});
+    if (next === 'block') return fadeTo(stateClips.block, {loop: false, speed: 1.4, fade: opts.fade});
+    if (next === 'blockHit') return fadeTo(stateClips.blockHit, {loop: false, speed: 1.2, fade: opts.fade});
     if (next === 'hit') {
       state.hits++;
       const list = Array.isArray(stateClips.hit) ? stateClips.hit : [stateClips.hit];
       const clip = list[Math.min(opts.heavy ? 1 : state.hits % list.length, list.length - 1)];
-      return fadeTo(clip, {loop: false, speed: 1.15, fade: 60});
+      return fadeTo(clip, {loop: false, speed: 1.15, fade: opts.fade});
     }
     goIdle();
     return false;
@@ -625,7 +653,7 @@ export function createFighterRig(THREE, asset, {
     while (state.queue.length && state.queue[0].at <= state.elapsed) {
       const step = state.queue.shift();
       fadeTo(step.clip, {
-        loop: false, speed: step.speed || 1, fade: step.at ? 110 : view.fadeMs,
+        loop: false, speed: step.speed || 1, fade: step.at ? 110 : (state.fade ?? view.fadeMs),
         offset: step.offset || 0, endMs: step.endMs || 0,
       });
     }
@@ -636,6 +664,7 @@ export function createFighterRig(THREE, asset, {
     if (state.disposed) return;
     const step = state.paused ? 0 : Math.max(0, Number(dt) || 0) * state.timeScale;
     state.elapsed += step * 1000;
+    anim.tick(step * 1000);
     if (state.queue.length) advanceQueue();
     mixer.update(step);
     // Tek seferlik klip bitti → Idle (ko/win hariç; adım kuyruğu bitmiş olmalı).
@@ -645,7 +674,13 @@ export function createFighterRig(THREE, asset, {
       const clip = cur.getClip?.();
       const endMs = state.endMs || (clip ? clip.duration * 1000 : 0);
       const done = clip && (cur.time * 1000 >= endMs - 1 || !cur.isRunning?.());
-      if (done) goIdle(180);
+      if (done) finishToIdle(animFadeMs('attack', 'idle'));
+    }
+    for (let i = 0; i < fading.length; i++) {
+      const fd = fading[i];
+      if (!fd.action) continue;
+      fd.left -= step * 1000;
+      if (fd.left <= 0) { fd.action.stop?.(); fd.action = null; }
     }
     yawGroup.rotation.y = baseYaw + face * state.yaw;
   }
@@ -705,7 +740,7 @@ export function createFighterRig(THREE, asset, {
   }
 
   function reset() {
-    state.disposed || (mixer.stopAllAction(), state.current = null, goIdle(0));
+    state.disposed || (mixer.stopAllAction(), state.current = null, anim.reset(), fading.forEach(x => { x.action = null; }), goIdle(0));
     setTint();
     state.yaw = 0;
     state.paused = false;
@@ -734,7 +769,7 @@ export function createFighterRig(THREE, asset, {
   return {
     fighterId, seat, face, palette, choreo, object, model, mixer, actions, bones, materials, height, scale,
     variant: variantReady ? variantName : null, stateClips,
-    play, update, setTimeScale, setPaused, setYaw, setTint, setOpacity, boneWorld, reset, dispose,
+    anim, play, update, setTimeScale, setPaused, setYaw, setTint, setOpacity, boneWorld, reset, dispose,
     skillDuration: skill => (choreo[skill] ? skillDuration(choreo[skill]) : 0),
     stats: () => ({
       fighter: fighterId, state: state.name, clip: state.clip, timeScale: state.timeScale, paused: state.paused,
