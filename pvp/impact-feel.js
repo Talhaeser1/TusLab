@@ -9,6 +9,20 @@ export function impactTier(e={}) {
   if(e.type==='KNOCKOUT'||e.skill==='r'||e.super||e.amount>=140)return 'large';
   return e.skill==='q'||e.skill==='e'||e.critical||e.bonusTags?.length||e.amount>=40 ? 'medium':'small';
 }
+/**
+ * Görev 4 — saf hasar tepkisi politikası: 'knockdown' | 'heavy' | 'hit' | 'trace'.
+ * knockdown: can 0'a düştü (hpAfter≤0) ya da KNOCKOUT olayı.
+ * heavy: bitirici vuruş (kombo son teması) / ulti / ≥140 hasar.
+ * trace: aynı savunan üst üste 180 ms içinde tekrar darbe → hafif titreme, yeni tepki yok.
+ */
+export const HIT_REACTION = Object.freeze({windowMs: 180, heavyDamage: 140});
+export function hitReaction(e={}, {lastAt = -Infinity, now = 0, windowMs = HIT_REACTION.windowMs} = {}) {
+  const hpAfter = Number(e.hpAfter);
+  if (e.type === 'KNOCKOUT' || (Number.isFinite(hpAfter) && hpAfter <= 0)) return 'knockdown';
+  if (e.finisher || e.skill === 'r' || e.super || (Number(e.amount) || 0) >= HIT_REACTION.heavyDamage) return 'heavy';
+  if (Number.isFinite(lastAt) && Number.isFinite(now) && now - lastAt <= windowMs) return 'trace';
+  return 'hit';
+}
 export function createImpactState() {
   return {trauma:0,punch:0,zoom:0,timeScale:1,stopId:0,stopUntil:0,slowUntil:0,lastStopAt:-Infinity};
 }

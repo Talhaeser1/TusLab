@@ -1,11 +1,11 @@
-import {createVisualTimeline} from './visual-timeline.js';
-import {createImpactDirector, stepImpact, addTrauma, beginHitstop, restoreHitstop} from './impact-feel.js';
+import {createVisualTimeline, TURN} from './visual-timeline.js';
+import {createImpactDirector, stepImpact, addTrauma, beginHitstop, restoreHitstop, hitReaction} from './impact-feel.js';
 import {createArenaBloom} from './arena3d-bloom.js';
 import {budgetRatio, createFrameGovernor, PIXEL_BUDGETS} from './perf-governor.js';
 import {buildStage} from './stages3d.js';
 import {DEFAULT_STAGE, normalizeStage} from './shared/stages.js';
 import {
-  createFighterRig, createSkillFx, contactDistance as contactGap, dashProgress, travelProgress, frameFighters, isKnownFighter, loadFighterModel, fighterModelUrl, rootMotionAt, skillDuration,
+  createFighterRig, createSkillFx, contactDistance as contactGap, dashProgress, travelProgress, chainProgress, frameFighters, isKnownFighter, loadFighterModel, fighterModelUrl, rootMotionAt, skillDuration, COMBO,
   MODEL_VIEW, FIGHTER_MODEL_BASE,
 } from './fighters3d.js';
 
@@ -1816,11 +1816,14 @@ export async function createArena3D({
   });
   let impactFrame = {shakeX:0, shakeY:0, punch:0, zoom:0, timeScale:1};
   let reactNow = false;
-  const boundEvents = new WeakSet();
+  let pendingBinding = null; // Görev 4: temas anındaki hasarın bağlı olduğu {entry, strike}
+  const boundEvents = new WeakMap(); // Görev 4: event → {entry, strike} (kombo temas sırası)
+  const lastReactionAt = new Map();  // Görev 4: seat → son tepki anı (trace penceresi)
   let deferredHpSync = null;
 
-  // ---- Şerit H: görsel zaman çizelgesi (sunucu olayları sıraya alınır, temas karesinde gösterilir)
-  const timeline = createVisualTimeline({now, isReduced: reduced,
+  // ---- Şerit H / Görev 4: görsel zaman çizelgesi (sunucu olayları sıraya alınır, temas karesinde gösterilir)
+  // Aynı anda tek koltuk; farklı koltuk girdileri arasında kısa nefes (TURN.breathMs, 150–250 ms).
+  const timeline = createVisualTimeline({now, isReduced: reduced, breathMs: TURN.breathMs,
     setTimer: (fn, ms) => env?.setTimeout?.(fn, ms), clearTimer: id => env?.clearTimeout?.(id)});
   const probe = (() => {
     try { return /(?:^|[?&])animprobe=1(?=&|$)/.test(String(env?.location?.search || '')); } catch { return false; }
@@ -1840,31 +1843,47 @@ export async function createArena3D({
     if (!rig || fighter.ko) return false;
     const spec = rig.choreo[skill];
     if (!spec) return false;
+    // Görev 4 — q/e kombo zinciri: tek yaklaşma + N vuruş + tek dönüş (plan kendisi kurar).
+    const comboSkills = entry && (skill === 'q' || skill === 'e') && entry.strikes?.length
+      ? entry.strikes.map(s => s.skill) : null;
+    let chain = comboSkills && rig.playChain ? rig.playChain(comboSkills, {compress}) : null;
+    if (comboSkills && !chain) return false;
     // Yakın dövüş q/e için yolculuk planı; menzilli q/e için klip süresi.
-    const plan = entry ? rig.plan?.(skill, {compress, skipReturn}) || null : null;
-    if (entry && (rig.anim.state.kind === 'hit' || rig.anim.state.kind === 'block')) rig.play('idle');
-    rig.play(skill, plan ? {compress, skipReturn} : undefined);
-    const hitMs = plan ? plan.hitMs : skill === 'r' && rig.ultimatePeakMs ? rig.ultimatePeakMs : spec.hitMs || 0;
+    const plan = !chain && entry ? rig.plan?.(skill, {compress, skipReturn}) || null : null;
+    if (entry && !chain && (rig.anim.state.kind === 'hit' || rig.anim.state.kind === 'block')) rig.play('idle');
+    if (!chain) rig.play(skill, plan ? {compress, skipReturn} : undefined);
+    const hitMs = chain ? chain.contacts[0].ms : plan ? plan.hitMs : skill === 'r' && rig.ultimatePeakMs ? rig.ultimatePeakMs : spec.hitMs || 0;
     fighter.lastCast = {at: now(), hitMs,
       clock: fighter.modelClock, arrived: false,
       ranged: (spec.fx || []).some(x => ['spear','dagger','rune','meteor','column'].includes(x.kind))};
     const cast = fighter.lastCast;
     if (entry) entry.cast = cast;
-    probeMark('cast', {seat, skill, hitMs, plan: plan ? {travelMs: plan.travelMs, speed: plan.speed, compress, skipReturn} : null});
+    if (entry && chain) {
+      for (let i = 0; i < entry.strikes.length && i < chain.contacts.length; i++) {
+        entry.strikes[i].cast = {at: now(), hitMs: chain.contacts[i].ms, clock: fighter.modelClock,
+          arrived: false, ranged: fighter.lastCast.ranged};
+      }
+    }
+    probeMark('cast', {seat, skill, hitMs, chain: chain ? {strikes: chain.contacts.length, totalMs: chain.totalMs} : null,
+      plan: plan ? {travelMs: plan.travelMs, speed: plan.speed, compress, skipReturn} : null});
     const opponent = fighters.get(otherSeat(seat));
     const scale = fighter.root.scale.x || 1;
     // Dinamik temas mesafesi: model ölçeğinden (Box3 derinliği) saldıranın silah uzanımı + savunan gövdesi.
     const contactDistance = contactGap(Math.abs(opponent.root.position.x - fighter.root.position.x) / scale, rig.reach);
-    const dur = plan ? plan.totalMs : skill === 'r' && rig.ultimatePeakMs
+    const dur = chain ? chain.totalMs : plan ? plan.totalMs : skill === 'r' && rig.ultimatePeakMs
       ? Math.max(skillDuration(spec), rig.ultimateDurationMs || rig.ultimatePeakMs)
       : rig.sceneDuration?.(skill) || skillDuration(spec);
     const spinOk = !reduced();
     const carry0 = Math.min(fighter.carry || 0, contactDistance);
     const from = contactDistance > 0.001 ? carry0 / contactDistance : 0;
     const track = addTrack(fighter, dur, (p, o, m) => {
+      const elapsed = p * Math.max(1, chain ? chain.totalMs : dur);
       const r = rootMotionAt(spec, p * dur);
-      const elapsed = p * dur;
-      if (plan) {
+      if (chain) {
+        // Görev 4 — kombo izi: TEK yaklaşma, vuruş bandında duruş, son vuruştan sonra TEK dönüş.
+        const prog = chainProgress(elapsed, {travelMs: chain.travelMs, returnStart: chain.returnStart, returnMs: chain.returnMs, from});
+        o.fwd += (contactDistance * chain.moveIn * prog - carry0) * m;
+      } else if (plan) {
         // Yumuşak ivmelenme + sonda fren, temasta toparlanma, sonra geri yürüyüş; sürekli eğri (ışınlanma yok).
         const prog = travelProgress(elapsed, {travelMs: plan.travelMs, hitMs: plan.hitMs, holdMs: plan.holdMs, returnMs: plan.returnMs, from});
         o.fwd += (contactDistance * prog - carry0) * m;
@@ -1881,12 +1900,16 @@ export async function createArena3D({
       entry.track = track;
       entry.contactDistance = contactDistance;
       entry.plan = plan;
-      entry.scenePlan = {hitMs, durationMs: dur};
+      entry.chain = chain;
+      entry.scenePlan = chain
+        ? {contacts: chain.contacts.map(c => c.ms), durationMs: chain.totalMs, moveIn: chain.moveIn, compress}
+        : {hitMs, durationMs: dur};
     }
     if (fx) {
       const def = otherSeat(seat);
-      for (const item of spec.fx || []) {
-        const at = skill === 'r' && rig.ultimatePeakMs && item.kind === 'slam' ? rig.ultimatePeakMs : item.at || 0;
+      const items = chain ? chain.fx : (spec.fx || []);
+      for (const item of items) {
+        const at = !chain && skill === 'r' && rig.ultimatePeakMs && item.kind === 'slam' ? rig.ultimatePeakMs : item.at || 0;
         fighter.fxQueue.push({at: fighter.modelClock + at, fn: () => spawnSkillFx(seat, def, item, cast)});
       }
       if (fighter.fxQueue.length > 12) fighter.fxQueue.splice(0, fighter.fxQueue.length - 12);
@@ -1960,49 +1983,150 @@ export async function createArena3D({
   }
 
   /**
-   * q/e görsel kuyruğa girer: varsa yolculuk, klip(temasa), toparlanma ve dönüş.
+   * Görev 4 — kombo teması: i. vuruş kendi karesinde temas sayılır, bağlı hasarlar
+   * o anda gösterilir (impactFeel.flush). Son vuruş `finisher` işaretlenir.
+   */
+  function strikeContact(entry, index) {
+    if (entry.dead) return;
+    const strike = entry.strikes[index];
+    if (!strike || strike.contact) return;
+    strike.contact = true;
+    entry.contact = true;
+    if (strike.cast) { strike.cast.contact = true; strike.cast.arrived = true; }
+    const last = index >= entry.strikes.length - 1;
+    for (const event of strike.events) event.finisher = last && !entry.ultimate;
+    if (!entry.ultimate) impactFeel.flush();
+    if (last) entry.open = false; // son temas atıldı: yeni saldırı yeni girdiye gider
+    probeMark('contact', {seat: entry.seat, skill: strike.skill, index, finisher: last, forced: false});
+  }
+
+  /**
+   * Görev 4 — aktif/bekleyen kombo girdisine yeni vuruş ekle (yeniden başlatmadan).
+   * Başlamışsa rig.extendChain + timeline addContact; hâlâ sıradaysa sadece strikes büyür.
+   */
+  function extendMeleeEntry(entry, skill) {
+    const fighter = fighters.get(entry.seat);
+    const rig = fighter?.model;
+    if (!rig || entry.dead || entry.ultimate) return false;
+    if (entry.strikes.length >= COMBO.maxStrikes) return false; // süre tavanı: yeni girdi
+    const prevContacts = entry.chain ? entry.chain.contacts.length : 0;
+    entry.strikes.push({skill, bound: false, contact: false, cast: null, events: []});
+    entry.open = true;
+    if (!entry.started) {
+      // Henüz sırada: start tüm strikes ile plan kurar; tahmini süre güncellenir.
+      const rough = rig.chainPlan?.(entry.strikes.map(s => s.skill));
+      if (rough) entry.handle?.reestimate?.(rough.totalMs);
+      return true;
+    }
+    const plan = rig.extendChain?.([skill], {compress: entry.compress || false});
+    if (!plan || !plan.contacts) return true; // rig eklemedi (ör. bitmiş): hasar yine son temasa bağlanır
+    for (let i = prevContacts; i < plan.contacts.length; i++) {
+      const idx = i; // kapanak: temas fn'si eklendiği andaki indisi görür
+      entry.handle?.addContact?.({ms: plan.contacts[idx].ms, fn: () => strikeContact(entry, idx)});
+    }
+    entry.chain = plan;
+    if (entry.strikes.length <= plan.contacts.length) {
+      for (let i = prevContacts; i < entry.strikes.length && i < plan.contacts.length; i++) {
+        if (!entry.strikes[i].cast) entry.strikes[i].cast = {at: now(), hitMs: plan.contacts[i].ms,
+          clock: fighter.modelClock, arrived: false, ranged: false};
+      }
+    }
+    if (entry.scenePlan) {
+      entry.scenePlan.contacts = plan.contacts.map(c => c.ms);
+      entry.scenePlan.durationMs = plan.totalMs;
+    }
+    entry.handle?.reestimate?.(plan.totalMs);
+    if (entry.handle) entry.handle.durationMs = plan.totalMs;
+    if (entry.track) entry.track.dur = Math.max(entry.track.dur, plan.totalMs);
+    probeMark('extend', {seat: entry.seat, strikes: entry.strikes.length, totalMs: plan.totalMs});
+    return true;
+  }
+
+  /**
+   * q/e/r görsel kuyruğa girer. q/e: tek yaklaşma + N vuruş (kombo) + tek dönüş.
+   * r (ulti): ULTIMATE_PHASE koreografisi korunur; girdi başlayana kadar faz olayları
+   * bekletilir ki ulti başka bir saldırıyla üst üste binmesin (ulti korunumu).
    * Döner: true = kuyruğa alındı (çağıran ayrıca oynatmaz). Modelsiz/azaltılmış harekette false.
    */
-  function enqueueMeleeSkill(seat, skill, {fx = true} = {}) {
-    if (reduced() || (skill !== 'q' && skill !== 'e')) return false;
+  function enqueueMeleeSkill(seat, skill, {fx = true, ultimate = false} = {}) {
+    if (reduced() || (skill !== 'q' && skill !== 'e' && !ultimate)) return false;
     const fighter = fighters.get(seat);
     const rig = fighter?.model;
     if (!rig || fighter.ko || !rig.choreo?.[skill]) return false;
-    const entry = {seat, skill, cast: null, contact: false, bound: false, dead: false, track: null, plan: null, contactDistance: 0, skipReturn: false, events: []};
+    // Aynı koltuğun açık kombo girdisi varsa: yeni saldırı ZİNCİRE EKLENİR (yaklaşma tek kalır).
+    if (!ultimate) {
+      const open = fighter.castQueue.find(e => e.open && !e.dead && !e.ultimate);
+      if (open && extendMeleeEntry(open, skill)) return true;
+    }
+    const entry = {seat, skill, ultimate, strikes: [{skill, bound: false, contact: false, cast: null, events: []}],
+      cast: null, contact: false, bound: false, dead: false, open: true, started: false, compress: false,
+      track: null, plan: null, chain: null, contactDistance: 0, skipReturn: false, events: [], handle: null, scenePlan: null};
+    const eventsOf = () => {
+      const list = [];
+      for (const strike of entry.strikes) for (const event of strike.events) list.push(event);
+      for (const event of entry.events) list.push(event);
+      return list;
+    };
     const finishEntry = forced => {
       entry.dead = true;
+      entry.open = false;
       const i = fighter.castQueue.indexOf(entry);
       if (i >= 0) fighter.castQueue.splice(i, 1);
       if (entry.track) { const j = fighter.tracks.indexOf(entry.track); if (j >= 0) fighter.tracks.splice(j, 1); }
       if (forced) {
-        for (const event of entry.events) impactFeel.silent(event);
-        fighter.carry = 0;
-        if (entry.cast && fighter.model && !fighter.ko) safeCall(() => fighter.model.play('idle'));
+        for (const event of eventsOf()) impactFeel.silent(event);
+        // Zorla bitirilen girdide kök sıçraması yok: iz o anki ilerlemeye eşitlenir (carry).
+        const handle = entry.handle;
+        const elapsed = handle && Number.isFinite(handle.elapsed) ? handle.elapsed : entry.chain?.totalMs || 0;
+        if (entry.chain && entry.contactDistance > 0) {
+          fighter.carry = chainProgress(elapsed, {travelMs: entry.chain.travelMs,
+            returnStart: entry.chain.returnStart, returnMs: entry.chain.returnMs}) * entry.contactDistance * entry.chain.moveIn;
+        } else fighter.carry = 0;
+        if (fighter.model && !fighter.ko) safeCall(() => fighter.model.play('idle'));
       }
     };
     fighter.castQueue.push(entry);
     if (fighter.castQueue.length > 8) {
-      const old = fighter.castQueue.shift(); old.dead = true;
+      const old = fighter.castQueue.shift(); old.dead = true; old.open = false;
+      for (const strike of old.strikes || []) for (const event of strike.events) impactFeel.silent(event);
       for (const event of old.events) impactFeel.silent(event);
     }
-    timeline.enqueue({
-      seat, estimateMs: rig.plan?.(skill)?.totalMs || rig.sceneDuration(skill), meta: {skill},
+    const estimate = ultimate
+      ? Math.max(rig.sceneDuration?.(skill) || 0, rig.ultimatePeakMs || 0)
+      : rig.chainPlan?.([skill])?.totalMs || rig.plan?.(skill)?.totalMs || rig.sceneDuration(skill);
+    entry.handle = timeline.enqueue({
+      seat, estimateMs: estimate, meta: {skill, ultimate},
       start: ctx => {
+        entry.started = true;
+        entry.compress = ctx.compress;
         if (fighter.ko || fighter.model !== rig) { entry.dead = true; return {contactMs: 0, durationMs: 0}; }
         playModelSkill(seat, skill, {fx, compress: ctx.compress, skipReturn: ctx.skipReturn, entry});
         entry.skipReturn = ctx.skipReturn;
         const p = entry.scenePlan;
-        return p ? {contactMs: p.hitMs, durationMs: p.durationMs} : {contactMs: 0, durationMs: 0};
+        if (!p) return {contactMs: 0, durationMs: 0};
+        if (ultimate) {
+          // Ulti: ULTIMATE_PHASE/DAMAGE olayları girdi başlayınca sırayla işlenir.
+          api.flash(fighters.get(seat).palette.main, 0.14, 260);
+          ultimateIntro(seat);
+          const pending = fighter.pendingUltEvents ? fighter.pendingUltEvents.splice(0) : [];
+          for (const event of pending) handle(event);
+          return {contactMs: p.hitMs, durationMs: p.durationMs};
+        }
+        return {
+          contacts: p.contacts.map((ms, i) => ({ms, fn: () => strikeContact(entry, i)})),
+          contactMs: p.contacts[0], durationMs: p.durationMs,
+        };
       },
-      onContact: ({forced}) => {
+      onContact: ultimate ? ({forced}) => {
         entry.contact = !forced;
         if (entry.cast) { entry.cast.contact = true; entry.cast.arrived = true; }
         if (!forced) impactFeel.flush();
         probeMark('contact', {seat, skill, forced: Boolean(forced)});
-      },
+      } : undefined,
       onEnd: ({forced}) => {
         // Atlanan dönüş: kalan ofset taşınır (iz silinirken poz sıçramasın diye carry = varış noktası).
-        if (!forced) fighter.carry = entry.skipReturn ? entry.contactDistance : 0;
+        if (!forced) fighter.carry = entry.skipReturn ? entry.contactDistance * (entry.chain?.moveIn || 1) : 0;
+        if (fighter.pendingUltEvents) fighter.pendingUltEvents.length = 0;
         finishEntry(forced);
         probeMark('end', {seat, skill, forced: Boolean(forced)});
       },
@@ -2010,11 +2134,19 @@ export async function createArena3D({
     return true;
   }
 
-  /** Bu koltuğun henüz hasara bağlanmamış en eski kuyruk girdisi (hasar olayı sırayla eşlenir). */
+  /**
+   * Bu koltuğun henüz hasara bağlanmamış en eski kuyruk girdisi/vuruşu (hasar olayı sırayla eşlenir).
+   * Görev 4: kombo hasarı KENDİ vuruşunun temas karesine bağlanır → {entry, strike}.
+   */
   function bindCastEntry(seat) {
-    const entry = fighters.get(seat)?.castQueue.find(e => !e.bound && !e.dead);
-    if (entry) entry.bound = true;
-    return entry || null;
+    const queue = fighters.get(seat)?.castQueue;
+    if (!queue) return null;
+    const entry = queue.find(e => !e.dead && (e.strikes || []).some(s => !s.bound));
+    if (!entry) return null;
+    const strike = entry.strikes.find(s => !s.bound) || entry.strikes[entry.strikes.length - 1];
+    if (strike) strike.bound = true;
+    entry.bound = true;
+    return strike ? {entry, strike} : null;
   }
 
   /** Mixer + efekt kuyruğu (tick içinde, poz güncellemesinden sonra). */
@@ -3302,13 +3434,18 @@ export async function createArena3D({
 
   // =================================================================== EVENTS
 
+  /** Görev 4 — bu hasar olayının tepkisi (trace penceresi: koltuk başına son tepki anı). */
+  function reactionFor(event) {
+    return hitReaction(event, {lastAt: lastReactionAt.get(event.toSeat) ?? -Infinity, now: now()});
+  }
+
   function handleCore(event) {
     const type = event.type;
     if (type === 'SKILL_CAST') {
       const seat = event.fromSeat;
       if (!isSeat(seat)) return;
-      if (enqueueMeleeSkill(seat, event.skill)) {
-        /* görsel kuyruk: sırası gelince oynar */
+      if (enqueueMeleeSkill(seat, event.skill, {ultimate: event.skill === 'r'})) {
+        /* görsel kuyruk: sırası gelince oynar (q/e kombo zinciri; r ulti girdisi) */
       } else if (playModelSkill(seat, event.skill)) {
         if (event.skill === 'r') {
           api.flash(fighters.get(seat).palette.main, 0.14, 260);
@@ -3338,6 +3475,11 @@ export async function createArena3D({
       if (!isSeat(seat)) return;
       // The camera punches the way the defender is knocked (away from the attacker).
       const away = -facingOf(seat);
+      // Görev 4 — tepki politikası: knockdown | heavy | hit | trace (hitReaction saf fonksiyonu).
+      const reaction = hitReaction(event, {lastAt: lastReactionAt.get(seat) ?? -Infinity, now: now()});
+      lastReactionAt.set(seat, now());
+      const defender = fighters.get(seat);
+      if (defender) defender.lastReaction = reaction;
       if (event.blocked) {
         const parry = event.blockKind === 'PARRY';
         playBrace(seat, parry ? 1.3 : event.blockKind === 'PERFECT_BLOCK' ? 1.1 : 0.9);
@@ -3354,8 +3496,20 @@ export async function createArena3D({
       } else if ((Number(event.amount) || 0) > 0) {
         const inUltTravel = Boolean(ult && ult.def === seat && fighters.get(seat).seg);
         // During an ultimate pull/throw the travel tween owns the defender's body.
-        if (!inUltTravel) playHit(seat, event.amount);
-        else {
+        if (reaction === 'knockdown') {
+          // Can 0: sarsıntı + devrilme (KNOCKOUT olayı geldiğinde startKnockout idempotent).
+          if (!inUltTravel) playHit(seat, event.amount);
+          startKnockout(seat);
+        } else if (reaction === 'trace') {
+          // 180 ms içinde ikinci darbe: yeni tepki klibi yok, kısa titreme izi.
+          addTrack(fighters.get(seat), 200, (p, o, m) => {
+            o.flash += Math.max(0, 0.5 - p * 2) * m;
+            o.fwd += -0.08 * bump(p) * m;
+          }, {replace: false});
+        } else if (!inUltTravel) {
+          playHit(seat, reaction === 'heavy' ? Math.max(Number(event.amount) || 0, HEAVY_DAMAGE) : event.amount);
+          if (reaction === 'heavy' && !reduced()) api.slowMo(0.6, 160);
+        } else {
           addTrack(fighters.get(seat), 260, (p, o) => { o.flash += Math.max(0, 1 - p * 3); }, {replace: false});
           modelPlay(seat, 'hit', {heavy: true});
         }
