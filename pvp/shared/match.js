@@ -86,9 +86,11 @@ export const MATCH_WORDS=Object.freeze([
 const wordsOf=text=>text.trim().split(/\s+/u);
 
 // ── Round mode constants (docs/TUR-SISTEMI.md §1) ─────────────────────────
-export const ROUND_OPTIONS=Object.freeze([5,7,10]);
-export const ROUND_WORDS=10;
-// Paket F: raund biçimi. counted = roundWords kelime (varsayılan, eski davranış); timed = süre dolana kadar kelime akar.
+// İş Paketi 2: maç sabit 6 raund; raund başına kelime sayısı ROUND_WORD_PLAN ile belirlenir.
+export const ROUND_OPTIONS=Object.freeze([6]);
+export const TOTAL_ROUNDS=6;
+export const ROUND_WORD_PLAN=Object.freeze([5,10,15,15,15,20]);
+// Paket F: raund biçimi. counted = raundun kelime listesi bitene kadar (İP2 kotası); timed = süre dolana kadar kelime akar.
 export const ROUND_STYLES=Object.freeze(['counted','timed']);
 export const DEFAULT_ROUND_STYLE='timed';
 export const ROUND_WORDS_MIN=5;
@@ -98,7 +100,9 @@ export const ROUND_VIEW_BEHIND=2;  // timed: tamamlanan son 2 kelime (HUD işare
 const ROUND_EXTEND_CHUNK=8;
 export const normalizeRoundStyle=v=>ROUND_STYLES.includes(v)?v:DEFAULT_ROUND_STYLE;
 export const validRoundWords=v=>Number.isInteger(v)&&v>=ROUND_WORDS_MIN&&v<=ROUND_WORDS_MAX;
-export const normalizeRoundWords=v=>validRoundWords(v)?v:ROUND_WORDS;
+// İş Paketi 2: roundWords artık varsayılan kota DEĞİL — lobiden açıkça seçilince dünya
+// kotası olarak planı geçersiz kılar; seçilmemişse null döner ve raund planı uygulanır.
+export const normalizeRoundWords=v=>validRoundWords(v)?v:null;
 export const ROUND_DURATION_MS=40_000;   // paket 30: 30 → 40 sn
 export const ROUND_LAST_CALL_MS=5_000;
 export const ROUND_SETTLE_MS=1_000;
@@ -117,7 +121,6 @@ export function resolveStepMs(count,extraMs=0){
 // Ultiden sonra kısa toparlanma: ulti sinematiği bitmeden rakibin vuruşu araya girmesin.
 export const ULTIMATE_RECOVERY_MS=800;
 export const ROUND_HP=1200;
-export const SUDDEN_DEATH_MAX=3;
 export const STREAK_SKILLS=Object.freeze({3:'q',5:'e',7:'r',8:'q',9:'q',10:'q'});
 export const MULTIPLIER_START=7;
 export const MULTIPLIER_STEP=1.2;
@@ -156,12 +159,19 @@ function randomSeed(){
   const source=globalThis.crypto?.getRandomValues?()=>globalThis.crypto.getRandomValues(new Uint32Array(1))[0]/4294967296:Math.random;
   return createSeed(source);
 }
+// İş Paketi 2: raund kelime kuralı arena.js RULES tablosunun birebir kopyası —
+// kolay/kolay/normal/normal/zor/zor rampası (uzunluk aralığı bankanın zorluk penceresiyle kesişir).
+const WORD_RULES=Object.freeze([{minLen:3,maxLen:6,difficulty:'easy'},{minLen:4,maxLen:7,difficulty:'easy'},
+  {minLen:4,maxLen:8,difficulty:'normal'},{minLen:5,maxLen:9,difficulty:'normal'},
+  {minLen:5,maxLen:9,difficulty:'hard'},{minLen:5,maxLen:10,difficulty:'hard'}]);
+/** Raundun planlanan kelime sayısı: ROUND_WORD_PLAN; plan dışı (eski, uzun) maçlarda son basamak. */
+const planWords=(r,total)=>ROUND_WORD_PLAN[Math.min(Math.max(1,Math.trunc(r)||1),Math.max(1,Math.trunc(total)||1))-1]??ROUND_WORD_PLAN[ROUND_WORD_PLAN.length-1];
 function wordRule(r,total){
-  if(r>total)return {minLen:5,maxLen:10,difficulty:'hard'};
-  return r<=Math.ceil(total/2)?{minLen:3,maxLen:7,difficulty:'easy'}:{minLen:4,maxLen:9,difficulty:'normal'};
+  const i=Math.min(Math.max(1,Math.trunc(r)||1),Math.max(1,Math.trunc(total)||1))-1;
+  return WORD_RULES[Math.min(i,WORD_RULES.length-1)];
 }
 const cleanWords=list=>Array.from(list||[],w=>String(w).trim().normalize('NFC')).filter(w=>w&&!/\s/u.test(w));
-function dealWords(pick,seed,r,total,used,count=ROUND_WORDS){
+function dealWords(pick,seed,r,total,used,count=planWords(r,total)){
   const rule=wordRule(r,total);
   const words=[];const taken=new Set(used);
   const add=list=>{for(const w of cleanWords(list))if(words.length<count&&!taken.has(w)){taken.add(w);words.push(w);}};
@@ -225,8 +235,10 @@ function setupRounds(match,options,at){
     :(typeof options.seed==='string'&&options.seed?options.seed:randomSeed());
   const pick=typeof options.pickWords==='function'?options.pickWords:bankPickWords;
   const roundStyle=normalizeRoundStyle(options.roundStyle),roundWords=normalizeRoundWords(options.roundWords);
+  // İş Paketi 2: sabit `total` raundluk plan; roundWords yalnız lobiden açıkça seçildiyse
+  // her raunda düz kota olarak uygular (ani ölüm raundu planlanmaz).
   const plan=[],used=[];
-  for(let r=1;r<=total+SUDDEN_DEATH_MAX;r++){const words=dealWords(pick,seed,r,total,used,roundWords);plan.push(words);used.push(...words);}
+  for(let r=1;r<=total;r++){const words=dealWords(pick,seed,r,total,used,roundWords??planWords(r,total));plan.push(words);used.push(...words);}
   Object.assign(match,{mode:'rounds',totalRounds:total,roundStyle,roundWords,seed,roundPlan:plan,usedWords:[],roundsWon:{1:0,2:0},
     roundHistory:[],clashes:{},activeMs:0,round:null,roundSkillPicks:{1:null,2:null},roundSkillPickLocked:{1:false,2:false}});
   if(options.resolveAtEnd===true)match.resolveAtEnd=true;
@@ -515,7 +527,9 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
   }
   next.sequence++;
   const roundEvents=[];
-  if(next.roundStyle!=='timed'&&mine.roundWordIndex>=(next.roundWords||ROUND_WORDS)){
+  // İş Paketi 2: kota raundun kelime listesinin uzunluğudur (plan ya da açık roundWords seçimi);
+  // doğru VEYA yanlış her tamamlanan kelime bir hak tüketir. timed modunda kota bağlamaz.
+  if(next.roundStyle!=='timed'&&mine.roundWordIndex>=round.words.length){
     mine.roundDone=true;mine.finishedAt=at;
     if(target.roundDone){round.allDone=true;}
     else{
@@ -702,6 +716,16 @@ function decideRound(x,y){
   }
   return null;
 }
+/** İş Paketi 2: 6. raund kapanışında eşitlikte karar — kümülatif raund RP'si,
+ * sonra toplam doğru kelime; hâlâ eşitse beraberlik (ROUNDS_DRAW). Ani ölüm yok. */
+function matchTieBreak(m,scores){
+  const rp={1:0,2:0},correct={1:0,2:0};
+  for(const h of m.roundHistory||[])for(const s of h.scores||[]){rp[s.seat]+=(s.rp||0);correct[s.seat]+=(s.correct||0);}
+  for(const s of scores){rp[s.seat]+=(s.rp||0);correct[s.seat]+=(s.correct||0);}
+  if(rp[1]!==rp[2])return rp[1]>rp[2]?1:2;
+  if(correct[1]!==correct[2])return correct[1]>correct[2]?1:2;
+  return null;
+}
 function closeRound(match,closeAt,reason,roundEvents){
   const m=structuredClone(match);const r=m.round;
   const scores=[...m.participants].sort((a,b)=>a.seat-b.seat).map(p=>({seat:p.seat,correct:p.roundCorrect,wrong:p.roundWrong,
@@ -711,12 +735,15 @@ function closeRound(match,closeAt,reason,roundEvents){
   m.pendingAttacks=[];
   m.activeMs=(m.activeMs||0)+Math.max(0,Math.min(closeAt,r.endsAt)-r.startedAt);
   const won=m.roundsWon;let over=false,matchWinner=null,endReason='ROUNDS';
-  if(r.index<=r.total){
-    const remaining=r.total-r.index;
-    if(won[1]>won[2]+remaining){over=true;matchWinner=1;}
-    else if(won[2]>won[1]+remaining){over=true;matchWinner=2;}
-  }else if(winnerSeat){over=true;matchWinner=winnerSeat;}
-  else if(r.index-r.total>=SUDDEN_DEATH_MAX){over=true;endReason='ROUNDS_DRAW';}
+  // İş Paketi 2: erken kesinleşme ve ani ölüm kaldırıldı — maç her zaman son raundun
+  // (r.index >= r.total) kapanışında biter; eski depolanmış maçlar kendi total'ında biter.
+  if(r.index>=r.total){
+    over=true;
+    if(won[1]>won[2])matchWinner=1;
+    else if(won[2]>won[1])matchWinner=2;
+    else matchWinner=matchTieBreak(m,scores);
+    if(!matchWinner)endReason='ROUNDS_DRAW';
+  }
   r.phase=over?'ended':'intermission';r.endedAt=closeAt;
   r.nextRoundAt=over?null:closeAt+ROUND_SUMMARY_MS+ROUND_INTRO_MS;
   if(over){m.status='ended';m.endedAt=closeAt;m.winnerSeat=matchWinner;m.endReason=endReason;m.offlineSeats=[];}

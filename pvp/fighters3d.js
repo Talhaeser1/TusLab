@@ -23,6 +23,134 @@ import {FIGHTERS, FIGHTER_IDS, SHARED_CLIPS} from './shared/fighters.js';
 export const FIGHTER_MODEL_BASE = './assets/characters/';
 export const modelUrl = (fighterId, base = FIGHTER_MODEL_BASE) => `${base}${fighterId}.glb`;
 
+// ------------------------------------------------------------------ model varyantları (paket 23)
+
+/**
+ * Karakter başına model varyantları. Yalnız Vargr'un ikinci modeli var:
+ *   'eski'  → KayKit GLB (assets/characters/vargr.glb; diğer karakterlerin tek yolu)
+ *   'meshy' → Meshy AI üretimi model (assets/models/vargr/vargr.glb) — varsayılan
+ * Varyant tablosu klip eşlemesini, kemik adlarını ve ölçülen vuruş karelerini
+ * (peakMs) tutar; CHOREOGRAPHY'nin hitMs/motion/fx sabitleri DEĞİŞMEZ.
+ */
+export const MODEL_VARIANTS = Object.freeze({
+  vargr: Object.freeze({
+    meshy: Object.freeze({
+      url: './assets/models/vargr/vargr.glb',
+      /**
+       * Ölçek kalibrasyonu (paket 23). KayKit iskeletinde baş kemiği boyun hizasında
+       * ve bind bbox (kalkan/balta dahil) ≈ baş × 1,93 olduğu için genel katsayı
+       * headToHeight 1,95 KayKit'te görünen boyu 2,68'e taşır. Meshy iskeletinde
+       * 'Head' kemiği yine boyun hizasında ama bind bbox yalnız baş × 1,244
+       * (1,80 ham birim; ayaklar 0, tepe 1,80): aynı 1,95 katsayısı modeli %36
+       * küçük gösterirdi (1,71 birim). Kalibrasyon: İKİ modelin de KENDİ idle
+       * klibindeki skinned-mesh görünür yüksekliği eşitlendi —
+       *   KayKit 2H_Melee_Idle: ham 2,358 × ölçek 1,1071 = 2,610 görünür birim
+       *   Meshy Combat_Stance: ham 1,678 × ölçek 1,5560 = 2,610 görünür birim
+       * → headToHeight = 2,68 / (1,5560 × baş 1,4470) = 1,19.
+       */
+      headToHeight: 1.19,
+      /**
+       * Zemin ofseti (ham birim): Meshy Combat_Stance/parry/isabet pozlarında mesh
+       * alt kenarı -0,058'e gömülür (animasyon yazarı zemini bind zemininin ~6 cm
+       * altına koymuş). +0,058 kaydırma idle ayağını tam y=0'a oturtur; şarj
+       * çömelmesi/KO yatışı gibi derin pozlar oransal olarak aynı görece derinlikte
+       * kalır (yerçekimi/yere gömülme etkisi oyunlarda alışıldık).
+       */
+      groundOffsetY: 0.058,
+      /** Durum klipleri (STATE_CLIPS karşılığı; global tabloya dokunulmaz). */
+      clips: Object.freeze({
+        idle: 'Combat_Stance',
+        idleHeavy: 'Combat_Stance',
+        block: 'Two_Handed_Parry',
+        blockHit: 'Two_Handed_Parry',
+        hit: Object.freeze(['Hit_Reaction']),
+        ko: 'Knock_Down',
+        win: 'Victory_Cheer',
+      }),
+      /**
+       * Saldırı klipleri + ölçülen vuruş karesi (peakMs): her saldırı klibinde
+       * RightHand kemiğinin dünya hızının zirve yaptığı an (ham GLB üzerinden
+       * 120 Hz örneklem; three.js FK analizi). Oynatmada klibin başlangıç ofseti
+       * öyle seçilir ki peakMs, koreografinin hitMs anına denk gelsin:
+       *   q Attack           peak 1060 ms ← hitMs 650                → ofset 410 ms
+       *   e Axe_Spin_Attack  peak  900 ms ← hitMs 520                → ofset 380 ms
+       *   r Charged_Axe_Chop peak 4375 ms ← ulti 3. evre teması 1310 → ofset 3065 ms
+       * r.contactMs türetimi (görsel hizalama notu): sunucu evre ofsetleri
+       * (fire 250/430/670 — pvp/shared/match.js ULTIMATE_PHASES + SHIELD_WINDOW_MS)
+       * ve arena3d ULTIMATE_TIMING zinciri (pull 340 + strike 160 + throw 560)
+       * → 3. evre (son/büyük) teması ≈ 250+340+160+560 = 1310 ms. r.endMs: iniş
+       * sonrası kısa toparlanma; klip 7,67 s'nin gerisi donuk bekleyiştir.
+       */
+      skills: Object.freeze({
+        q: Object.freeze({clip: 'Attack', peakMs: 1060}),
+        e: Object.freeze({clip: 'Axe_Spin_Attack', peakMs: 900}),
+        r: Object.freeze({clip: 'Charged_Axe_Chop', peakMs: 4375, contactMs: 1310, endMs: 5400}),
+      }),
+    }),
+  }),
+});
+
+/** Varyant seçimi: saf fonksiyon (localStorage/location yoksa hata vermez, test edilebilir).
+ *  Vargr varsayılan 'meshy'; ?vargr=eski URL'yi ya da localStorage['tuslab:vargr-model']==='eski'
+ *  eski KayKit modeline döndürür. Diğer karakterler etkilenmez ('eski'). */
+export function fighterModelVariant(fighterId, env = globalThis) {
+  if (fighterId !== 'vargr' || !MODEL_VARIANTS.vargr?.meshy) return 'eski';
+  try {
+    const search = String(env?.location?.search || '');
+    if (/(?:^|[?&])vargr=eski(?=&|$)/.test(search)) return 'eski';
+  } catch { /* location erişimi yok */ }
+  try {
+    if (env?.localStorage?.getItem?.('tuslab:vargr-model') === 'eski') return 'eski';
+  } catch { /* localStorage erişimi yok */ }
+  return 'meshy';
+}
+
+/** Varyantın model URL'si: meshy → assets/models/vargr/vargr.glb, diğerleri modelUrl(). */
+export function fighterModelUrl(fighterId, env = globalThis, base = FIGHTER_MODEL_BASE) {
+  const variant = fighterModelVariant(fighterId, env);
+  return MODEL_VARIANTS[fighterId]?.[variant]?.url || modelUrl(fighterId, base);
+}
+
+/** Varyant tablosunun beklediği kliplerden asset'te eksik olanlar (boşsa varyant kullanılabilir). */
+export function variantMissingClips(clips, variant) {
+  const names = new Set((clips || []).map(c => c?.name).filter(Boolean));
+  const want = [];
+  for (const value of Object.values(variant?.clips || {})) {
+    if (Array.isArray(value)) want.push(...value);
+    else if (typeof value === 'string') want.push(value);
+  }
+  for (const s of Object.values(variant?.skills || {})) if (typeof s?.clip === 'string') want.push(s.clip);
+  return [...new Set(want)].filter(name => !names.has(name));
+}
+
+const variantFallbackWarned = new Set();
+
+/**
+ * Karakterin modelini varyantına göre yükler (paket 23). Meshy GLB yüklenemez ya
+ * da beklenen klipleri içermiyorsa OTOMATİK eski KayKit modeline düşer (konsola
+ * karakter+varyant başına tek uyarı). Diğer karakterler için modelUrl() ile aynı.
+ */
+export async function loadFighterModel(THREE, fighterId, {env = globalThis, base = FIGHTER_MODEL_BASE, loader = null} = {}) {
+  const variant = fighterModelVariant(fighterId, env);
+  const spec = MODEL_VARIANTS[fighterId]?.[variant] || null;
+  if (spec) {
+    try {
+      const asset = await loadFighterAsset(THREE, spec.url, {loader});
+      const missing = variantMissingClips(asset?.clips, spec);
+      if (missing.length) throw new Error(`eksik klipler: ${missing.join(', ')}`);
+      asset.variant = variant;
+      return asset;
+    } catch (error) {
+      const key = `${fighterId}:${variant}`;
+      if (!variantFallbackWarned.has(key)) {
+        variantFallbackWarned.add(key);
+        try { globalThis.console?.warn?.(`[fighters3d] ${fighterId} "${variant}" modeli yüklenemedi (${error?.message || error}); eski modele dönülüyor.`); } catch { /* konsol yok */ }
+      }
+    }
+  }
+  return loadFighterAsset(THREE, modelUrl(fighterId, base), {loader});
+}
+
 /** Görünüm: koltuk yönüne bakan yarı profil; kameraya hafif dönük. */
 export const MODEL_VIEW = Object.freeze({
   yawToCamera: 0.5,   // rad: tam profilden (π/2) kameraya doğru dönüş
@@ -271,19 +399,38 @@ export async function loadFighter(THREE, url, {fighterId = 'vargr', seat = 1, lo
 
 // --------------------------------------------------------------------- rig
 
-const BONE_NAMES = ['handslot.r', 'handslot.l', 'hand.r', 'hand.l', 'head', 'chest', 'hips', 'root'];
+/**
+ * Mantıksal kemik adları → adaylar. KayKit ('handslot.r', 'head'...) ve Meshy
+ * ('RightHand', 'Head', 'Spine01') iskeletlerini aynı anahtarlarla çözer:
+ * projektil/efekt çıkış noktası (handslot.r) ve boy ölçümü (head) bozulmaz.
+ */
+const BONE_ALIASES = Object.freeze({
+  'handslot.r': Object.freeze(['handslot.r', 'hand.r', 'RightHand']),
+  'handslot.l': Object.freeze(['handslot.l', 'hand.l', 'LeftHand']),
+  head: Object.freeze(['head', 'Head']),
+  chest: Object.freeze(['chest', 'Spine01', 'Spine']),
+  hips: Object.freeze(['hips', 'Hips']),
+  root: Object.freeze(['root']),
+});
 
 /**
  * Bir savaşçı modeli örneği. object = yön/ölçek grubu (actor'a eklenir), model = klon.
  * opts.ghost: {color, opacity} → yarı saydam, tek renk siluet (partner desteği).
  */
 export function createFighterRig(THREE, asset, {
-  fighterId = 'vargr', seat = 1, clone = null, ghost = null, roster = FIGHTERS, view = MODEL_VIEW,
+  fighterId = 'vargr', seat = 1, clone = null, ghost = null, roster = FIGHTERS, view = MODEL_VIEW, variant = null,
 } = {}) {
   if (!asset?.gltf?.scene) throw new TypeError('fighters3d: asset.gltf.scene gerekli');
   const face = seat === 2 ? -1 : 1;
   const choreo = resolveChoreography(fighterId, roster);
   const palette = fighterPalette(fighterId, roster);
+  // Model varyantı (paket 23): asset'e etiketlenmiş (loadFighterModel) ya da açıkça
+  // seçilmiş varyant. Beklenen klipler asset'te yoksa sessizce varsayılan tabloya
+  // dön (yükleyici enjeksiyonu testlerde KayKit varlığı döndürebilir).
+  const variantName = typeof variant === 'string' ? variant : asset?.variant;
+  const variantSpec = variantName && MODEL_VARIANTS[fighterId]?.[variantName] || null;
+  const variantReady = variantSpec && variantMissingClips(asset.clips, variantSpec).length === 0 ? variantSpec : null;
+  const stateClips = variantReady?.clips || STATE_CLIPS;
   const source = asset.gltf.scene;
   const model = typeof clone === 'function' ? clone(source) : source.clone(true);
   model.name = `pvp32-model-${fighterId}-${seat}${ghost ? '-ghost' : ''}`;
@@ -322,13 +469,17 @@ export function createFighterRig(THREE, asset, {
 
   // Ölçek: dört karakter AYNI iskeleti paylaşır → gövde ölçüsü baş kemiği yüksekliğinden
   // (şapka/miğfer boyu değiştirmesin). Baş kemiği yoksa kutu yüksekliği; ayaklar y=0.
+  // 'Head' (Meshy) da tanınır: dünya matrisleri güncellendikten sonra ölçülür, kök
+  // Armature'in 0,01 ölçeği dünya konumunda zaten içindedir. Varyant katsayısı
+  // (meshy headToHeight 1,19) model başına kalibre edilir: genel 1,95 KayKit iskeletine
+  // göre ayarlanmıştır, meshy'de modeli %36 küçük gösterirdi (MODEL_VARIANTS notuna bak).
   let height = 1;
   let minY = 0;
   try {
     let headY = 0;
     model.updateMatrixWorld?.(true);
-    model.traverse(o => { if (o.name === 'head' && !headY && o.getWorldPosition) headY = o.getWorldPosition(new THREE.Vector3()).y; });
-    if (headY > 0.1) height = headY * view.headToHeight;
+    model.traverse(o => { if (typeof o.name === 'string' && o.name.toLowerCase() === 'head' && !headY && o.getWorldPosition) headY = o.getWorldPosition(new THREE.Vector3()).y; });
+    if (headY > 0.1) height = headY * (variantReady?.headToHeight ?? view.headToHeight);
     else {
       const box = new THREE.Box3().setFromObject(model);
       if (Number.isFinite(box.max.y - box.min.y) && box.max.y - box.min.y > 0.05) {
@@ -344,15 +495,23 @@ export function createFighterRig(THREE, asset, {
   object.add(yawGroup);
   yawGroup.add(model);
   model.scale.setScalar(scale);
-  model.position.y = -minY * scale;
+  // Zemin: kutu yolu bbox tabanını (minY) y=0'a taşır; varyant yolu animasyon kaynaklı
+  // sistematik zemine gömülmeyi (meshy duruşu -0,058) kalibre offset ile düzeltir.
+  model.position.y = ((variantReady?.groundOffsetY) ?? -minY) * scale;
   const baseYaw = face * (Math.PI / 2 - view.yawToCamera);
   yawGroup.rotation.y = baseYaw;
 
   const bones = {};
-  // GLTFLoader düğüm adlarını temizler ('handslot.r' → 'handslotr'): iki biçim de eşlenir.
-  const sanitize = name => String(name).replace(/[[\].:/]/g, '');
+  // GLTFLoader düğüm adlarını temizler ('handslot.r' → 'handslotr'); büyük/küçük
+  // harf duyarsız eşleştirme Meshy adlarını (RightHand/Head/Spine01) da çözer.
+  const boneKey = name => String(name).replace(/[[\].:/]/g, '').toLowerCase();
   model.traverse(o => {
-    for (const name of BONE_NAMES) if (!bones[name] && (o.name === name || o.name === sanitize(name))) bones[name] = o;
+    if (typeof o.name !== 'string' || !o.name) return;
+    const key = boneKey(o.name);
+    for (const [logical, candidates] of Object.entries(BONE_ALIASES)) {
+      if (bones[logical]) continue;
+      if (candidates.some(c => boneKey(c) === key)) bones[logical] = o;
+    }
   });
 
   const mixer = new THREE.AnimationMixer(model);
@@ -366,13 +525,45 @@ export function createFighterRig(THREE, asset, {
     return actions[name];
   };
 
-  const idleClip = clipByName.has(choreo.idle) ? choreo.idle : clipByName.has('Idle') ? 'Idle' : [...clipByName.keys()][0];
+  const idleName = variantReady?.clips?.idle || choreo.idle;
+  const idleClip = clipByName.has(idleName) ? idleName : clipByName.has('Idle') ? 'Idle' : [...clipByName.keys()][0];
   const state = {
     name: 'idle', clip: null, current: null, queue: [], elapsed: 0, timeScale: 1, paused: false,
-    yaw: 0, hits: 0, disposed: false, plays: 0,
+    yaw: 0, hits: 0, disposed: false, plays: 0, endMs: 0,
   };
 
-  function fadeTo(name, {loop = false, speed = 1, clamp: clampEnd = !loop, fade = view.fadeMs} = {}) {
+  /**
+   * Varyant saldırı adımları (paket 23): tek klip + temas hizalaması. Klibin
+   * ölçülen vuruş karesi (peakMs), koreografinin hitMs anına (ulti r'de 3. evre
+   * temasına, contactMs) denk gelsin:
+   *   peakMs hedeften geçse → klibi içeriden başlat (ofset = peakMs − hedef),
+   *   peakMs hedeften erkense → timeScale'i düşür (peak tam hedef anında).
+   * Böylece impact-feel hitstop/sarsıntısı tam vuruş karesinde olur; oyunun
+   * zamanlama sabitleri (hitMs/motion/fx) değişmez.
+   */
+  const variantSteps = {};
+  if (variantReady) {
+    for (const skill of SKILLS) {
+      const spec = variantReady.skills?.[skill];
+      if (!spec || !clipByName.has(spec.clip)) continue;
+      const target = spec.contactMs || choreo[skill].hitMs || 0;
+      const peak = Math.max(0, Number(spec.peakMs) || 0);
+      const durationMs = (clipByName.get(spec.clip)?.duration || 0) * 1000;
+      let offsetMs = peak - target;
+      let speed = 1;
+      if (offsetMs < 0) {
+        speed = clamp(peak / Math.max(1, target), 0.5, 1);
+        offsetMs = 0;
+      }
+      variantSteps[skill] = [{
+        clip: spec.clip, at: 0, speed,
+        offset: clamp(offsetMs / 1000, 0, Math.max(0, durationMs / 1000 - 0.05)),
+        endMs: Math.min(spec.endMs || durationMs, durationMs),
+      }];
+    }
+  }
+
+  function fadeTo(name, {loop = false, speed = 1, clamp: clampEnd = !loop, fade = view.fadeMs, offset = 0, endMs = 0} = {}) {
     const next = action(name);
     if (!next) return false;
     const prev = state.current;
@@ -383,6 +574,8 @@ export function createFighterRig(THREE, asset, {
     next.setEffectiveWeight?.(1);
     next.reset();
     next.play();
+    if (offset > 0) next.time = Math.min(offset, Math.max(0, (next.getClip?.()?.duration || 0) - 1e-3));
+    state.endMs = endMs || 0;
     if (prev && prev !== next) prev.crossFadeTo?.(next, fade / 1000, false);
     state.current = next;
     state.clip = name;
@@ -409,19 +602,20 @@ export function createFighterRig(THREE, asset, {
     if (SKILLS.includes(next)) {
       const spec = choreo[next];
       state.name = next;
-      state.queue = spec.steps.map(s => ({...s}));
+      state.queue = (variantSteps[next] || spec.steps).map(s => ({...s}));
       advanceQueue();
       return true;
     }
     state.name = next;
-    if (next === 'ko') return fadeTo(STATE_CLIPS.ko, {loop: false, clamp: true, fade: 90});
-    if (next === 'win') return fadeTo(STATE_CLIPS.win, {loop: true});
-    if (next === 'block') return fadeTo(STATE_CLIPS.block, {loop: false, speed: 1.4, fade: 80});
-    if (next === 'blockHit') return fadeTo(STATE_CLIPS.blockHit, {loop: false, speed: 1.2, fade: 60});
+    if (next === 'ko') return fadeTo(stateClips.ko, {loop: false, clamp: true, fade: 90});
+    if (next === 'win') return fadeTo(stateClips.win, {loop: true});
+    if (next === 'block') return fadeTo(stateClips.block, {loop: false, speed: 1.4, fade: 80});
+    if (next === 'blockHit') return fadeTo(stateClips.blockHit, {loop: false, speed: 1.2, fade: 60});
     if (next === 'hit') {
       state.hits++;
-      const list = STATE_CLIPS.hit;
-      return fadeTo(opts.heavy ? list[1] : list[state.hits % list.length], {loop: false, speed: 1.15, fade: 60});
+      const list = Array.isArray(stateClips.hit) ? stateClips.hit : [stateClips.hit];
+      const clip = list[Math.min(opts.heavy ? 1 : state.hits % list.length, list.length - 1)];
+      return fadeTo(clip, {loop: false, speed: 1.15, fade: 60});
     }
     goIdle();
     return false;
@@ -430,7 +624,10 @@ export function createFighterRig(THREE, asset, {
   function advanceQueue() {
     while (state.queue.length && state.queue[0].at <= state.elapsed) {
       const step = state.queue.shift();
-      fadeTo(step.clip, {loop: false, speed: step.speed || 1, fade: step.at ? 110 : view.fadeMs});
+      fadeTo(step.clip, {
+        loop: false, speed: step.speed || 1, fade: step.at ? 110 : view.fadeMs,
+        offset: step.offset || 0, endMs: step.endMs || 0,
+      });
     }
   }
 
@@ -442,10 +639,12 @@ export function createFighterRig(THREE, asset, {
     if (state.queue.length) advanceQueue();
     mixer.update(step);
     // Tek seferlik klip bitti → Idle (ko/win hariç; adım kuyruğu bitmiş olmalı).
+    // Varyant kliplerinde endMs: klibin yalnız o pencereyi oynatır (r'nin uzun kuyruğu).
     const cur = state.current;
     if (cur && state.name !== 'idle' && state.name !== 'ko' && state.name !== 'win' && !state.queue.length) {
       const clip = cur.getClip?.();
-      const done = clip && (cur.time >= clip.duration - 1e-3 || !cur.isRunning?.());
+      const endMs = state.endMs || (clip ? clip.duration * 1000 : 0);
+      const done = clip && (cur.time * 1000 >= endMs - 1 || !cur.isRunning?.());
       if (done) goIdle(180);
     }
     yawGroup.rotation.y = baseYaw + face * state.yaw;
@@ -534,12 +733,13 @@ export function createFighterRig(THREE, asset, {
 
   return {
     fighterId, seat, face, palette, choreo, object, model, mixer, actions, bones, materials, height, scale,
+    variant: variantReady ? variantName : null, stateClips,
     play, update, setTimeScale, setPaused, setYaw, setTint, setOpacity, boneWorld, reset, dispose,
     skillDuration: skill => (choreo[skill] ? skillDuration(choreo[skill]) : 0),
     stats: () => ({
       fighter: fighterId, state: state.name, clip: state.clip, timeScale: state.timeScale, paused: state.paused,
       yaw: state.yaw, queued: state.queue.length, plays: state.plays, disposed: state.disposed,
-      materials: materials.length,
+      materials: materials.length, variant: variantReady ? variantName : null,
     }),
   };
 }

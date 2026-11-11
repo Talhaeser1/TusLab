@@ -17,7 +17,8 @@ const ROOM_TTL=15*60*1000;
 export const REJOIN_GRACE=20*1000;
 const CHARACTERS=new Set(['fire','rune']);
 const GUEST_TOKEN=/^[a-f0-9]{64}$/;
-const DEFAULT_ROUNDS=5;
+// İş Paketi 2: maç sabit 6 raund (ROUND_OPTIONS=[6]); eski 5/7/10 lobisi 6'ya düşer.
+const DEFAULT_ROUNDS=6;
 const roomRounds=data=>ROUND_OPTIONS.includes(data?.rounds)?data.rounds:DEFAULT_ROUNDS;
 const roomRoundStyle=data=>normalizeRoundStyle(data?.roundStyle);
 const roomRoundWords=data=>normalizeRoundWords(data?.roundWords);

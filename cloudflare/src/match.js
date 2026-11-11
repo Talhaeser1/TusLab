@@ -23,8 +23,8 @@ export {
   createMatch, publicMatch, submitWord, resolveDueAttacks, finishMatch, matchResult,
   surrenderMatch, pauseMatch, resumeMatch, endDisconnectedMatch,
   // Round mode (docs/TUR-SISTEMI.md)
-  ROUND_OPTIONS, ROUND_WORDS, ROUND_DURATION_MS, ROUND_LAST_CALL_MS, ROUND_SETTLE_MS, ROUND_SUMMARY_MS,
-  ROUND_INTRO_MS, ROUND_HP, SUDDEN_DEATH_MAX, STREAK_SKILLS, MULTIPLIER_START, MULTIPLIER_STEP, MULTIPLIER_CAP,
+  ROUND_OPTIONS, TOTAL_ROUNDS, ROUND_WORD_PLAN, ROUND_DURATION_MS, ROUND_LAST_CALL_MS, ROUND_SETTLE_MS, ROUND_SUMMARY_MS,
+  ROUND_INTRO_MS, ROUND_HP, STREAK_SKILLS, MULTIPLIER_START, MULTIPLIER_STEP, MULTIPLIER_CAP,
   ROUND_SCORE, ULTIMATE_RETURN_MS, normalizeRounds, streakMultiplier, roundScore, roundStartPayload,
   advanceMatch, nextDeadline,
   // Protocol guard: message types only the server may emit

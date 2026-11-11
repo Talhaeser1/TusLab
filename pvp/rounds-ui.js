@@ -11,9 +11,11 @@ import {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,RESOLV
   ROUND_STYLES,DEFAULT_ROUND_STYLE,normalizeRoundStyle,normalizeRoundWords,validRoundWords} from './shared/match.js';
 export {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS};
 // Spec §1 sabitleri. Motor henüz yüklenmemiş olabileceği için burada aynalanır (yalnız sunum).
-export const ROUND_OPTIONS=Object.freeze([5,7,10]);
-export const DEFAULT_ROUNDS=5;
-export const ROUND_WORDS=10;
+// İş Paketi 2: sabit 6 raund, raund planı [5,10,15,15,15,20], en fazla 20 kelime.
+export const ROUND_OPTIONS=Object.freeze([6]);
+export const DEFAULT_ROUNDS=6;
+export const ROUND_WORD_PLAN=Object.freeze([5,10,15,15,15,20]);
+export const ROUND_MAX_WORDS=20;
 export const ROUND_LAST_CALL_MS=5_000;
 export const STREAK_SKILLS=Object.freeze({3:'q',5:'e',7:'r',8:'q',9:'q',10:'q'});
 export const STREAK_TICKS=Object.freeze([{at:3,key:'Q'},{at:5,key:'E'},{at:7,key:'R'}]);
@@ -32,7 +34,8 @@ const num=n=>Number(n||0).toLocaleString('tr-TR');
 const clamp01=v=>Math.max(0,Math.min(1,v));
 const REASON_LABELS=Object.freeze({KO:'NAKAVT',TIME:'SÜRE DOLDU',ALL_DONE:'İKİ TARAF DA BİTİRDİ'});
 const BLOCK_LABELS=Object.freeze({PERFECT_BLOCK:'PERFECT BLOK',PARRY:'PARRY',BLOCK:'BLOK'});
-const END_REASON_LABELS=Object.freeze({ROUNDS:'TUR ÜSTÜNLÜĞÜ',ROUNDS_DRAW:'ANİ ÖLÜMDE DE BERABERE'});
+// İş Paketi 2: 3-3'te ani ölüm yok — raund RP'si ve doğru kelime eşitliğinde beraberlik.
+const END_REASON_LABELS=Object.freeze({ROUNDS:'TUR ÜSTÜNLÜĞÜ',ROUNDS_DRAW:'TUR EŞİTLİĞİNDE BERABERE'});
 
 export function normalizeRounds(value){const n=Number(value);return ROUND_OPTIONS.includes(n)?n:DEFAULT_ROUNDS;}
 const validRounds=value=>ROUND_OPTIONS.includes(Number(value));
@@ -51,12 +54,14 @@ export function multiplierLabel(multiplier){
 }
 const streakOf=p=>Math.max(0,Math.floor(Number(p?.streak??p?.combo)||0));
 
-export function streakModel(streak,serverNextSkill){
+/** Seri göstergesi. `cells` = bu raundun kelime sayısı (İP2 kotası); verilmezse 10 (timed/klasik görünümü). */
+export function streakModel(streak,serverNextSkill,cells=10){
   const s=Math.max(0,Math.floor(Number(streak)||0));
   const multiplier=streakMultiplier(s);
   const derived=STREAK_SKILLS[s+1]||null;
   const next=serverNextSkill===undefined?derived:serverNextSkill;
-  return {streak:s,cells:ROUND_WORDS,filled:Math.min(s,ROUND_WORDS),
+  const n=Math.max(1,Math.min(ROUND_MAX_WORDS,Math.trunc(Number(cells))||10));
+  return {streak:s,cells:n,filled:Math.min(s,n),
     ticks:STREAK_TICKS.map(t=>({...t,reached:s>=t.at})),
     nextSkill:next?String(next).toUpperCase():null,multiplier,multiplierLabel:multiplierLabel(multiplier),hot:s>=7};
 }
@@ -139,18 +144,19 @@ export function roundsViewModel(match,myId,serverNow,marks,{lastCallRound=null}=
   const needed=winsNeeded(total);
   const me=playerBySeat(match,mySeat),opp=playerBySeat(match,mySeat===1?2:1);
   const myIdx=Number(me?.roundWordIndex)||0;
-  // Kelime penceresi: timed modda sunucu yalnız pencereyi gönderir (öncesi '' ile dolu); counted'da 10'dan uzun listede kaydırılır.
+  // Kelime penceresi: timed modda sunucu yalnız pencereyi gönderir (öncesi '' ile dolgu);
+  // counted'da raundun TÜM kelimeleri gösterilir (İP2: plan gereği 5..20, CSS flex-wrap ile sarar).
   const allWords=Array.isArray(round.words)?round.words:[];
   const offset=Math.max(0,allWords.findIndex(w=>String(w)!==''));
-  const start=Math.max(offset,Math.min(myIdx-1,allWords.length-ROUND_WORDS));
-  const words=allWords.slice(start,start+ROUND_WORDS).map((text,k)=>{
+  const start=offset;
+  const words=allWords.slice(start).map((text,k)=>{
     const i=start+k;
     return {text:String(text??''),
       state:i<myIdx?(marks?.get?.(i)||'done'):i===myIdx&&!me?.roundDone&&round.phase==='round'?'active':'todo',
       opponent:Boolean(opp&&!opp.roundDone&&Number(opp.roundWordIndex)===i)};
   });
   const timed=round.style==='timed';
-  const wordTotal=timed?0:allWords.length||ROUND_WORDS;
+  const wordTotal=timed?0:allWords.length;
   const sides=[1,2].map(seat=>{
     const p=playerBySeat(match,seat);
     const idx=timed?Math.max(0,Number(p?.roundWordIndex)||0):Math.min(wordTotal,Number(p?.roundWordIndex)||0);
@@ -160,7 +166,7 @@ export function roundsViewModel(match,myId,serverNow,marks,{lastCallRound=null}=
     const badge=[skill==='freeze'?'❄ +3 sn':null,round.phase==='round'&&round.skills?.[seat===1?2:1]==='timethief'?'−5 sn':null].filter(Boolean).join(' · ');
     return {seat,name:nameOf(match,seat),isMe:Boolean(p&&p.playerId===myId),clock:clock.text,badge,
       progress:timed?`Kelime ${idx}`:`Kelime ${idx}/${wordTotal}`,progressValue:idx,done:Boolean(p?.roundDone),doneText:p?.roundDone?'Tamamlandı ✓':'',
-      streak:streakModel(streakOf(p),p?.nextSkill),pips:{filled,total:Math.max(needed,filled)}};
+      streak:streakModel(streakOf(p),p?.nextSkill,timed?10:wordTotal||10),pips:{filled,total:Math.max(needed,filled)}};
   });
   const phaseLabel=['settling','resolve'].includes(round.phase)?'ÇÖZÜLÜYOR':round.phase==='intermission'?'TUR ARASI':match.status==='paused'?'DURAKLADI':'SANİYE';
   // Madalyon: faz birimi her zaman kısa "sn"; başlık alanında yalnız TEK yazı (raund adı YA DA faz adı) görünür.
@@ -356,12 +362,13 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     const progress=h('span',{cls:'rui-progress',rui:'progress'});
     const clock=h('span',{cls:'rui-side-clock'}),badge=h('span',{cls:'rui-time-badge',hidden:true});
     const done=h('span',{cls:'rui-done',hidden:true});
-    const cells=Array.from({length:ROUND_WORDS},(_,i)=>h('i',{cls:`rui-cell${STREAK_TICKS.some(t=>t.at===i+1)?' rui-cell-tick':''}`}));
+    // İP2: hücre havuzu en uzun raund (20 kelime) için üretilir; fazlası raund başına gizlenir.
+    const cells=Array.from({length:ROUND_MAX_WORDS},(_,i)=>h('i',{cls:`rui-cell${STREAK_TICKS.some(t=>t.at===i+1)?' rui-cell-tick':''}`}));
     const ticks=STREAK_TICKS.map(t=>h('span',{cls:'rui-tick',attrs:{'data-at':String(t.at),style:`--at:${t.at}`},text:t.key}));
     const meterLabel=h('span',{cls:'rui-meter-label'});
     const next=h('span',{cls:'rui-next',attrs:{title:'Sonraki doğru kelimede tetiklenecek büyü'}});
     const mult=h('span',{cls:'rui-mult',hidden:true});
-    const meter=h('div',{cls:'rui-meter',rui:'meter',attrs:{role:'meter','aria-valuemin':'0','aria-valuemax':String(ROUND_WORDS),'aria-valuenow':'0','aria-label':`Oyuncu ${seat} serisi`}},
+    const meter=h('div',{cls:'rui-meter',rui:'meter',attrs:{role:'meter','aria-valuemin':'0','aria-valuemax':String(ROUND_MAX_WORDS),'aria-valuenow':'0','aria-label':`Oyuncu ${seat} serisi`}},
       h('div',{cls:'rui-cells'},...cells),h('div',{cls:'rui-ticks'},...ticks));
     const node=h('div',{cls:`rui-side rui-side-${seat}`,rui:'side'},
       h('div',{cls:'rui-side-top'},name,you,progress,clock,badge,done,h('span',{cls:'rui-meter-meta'},meterLabel,next,mult),pips),
@@ -383,7 +390,8 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
   const medal=h('div',{cls:'rui-medal',rui:'medal'},title,h('div',{cls:'rui-clock'},ring,h('div',{cls:'rui-clock-text'},secs,secsUnit)),lastCall);
   const bar=h('div',{cls:'rui-bar'},sideEls[0].node,medal,sideEls[1].node);
   const strip=h('ol',{cls:'rui-words',rui:'words',attrs:{'aria-label':'Bu turun kelimeleri'}});
-  const wordEls=Array.from({length:ROUND_WORDS},()=>{const li=h('li',{cls:'rui-word',rui:'word'});strip.append(li);return li;});
+  // İP2: kelime şeridi havuzu 20 li; raundda kaç kelime varsa o kadarı görünür.
+  const wordEls=Array.from({length:ROUND_MAX_WORDS},()=>{const li=h('li',{cls:'rui-word',rui:'word'});strip.append(li);return li;});
   // Katmanlar (yazı alanını örtmeyecek biçimde üst-orta bölgede).
   const clash=h('div',{cls:'rui-clash',rui:'clash',hidden:true,attrs:{role:'status'}});
   const clashTitle=h('strong',{cls:'rui-clash-title'}),clashWord=h('span',{cls:'rui-clash-word'}),clashDetail=h('span',{cls:'rui-clash-detail'});
@@ -455,9 +463,16 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     side.pips.children&&Array.from(side.pips.children).forEach((pip,i)=>setFlag(pip,'is-won',i<vm.pips.filled));
     side.pips.setAttribute?.('aria-label',`Kazanılan tur ${vm.pips.filled}, gereken ${vm.pips.total}`);
     const s=vm.streak;
-    side.cells.forEach((c,i)=>setFlag(c,'is-on',i<s.filled));
-    side.ticks.forEach((t,i)=>setFlag(t,'is-reached',s.ticks[i].reached));
+    // İP2: hücre sayısı raundun kelime sayısını izler; fazlası gizlenir.
+    side.cells.forEach((c,i)=>{setHidden(c,i>=s.cells);setFlag(c,'is-on',i<s.filled);});
+    side.ticks.forEach((t,i)=>{
+      setFlag(t,'is-reached',s.ticks[i].reached);
+      // CSS işaret konumu 10 hücreye göre yüzde hesaplar; hücre sayısı değişince --at ölçeklenir.
+      const at=s.ticks[i].at;
+      t.style.setProperty?.('--at',String((at-.5)*10/s.cells+.5));
+    });
     if(side.meter.getAttribute('aria-valuenow')!==String(s.filled))side.meter.setAttribute('aria-valuenow',String(s.filled));
+    if(side.meter.getAttribute('aria-valuemax')!==String(s.cells))side.meter.setAttribute('aria-valuemax',String(s.cells));
     setFlag(side.meter,'is-hot',s.hot);
     if(side.breakTimer===null)setText(side.meterLabel,`Seri ${s.streak}`);
     setText(side.next,s.nextSkill?`Sıradaki ${s.nextSkill}`:'');setHidden(side.next,!s.nextSkill);
@@ -588,7 +603,8 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     sideEls.forEach((side,i)=>renderSide(side,vm.sides[i]));
     renderPicker(match);syncInter();
     vm.words.forEach((w,i)=>{
-      const li=wordEls[i];setText(li,w.text);
+      const li=wordEls[i];if(!li)return;
+      setText(li,w.text);
       li.className=`rui-word is-${w.state}${w.opponent?' has-opp':''}`;
       if(w.state==='active')li.setAttribute('aria-current','true');else li.removeAttribute('aria-current');
     });

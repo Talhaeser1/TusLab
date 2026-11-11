@@ -4,7 +4,7 @@ import {budgetRatio, createFrameGovernor, PIXEL_BUDGETS} from './perf-governor.j
 import {buildStage} from './stages3d.js';
 import {DEFAULT_STAGE, normalizeStage} from './shared/stages.js';
 import {
-  createFighterRig, createSkillFx, isKnownFighter, loadFighterAsset, modelUrl, rootMotionAt, skillDuration,
+  createFighterRig, createSkillFx, isKnownFighter, loadFighterModel, fighterModelUrl, rootMotionAt, skillDuration,
   MODEL_VIEW, FIGHTER_MODEL_BASE,
 } from './fighters3d.js';
 
@@ -1698,9 +1698,12 @@ export async function createArena3D({
     return cloneFn;
   }
   function fetchModel(id) {
-    const url = modelUrl(id, modelBase);
-    if (typeof loadModel === 'function') return Promise.resolve().then(() => loadModel(url, id));
-    return loadFighterAsset(THREE, url);
+    // Paket 23: Vargr varsayılan olarak Meshy modelini kullanır (fighterModelVariant:
+    // ?vargr=eski ya da localStorage 'tuslab:vargr-model'='eski' → KayKit GLB).
+    // Meshy GLB yüklenemez ya da klipleri eksikse loadFighterModel tek uyarıyla
+    // eski modele düşer; diğer karakterlerin yolu değişmez.
+    if (typeof loadModel === 'function') return Promise.resolve().then(() => loadModel(fighterModelUrl(id, env), id));
+    return loadFighterModel(THREE, id, {env, base: modelBase});
   }
   /** WebGL sınırı: 41 kemikli iskelet ≈ 41×4 vec4 vertex uniform ister. */
   function modelsBlocked() {

@@ -104,9 +104,9 @@ export function makeTypo(word,rng=Math.random){
  * @param {(msg:{type,match,serverTime})=>void} [o.onMatch] MATCH_START / STATE_UPDATE / MATCH_END snapshots
  * @param {(result:object)=>void} [o.onWordResult] WORD_RESULT for the human's submissions
  * @param {'kolay'|'orta'|'zor'} [o.difficulty='orta']
- * @param {5|7|10} [o.rounds=5] number of rounds, also kept for rematches
- * @param {'counted'|'timed'} [o.roundStyle='counted'] counted = roundWords words per round; timed = words flow until the clock ends
- * @param {number} [o.roundWords=10] counted: words per round (5..20)
+ * @param {6} [o.rounds=6] number of rounds, also kept for rematches (İP2: maç sabit 6 raund)
+ * @param {'counted'|'timed'} [o.roundStyle='timed'] counted = raundun kelime listesi bitene kadar (İP2 kotası); timed = süre bitene kadar kelime akar
+ * @param {number} [o.roundWords] counted: düz kelime kotası (5..20); verilmezse raund planı [5,10,15,15,15,20] uygulanır
  * @param {'fire'|'rune'} [o.character='fire'] human fighter; fire = seat 1 (left), rune = seat 2 (right)
  * @param {string} [o.rune='none'] human rune; the bot always plays classic
  * @param {boolean} [o.assist=true] partner support (paket 31); classic + rounds only, never in arena

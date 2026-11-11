@@ -3,6 +3,9 @@
 // kadar giriş hakkı (doğru VEYA yanlış her tamamlanan kelime bir hak tüketir),
 // ilk bitiren ROUND_LAST_CALL_MS=5000 son çağrı penceresini açar, 6. round kapanışında
 // maç biter (3-3: kümülatif round RP → toplam doğru → ROUNDS_DRAW). Ani ölüm yok.
+// Not (Paket F uyumu): raund biçimi timed/counted ayrımı İP2'den SONRA eklendi; kota
+// mekaniği counted moduna aittir (timed'da kelimeler süre bitene kadar akar). Bu yüzden
+// kota/plan testleri roundStyle:'counted'ı açıkça seçer — varsayılan stilden bağımsızdır.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as engine from '../pvp/shared/match.js';
@@ -16,7 +19,7 @@ const R=ROUND_DURATION_MS;
 const INTER=ROUND_SUMMARY_MS+ROUND_INTRO_MS;
 const players=()=>[
   {playerId:'a',seat:1,character:'fire',name:'A'},{playerId:'b',seat:2,character:'rune',name:'B'}];
-const make=(opts={})=>createMatch(players(),T0,'plan6',{rounds:6,seed:123,...opts});
+const make=(opts={})=>createMatch(players(),T0,'plan6',{roundStyle:'counted',rounds:6,seed:123,...opts});
 const seatOf=(m,seat)=>m.participants.find(p=>p.seat===seat);
 const NO_BLOCK=()=>0.99;
 function type(m,seat,at,{wrong=false}={}){
@@ -103,7 +106,7 @@ test('plan6: round 2 grants ten attempts, round 6 grants twenty',()=>{
   for(let i=1;i<=10;i++)m=type(m,1,m.round.startedAt+i*1000).match;
   assert.equal(seatOf(m,1).roundDone,true);
   assert.equal(seatOf(m,1).roundCorrect,10);
-  for(let r=3;r<=5;r++)m=playRoundScript(m,undefined,[]).m;  // → tur 6 (20 kelime)
+  for(let i=0;i<4;i++)m=playRoundScript(m,undefined,[]).m;    // turlar 2-5 kapanır → tur 6 (20 kelime)
   assert.equal(m.round.index,6);assert.equal(m.round.words.length,20);
   for(let i=1;i<=20;i++)m=type(m,1,m.round.startedAt+i*100,{wrong:i%2===0}).match;
   const p=seatOf(m,1);
@@ -140,7 +143,7 @@ test('plan6: both players finishing on the same tick closes the round at once (A
   }
   const a=type(m,1,T0+1000);m=a.match;               // 5. kelime — aynı milisaniye
   assert.deepEqual(a.result.roundEvents.map(e=>e.type),['ROUND_LAST_CALL']);
-  const b=type(m,2,T0+1000);m=b.match;               // rakip de aynı tick'te bitirir
+  const b=type(m,2,T0+1000,{wrong:true});m=b.match;   // rakip de aynı tick'te bitirir
   assert.equal(b.result.roundEvents.length,0,'ikinci bitiren yeni son çağrı üretmez');
   assert.equal(m.round.allDone,true);
   assert.equal(m.round.endsAt,T0+1000);
@@ -172,8 +175,8 @@ test('plan6: the match runs all six rounds — no early clinch, no sudden death'
 
 test('plan6: 3-3 after six rounds → tie-break by cumulative round RP',()=>{
   let m=make({seed:5});
-  // Koltuk 1: 3 galibiyet × (2 doğru + 1 yanlış → RP 250) = 750 RP, 6 doğru.
-  for(let i=0;i<3;i++)m=playRoundScript(m,1,['c','w']).m;
+  // Koltuk 1: 3 galibiyet × (2 doğru + 1 yanlış, seri 1 → RP 250) = 750 RP, 6 doğru.
+  for(let i=0;i<3;i++)m=playRoundScript(m,1,['c','w','c']).m;
   assert.deepEqual(m.roundsWon,{1:3,2:0});
   // Koltuk 2: 3 galibiyet × (1 doğru → RP 150) = 450 RP, 3 doğru.
   for(let i=0;i<3;i++)m=playRoundScript(m,2,['c']).m;
@@ -186,8 +189,8 @@ test('plan6: 3-3 after six rounds → tie-break by cumulative round RP',()=>{
 
 test('plan6: equal RP at 3-3 → tie-break by total correct words',()=>{
   let m=make({seed:5});
-  // Koltuk 1: 3 × (doğru, yanlış → c=2, s=1, RP 250) = 750 RP / 6 doğru.
-  for(let i=0;i<3;i++)m=playRoundScript(m,1,['c','w']).m;
+  // Koltuk 1: 3 × (doğru, yanlış, doğru → c=2, s=1, RP 250) = 750 RP / 6 doğru.
+  for(let i=0;i<3;i++)m=playRoundScript(m,1,['c','w','c']).m;
   // Koltuk 2: 2 × (doğru, doğru → c=2, s=2, RP 300) + 1 × (doğru → RP 150) = 750 RP / 5 doğru.
   m=playRoundScript(m,2,['c','c']).m;
   m=playRoundScript(m,2,['c','c']).m;
@@ -201,8 +204,8 @@ test('plan6: equal RP at 3-3 → tie-break by total correct words',()=>{
 test('plan6: fully symmetric 3-3 records end as ROUNDS_DRAW',()=>{
   let m=make({seed:5});
   for(let i=0;i<3;i++){
-    m=playRoundScript(m,1,['c','w']).m;   // koltuk 1 alır (250-0)
-    m=playRoundScript(m,2,['c','w']).m;   // koltuk 2 alır (0-250)
+    m=playRoundScript(m,1,['c','w','c']).m;   // koltuk 1 alır (250-0)
+    m=playRoundScript(m,2,['c','w','c']).m;   // koltuk 2 alır (0-250)
   }
   assert.deepEqual(m.roundsWon,{1:3,2:3});
   assert.equal(m.status,'ended');
@@ -268,7 +271,7 @@ function clock(){
 
 test('plan6: practice (bot) rounds mode uses the six-round plan; classic exchange is unchanged',()=>{
   const time=clock();const packets=[];
-  const session=createPracticeSession({now:time.now,scheduler:time.scheduler,rng:()=>.99,
+  const session=createPracticeSession({roundStyle:'counted',now:time.now,scheduler:time.scheduler,rng:()=>.99,
     createId:()=>'plan6-practice',onPacket:p=>packets.push(p)});
   session.start();
   assert.equal(session.mode,'rounds');
