@@ -88,3 +88,14 @@ Sıradaki adım: H-ANIM-ZAMAN.md'yi uygulamak (önce Vargr koşu kliplerini varg
 - **Yarım iş = commit'lenmemiş çalışma ağacı** (2. oturumdaki H ve R Sonnet ajanları kota dolunca kesildi): 13 dosya, +586/−90; takipsiz `pvp/visual-timeline.js`, `scripts/merge-vargr-clips.py`; `vargr.glb` 1,22 → 1,26 MB (koşu klipleri eklenmiş, 1,2 MiB sınırı doğrulanacak). Test: 1 kırık (`pvp-ekran-duzen`: tur arası `.rui-inter` DOM beklentisi).
 - **Karar:** yarım iş atılmadı; Codex üstüne tamamlıyor (madde 1–3, görev: animasyon zamanlaması + raund özeti bekletme + raund geçiş ekranı). Aynı anda GLM yalnız SALT OKUMA analiz yapıyor (madde 4–5: karakter seçimi zinciri, Sira/Doran/Nyx bağlama planı) → dosya çakışması yok.
 - **Sıra:** Codex 1–3 → denetim/commit → 4–5 (fighters3d.js serbest kalınca) → 7 mekanik testleri → 6 sesler → 8 ekran → 9 Playwright son denetim.
+- ✅ 943ac35 (Codex): madde 1–3 ilk tur — rakibe koşu (Run_Charge), doğal hız, görsel kuyruk, ulti sinematik, raund özeti `visualQueue.whenIdle(3000)` ile bekletme, "RAUND X" → kompakt panel. 747/747 test, kural/protokol diff'i yok (network.js yalnız `?karakter=` okuma).
+- **Denetim yöntemi:** Token Optimizer kancası görsel (.jpg) okumayı engelliyor → aşılmadı; Playwright ile sayısal ölçüm (`.playwright-mcp/probe.js`: klip/durum/timeScale/kuyruk/sayaç zaman serisi). Önceki oturumdan kalan kilitli otomasyon Chrome'u (PID 15572) kapatıldı.
+- **Ölçüm bulguları (Zamana Karşı bot maçı, vargr vs sira):**
+  - İyi: Run_Charge → Attack zinciri, timeScale ≤1; sayaç doğru akıyor (ortalama 1011 ms/sn, 98 adımda 1 sapma).
+  - ❌ İki koltuk aynı anda saldırıyor; Vargr'ın Attack klibi vuruş anında rakip vuruşuyla kesiliyor (toparlanma yok).
+  - ❌ 8 kelimelik seride oyuncunun saldırılarından yalnız 1'i klipli; diğer hasarlar klipsiz hitstop/hit tepkisi (raund başına ~10 hitstop), Vargr ~2,5–10 sn "hit"te kalıyor.
+  - ❌ Koşu ~200 ms (hedef 300–500). Saldırılar "ÇÖZÜLÜYOR" fazında oynuyor, kuyruk "TUR ARASI"na ~2,3 sn taşıyor (tavan içinde).
+  - Tur arası paneli aşamaları (yazı → panel) henüz ölçülemedi (probe görünürlük algısı düzeltildi, tekrar ölçülecek).
+- ⚠️ **DURDU — bellek:** sistem belleği kritik (boş ~0,6 / 7,9 GB) olduğu için Claude Code arka plandaki iki işçiyi sonlandırdı: (a) Codex "animasyon sırası düzeltmesi" (görev: scratchpad `codex-2-anim-duzeltme.md`; 4 kusur yukarıda), (b) GLM salt okuma analizi (madde 4–5; rapor üretmeden kesildi). Yeniden başlatılmadı (kullanıcı onayı bekliyor).
+  - Codex'in YARIM bıraktığı değişiklikler çalışma ağacında, **commit'lenmedi**: arena3d.js, fighters3d.js, impact-feel.js, index.js, visual-timeline.js + 5 test dosyası + yeni tests/pvp-visual-order.test.mjs (+132/−65). `npm test` 754/754 geçiyor ama iş tamamlanmadı, tarayıcıda doğrulanmadı.
+- **Sıradaki:** bellek açılınca Codex görev 2'yi çalışma ağacındaki yarım halin üstünden sürdür → probe ile doğrula → commit → madde 4–5.
