@@ -7,7 +7,7 @@
     "dev": "npm run cf:dev",
     "build": "npm run cf:build",
     "preview": "npm run cf:dev",
-    "serve": "python -m http.server 5176 --bind 127.0.0.1",
+    "serve": "python scripts/serve.py",
     "test": "node --test tests/*.test.mjs",
     "cf:build": "node cloudflare/build-assets.mjs",
     "cf:dev": "npm run cf:build && node node_modules/wrangler/bin/wrangler.js dev --config cloudflare/wrangler.jsonc --port 8787",

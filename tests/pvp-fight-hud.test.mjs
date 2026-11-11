@@ -112,24 +112,22 @@ test('callFor eşlemesi', () => {
 });
 
 // ---- Giriş -----------------------------------------------------------------
-test('giriş: VS → RAUND 1 → SAVAŞ!, ≤ 2.2 sn, sonra katman kalmaz', () => {
+test('giriş: RAUND 1 → SAVAŞ! (VS yok), ≤ 2.2 sn, sonra katman kalmaz', () => {
   const {root, clock, hud, calls} = setup();
   hud.matchStart({players, mode: 'classic'});
   clock.advance(HUD_TIMES.startDelay);
-  assert.match(callText(root), /Savaşçı/);
-  assert.match(callText(root), /VS/);
-  assert.match(callText(root), /Doran · Demir Sur/);
-  assert.deepEqual(calls[0], ['introSweep', HUD_TIMES.sweep]);
-  clock.advance(HUD_TIMES.vs);
   assert.equal(callText(root), 'RAUND 1');
+  assert.doesNotMatch(callText(root), /VS|Savaşçı|Doran/);
+  assert.deepEqual(calls[0], ['introSweep', HUD_TIMES.sweep]);
   clock.advance(HUD_TIMES.round);
   assert.match(callText(root), /SAVAŞ!/);
   clock.advance(HUD_TIMES.fight);
   assert.equal(layers(root).length, 0);
-  assert.ok(HUD_TIMES.startDelay + HUD_TIMES.vs + HUD_TIMES.round + HUD_TIMES.fight <= 2200);
+  assert.ok(HUD_TIMES.startDelay + HUD_TIMES.round + HUD_TIMES.fight <= 2200);
+  assert.equal('vs' in HUD_TIMES, false, 'VS süresi kalmadı');
 });
 
-test('giriş: başka sinematik oynarken VS atlanır, yalnız RAUND/SAVAŞ gelir', () => {
+test('giriş: başka sinematik oynarken bekler, sonra RAUND/SAVAŞ gelir', () => {
   const {root, clock, hud} = setup();
   root.classList.add('cin-playing');
   hud.matchStart({players, mode: 'classic'});
@@ -142,12 +140,13 @@ test('giriş: başka sinematik oynarken VS atlanır, yalnız RAUND/SAVAŞ gelir'
   assert.equal(layers(root).length, 0);
 });
 
-test('giriş: geri sayımda VS oynadıysa (çevrimiçi) ikinci VS gösterilmez', () => {
-  const {root, clock, hud} = setup();
-  root._listeners.get('tuslab:pvp-cinematic')({detail: {type: 'COUNTDOWN'}});
+test('giriş: VS ekranı tamamen kaldırıldı (cinematic dinleyicisi yok)', () => {
+  const {root, clock, hud, calls} = setup();
+  assert.equal(root._listeners.has('tuslab:pvp-cinematic'), false);
   hud.matchStart({players, mode: 'classic'});
   clock.advance(HUD_TIMES.startDelay);
   assert.equal(callText(root), 'RAUND 1');
+  assert.doesNotMatch(callText(root), /VS|Savaşçı|Doran/);
 });
 
 test('giriş: azaltılmış harekette tek sade kart, kısa', () => {
@@ -265,10 +264,11 @@ test('anons katmanı arena alanına oturur, yazma kutusuna taşmaz, tıklamayı 
 test('metin textContent ile yazılır (HTML yorumlanmaz)', () => {
   const {root, clock, hud} = setup();
   hud.matchStart({players: [{seat: 1, name: '<img src=x onerror=alert(1)>', character: 'fire'}, players[1]]});
-  clock.advance(HUD_TIMES.startDelay);
-  const name = all(layers(root)[0]).find(c => c.className === 'fhud-vs-name');
-  assert.equal(name.textContent, '<img src=x onerror=alert(1)>');
-  assert.equal(name.innerHTML, undefined);
+  clock.advance(HUD_TIMES.startDelay + HUD_TIMES.round + HUD_TIMES.fight);
+  hud.matchEnd({winnerSeat: 1, reason: 'TIME'});
+  const word = all(layers(root)[0]).find(c => String(c.className).includes('fhud-call-text'));
+  assert.equal(word.textContent, '<img src=x onerror=alert(1)> KAZANDI');
+  assert.equal(word.innerHTML, undefined);
 });
 
 // ---- Maç sonu --------------------------------------------------------------

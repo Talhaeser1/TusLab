@@ -595,7 +595,9 @@ export class PvPNetworkConsole {
       if(countdown)writeText(countdown,`RÖVANŞ: ${Math.max(0,Math.ceil((this.startAt-serverNow)/1000))} · Yeni maç başlıyor`);
     }
     const banner=this.root?.querySelector('[data-match-status]');
-    if(banner){writeText(banner,match?.status==='paused'?'⏸ MAÇ DURAKLADI':match?.status==='running'?'⚔ CANLI MAÇ':match?.status==='ended'?'⌛ MAÇ BİTTİ':'⚔ MAÇ BEKLENİYOR');writeAttr(banner,'title',match?.status==='running'?'Sunucu senkronize; HP ve hasar sunucudan gelir':match?.status==='paused'?'Oyuncu bekleniyor':'');writeAttr(banner,"data-live",String(match?.status==='running'));}
+    if(banner){writeText(banner,match?.status==='paused'?'⏸ MAÇ DURAKLADI':match?.status==='running'?'⚔ CANLI MAÇ':match?.status==='ended'?'⌛ MAÇ BİTTİ':'⚔ MAÇ BEKLENİYOR');writeAttr(banner,'title',match?.status==='running'?'Sunucu senkronize; HP ve hasar sunucudan gelir':match?.status==='paused'?'Oyuncu bekleniyor':'');writeAttr(banner,"data-live",String(match?.status==='running'));
+      // B2A: banner yalnız duraklatılmış maçta görünür (network.css sr-only kuralının işareti); diğer durumlar ekran okuyucuda kalır.
+      writeAttr(banner,"data-paused",String(match?.status==='paused'));}
     const timer=this.root?.querySelector('[data-match-timer]');
     if(timer)writeText(timer,match?`${Math.max(0,Math.ceil((match.endsAt-(match.status==='paused'&&match.pausedAt?match.pausedAt:serverNow))/1000))} sn${match.status==='paused'?' ⏸':''}`:'—');
     const seq=this.root?.querySelector('[data-match-sequence]');if(seq)writeText(seq,match?`#${match.sequence}`:'—');

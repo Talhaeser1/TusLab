@@ -23,3 +23,20 @@
 .pvp5-network-panel>small{display:block;margin-top:11px;color:#abaed0;font-size:10px;line-height:1.45}
 @media(max-width:1550px){.pvp5-connect-status{display:none}.pvp5-net-button{padding:6px 9px;font-size:10px}}
 @media(max-width:900px){.pvp5-network-panel{top:65px}}
+
+/* B2A — üst bar sadeleştirme: maç durumu yazısı ve ANTRENMAN yongası görsel olarak kalkar.
+   Yalnız "⏸ MAÇ DURAKLADI" görünür kalır (network.js data-paused işareti); ekran okuyucular metni okumaya devam eder.
+   Bu dosya sayfada page-lobby/topbar'dan ÖNCE yüklenir → kurallar özgüllükle kazanır:
+   banner (1,3,0) > topbar.css (1,2,0); yonga (1,2,0) > page-lobby.css (1,1,0). */
+#pvp-root .pvp-status-group [data-match-status]:not([data-paused="true"]){
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0;
+}
+/* Banner sr-only iken ping ilk görünür öge olur: soluna düşen bölme çizgisi kalkar. */
+#pvp-root .pvp-status-group [data-match-status]:not([data-paused="true"]) + [data-pvp12-ping]{border-left:0}
+/* "🤖 ANTRENMAN · çevrimdışı" yongası: hidden mantığı (network.js: chip.hidden=!this.practice)
+   ve topbar.css :has([data-practice-chip]:not([hidden])) kuralı aynen çalışır; yalnız görsel sr-only olur. */
+#pvp-root .pvp-status-group [data-practice-chip]{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0;
+}

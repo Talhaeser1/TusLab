@@ -20,7 +20,7 @@
 #pvp-root .m33-next{font-size:12px;line-height:1.4;color:var(--m33-muted)}
 #pvp-root .m33-countdown{position:relative;display:grid;grid-template-columns:auto auto;align-items:center;justify-content:center;gap:4px;width:64px;height:64px;font-size:14px;font-variant-numeric:tabular-nums}
 #pvp-root .m33-countdown svg{position:absolute;inset:0;width:64px;height:64px;transform:rotate(-90deg)}
-#pvp-root .m33-countdown strong{font-size:16px;font-weight:600}
+#pvp-root .m33-countdown strong{font-size:18px;font-weight:600}
 #pvp-root .m33-countdown small{font-size:12px}
 #pvp-root .m33-count-track{stroke:#ffffff24;stroke-width:3}
 #pvp-root .m33-count-fill{stroke:#c4adff;stroke-width:3;stroke-linecap:round}
@@ -33,7 +33,9 @@
 #pvp-root .rui-inter .rui-skill-cards .aui-card[aria-pressed="true"]{border-color:#c4adff;background:#2a2340}
 #pvp-root .rui-inter .rui-skill-cards .aui-card-copy strong{font-size:16px;font-weight:600;line-height:1.5}
 #pvp-root .rui-inter .rui-skill-cards .aui-card-copy small{font-size:14px;line-height:1.5}
-#pvp-root .rui-inter .aui-uses{position:static;font-size:12px}
+/* "2/2" rozeti kartın sağ üst köşesinde kalır (arena-ui.css temelindeki absolute konum);
+   başlık metni çakışmasın diye .aui-card-copy sağdan 44 px boşluk bırakır. */
+#pvp-root .rui-inter .aui-uses{position:absolute;top:8px;right:8px;font-size:12px}
 #pvp-root .rui-inter .rui-pick-lock,#pvp-root .rui-inter .rui-pick-skip{min-height:44px;font-size:14px;font-weight:500}
 #pvp-root .rui-inter button:focus-visible{outline:2px solid #9feeff;outline-offset:2px}
 /* Fullscreen: iki HUD arasında 110'ar px ayrılır; taşan içerik panel içinde kayar. */

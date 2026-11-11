@@ -77,7 +77,7 @@
 .rui-ring-track{fill:rgba(12,8,34,.94);stroke:#ffffff1c;stroke-width:5}
 .rui-ring-fill{fill:none;stroke:var(--rui-gold);stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset 100ms linear,stroke 200ms}
 .rui-clock-text{position:absolute;inset:0;display:grid;place-content:center;text-align:center;line-height:1}
-.rui-secs{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums;color:#fff}
+.rui-secs{font-size:26px;font-weight:900;font-variant-numeric:tabular-nums;color:#fff}
 .rui-secs-unit{font-size:12px;font-weight:800;color:var(--rui-muted);margin-top:1px;max-width:44px;overflow:hidden;white-space:nowrap}
 .rui-secs-unit:empty{display:none}
 .rui-title,.rui-lastcall{position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);white-space:nowrap;
@@ -120,8 +120,9 @@
 .rui-sum-reason{margin-inline-start:auto;font-size:12px;color:var(--rui-muted)}
 .rui-ko{margin-inline-start:auto;padding:1px 8px;border-radius:4px;background:var(--rui-danger);color:#fff;font-style:normal;
   font-weight:1000;font-size:12px;transform:rotate(-4deg)}
-.rui-sum-winner{margin:6px 0 8px;font-size:22px;font-weight:950;line-height:1.15;overflow-wrap:anywhere}
-.rui-sum-winner.is-seat-1{color:var(--rui-fire-soft)}.rui-sum-winner.is-seat-2{color:var(--rui-rune-soft)}
+.rui-sum-winner{margin:6px 0 8px;font-size:clamp(28px,3vw,44px);font-weight:950;line-height:1.15;overflow-wrap:anywhere}
+.rui-sum-winner.is-seat-1{color:var(--rui-fire-soft);text-shadow:0 0 18px #ff6b2b99,0 0 42px #f34d7f66}
+.rui-sum-winner.is-seat-2{color:var(--rui-rune-soft);text-shadow:0 0 18px #5ccbff99,0 0 42px #398af966}
 .rui-sum-winner.is-draw{color:#e4dcff}
 .rui-sum-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:12px}
 .rui-sum-table th,.rui-sum-table td{padding:4px 6px;border-bottom:1px solid #ffffff12;text-align:right}
@@ -190,7 +191,7 @@
 .rui-inter>.rui-summary .rui-sum-table th,.rui-inter>.rui-summary .rui-sum-table td{padding:3px 6px}
 /* arena-ui.css'teki .aui-cards (5 sütun) sonra yüklenip ezdiği için özgüllük artırıldı. */
 .rui-skill-picker .aui-cards.rui-skill-cards{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
-.rui-skill-picker .rui-skill-cards .aui-card{grid-template-columns:32px minmax(0,1fr);column-gap:8px;padding:10px 8px}
+.rui-skill-picker .rui-skill-cards .aui-card{grid-template-columns:40px minmax(0,1fr);column-gap:8px;padding:10px 8px}
 .rui-skill-picker .rui-skill-cards .aui-card-copy strong{font-size:clamp(12px,.75vw,14px)}
 .rui-skill-picker .rui-skill-cards .aui-card-copy small{font-size:12px}
 .rui-inter .rui-skill-cards{flex:1 1 auto;align-content:center}
@@ -229,7 +230,7 @@
 /* Beceri seçici: 3 kart yan yana, kısa. */
 #pvp-root .rui-inter.is-dock .rui-skill-picker>strong,#pvp-root .rui-inter.is-dock>.rui-skill-picker>strong{margin:0;font-size:13px;font-weight:800}
 #pvp-root .rui-inter.is-dock .rui-skill-picker .aui-cards.rui-skill-cards{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:8px;align-content:start}
-#pvp-root .rui-inter.is-dock .rui-skill-picker .rui-skill-cards .aui-card{min-height:64px;padding:6px 8px;border-radius:8px;gap:8px;grid-template-columns:32px minmax(0,1fr)}
+#pvp-root .rui-inter.is-dock .rui-skill-picker .rui-skill-cards .aui-card{min-height:64px;padding:6px 8px;border-radius:8px;gap:8px;grid-template-columns:40px minmax(0,1fr)}
 #pvp-root .rui-inter.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy strong{font-size:clamp(12px,.75vw,14px);line-height:1.2}
 #pvp-root .rui-inter.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy small{font-size:12px;line-height:1.2}
 #pvp-root .rui-inter.is-dock .rui-skill-picker .rui-skill-cards .aui-uses{position:absolute;top:8px;right:8px}
@@ -281,7 +282,7 @@
 .rui-res-name.rui-col-1{text-align:right;color:var(--rui-fire-soft,#ffb98a)}
 .rui-res-name.rui-col-2{color:var(--rui-rune-soft,#a5e6ff)}
 .rui-res-name.is-me{text-decoration:underline 2px;text-underline-offset:4px}
-.rui-res-line{font-size:clamp(30px,4vw,44px);font-weight:1000;line-height:1;color:#ffc87a;font-variant-numeric:tabular-nums}
+.rui-res-line{font-size:clamp(28px,4vw,44px);font-weight:1000;line-height:1;color:#ffc87a;font-variant-numeric:tabular-nums;text-shadow:0 0 14px #ffc87a66}
 .rui-res-rounds{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;margin:0;padding:0;list-style:none}
 .rui-res-round{display:flex;align-items:baseline;gap:5px;padding:3px 8px;border-radius:7px;background:#ffffff0d;border:1px solid #ffffff1a;font-size:12px}
 .rui-res-round.is-seat-1{border-color:#ff8a4c66}.rui-res-round.is-seat-2{border-color:#5ccbff66}
@@ -323,7 +324,7 @@
   background:linear-gradient(135deg,#080c20f2 8%,#091429e8 62%,#130b21ed),url('../assets/higgsfield/final/ekran-raund-banner.webp') center/cover,var(--rui-panel);
   border-color:var(--rui-fire);box-shadow:0 16px 42px #020510dd,0 0 22px #ff8a4c30;
 }
-#pvp-root .rui-sum-title,#pvp-root .rui-sum-winner{font-family:Impact,'Arial Narrow',system-ui,sans-serif;letter-spacing:.055em;text-transform:uppercase}
+#pvp-root .rui-sum-title,#pvp-root .rui-sum-winner{font-family:Impact,Haettenschweiler,'Arial Narrow Bold',system-ui;letter-spacing:.055em;text-transform:uppercase;font-style:italic}
 #pvp-root .rui-sum-title{font-size:clamp(16px,2vw,22px);color:#fff}
 #pvp-root .rui-sum-table{font-variant-numeric:tabular-nums}
 #pvp-root .rui-sum-table th[scope=col]{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
@@ -335,3 +336,11 @@
 @keyframes rui-panel-enter{from{opacity:0;scale:.94}to{opacity:1;scale:1}}
 @media (prefers-reduced-motion:reduce){#pvp-root .rui-inter:not([hidden]){animation:none!important}}
 #pvp-root.pvp4-reduced .rui-inter:not([hidden]){animation:none!important}
+
+/* Özet / sonuç açıkken alt yazma paneli (.tt) ve "ARENA · RAUND X/6" etiketi tamamen gizli — üç mod birden:
+   raund arası (rui-inter-open), arena özeti (aui-summary-open), maç sonu (pvp15-results-open).
+   Etiket (.tt-mode) .tt içinde üretildiği için onunla beraber gizlenir; index.js'e dokunulmaz.
+   Sinematik raund sonu perdesi (cin-round-end) sırasında .tt curtain ile görünür kalır. */
+#pvp-root.rui-inter-open:not(.cin-round-end) .tt,
+#pvp-root.aui-summary-open .tt,
+#pvp-root.pvp15-results-open .tt{display:none}

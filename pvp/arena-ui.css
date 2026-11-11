@@ -109,7 +109,9 @@
 .aui-group-label{font-size:12px;font-weight:800;color:var(--aui-muted);letter-spacing:.04em}
 .aui-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:8px;min-width:0}
 .aui-cards-items{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
-.aui-card{position:relative;display:grid;grid-template-columns:32px minmax(0,1fr);align-items:center;gap:8px;min-width:min(100%,240px);min-height:72px;padding:8px;
+/* Kart ızgarası: ad sütunlarıyla (grid-area) bağlanır — ikon solda ~40px, metin minmax(0,1fr) (≥150px).
+   Kart en az 240px: 240 − 2×8 (padding) − 40 (ikon) − 8 (boşluk) = 176px metin. */
+.aui-card{position:relative;display:grid;grid-template-columns:40px minmax(0,1fr);grid-template-areas:"icon copy";align-items:center;gap:8px;min-width:min(100%,240px);min-height:72px;padding:8px;
   border:1px solid var(--aui-line);border-radius:12px;background:#0e0a2ae6;color:var(--aui-text);text-align:left;cursor:pointer;font:inherit;
   transition:border-color 150ms var(--aui-ease),background-color 150ms var(--aui-ease)}
 .aui-card:hover:not(:disabled){border-color:var(--aui-fire-soft);background:#2b1d0ee6}
@@ -119,9 +121,9 @@
 .aui-card.is-empty{border-style:dashed}
 .aui-key,.aui-card-key{position:absolute;left:8px;bottom:5px;display:grid;place-items:center;min-width:20px;height:18px;padding:0 4px;border-radius:4px;background:#ffffff1a;border:1px solid #ffffff33;
   font:800 13px/1 var(--aui-mono);color:#fff}
-.aui-icon,.aui-card-icon{grid-column:1;width:32px;text-align:center;font-size:24px;line-height:1}
-.aui-card-copy{grid-column:2;display:grid;gap:2px;min-width:0;padding-right:40px}
-.aui-card-copy strong{font-size:clamp(12px,.75vw,14px);font-weight:600;line-height:1.2;white-space:nowrap;overflow-wrap:normal;word-break:keep-all;hyphens:none}
+.aui-icon,.aui-card-icon{grid-area:icon;width:40px;text-align:center;font-size:24px;line-height:1}
+.aui-card-copy{grid-area:copy;display:grid;gap:2px;min-width:0;padding-right:44px}
+.aui-card-copy strong{font-size:clamp(12px,.75vw,14px);font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;word-break:keep-all;hyphens:none}
 .aui-card-copy small{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:12px;color:var(--aui-muted);line-height:1.3;overflow-wrap:normal;word-break:normal;hyphens:none}
 .aui-uses{position:absolute;top:8px;right:8px;min-width:34px;text-align:center;padding:2px 4px;border:1px solid #ffc87a66;border-radius:5px;background:#39281a;color:var(--aui-gold);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .aui-card.is-empty .aui-uses{color:#ff8ea2}
@@ -143,8 +145,10 @@
   animation:aui-enter 220ms var(--aui-ease) both}
 @keyframes aui-enter{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
 .aui-sum-title{font-size:14px;font-weight:900;color:var(--aui-muted);letter-spacing:.06em}
-.aui-sum-winner{margin:6px 0 10px;font-size:22px;font-weight:950;line-height:1.2;overflow-wrap:anywhere}
-.aui-sum-winner.is-seat-1{color:var(--aui-fire-soft)}.aui-sum-winner.is-seat-2{color:var(--aui-rune-soft)}.aui-sum-winner.is-draw{color:var(--aui-gold)}
+.aui-sum-winner{margin:6px 0 10px;font-size:clamp(28px,3vw,44px);font-weight:950;line-height:1.1;overflow-wrap:anywhere}
+.aui-sum-winner.is-seat-1{color:var(--aui-fire-soft);text-shadow:0 0 18px #ff6b2b99,0 0 42px #f34d7f66}
+.aui-sum-winner.is-seat-2{color:var(--aui-rune-soft);text-shadow:0 0 18px #5ccbff99,0 0 42px #398af966}
+.aui-sum-winner.is-draw{color:var(--aui-gold)}
 .aui-sum-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
 .aui-sum-table tr>*{width:32%;overflow-wrap:anywhere}
 .aui-sum-table tr>*:first-child{width:36%}
@@ -214,12 +218,16 @@
   animation:aui-summary-enter 380ms cubic-bezier(.16,1,.3,1) both;
 }
 @keyframes aui-summary-enter{from{opacity:0;transform:translateX(-50%) scale(.94)}to{opacity:1;transform:translateX(-50%) scale(1)}}
-#pvp-root .aui-sum-title,#pvp-root .aui-sum-winner{font-family:Impact,'Arial Narrow',system-ui,sans-serif;letter-spacing:.055em;text-transform:uppercase}
+#pvp-root .aui-sum-title,#pvp-root .aui-sum-winner{font-family:Impact,Haettenschweiler,'Arial Narrow Bold',system-ui;letter-spacing:.055em;text-transform:uppercase;font-style:italic}
 #pvp-root .aui-sum-title{font-size:clamp(17px,2vw,23px);color:#fff}
 #pvp-root .aui-sum-table th,#pvp-root .aui-sum-table td{color:#f1f4ff}
 #pvp-root .aui-sum-table .aui-col-1{color:var(--aui-fire-soft)}
 #pvp-root .aui-sum-table .aui-col-2{color:var(--aui-rune-soft)}
-#pvp-root .pvp2-role{max-width:calc(100% - 16px);width:max-content;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;text-align:center;font-size:clamp(12px,.8vw,14px);line-height:1.2;letter-spacing:.02em}
+#pvp-root .pvp2-role{max-width:calc(100% - 16px);width:max-content;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word;word-break:keep-all;hyphens:none;text-align:center;font-size:clamp(12px,.8vw,14px);line-height:1.25;letter-spacing:.02em;z-index:5}
+/* Telefonda (375×812) sahne ~170 px: rozet tek satıra sığmasa kelime sınırında sarılır, bölünmez. */
+@media (max-width:900px){
+  #pvp-root .pvp2-role{font-size:12px;padding:3px 9px;bottom:5px;line-height:1.3}
+}
 @media (prefers-reduced-motion:reduce){#pvp-root .aui-summary{animation:none!important}}
 #pvp-root.pvp4-reduced .aui-summary{animation:none!important}
 

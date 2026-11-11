@@ -2,18 +2,18 @@
 .pvp15-backdrop[hidden]{display:none!important}
 .pvp15-backdrop{position:absolute;inset:0;z-index:80;display:grid;place-items:center;padding:clamp(10px,3vh,26px);background:radial-gradient(ellipse at 50% 22%,#5a237b80,transparent 60%),#05071de8;backdrop-filter:blur(6px)}
 .pvp15-card{width:min(900px,96vw);max-height:calc(100dvh - 24px);overflow:auto;border:1px solid #ba85f0;border-radius:20px;background:linear-gradient(145deg,#1d0e3af7,#0b1736f7 54%,#251034f7);box-shadow:0 0 45px #b95aff66,0 0 110px #2887ef33,inset 0 0 32px #ba79ff1a;color:#fff;text-align:center;padding:clamp(10px,2vh,22px) clamp(10px,2vw,25px)}
-.pvp15-eyebrow{color:#b5dfff;font-weight:850;letter-spacing:.18em;font-size:11px}
-.pvp15-title{font:1000 clamp(28px,4.2vw,52px)/1 system-ui,sans-serif!important;letter-spacing:.04em!important;margin:4px 0!important;color:#ffdb75!important;text-shadow:0 0 16px #ff8127,0 0 35px #f34d7f}
-.pvp15-title[data-outcome='defeat']{color:#ffc2d4!important;text-shadow:0 0 18px #f44976}
-.pvp15-title[data-outcome='draw'],.pvp15-title[data-outcome='cancelled']{color:#a2e7ff!important;text-shadow:0 0 17px #398af9}
-.pvp15-reason{margin:5px 0 12px;color:#c1bde3;font-size:11px;font-weight:800;letter-spacing:.17em}
+.pvp15-eyebrow{color:#b5dfff;font-weight:850;letter-spacing:.18em;font-size:12px}
+.pvp15-title{font:1000 clamp(48px,6vw,96px)/1 system-ui,sans-serif!important;letter-spacing:.04em!important;margin:4px 0!important;color:#ffdb75!important;text-shadow:0 0 16px #ff8127,0 0 35px #f34d7f}
+.pvp15-title[data-outcome='defeat']{color:#ffc2d4!important;text-shadow:0 0 18px #f44976,0 0 40px #ff6b2b88}
+.pvp15-title[data-outcome='draw'],.pvp15-title[data-outcome='cancelled']{color:#a2e7ff!important;text-shadow:0 0 17px #398af9,0 0 38px #5ccbff88}
+.pvp15-reason{margin:5px 0 12px;color:#c1bde3;font-size:13px;font-weight:800;letter-spacing:.17em}
 .pvp15-scorecards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .pvp15-player{min-width:0;padding:13px 15px;border:1px solid #ff944f7d;border-radius:14px;background:linear-gradient(145deg,#42192ecc,#180e32db);text-align:left}
 .pvp15-player.pvp15-rune{border-color:#58b6f49c;background:linear-gradient(145deg,#183f69b0,#111d40e3)}
 .pvp15-player.pvp15-winner{box-shadow:0 0 20px #e0a55e62,inset 0 0 15px #ffdc8825}
 .pvp15-player-name{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}.pvp15-player-name span{font-weight:950;font-size:clamp(14px,1.6vw,21px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pvp15-player-name small{font-size:9px;letter-spacing:.13em;color:#b9c7eb;font-weight:900}
 .pvp15-figures{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:11px}.pvp15-figures>div{text-align:center;background:#0509219c;border:1px solid #9984c855;border-radius:8px;padding:9px 1px}.pvp15-figures strong{display:block;font:950 clamp(15px,1.6vw,25px)/1.1 system-ui;color:#a1edff}.pvp15-figures small{font-size:9px;color:#d9d0eb;font-weight:800;letter-spacing:.09em}
-.pvp15-detail{display:flex;flex-direction:column;gap:5px;color:#ded6f5;font-size:11px;line-height:1.2}.pvp15-meta{font-size:11px;color:#b8b4d2;margin-top:10px}.pvp15-votes{margin-top:10px;color:#ffd78d;font-weight:850;font-size:12px}.pvp15-buttons{display:flex;gap:12px;justify-content:center;margin-top:11px}
+.pvp15-detail{display:flex;flex-direction:column;gap:5px;color:#ded6f5;font-size:13px;line-height:1.25}.pvp15-meta{font-size:13px;color:#b8b4d2;margin-top:10px}.pvp15-votes{margin-top:10px;color:#ffd78d;font-weight:850;font-size:13px}.pvp15-buttons{display:flex;gap:12px;justify-content:center;margin-top:11px}
 .pvp15-buttons button{min-height:38px;padding:8px 23px;border:1px solid #9964d1;border-radius:11px;cursor:pointer;color:#fff;font-weight:900;background:#28184b}
 .pvp15-buttons .pvp15-rematch{background:linear-gradient(115deg,#da5c27,#aa378f);border-color:#f7b176;box-shadow:0 0 13px #ff823d4a}
 .pvp15-buttons button:disabled{opacity:.55;cursor:not-allowed}.pvp15-buttons button:focus-visible{outline:2px solid #7ef4ff;outline-offset:2px}
@@ -31,16 +31,16 @@
 #pvp-root .pvp15-backdrop[data-outcome='defeat']{background:linear-gradient(90deg,#050a1af5,#080b1bd9 65%,#090a19eb),url('../assets/higgsfield/final/ekran-yenilgi.webp') center/cover,#050a1a}
 #pvp-root .pvp15-backdrop[data-outcome='draw'],#pvp-root .pvp15-backdrop[data-outcome='cancelled']{background:linear-gradient(120deg,#071d35f2,#090a1bea),url('../assets/higgsfield/final/ekran-raund-banner.webp') center/cover,#050a1a}
 #pvp-root .pvp15-card{background:linear-gradient(145deg,#0c1226f5,#0c1930f2 55%,#190d24f5);border-color:#ff8a4c;box-shadow:0 20px 70px #000b,0 0 32px #ff8a4c2f}
-#pvp-root .pvp15-title{font-family:Impact,'Arial Narrow',system-ui,sans-serif!important;font-size:clamp(36px,5vw,64px)!important;letter-spacing:.07em!important;color:#ffb98a!important;text-shadow:0 0 20px #ff6b2b88}
-#pvp-root .pvp15-title[data-outcome='defeat']{color:#ffb5a3!important}
-#pvp-root .pvp15-title[data-outcome='draw'],#pvp-root .pvp15-title[data-outcome='cancelled']{color:#a5e6ff!important;text-shadow:0 0 20px #5ccbff88}
+#pvp-root .pvp15-title{font-family:Impact,Haettenschweiler,'Arial Narrow Bold',system-ui!important;font-size:clamp(48px,6vw,96px)!important;letter-spacing:.07em!important;font-style:italic!important;color:#ffb98a!important;text-shadow:0 0 20px #ff6b2bdd,0 0 52px #f34d7f99}
+#pvp-root .pvp15-title[data-outcome='defeat']{color:#ffb5a3!important;text-shadow:0 0 20px #f44976dd,0 0 52px #ff6b2b99}
+#pvp-root .pvp15-title[data-outcome='draw'],#pvp-root .pvp15-title[data-outcome='cancelled']{color:#a5e6ff!important;text-shadow:0 0 20px #5ccbffdd,0 0 52px #398af999}
 #pvp-root .pvp15-player{border-color:#ff8a4c;background:#2a1727ed}
 #pvp-root .pvp15-player.pvp15-rune{border-color:#5ccbff;background:#102b42ed}
 #pvp-root .pvp15-figures strong,#pvp-root .pvp15-scorecards{font-variant-numeric:tabular-nums}
 #pvp-root .pvp15-player-name span{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
 #pvp-root .pvp15-player-name small,#pvp-root .pvp15-figures small{font-size:12px;line-height:1.2}
 #pvp-root .pvp15-figures>div{min-width:0}
-#pvp-root .pvp15-figures strong{font-size:clamp(16px,2vw,27px);overflow-wrap:anywhere}
+#pvp-root .pvp15-figures strong{font-size:clamp(18px,2vw,28px);overflow-wrap:anywhere}
 @media(max-width:650px){#pvp-root .pvp15-card{max-height:calc(100dvh - 16px)}#pvp-root .pvp15-buttons{flex-wrap:wrap}#pvp-root .pvp15-figures{gap:3px}}
 @media (prefers-reduced-motion:reduce){#pvp-root .pvp15-backdrop:not([hidden]){animation:none!important}}
 #pvp-root.pvp4-reduced .pvp15-backdrop:not([hidden]){animation:none!important}

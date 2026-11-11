@@ -178,15 +178,19 @@ test('D5: announcements have two opposing bands, fighter accent, bounded queue a
   hud.destroy(); assert.equal(e.pending.size, 0);
 });
 
-test('D5/D6: HUD intro includes stage and fighters, never overlaps queued announcements, ends by 2200ms', () => {
+test('D5/D6: HUD intro is RAUND 1 → SAVAŞ! without a VS card, never overlaps queued announcements, ends by 2200ms', () => {
   const e = environment(), hud = createFightHud({root: e.root, scheduler: e.scheduler});
+  assert.ok(HUD_TIMES.round + HUD_TIMES.fight <= 2200, 'giriş toplamı 2200 ms altında kalmalı');
   hud.matchStart({players: roster, stage: 'harbor'}); e.advance(60);
-  const text = hudLayers(e.root)[0].textContent;
-  for (const value of ['Sira', 'Gölge Mızrak', 'Nyx', 'Rün Kâhini', 'ARENA: Fırtına Limanı']) assert.ok(text.includes(value), value);
-  hud.handle({type: 'PARRY_TRIGGERED', seat: 2});
+  let text = hudLayers(e.root)[0].textContent;
+  assert.equal(text, 'RAUND 1');
+  // VS kartı kaldırıldı (B0): giriş oyuncu adı/ünvanı/sahne göstermez.
+  assert.doesNotMatch(text, /Sira|Gölge Mızrak|Nyx|Rün Kâhini|Fırtına Limanı|ARENA/);
+  hud.handle({type: 'PARRY_TRIGGERED', seat: 2}); // giriş oynarken anons kuyruğa girer, üst üste binmez
   assert.equal(hudLayers(e.root).length, 1);
-  e.advance(2050);
-  assert.equal(hudLayers(e.root).length, 1);
+  e.advance(HUD_TIMES.round);
+  assert.equal(hudLayers(e.root)[0].textContent, 'SAVAŞ!');
+  e.advance(HUD_TIMES.fight); // giriş bitti (60 + 1050 ms) → bekleyen anons devralır
   assert.equal(hudLayers(e.root)[0].textContent, 'PARRY!');
   e.advance(900); assert.equal(hudLayers(e.root).length, 0);
   hud.destroy(); assert.equal(e.pending.size, 0);
@@ -258,13 +262,18 @@ test('D7: stage focus honors app and OS reduced motion without WAAPI panel movem
   }
 });
 
-test('D6: a new match cannot inherit missing players from the previous VS card', () => {
+test('D6: a new match cannot inherit players from the previous match', () => {
   const e = environment(), hud = createFightHud({root: e.root, scheduler: e.scheduler});
   hud.matchStart({players: roster, stage: 'harbor'}); e.advance(60);
   hud.matchStart({players: [roster[0]]}); e.advance(60);
   const text = hudLayers(e.root)[0].textContent;
-  assert.doesNotMatch(text, /Rakip|Nyx|Fırtına Limanı/);
-  assert.match(text, /Oyuncu 2/); hud.destroy();
+  // Giriş artık VS kartı değil (B0): yeni maçın katmanı önceki maçın adını/sahnesini taşımaz.
+  assert.equal(text, 'RAUND 1');
+  assert.doesNotMatch(text, /Rakip|Nyx|Sira|Fırtına Limanı|ARENA/);
+  // Eksik koltuk sonucu da önceki maçın oyuncusundan miras almaz.
+  hud.matchEnd({winnerSeat: 2, reason: 'TIMEOUT'}); e.advance(60);
+  assert.match(hudLayers(e.root)[0].textContent, /OYUNCU 2 KAZANDI/);
+  hud.destroy(); assert.equal(e.pending.size, 0);
 });
 
 test('D7: destroying cinematic cancels even its pending portrait preload timer', () => {

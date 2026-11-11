@@ -2,7 +2,7 @@
 // Özgün TuşLab neon tasarımı: ateş (oyuncu 1, sol, turuncu/kırmızı) · rün (oyuncu 2, sağ, mavi).
 //
 //   const hud = createFightHud({root, isReduced, scheduler, getArenaApi});
-//   hud.matchStart({players:[{seat,name,character}], mode})  -> maç başı girişi (VS → RAUND 1 → SAVAŞ!)
+//   hud.matchStart({players:[{seat,name,character}], mode})  -> maç başı girişi (RAUND 1 → SAVAŞ!)
 //   hud.update(match, myId)                                  -> süper bar, destek barı (paket 31), raund yazısı, isimler
 //   hud.handle(combatEvent)                                  -> kombo sayacı + anons yazıları
 //   hud.matchEnd({winnerSeat, reason})                       -> NAKAVT! + ZAFER / YENİLGİ
@@ -12,10 +12,9 @@
 // yazma kutusunun üstüne çıkmaz (katman yalnız arena alanını kaplar), tüm metin textContent ile yazılır.
 
 import {FIGHTERS,isFighterId,getFighter} from './shared/fighters.js';
-import {getStage} from './shared/stages.js';
 
 export const HUD_TIMES = Object.freeze({
-  vs: 1000, round: 500, fight: 550, // giriş toplamı 2050 ms (≤ 2200)
+  round: 500, fight: 550, // giriş toplamı 1050 ms (≤ 2200); VS ekranı kaldırıldı
   call: 700, final: 850, reducedCall: 520, reducedIntro: 700,
   comboWindow: 1400, comboOut: 180, startDelay: 60, busyMax: 1600, busyPoll: 100,
   superFlash: 900, freeze: 450, slowRate: 0.25, slowMs: 900, sweep: 1800,
@@ -130,7 +129,6 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
   // ---- Durum -------------------------------------------------------------
   const players = new Map(); // seat -> {name, character}
   let mySeat = null, mode = 'classic', lastRound = null, introRound = null, lastPhase = null, introWaitsForRound = false;
-  let stage = getStage();
   function fighterAccent(node, seat) {
     if (!seat) return;
     const p = players.get(seat) || {};
@@ -196,7 +194,7 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
     if (call) { cancel(call.timer); cancel(call.watch); call.el.remove?.(); call = null; }
   }
 
-  // ---- Giriş (VS → RAUND 1 → SAVAŞ!) ------------------------------------
+  // ---- Giriş (RAUND 1 → SAVAŞ!) ------------------------------------------
   let intro = null; // {el, timers:[]}
   // Başka modüllerin girişleri: cinematic.js (VS / raund bandı), rounds-ui.js (geri sayım, "RAUND n · BAŞLA!").
   const bannerBusy = () => Boolean(root.querySelector?.('.cin.cin-banner:not([hidden])')
@@ -213,19 +211,7 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
     layer.replaceChildren?.(...bands('neutral'), ...nodes);
     layer.className = `fhud-layer fhud-intro fhud-step-${kind}${reduced() ? ' fhud-reduced' : ''}`;
   }
-  function vsNodes() {
-    const half = seat => {
-      const p = players.get(seat) || {};
-      const fighter = getFighter(p.fighter, p.character || sideOf(seat));
-      const box = el('div', `fhud-vs-side fhud-tone-${sideOf(seat)}`);
-      fighterAccent(box, seat);
-      box.append(el('small', 'fhud-vs-seat', `OYUNCU ${seat}`), el('strong', 'fhud-vs-name', p.name || `Oyuncu ${seat}`),
-        el('span', 'fhud-vs-char', `${fighter.name} · ${fighter.title}`));
-      return box;
-    };
-    return [half(1), el('b', 'fhud-vs-mark', 'VS'), half(2), el('span', 'fhud-vs-arena', `ARENA: ${stage.name}`)];
-  }
-  function playIntro(round = 1, {withVs = true, withRound = true} = {}) {
+  function playIntro(round = 1, {withRound = true, sweep = false} = {}) {
     stopIntro(false);
     const layer = makeLayer('intro');
     intro = {el: layer, timers: []};
@@ -236,13 +222,10 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
       at(stopIntro, HUD_TIMES.reducedIntro);
       return;
     }
-    let t = 0;
-    if (withVs) {
-      introStep(layer, 'vs', vsNodes());
-      callApi('introSweep', HUD_TIMES.sweep);
-      t += HUD_TIMES.vs;
-    }
+    // Kamera süpürmesi yalnız giriş hemen başlarken çağrılır (VS beklemesi yok).
+    if (sweep) callApi('introSweep', HUD_TIMES.sweep);
     const step = (fn, ms) => { if (ms === 0) fn(); else at(fn, ms); };
+    let t = 0;
     if (withRound) {
       step(() => introStep(layer, 'round', [el('strong', 'fhud-intro-word', roundText)]), t);
       t += HUD_TIMES.round;
@@ -260,7 +243,7 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
       if (mode === 'arena' && lastPhase && lastPhase !== 'round') { introWaitsForRound = true; return; }
       if (!busy()) {
         // Başka modül raund yazısını zaten gösterdiyse "RAUND N" tekrarlanmaz, yalnız SAVAŞ! gelir.
-        playIntro(round, {withVs: waited === 0 && !vsSeenRecently(), withRound: !sawBanner});
+        playIntro(round, {withRound: !sawBanner, sweep: waited === 0});
         return;
       }
       if (bannerBusy()) sawBanner = true;
@@ -271,12 +254,6 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
     pendingIntro = later(tryStart, HUD_TIMES.startDelay);
   }
   let pendingIntro = null;
-  // Çevrimiçi maçta VS girişi geri sayımda (cinematic.js) oynar: o zaman ikinci bir VS göstermeyiz.
-  let countdownVsAt = -Infinity;
-  const nowMs = () => Date.now();
-  const vsSeenRecently = () => nowMs() - countdownVsAt < 15000;
-  const onCinematic = e => { if (e?.detail?.type === 'COUNTDOWN') countdownVsAt = nowMs(); };
-  root.addEventListener?.('tuslab:pvp-cinematic', onCinematic);
 
   // ---- Kombo sayacı -------------------------------------------------------
   const combos = new Map(); // attacker seat -> {count, total, el, timer, flip}
@@ -414,12 +391,11 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
     } catch { return false; }
   }
 
-  function matchStart({players: list = [], mode: m = 'classic', round = 1, phase = null, stage: stageId} = {}) {
+  function matchStart({players: list = [], mode: m = 'classic', round = 1, phase = null} = {}) {
     if (destroyed) return;
     clear();
     players.clear(); mySeat = null;
     rememberPlayers(list);
-    stage = getStage(stageId);
     mode = m === 'arena' || m === 'rounds' ? m : 'classic';
     lastPhase = phase || null; introWaitsForRound = false;
     introRound = Number(round) || 1;
@@ -431,7 +407,6 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
     if (destroyed || !match) return;
     try {
       rememberPlayers(match.players);
-      stage = getStage(match.stage);
       mode = match.mode === 'arena' || match.mode === 'rounds' ? match.mode : 'classic';
       const mine = (match.players || []).find(p => p && myId != null && p.playerId === myId);
       mySeat = seatOf(mine?.seat) ?? mySeat;
@@ -487,7 +462,6 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
     for (const id of timers) scheduler.clearTimeout(id);
     timers.clear();
     destroyed = true;
-    root.removeEventListener?.('tuslab:pvp-cinematic', onCinematic);
     root.classList?.remove('fhud-on');
   }
 
