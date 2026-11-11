@@ -191,3 +191,9 @@ P1 15–19 (zemin teması, karakter seçiminin tüm modlarda geçişi, sayılı 
 - **Karar — portre:** Higgsfield yok → Meshy nano-banana-2 ile üretildi (kaynak/konyali-portre.png). Higgsfield gelirse yenilenebilir.
 - **Karar — lobi/raund arası görselleri:** Higgsfield olmadığından mevcut assets/higgsfield/final/ görselleri + CSS ile.
 - **Karar — ses:** ElevenLabs MCP bağlanamadı → mevcut ses-taslak/ kayıtları bağlanacak; skill adı replikleri ve ney/bağlama müziği için dosya adı sözleşmesi konuyor (dosya gelince kod değişmeden çalar). Yeni ElevenLabs üretimi bu oturumda YAPILAMADI.
+- **21:30 yeniden doğrulama (kullanıcı isteği):** hesap1 `claude -p` ✅, hesap2 ✅ (kullanıcı deny kuralını kaldırmış), GLM ✅ (küçük komutta), Meshy ✅ 722 kredi, Playwright ✅, ElevenLabs ✅ üretim çalışıyor (bakiye/ses listesi okunamıyor: `user_read`/`voices_read` yok), Higgsfield ❌ araç yok.
+- **Karar:** GLM görev 4'te 55 dk'da hiç dosya yazmadı → durduruldu; görev 4 hesap2 Sonnet'e (`claude -p --model sonnet`) verildi. Bellek 0,32 GB → tek işçi.
+- **Ses (ElevenLabs, 21:30–21:35):** anahtar izinleri: ses efekti ✅, ses tasarımı ✅, varsayılan sesle TTS ✅; kayıtlı sesle TTS ❌ (`voices_read`), müzik ❌ (`music_generation`), bakiye ❌ (`user_read`), STT yalnız Masaüstü yolunu okuyor.
+  - Karar — replikler: 5 karakter için birer ses tasarımı çağrısı (skill adları tek kayıtta), ffmpeg sessizlik algısıyla 6'ya bölündü → assets/sfx/replik/ (30 dosya). Her kayıtta tam 6 parça çıktı; kulakla/STT ile DOĞRULANMADI.
+  - Karar — müzik: müzik üretimi kapalı → 4 ses efekti katmanı (ney ×2, bağlama döngüsü, bendir/davul döngüsü) ffmpeg ile 40 sn'lik assets/music/anadolu.mp3'e birleştirildi. Katmanların tempo uyumu kulakla doğrulanmadı; kullanıcı dinlemeli. `music_generation` izni açılırsa tek parça üretilebilir.
+  - Çağrılar: 7 ses efekti, 5 ses tasarımı, 1 kısa TTS denemesi.

@@ -41,3 +41,9 @@ prefers-reduced-motion'a uy. Görseller: yalnız assets/ altındaki mevcut dosya
 - Skill adı seslendirmesi: karakter Q/E/R kullanınca kendi sesiyle skill adını söyler. Dosya yoksa SESSİZ geç (hata yok); dosya adı sözleşmesi: assets/sfx/replik/<karakter>-<q|e|r>.mp3 — sonradan eklenen dosya kod değişmeden çalar.
 - Müzik: assets/music/ altındaki parçalar + scripts/generate-music.py; ney/bağlama tınılı özgün Anadolu ezgisi dosyası gelince `assets/music/anadolu.mp3` adıyla otomatik kullanılır (yoksa mevcut müzik).
 - Sessiz mod: tek düğme tüm sesleri (müzik + efekt + replik) keser, tercih localStorage'da kalır, testle sabitlenir. Otomatik oynatma kısıtına uy (ilk kullanıcı etkileşiminden sonra).
+
+### S — GÜNCELLEME (5. oturum, dosyalar HAZIR)
+- Replikler: assets/sfx/replik/<vargr|sira|doran|nyx|konyali>-<q|e|r|savunma|zafer|soz>.mp3 (30 dosya, 8–14 KB, karakterin kendi sesi; q/e/r = skill adı, savunma = savunma skill adı, zafer = zafer repliği, soz = maç başı sözü).
+- Konyalı efektleri: assets/sfx/konyali-q.mp3 (ekmek fırlatma), konyali-e.mp3 (dönüş), konyali-r.mp3 (ney çığlığı/şok dalgası).
+- Müzik: assets/music/anadolu.mp3 (40 sn döngü; ney + bağlama + bendir) → dövüş ve lobi müziği olarak varsayılan yap; mevcut .wav parçaları yedek kalsın.
+- Eski taslaklar: ses-taslak/sfx/ (silah/darbe/seyirci/jingle), ses-taslak/replik-kesilmis/ (spiker-*.mp3, seri-*.mp3 kullanılabilir; karakter replikleri YERİNE yukarıdaki yeni dosyalar).
