@@ -174,9 +174,11 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
     const tone = text === CALLS.victory ? 'win' : text === CALLS.defeat ? 'lose' : text === CALLS.knockout ? 'ko'
       : seat ? sideOf(seat) : 'neutral';
     const layer = makeLayer('call');
-    const word = el('strong', `fhud-call-text fhud-tone-${tone}`, text);
+    const isCrit = text === CALLS.crit; // Görev 4: KRİTİK arka planda — soluk, tıklamaz, görüşü kapatmaz
+    const word = el('strong', `fhud-call-text fhud-tone-${tone}${isCrit ? ' fhud-call-crit' : ''}`, text);
+    if (isCrit) { word.setAttribute?.('data-crit-text', ''); layer.classList?.add('fhud-layer-crit'); }
     fighterAccent(layer, seat); fighterAccent(word, seat);
-    for (const band of bands(tone)) { fighterAccent(band, seat); layer.append(band); }
+    for (const band of isCrit ? [] : bands(tone)) { fighterAccent(band, seat); layer.append(band); }
     if (sub) {
       const stack = el('div', 'fhud-call-stack');
       stack.append(word, el('span', `fhud-call-sub fhud-tone-${sub === CALLS.victory ? 'win' : sub === CALLS.defeat ? 'lose' : 'neutral'}`, sub));

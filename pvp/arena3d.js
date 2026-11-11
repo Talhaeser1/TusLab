@@ -1878,7 +1878,9 @@ export async function createArena3D({
     const from = contactDistance > 0.001 ? carry0 / contactDistance : 0;
     const track = addTrack(fighter, dur, (p, o, m) => {
       const elapsed = p * Math.max(1, chain ? chain.totalMs : dur);
-      const r = rootMotionAt(spec, p * dur);
+      // Kombo zincirinde kök hareket (dönüş/sıçrama) tüm koreografiyi zincir süresine oturtur:
+      // tur zincir bitmeden tamamlanır, iz silinirken yaw sıçraması olmaz.
+      const r = rootMotionAt(spec, p * (chain ? skillDuration(spec) : dur));
       if (chain) {
         // Görev 4 — kombo izi: TEK yaklaşma, vuruş bandında duruş, son vuruştan sonra TEK dönüş.
         const prog = chainProgress(elapsed, {travelMs: chain.travelMs, returnStart: chain.returnStart, returnMs: chain.returnMs, from});
@@ -1998,6 +2000,12 @@ export async function createArena3D({
     if (!entry.ultimate) impactFeel.flush();
     if (last) entry.open = false; // son temas atıldı: yeni saldırı yeni girdiye gider
     probeMark('contact', {seat: entry.seat, skill: strike.skill, index, finisher: last, forced: false});
+    emitDom('tuslab:pvp-strike', {seat: entry.seat, index, skill: strike.skill, finisher: last});
+  }
+
+  /** DOM katmanları (kombo sayacı vb.) için kozmetik olay; kök yoksa / hata verirse sessiz. */
+  function emitDom(name, detail) {
+    try { root.dispatchEvent?.(new env.CustomEvent(name, {bubbles: true, detail})); } catch { /* yalnız süs */ }
   }
 
   /**
@@ -2036,7 +2044,7 @@ export async function createArena3D({
       entry.scenePlan.durationMs = plan.totalMs;
     }
     entry.handle?.reestimate?.(plan.totalMs);
-    if (entry.handle) entry.handle.durationMs = plan.totalMs;
+    if (entry.handle) { entry.handle.durationMs = plan.totalMs; entry.handle.returnStartMs = plan.returnStart; }
     if (entry.track) entry.track.dur = Math.max(entry.track.dur, plan.totalMs);
     probeMark('extend', {seat: entry.seat, strikes: entry.strikes.length, totalMs: plan.totalMs});
     return true;
@@ -2070,6 +2078,7 @@ export async function createArena3D({
     const finishEntry = forced => {
       entry.dead = true;
       entry.open = false;
+      if (entry.strikes.length > 1) emitDom('tuslab:pvp-combo-end', {seat, forced: Boolean(forced)});
       const i = fighter.castQueue.indexOf(entry);
       if (i >= 0) fighter.castQueue.splice(i, 1);
       if (entry.track) { const j = fighter.tracks.indexOf(entry.track); if (j >= 0) fighter.tracks.splice(j, 1); }
@@ -2114,7 +2123,7 @@ export async function createArena3D({
         }
         return {
           contacts: p.contacts.map((ms, i) => ({ms, fn: () => strikeContact(entry, i)})),
-          contactMs: p.contacts[0], durationMs: p.durationMs,
+          contactMs: p.contacts[0], durationMs: p.durationMs, returnStartMs: entry.chain?.returnStart,
         };
       },
       onContact: ultimate ? ({forced}) => {
@@ -3586,10 +3595,11 @@ export async function createArena3D({
             ? cast.arrived : sequence.contacts.has(event.phase));
         } else if (event.skill !== 'r' && !reduced() && (entry = bindCastEntry(event.fromSeat))) {
           // Görsel kuyruğa bağlı hasar: gösterim (efekt/sarsıntı/sayı/tepki) klibin gerçek temas karesinde.
-          const bound = entry;
-          bound.events.push(event);
-          boundEvents.add(event);
-          impactFeel.queue(event, () => bound.contact && !bound.dead, 9000);
+          // Görev 4: hasar KENDİ vuruşunun (strike) temas karesine bağlanır.
+          const bound = entry.entry, strike = entry.strike;
+          strike.events.push(event);
+          boundEvents.set(event, entry);
+          impactFeel.queue(event, () => strike.contact && !bound.dead, 9000);
         } else if (reduced()) impactFeel.hit(event);
         else impactFeel.silent(event);
         return;

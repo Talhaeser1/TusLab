@@ -122,6 +122,7 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
       item.done = false;
       const plan = safe(item.start, {compress, skipReturn, backlogMs: backlog}, item) || {};
       item.contacts = buildContacts(item, plan);
+      item.returnStartMs = Number.isFinite(Number(plan.returnStartMs)) ? Number(plan.returnStartMs) : null;
       item.contactMs = item.contacts.length ? item.contacts[0].ms : Math.max(0, Number(plan.contactMs) || 0);
       item.durationMs = Math.max(item.contactMs, item.contacts.length ? item.contacts[item.contacts.length - 1].ms : 0,
         Number(plan.durationMs) || item.contactMs);
@@ -151,6 +152,7 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
       get done() { return entry.done; },
       get durationMs() { return entry.durationMs; },
       set durationMs(ms) { if (!entry.done) entry.durationMs = Math.max(0, Number(ms) || 0); },
+      set returnStartMs(ms) { if (!entry.done) entry.returnStartMs = Number.isFinite(Number(ms)) ? Number(ms) : null; },
       extend(ms) { if (!entry.done) entry.durationMs += Math.max(0, Number(ms) || 0); },
       reestimate(ms) { entry.estimateMs = Math.max(0, Number(ms) || 0); },
       addContact({ms, fn} = {}) {
@@ -242,7 +244,18 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
         waiters.push(w);
       });
     },
-    snapshot: () => ({busy: isBusy(), remainingMs: remainingMs(), queued: queue.length, active: Boolean(active),
-      activeSeat: active?.seat ?? null, lastSeat, clock, ...stats}),
+    /** phase: approach | strike | return | idle · comboIndex: ateşlenen temas sayısı (aktif girdide). */
+    snapshot: () => {
+      const a = active;
+      let phase = 'idle', comboIndex = 0;
+      if (a) {
+        comboIndex = a.contacts.filter(c => c.fired).length;
+        const firstMs = a.contacts.length ? a.contacts[0].ms : a.contactMs;
+        const retMs = Number.isFinite(a.returnStartMs) ? a.returnStartMs : null;
+        phase = a.elapsed < firstMs ? 'approach' : retMs !== null && a.elapsed >= retMs ? 'return' : 'strike';
+      }
+      return {busy: isBusy(), remainingMs: remainingMs(), queued: queue.length, active: Boolean(a),
+        activeSeat: a?.seat ?? null, phase, comboIndex, lastSeat, clock, ...stats};
+    },
   };
 }

@@ -340,7 +340,7 @@ test('arena3d + models: skills, hits, slowMo, hitStop, KO and victory drive the 
   assert.equal(m[1].clip, 'Dodge_Forward', 'Şerit H: önce yolculuk (koşu/atılma) klibi');
   run(500);
   assert.equal(instance._debug.models()[1].clip, '2H_Melee_Attack_Spin', 'yolculuktan sonra saldırı klibi');
-  run(400);
+  run(100); // Görev 4: kombo zinciri ~880 ms sürer; dönüş zincir bitmeden ölçülür
   assert.ok(Math.abs(instance._debug.models()[1].yaw) > 1, 'Kasırga turns the model on its own axis');
   assert.ok(instance._debug.skillFx().kinds.includes('swirl'));
   // Server damage arrives with the cast: the defender reacts at the attacker's hit moment.
@@ -391,7 +391,7 @@ test('arena visual queue keeps two ranged attacks separate and exposes position 
   assert.equal(models[2].state, 'idle');
   assert.equal(typeof models[1].x, 'number');
   assert.ok(models[1].clipTime > 0);
-  run(900);
+  run(1250); // Görev 4: 880 ms temas + kısa dönüş + 200 ms nefes sonra ikinci koltuk başlar
   models = instance._debug.models();
   assert.equal(models[2].clip, 'Throw');
   assert.equal(impacts.length, 1);
@@ -428,7 +428,7 @@ test('arena3d + models: projectile skills spawn their effect (sira spear, nyx me
   instance.clear();
   await instance.setFighters({1: 'sira', 2: 'doran'});
   instance.handle({type: 'SKILL_CAST', fromSeat: 2, skill: 'e'});
-  run(950); // Şerit H: yolculuk 400 ms + kalkan vuruşu 480 ms
+  run(500); // Görev 4: yaklaşma 340 ms'de temas → kalkan kırığı (300 ms görünür)
   assert.ok(instance._debug.fighter(1).bubble, "doran's shield bash shatters the opponent's guard");
   instance.destroy();
 });
@@ -456,6 +456,36 @@ test('arena3d + models: destroy disposes rigs and effects', async () => {
   instance.destroy();
   assert.ok(rigs.every(r => r.stats().disposed));
   assert.equal(instance.api.fighterModel(1), null);
+});
+
+test('Görev 4: 3 birikmiş saldırı = 1 yaklaşma + 3 temas + 1 dönüş; bot (koltuk 2) da koşarak saldırır', async () => {
+  const impacts = [];
+  const {instance, run} = await buildArena({onImpact: event => impacts.push(event)});
+  await instance.setFighters({1: 'vargr', 2: 'nyx'});
+  const cast = (seat, skill, amount) => {
+    instance.handle({type: 'SKILL_CAST', fromSeat: seat, toSeat: 3 - seat, skill});
+    instance.handle({type: 'DAMAGE_APPLIED', fromSeat: seat, toSeat: 3 - seat, skill, amount});
+  };
+  cast(1, 'q', 40); cast(1, 'e', 40); cast(1, 'q', 40);
+  const q = () => instance.visualQueue.snapshot();
+  assert.equal(q().queued, 0, 'üç saldırı tek girdide birleşir');
+  assert.equal(q().started, 1);
+  run(150);
+  assert.equal(q().phase, 'approach');
+  run(1400);
+  assert.equal(impacts.length, 3, 'her hasar kendi temas karesinde, toplam 3');
+  assert.ok(instance._debug.models()[1].timeScale <= 1.2);
+  assert.equal(q().started, 1, 'tek girdi: gidip gelme yok');
+  run(900);
+  assert.equal(q().busy, false);
+  // Bot koltuğu da yaklaşır (yerinde vuruş yok).
+  cast(2, 'q', 30);
+  run(100);
+  assert.equal(q().activeSeat, 2);
+  assert.ok(['approach', 'strike'].includes(q().phase));
+  run(2400);
+  assert.equal(q().busy, false);
+  instance.destroy();
 });
 
 test('assist: partner silhouette uses the partner 3D model when loaded', async () => {

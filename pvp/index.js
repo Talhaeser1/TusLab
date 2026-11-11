@@ -6,6 +6,8 @@ import {createCharacterController,rigMarkup,MOTION_NAMES} from './characters.js'
 import {createCombatFxDirector} from './combat-fx.js';
 import {createPvPAudio,soundForCue} from './sound.js';
 import {isFighterId,normalizeFighter} from './shared/fighters.js';
+import {createComboCounter} from './combo-counter.js';
+import {createAttackCallout,createDisplayedHp} from './attack-callout.js';
 import {createDynamicScore} from './music23.js';
 import {createProjectileDirector} from './projectiles.js';
 import {createChoreographyDirector} from './choreography21.js';
@@ -97,9 +99,14 @@ function fx24Create(){
   fx24.particles=createParticleLayer({root,isReduced:fx24Reduced});
   fx24.lowHp=createLowHpFeedback({root,isReduced:fx24Reduced,heartbeat:k=>pvpAudio.heartbeat(k)});
   fx24.hud=createFightHud({root,isReduced:fx24Reduced,getArenaApi:()=>arena3d.instance?.api});
+  // Görev 4: kombo sayacı, saldırı bilgi yazısı (+ durum rozeti) ve gösterilen can (temas karesine kadar bekletilir).
+  fx24.combo=createComboCounter({root,isReduced:fx24Reduced});
+  fx24.callout=createAttackCallout({root,isReduced:fx24Reduced,getFighterId:fighterOfSeat});
+  fx24.shownHp=createDisplayedHp({root,getPlayers:()=>network.match?.players||[],
+    isBusy:()=>Boolean(arena3d.instance?.visualQueue?.isBusy?.())});
 }
-function fx24Clear(){fx24.hud?.clear();fx24.damage?.clear();fx24.motion?.clear();fx24.particles?.clear();fx24.lowHp?.update(1,false);}
-function fx24Destroy(){fx24.hud?.destroy();fx24.hud=null;fx24.damage?.destroy();fx24.motion?.destroy();fx24.particles?.destroy();fx24.lowHp?.destroy();fx24.damage=fx24.motion=fx24.particles=fx24.lowHp=null;fx24.matchId=null;}
+function fx24Clear(){fx24.shownHp?.model?.release();fx24.shownHp?.sync?.();fx24.hud?.clear();fx24.damage?.clear();fx24.motion?.clear();fx24.particles?.clear();fx24.lowHp?.update(1,false);}
+function fx24Destroy(){fx24.combo?.destroy();fx24.callout?.destroy();fx24.shownHp?.destroy();fx24.combo=fx24.callout=fx24.shownHp=null;fx24.hud?.destroy();fx24.hud=null;fx24.damage?.destroy();fx24.motion?.destroy();fx24.particles?.destroy();fx24.lowHp?.destroy();fx24.damage=fx24.motion=fx24.particles=fx24.lowHp=null;fx24.matchId=null;}
 
 // Paket 26: three.js 3B arena. PvP açılınca tembel yüklenir (three.js ~670 KB).
 // WebGL yoksa, modül yüklenemezse ya da oyuncu kapattıysa bugünkü CSS arena aynen kalır.
@@ -618,6 +625,8 @@ function playCombat(action){
   // Paket 31: partner desteği girişi — yeni ses dosyası yok, mevcut 'counter' örneği kısık çalınır.
   if(action.type==='ASSIST_CAST')pvpAudio.play('counter',{character:action.fromSeat===2?'rune':'fire',gain:.62});
   if(action.type!=='DAMAGE_APPLIED')fx24.damage?.handle(action);
+  if(action.type==='DAMAGE_APPLIED'&&arena3d.instance)fx24.shownHp?.expect?.(action); // can çubuğu temas karesine kadar eski değerde
+  if(action.type==='SHIELD_BROKEN'){try{root.dispatchEvent(new CustomEvent('tuslab:pvp-status',{detail:{seat:action.seat,text:'KALKAN KIRIK',tone:'break'}}));}catch{}}
   if(arena3d.instance)arena3d.instance.handle(action);
   else{fx24.motion?.handle(action);fx24.particles?.handle(action);}
   if(!arena3d.instance&&action.type==='DAMAGE_APPLIED')playImpactFeedback(action);
@@ -673,6 +682,7 @@ function playCombat(action){
 }
 function playImpactFeedback(action, scenePresented = true){
   fx24.damage?.handle(action);
+  fx24.shownHp?.impact?.(action); // temas karesi: şimdi gerçekten düşer
   if(!scenePresented)return; // Sıkıştırılan sahne: yalnız hasar sayısı, yeni darbe/tepki yok.
   // Yalnız görsel: temas anı boyalı efekt katmanına (visual-enrich.js) duyurulur.
   try{root?.dispatchEvent(new CustomEvent('tuslab:pvp-impact',{bubbles:true,detail:{toSeat:action.toSeat,fromSeat:action.fromSeat,skill:action.skill,phase:action.phase,amount:Number(action.amount)||0,blocked:!!action.blocked,critical:!!action.critical}}));}catch{}

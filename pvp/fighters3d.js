@@ -348,17 +348,19 @@ export const COMBO = Object.freeze({
   gapMs: 260, gapFastMs: 210,
   holdMs: 300, holdFastMs: 220,
   returnMs: 240, returnFastMs: 180,
-  flurryMs: 90,          // alt sınır: vuruşlar arası en kısa süre (ms)
+  rangedHoldMs: 120, rangedReturnMs: 200,
+  flurryMs: 90,        // alt sınır: vuruşlar arası en kısa süre (ms)
   rangedStop: 0.5,       // menzilli vuruşta yaklaşma oranı (yarım mesafe)
 });
 
 /** Saf: N vuruşlu zincirin temas anları + dönüş başlangıcı (ms). */
-export function chainTiming(count, {compress = false} = {}) {
+export function chainTiming(count, {compress = false, ranged = false} = {}) {
   const n = clamp(Math.round(Number(count) || 1), 1, COMBO.maxStrikes);
   const lead = compress ? COMBO.leadFastMs : COMBO.leadMs;
   const gap = Math.max(COMBO.flurryMs, compress ? COMBO.gapFastMs : COMBO.gapMs);
-  const hold = compress ? COMBO.holdFastMs : COMBO.holdMs;
-  const returnMs = compress ? COMBO.returnFastMs : COMBO.returnMs;
+  // Menzilli zincir: mermi çıktıktan sonra uzun bekleyiş gereksiz → kısa hold/dönüş.
+  const hold = ranged ? COMBO.rangedHoldMs : compress ? COMBO.holdFastMs : COMBO.holdMs;
+  const returnMs = ranged ? COMBO.rangedReturnMs : compress ? COMBO.returnFastMs : COMBO.returnMs;
   const contacts = [];
   for (let i = 0; i < n; i++) contacts.push(lead + i * gap);
   const returnStart = contacts[n - 1] + hold;
@@ -743,7 +745,7 @@ export function createFighterRig(THREE, asset, {
     if (!list.length) return null;
     const specs = list.slice(0, COMBO.maxStrikes).map(strikeSpec);
     if (specs.some(s => !s)) return null;
-    const timing = chainTiming(specs.length, {compress});
+    const timing = chainTiming(specs.length, {compress, ranged: specs.every(s => s.ranged)});
     const gap = timing.gap;
     const steps = [];
     // Menzilli ilk vuruş: atıcı yerinde durur (koşu klibi yok), yalnız yarım mesafe yaklaşır.
@@ -762,7 +764,9 @@ export function createFighterRig(THREE, asset, {
         continue;
       }
       const contact = i === 0 ? timing.lead : contacts[i - 1].ms + gap;
-      const speed = clampAttackSpeed(compress ? Math.max(spec.speed || 1, 1.2) : spec.speed || 1);
+      // Aynı klip art arda gelirse hafif hız varyasyonu (0,9–1,2 aralığında kalır).
+      const vary = i > 0 && specs[i - 1].clip === spec.clip ? [1, 0.92, 1.1, 0.96][i % 4] : 1;
+      const speed = clampAttackSpeed((compress ? Math.max(spec.speed || 1, 1.2) : spec.speed || 1) * vary);
       const prepMs = Math.min(220, Math.max(120, spec.peakMs * 0.25));
       const startAt = Math.max(0, contact - prepMs / speed);
       steps.push({clip: spec.clip, at: startAt, speed, offset: Math.max(0, (spec.peakMs - prepMs) / 1000), endMs: 0});
@@ -977,7 +981,9 @@ export function createFighterRig(THREE, asset, {
       const endMs = state.endMs || (clip ? clip.duration * 1000 : 0);
       const reactionCap = anim.state.kind === 'hit' || anim.state.kind === 'block' ? 900 : Infinity;
       const beforeContact = anim.state.kind === 'attack' && state.elapsed < anim.state.contactMs;
-      const done = clip && !beforeContact && (cur.time * 1000 >= endMs - 1 || !cur.isRunning?.() || state.elapsed >= reactionCap);
+      // Kombo zinciri: toplam süre dolmadan idle'a düşme (son kare tutulur, dönüş yürüyüşü planlıdır).
+      const inChain = Boolean(state.chainPlan) && state.elapsed < state.chainPlan.totalMs && anim.state.kind === 'attack';
+      const done = clip && !beforeContact && !inChain && (cur.time * 1000 >= endMs - 1 || !cur.isRunning?.() || state.elapsed >= reactionCap);
       if (done) finishToIdle(animFadeMs('attack', 'idle'));
     }
     for (let i = 0; i < fading.length; i++) {
