@@ -211,6 +211,23 @@
 }
 #pvp-root.pvp4-reduced .aui-summary{animation:none}
 
+/* Arena sonucu: alt HUD ve kelimeler özet açıkken görünmez. */
+#pvp-root.aui-summary-open .aui-hud,#pvp-root.aui-summary-open .aui-words{display:none!important}
+#pvp-root .aui-summary{
+  background:linear-gradient(135deg,#080c20f4 8%,#091429e8 62%,#130b21f0),url('../assets/higgsfield/final/ekran-raund-banner.webp') center/cover,var(--aui-panel);
+  border-color:var(--aui-fire);box-shadow:0 16px 42px #020510dd,0 0 22px #ff8a4c30;
+  animation:aui-summary-enter 380ms cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes aui-summary-enter{from{opacity:0;transform:translateX(-50%) scale(.94)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+#pvp-root .aui-sum-title,#pvp-root .aui-sum-winner{font-family:Impact,'Arial Narrow',system-ui,sans-serif;letter-spacing:.055em;text-transform:uppercase}
+#pvp-root .aui-sum-title{font-size:clamp(17px,2vw,23px);color:#fff}
+#pvp-root .aui-sum-table th,#pvp-root .aui-sum-table td{color:#f1f4ff}
+#pvp-root .aui-sum-table .aui-col-1{color:var(--aui-fire-soft)}
+#pvp-root .aui-sum-table .aui-col-2{color:var(--aui-rune-soft)}
+#pvp-root .pvp2-role{max-width:calc(100% - 16px);width:max-content;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;text-align:center;font-size:clamp(12px,.8vw,14px);line-height:1.2;letter-spacing:.02em}
+@media (prefers-reduced-motion:reduce){#pvp-root .aui-summary{animation:none!important}}
+#pvp-root.pvp4-reduced .aui-summary{animation:none!important}
+
 /* ---------------- raund geçişi: tek etiket + kompakt alt panel (ekranın üst ~%55'i açık kalır) ---------------- */
 /* Madalyon akışı: yalnız etkin adımın adı yazılır, diğerleri numaralı nokta → dar madalyona sığar, "Özet" rozetlere binmez. */
 .aui-steps{max-width:100%;justify-content:center}

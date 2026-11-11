@@ -41,3 +41,18 @@
 /* Paket 32 · Menü denetimi: 375 px'te kart, arka planın 24 px iç boşluğuna sığmayıp sağdan 2 px taşıyordu. */
 @media (max-width:650px){#pvp-root .pvp15-backdrop{padding:8px}#pvp-root .pvp15-card{width:100%;max-width:100%}}
 #pvp-root .pvp15-buttons button:focus-visible{outline:3px solid #a6f2ff;outline-offset:3px}
+
+/* Son yüklenen sonuç stilleri: tam ekran özeti de aynı arena kimliğini taşır. */
+#pvp-root .m33-title,#pvp-root .m33-winner{font-family:Impact,'Arial Narrow',system-ui,sans-serif;font-weight:900;letter-spacing:.055em}
+#pvp-root .m33-title{color:#fff;font-size:clamp(28px,3.3vw,42px)}
+#pvp-root .m33-player{background:#101b2beb;border-color:var(--m33-player);font-variant-numeric:tabular-nums}
+#pvp-root[data-layout="fullscreen"] .aui-overlay>.aui-summary{
+  background:linear-gradient(135deg,#080c20f4 8%,#091429e8 62%,#130b21f0),url('../assets/higgsfield/final/ekran-raund-banner.webp') center/cover,#0b1428;
+  border-color:#ff8a4c;animation:aui-summary-full-enter 380ms cubic-bezier(.16,1,.3,1) both;
+}
+#pvp-root[data-layout="fullscreen"].rui-inter-open .rui-inter.is-centered{background:linear-gradient(135deg,#080c20f4 8%,#091429e8 62%,#130b21f0),url('../assets/higgsfield/final/ekran-raund-banner.webp') center/cover,#0b1428;border-color:#ff8a4c}
+@keyframes aui-summary-full-enter{from{opacity:0;transform:translate(-50%,-50%) scale(.94)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+#pvp-root[data-layout="fullscreen"].rui-inter-open .rui-inter.is-centered:not(.is-floating):not([hidden]){animation:rui-summary-full-enter 380ms cubic-bezier(.16,1,.3,1) both}
+@keyframes rui-summary-full-enter{from{opacity:0;transform:translate(-50%,-50%) scale(.94)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@media(prefers-reduced-motion:reduce){#pvp-root[data-layout="fullscreen"] .aui-overlay>.aui-summary,#pvp-root[data-layout="fullscreen"] .rui-inter.is-centered:not([hidden]){animation:none!important}}
+#pvp-root.pvp4-reduced[data-layout="fullscreen"] .aui-overlay>.aui-summary,#pvp-root.pvp4-reduced[data-layout="fullscreen"] .rui-inter.is-centered:not([hidden]){animation:none!important}

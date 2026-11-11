@@ -259,7 +259,7 @@ function typeTopRender(id,{live,own,serverPlayer,target,typed,result,markup,disa
       input.disabled=locked;
       // Kilit açılınca odak <body>'de kaldıysa girişe geri dön (pencere/raund arası tıklama gerekmesin).
       const lost=!document.activeElement||document.activeElement===document.body;
-      if(!locked&&live&&own&&lost&&!root.hidden)input.focus({preventScroll:true});
+      if(!locked&&live&&own&&lost&&!root.hidden)focusTypingWhenReady();
     }
     if(input.value!==typed)input.value=typed;
     if(input.placeholder)input.placeholder='';
@@ -481,7 +481,7 @@ function show(open){
     for(const ctrl of Object.values(controllers))ctrl.trigger('idle');
     for(const id of ['fire','rune']){fxDirectors[id]?.dispose();delete fxDirectors[id];choreographers[id]?.dispose();delete choreographers[id];}
     roundsUi?.destroy();roundsUi=null;arenaUi?.destroy();arenaUi=null;
-    delete root.dataset.layout;delete root.dataset.pvpMode;delete root.dataset.arenaPhase;
+    delete root.dataset.layout;delete root.dataset.pvpMode;delete root.dataset.arenaPhase;root.classList.remove('pvp15-results-open');
     projectiles?.dispose();projectiles=null;fx24Destroy();arena3dDestroy();pvpAudio.stop();pvpMusic.stop();lastMusicScene=null;
     root.replaceChildren();return;
   }
@@ -787,6 +787,7 @@ root?.addEventListener('tuslab:pvp-match',()=>{
     textUpdate(id);
     flushQueued(id);
   }
+  focusTypingWhenReady();
 });
 /** Paket 33: sıraya alınmış kelimeyi (pencere kapalıyken boşluk basıldı) pencere açılınca gönder. */
 function flushQueued(id){
@@ -800,6 +801,20 @@ function flushQueued(id){
 }
 // Pencere/raund yeniden açılınca: sıradaki kelimeyi gönder ve odak <body>'de kaldıysa yazma kutusuna dön.
 // (Kutu çözüm sırasında stage-focus ile gizlenir; kilit, gizliyken açıldığında focus() işe yaramıyordu.)
+function focusTypingWhenReady(attempt=0){
+  if(window.matchMedia?.('(pointer: coarse)')?.matches||!root||root.hidden)return;
+  requestAnimationFrame(()=>{
+    const input=root.querySelector('#tt-input');
+    const active=document.activeElement;
+    if(!input||input.disabled||root.hidden||root.querySelector('[data-pvp-settings][open], [data-pvp15-results]:not([hidden]), dialog[open]'))return;
+    if(active&&active!==document.body&&active!==input)return;
+    if(!input.getClientRects().length||getComputedStyle(input).visibility==='hidden'){
+      if(attempt<30)setTimeout(()=>focusTypingWhenReady(attempt+1),50);
+      return;
+    }
+    input.focus({preventScroll:true});
+  });
+}
 root?.addEventListener('tuslab:pvp-recovered',()=>arena3d.instance?.clear());
 root?.addEventListener('tuslab:pvp-arena',event=>{
   if(['ARENA_ROUND_START','ARENA_PREP_START'].includes(event.detail?.type))arena3d.instance?.clear();
@@ -808,10 +823,7 @@ root?.addEventListener('tuslab:pvp-arena',event=>{
 root?.addEventListener('tuslab:pvp-round',event=>{
   const type=event.detail?.type;if(type!=='EXCHANGE_START'&&type!=='ROUND_START')return;
   flushQueued(myKey());
-  requestAnimationFrame(()=>{
-    const input=root.querySelector('[data-tt-input]'),active=document.activeElement;
-    if(input&&!input.disabled&&!root.hidden&&(!active||active===document.body))input.focus({preventScroll:true});
-  });
+  focusTypingWhenReady();
 });
 // A pending word may have been lost during a network cut. Let the player
 // retype it after authoritative recovery instead of leaving the input locked.
@@ -836,7 +848,7 @@ root?.addEventListener('tuslab:pvp-word-result',event=>{
   const id=(result.seat??network.seat)===2?'rune':'fire';
   const p=players[id];p.pending=false;p.pendingIndex=null;p.typed='';p.startedAt=performance.now();
   textUpdate(id);
-  root.querySelector('[data-tt-input]')?.focus({preventScroll:true});
+  focusTypingWhenReady();
 });
 // PvP captures game shortcuts without interfering with ordinary text input.
 document.addEventListener('keydown',event=>{
@@ -902,7 +914,7 @@ root?.addEventListener('click',event=>{
     network.send('REMATCH_VOTE',{accept:!network.rematchVotes.includes(network.myId)});
   }else if(control.dataset.pvp15Action==='leave'){
     network.disconnect(true);
-    const panel=root.querySelector('[data-pvp15-results]');if(panel)panel.hidden=true;
+    const panel=root.querySelector('[data-pvp15-results]');if(panel)panel.hidden=true;root.classList.remove('pvp15-results-open');
   }
 });
 
@@ -945,7 +957,7 @@ root?.addEventListener('tuslab:pvp-arena',event=>{
     // Yeni raund yeni kelime listesi: yarım kalan yerel yazı ve bekleyen gönderim temizlenir.
     for(const p of Object.values(players)){p.typed='';p.pending=false;p.pendingIndex=null;p.startedAt=null;}
     textUpdate('fire');textUpdate('rune');
-    if(detail.type==='ARENA_ROUND_START')requestAnimationFrame(()=>root.querySelector('[data-tt-input]')?.focus({preventScroll:true}));
+    if(detail.type==='ARENA_ROUND_START')focusTypingWhenReady();
   }
   arenaLayoutSync();
 });

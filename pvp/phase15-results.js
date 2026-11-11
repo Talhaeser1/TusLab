@@ -31,13 +31,15 @@ export function resultCardHTML(player,winnerSeat,mvpSeat){
 }
 export function renderResult(root,match,network){
   const overlay=root.querySelector('[data-pvp15-results]');if(!overlay)return;
-  const result=match?.result;if(match?.status!=='ended'||!result){overlay.hidden=true;return;}
+  const result=match?.result;if(match?.status!=='ended'||!result){overlay.hidden=true;root.classList.remove('pvp15-results-open');return;}
   overlay.hidden=false;
+  root.classList.add('pvp15-results-open');
   const isCancelled=result.endReason==='BOTH_DISCONNECTED';
   const title=overlay.querySelector('[data-pvp15-title]');
   const myWon=result.winnerSeat!==null&&result.players.find(p=>p.seat===result.winnerSeat)?.playerId===network.myId;
   const text=isCancelled?'MAÇ İPTAL':result.winnerSeat===null?'BERABERE':myWon?'ZAFER!':'YENİLGİ';
   title.textContent=text;title.dataset.outcome=isCancelled?'cancelled':result.winnerSeat===null?'draw':myWon?'victory':'defeat';
+  overlay.dataset.outcome=title.dataset.outcome;
   overlay.querySelector('[data-pvp15-reason]').textContent=END_LABELS[result.endReason]||'MAÇ SONUCU';
   overlay.querySelector('[data-pvp15-scores]').innerHTML=result.players.map(p=>resultCardHTML(p,result.winnerSeat,result.mvpSeat)).join('');
   const votes=network.rematchVotes||[],mine=votes.includes(network.myId);

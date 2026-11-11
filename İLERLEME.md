@@ -99,3 +99,11 @@ Sıradaki adım: H-ANIM-ZAMAN.md'yi uygulamak (önce Vargr koşu kliplerini varg
 - ⚠️ **DURDU — bellek:** sistem belleği kritik (boş ~0,6 / 7,9 GB) olduğu için Claude Code arka plandaki iki işçiyi sonlandırdı: (a) Codex "animasyon sırası düzeltmesi" (görev: scratchpad `codex-2-anim-duzeltme.md`; 4 kusur yukarıda), (b) GLM salt okuma analizi (madde 4–5; rapor üretmeden kesildi). Yeniden başlatılmadı (kullanıcı onayı bekliyor).
   - Codex'in YARIM bıraktığı değişiklikler çalışma ağacında, **commit'lenmedi**: arena3d.js, fighters3d.js, impact-feel.js, index.js, visual-timeline.js + 5 test dosyası + yeni tests/pvp-visual-order.test.mjs (+132/−65). `npm test` 754/754 geçiyor ama iş tamamlanmadı, tarayıcıda doğrulanmadı.
 - **Sıradaki:** bellek açılınca Codex görev 2'yi çalışma ağacındaki yarım halin üstünden sürdür → probe ile doğrula → commit → madde 4–5.
+
+## 2026-11-11 (3. oturum, devam) — ÖNCELİK DEĞİŞTİ (kullanıcı)
+- Yeni sıra: (1) raund sistemi + ekranlar → (2) dövüş animasyonu (kombo, hasar tepkisi, ölçek) → (3) dört karakter Meshy → (4) sesler, mekanik, ekran düzeni, son denetim. Bellek kuralı: aynı anda 1 işçi.
+- Checkpoint: 1f593d2 (YARIM animasyon sırası düzeltmesi; bölüm 2'de kombo tasarımıyla birlikte tamamlanacak — "klipsiz hitstop / eşzamanlı saldırı" kusurları kombo sahnesiyle çözülecek).
+- Karar: bölüm 1 iki Codex görevine bölündü (bellek/süre riski): **3A** UI (otomatik odak, raund özeti + maç sonu yeniden tasarım, alt panel gizleme, etiket kesilmesi) → **3B** her aşamada yeni modeller (giriş/hazırlık/tur arası/maç sonu; Sira/Doran/Nyx Meshy varyantlarını açma + 2.68 ölçek). Ardından Playwright ile 3 mod × 3 çözünürlük tam maç ölçümü (orkestratör).
+- Çalışan: Codex 3A.
+- **Ek talimat (kullanıcı):** (a) eski modeller TAMAMEN kalkıyor: Sira/Doran/Nyx Meshy hemen bağlanır, eski dosyalar `assets/_eski/` (yayın dışı), dönüş bayrağı ve yedek yükleme silinir (yüklenemezse yükleniyor göstergesi), Doran ölçeği düzeltilir → görev **3B** buna göre yeniden yazıldı. (b) Raund hazırlık paneli (skill + eşya kartları dar, harf harf bölünme, "2/2" çakışması) → yeni görev **3C**. Bu, önceki "eskilere bayrakla dönülebilsin" maddesinin yerine geçer.
+- Sıra (tek işçi): 3A (çalışıyor) → 3C (aynı dosyalar: rounds-ui/arena-ui) → 3B (fighters3d/arena3d/varlıklar) → Playwright ölçümü.

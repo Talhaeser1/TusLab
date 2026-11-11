@@ -313,3 +313,21 @@
   .rui-ring-fill{transition:none}
   .rui-banner-title{animation:rui-fade 150ms ease-out both!important}
 }
+
+/* Sonuç yüzeyi: okunur koyu örtü ve yayınlanan raund görseli. */
+#pvp-root .rui-inter.is-dock>.rui-summary,#pvp-root .rui-summary{
+  background:linear-gradient(135deg,#080c20f2 8%,#091429e8 62%,#130b21ed),url('../assets/higgsfield/final/ekran-raund-banner.webp') center/cover,var(--rui-panel);
+  border-color:var(--rui-fire);box-shadow:0 16px 42px #020510dd,0 0 22px #ff8a4c30;
+}
+#pvp-root .rui-sum-title,#pvp-root .rui-sum-winner{font-family:Impact,'Arial Narrow',system-ui,sans-serif;letter-spacing:.055em;text-transform:uppercase}
+#pvp-root .rui-sum-title{font-size:clamp(16px,2vw,22px);color:#fff}
+#pvp-root .rui-sum-table{font-variant-numeric:tabular-nums}
+#pvp-root .rui-sum-table th[scope=col]{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+#pvp-root .rui-sum-table th,#pvp-root .rui-sum-table td{color:#f1f4ff}
+#pvp-root .rui-sum-table .rui-col-1{color:var(--rui-fire-soft)}
+#pvp-root .rui-sum-table .rui-col-2{color:var(--rui-rune-soft)}
+#pvp-root.rui-inter-open .rui-bar,#pvp-root.rui-inter-open .rui-words{display:none!important}
+#pvp-root .rui-inter:not([hidden]){animation:rui-panel-enter 380ms cubic-bezier(.16,1,.3,1) both}
+@keyframes rui-panel-enter{from{opacity:0;scale:.94}to{opacity:1;scale:1}}
+@media (prefers-reduced-motion:reduce){#pvp-root .rui-inter:not([hidden]){animation:none!important}}
+#pvp-root.pvp4-reduced .rui-inter:not([hidden]){animation:none!important}
