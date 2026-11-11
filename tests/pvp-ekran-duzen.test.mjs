@@ -12,7 +12,23 @@ test('tur arası: RAUND yazısı ardından sonuç ve süre becerisi kompakt alt 
   assert.match(css, /#pvp-root\.rui-inter-open \.tt-type\{visibility:hidden\}/, 'yazma paneli gizlenir ama yer tutar');
   assert.match(css, /#pvp-root \.rui-inter\.is-dock\{position:fixed/);
   assert.match(css, /max-height:calc\(44dvh - var\(--rui-dock-bottom,64px\)\)/);
-  assert.match(css, /\.rui-skill-picker \.aui-cards\.rui-skill-cards\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(css, /\.rui-skill-picker \.aui-cards\.rui-skill-cards\{grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,240px\),1fr\)\)/);
+});
+
+test('hazırlık kartları: okunur genişlik, bütün kelime, iki satır açıklama ve ayrılmış rozet alanı',()=>{
+  const arena=read('pvp/arena-ui.css'),rounds=read('pvp/rounds-ui.css');
+  assert.match(arena,/\.aui-cards\{display:grid;grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,240px\),1fr\)\)/);
+  assert.match(arena,/\.aui-card\{[^}]*min-width:min\(100%,240px\)/s);
+  assert.match(arena,/\.aui-card-copy strong\{[^}]*white-space:nowrap;[^}]*overflow-wrap:normal;[^}]*word-break:keep-all;[^}]*hyphens:none/s);
+  assert.match(arena,/\.aui-card-copy small\{[^}]*-webkit-line-clamp:2;[^}]*overflow-wrap:normal;[^}]*hyphens:none/s);
+  assert.match(arena,/\.aui-card-copy\{[^}]*padding-right:40px/s);
+  assert.match(arena,/\.aui-uses\{position:absolute;top:8px;right:8px;/);
+  assert.match(rounds,/\.rui-skill-cards \.aui-card-copy strong,[^}]*overflow-wrap:normal;word-break:keep-all;hyphens:none/s);
+  assert.match(rounds,/#pvp-root \.rui-inter\.is-dock \.rui-skill-picker \.aui-cards\.rui-skill-cards\{grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,240px\),1fr\)\)/);
+  assert.match(arena,/#pvp-root \.aui-stage\.me-2 \.aui-prep \.aui-card\[aria-pressed="true"\]/);
+  assert.match(rounds,/#pvp-root \.me-2 \.rui-skill-picker \.aui-card\[aria-pressed="true"\]/);
+  assert.match(arena,/#pvp-root \.aui-prep \.aui-card\.is-empty/);
+  assert.match(rounds,/#pvp-root \.rui-skill-picker\.is-locked \.aui-card:not\(\.is-empty\)/);
 });
 
 test('saldırı sırası etiketi: yazma paneli açıksa onda, arena odağında arenanın üst ortasında', () => {

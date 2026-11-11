@@ -675,6 +675,7 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
     if(m.round.phase!=='prep')state.prepKey=pk;
     setAttr(hud,'data-phase',m.round.phase);setAttr(stage,'data-phase',m.round.phase);
     setFlag(hud,'me-2',mySeatOf(m,state.myId)===2);
+    setFlag(stage,'me-2',mySeatOf(m,state.myId)===2);
     renderStrip(m);
     ensureTicker(true);
     tick();

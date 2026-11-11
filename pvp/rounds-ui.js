@@ -480,6 +480,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     state.pickerVisible=model.visible;
     setHidden(picker,!(model.visible&&state.panelOpen));
     if(!model.visible)return;
+    setFlag(picker,'is-locked',model.locked);
     const key=`${match.matchId}:${match.round.index}`;
     if(state.pickKey!==key){state.pickKey=key;state.selected=null;state.pending=false;}
     if(model.locked){state.pending=false;state.selected=model.pick;}
@@ -494,7 +495,9 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
       const c=model.cards[i];
       button.setAttribute('aria-pressed',String(state.selected===c.id));
       button.setAttribute('aria-label',`${i+1}. ${c.name}, ${c.effect}, ${c.left}/2 hak`);
-      setText(uses,`${c.left}/2 hak`);
+      setText(uses,`${c.left}/2`);
+      uses.setAttribute('aria-label',`${c.left}/2 hak`);
+      setFlag(button,'is-empty',c.left===0);
       button.disabled=model.locked||state.pending||c.left===0;
     });
     setText(pickerStatus,model.locked?`Onaylandı: ${model.pick?ROUND_SKILL_CARDS.find(c=>c.id===model.pick)?.name:'Seçme'} · Rakibin seçimi gizli`:state.pending?'Onay bekleniyor…':'1–3 seç · Enter kilitle · Rakibin seçimi gizli');

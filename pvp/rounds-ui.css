@@ -164,15 +164,15 @@
 .rui-skill-picker{position:fixed;z-index:35;left:50%;bottom:24px;transform:translateX(-50%);width:min(780px,calc(100vw - 32px));
   padding:12px;border:1px solid var(--rui-line);border-radius:14px;background:var(--rui-panel);box-shadow:0 18px 50px #02000bcc}
 .rui-skill-picker>strong{display:block;margin-bottom:8px;color:var(--rui-gold);font-size:14px}
-.rui-skill-cards{grid-template-columns:repeat(3,minmax(0,1fr))}
-.rui-skill-cards .aui-card{min-width:0}
+.rui-skill-cards{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+.rui-skill-cards .aui-card{min-width:min(100%,240px)}
 .rui-pick-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:8px;flex-wrap:wrap}
 .rui-pick-status{margin-inline-end:auto;color:var(--rui-muted);font-size:12px}
 .rui-pick-lock,.rui-pick-skip{padding:7px 10px;border:1px solid var(--rui-line);border-radius:7px;background:#392078;color:#fff;font-size:12px;font-weight:800}
 .rui-pick-lock:disabled,.rui-pick-skip:disabled{opacity:.5}
 .rui-skill-reveal{position:fixed;top:clamp(110px,22vh,220px);left:50%;z-index:34;transform:translateX(-50%);padding:8px 16px;
   border:1px solid var(--rui-gold);border-radius:9px;background:var(--rui-panel);color:var(--rui-gold);font-size:15px;font-weight:850;white-space:nowrap}
-@media(max-width:680px){.rui-skill-picker .aui-cards.rui-skill-cards{grid-template-columns:1fr}.rui-skill-picker{bottom:8px}.rui-skill-cards .aui-card{min-height:48px}}
+@media(max-width:680px){.rui-skill-picker{bottom:8px}.rui-skill-cards .aui-card{min-height:64px}}
 
 /* ---------- tur arası paneli: sonuç + süre becerisi tek yerde, yazma panelinin yerinde ---------- */
 .rui-inter{position:fixed;z-index:31;display:flex;gap:12px;align-items:stretch;box-sizing:border-box;
@@ -189,13 +189,13 @@
 .rui-inter>.rui-summary .rui-sum-winner{margin:4px 0 6px;font-size:20px}
 .rui-inter>.rui-summary .rui-sum-table th,.rui-inter>.rui-summary .rui-sum-table td{padding:3px 6px}
 /* arena-ui.css'teki .aui-cards (5 sütun) sonra yüklenip ezdiği için özgüllük artırıldı. */
-.rui-skill-picker .aui-cards.rui-skill-cards{grid-template-columns:repeat(3,minmax(0,1fr))}
-.rui-skill-picker .rui-skill-cards .aui-card{grid-template-columns:auto auto minmax(0,1fr) auto;column-gap:8px;padding:10px 12px}
-.rui-skill-picker .rui-skill-cards .aui-card-copy strong{font-size:15px}
-.rui-skill-picker .rui-skill-cards .aui-card-copy small{font-size:13px}
+.rui-skill-picker .aui-cards.rui-skill-cards{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+.rui-skill-picker .rui-skill-cards .aui-card{grid-template-columns:32px minmax(0,1fr);column-gap:8px;padding:10px 8px}
+.rui-skill-picker .rui-skill-cards .aui-card-copy strong{font-size:clamp(12px,.75vw,14px)}
+.rui-skill-picker .rui-skill-cards .aui-card-copy small{font-size:12px}
 .rui-inter .rui-skill-cards{flex:1 1 auto;align-content:center}
 /* Kart adları kesilmesin ("Zama…"): sarılsın. */
-.rui-skill-cards .aui-card-copy strong,.rui-skill-cards .aui-card-copy small{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+.rui-skill-cards .aui-card-copy strong,.rui-skill-cards .aui-card-copy small{overflow-wrap:normal;word-break:keep-all;hyphens:none}
 .rui-skill-cards .aui-card{height:auto;min-height:64px;align-items:center}
 /* ALT KISIM "dock": beceri satırının üstünden başlar, yüksekliği ekranın ~%45'ini aşmaz (üst %55'te 3B sahne açık); karartma yok.
    Özgüllük bilerek yüksek: modes33.css / cinematic.css / compact-height.css sonra yüklenir. Taşan içerik panelde kayar. */
@@ -228,18 +228,22 @@
 #pvp-root .rui-inter.is-dock .m33-countdown small{display:none}
 /* Beceri seçici: 3 kart yan yana, kısa. */
 #pvp-root .rui-inter.is-dock .rui-skill-picker>strong,#pvp-root .rui-inter.is-dock>.rui-skill-picker>strong{margin:0;font-size:13px;font-weight:800}
-#pvp-root .rui-inter.is-dock .rui-skill-picker .aui-cards.rui-skill-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;align-content:start}
-#pvp-root .rui-inter.is-dock .rui-skill-picker .rui-skill-cards .aui-card{min-height:52px;padding:6px 8px;border-radius:8px;gap:6px;grid-template-columns:auto auto minmax(0,1fr)}
-#pvp-root .rui-inter.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy strong{font-size:13px;line-height:1.2}
+#pvp-root .rui-inter.is-dock .rui-skill-picker .aui-cards.rui-skill-cards{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:8px;align-content:start}
+#pvp-root .rui-inter.is-dock .rui-skill-picker .rui-skill-cards .aui-card{min-height:64px;padding:6px 8px;border-radius:8px;gap:8px;grid-template-columns:32px minmax(0,1fr)}
+#pvp-root .rui-inter.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy strong{font-size:clamp(12px,.75vw,14px);line-height:1.2}
 #pvp-root .rui-inter.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy small{font-size:12px;line-height:1.2}
-#pvp-root .rui-inter.is-dock .rui-skill-picker .rui-skill-cards .aui-uses{position:absolute;top:3px;right:6px}
+#pvp-root .rui-inter.is-dock .rui-skill-picker .rui-skill-cards .aui-uses{position:absolute;top:8px;right:8px}
+#pvp-root .rui-skill-picker .aui-card[aria-pressed="true"]{border-color:var(--rui-fire);background:#2b1d0ee6}
+#pvp-root .me-2 .rui-skill-picker .aui-card[aria-pressed="true"]{border-color:var(--rui-rune);background:#102a3be6}
+#pvp-root .rui-skill-picker .aui-card.is-empty{border-color:#ff8ea277;background:#20101c;color:#c2b5c4}
+#pvp-root .rui-skill-picker.is-locked .aui-card:not(.is-empty){border-style:dashed}
+#pvp-root .me-2 .rui-skill-picker .aui-card:focus-visible{outline-color:var(--rui-rune-soft)}
 #pvp-root .rui-inter.is-dock .rui-pick-actions{margin-top:0;gap:6px}
 #pvp-root .rui-inter.is-dock .rui-pick-lock,#pvp-root .rui-inter.is-dock .rui-pick-skip{min-height:44px;padding:4px 10px;font-size:13px}
 @media(max-width:900px){
   #pvp-root .rui-inter.is-dock{flex-direction:column;flex-wrap:nowrap}
   #pvp-root .rui-inter.is-dock>.rui-summary,#pvp-root .rui-inter.is-dock>.rui-skill-picker{flex:0 0 auto}
   #pvp-root .rui-inter.is-dock>.rui-skill-picker{order:-1} /* telefonda önce işlem (seçim), özet aşağıda kayar */
-  #pvp-root .rui-inter.is-dock .rui-skill-picker .aui-cards.rui-skill-cards{grid-template-columns:1fr}
   #pvp-root .rui-inter.is-dock .m33-stats{grid-template-columns:minmax(0,1fr) auto}
 }
 /* Dock açıkken eski yazma paneli görünmez (altında yarım şerit kalmasın); sinematik tur sonunda cinematic.css görünür tutar. */

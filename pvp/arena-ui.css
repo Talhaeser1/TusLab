@@ -107,24 +107,23 @@
   font-size:18px;font-weight:900;font-variant-numeric:tabular-nums;color:#fff}
 .aui-group{display:grid;gap:6px}
 .aui-group-label{font-size:12px;font-weight:800;color:var(--aui-muted);letter-spacing:.04em}
-.aui-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
-.aui-cards-items{grid-template-columns:repeat(4,minmax(0,1fr))}
-.aui-card{position:relative;display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:8px;min-height:64px;padding:8px 40px 8px 10px;
+.aui-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:8px;min-width:0}
+.aui-cards-items{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+.aui-card{position:relative;display:grid;grid-template-columns:32px minmax(0,1fr);align-items:center;gap:8px;min-width:min(100%,240px);min-height:72px;padding:8px;
   border:1px solid var(--aui-line);border-radius:12px;background:#0e0a2ae6;color:var(--aui-text);text-align:left;cursor:pointer;font:inherit;
   transition:border-color 150ms var(--aui-ease),background-color 150ms var(--aui-ease)}
-.aui-card:hover:not(:disabled){border-color:#c9a6ff;background:#1c1450}
+.aui-card:hover:not(:disabled){border-color:var(--aui-fire-soft);background:#2b1d0ee6}
 .aui-card:focus-visible{outline:2px solid #7fd7ff;outline-offset:2px}
-.aui-card[aria-pressed="true"]{border-color:var(--aui-gold);background:#2b1d0ee6;box-shadow:0 0 14px #ffc87a44}
+.aui-card[aria-pressed="true"]{border-color:var(--aui-fire);background:#2b1d0ee6;box-shadow:inset 0 1px 0 #ffffff20}
 .aui-card:disabled{cursor:not-allowed;opacity:.62}
 .aui-card.is-empty{border-style:dashed}
-.aui-key{display:grid;place-items:center;min-width:24px;height:24px;padding:0 5px;border-radius:6px;background:#ffffff1a;border:1px solid #ffffff33;
+.aui-key,.aui-card-key{position:absolute;left:8px;bottom:5px;display:grid;place-items:center;min-width:20px;height:18px;padding:0 4px;border-radius:4px;background:#ffffff1a;border:1px solid #ffffff33;
   font:800 13px/1 var(--aui-mono);color:#fff}
-.aui-icon{font-size:24px;line-height:1}
-.aui-card-copy{display:grid;gap:2px;min-width:0}
-/* Başlık kesilmesin ("Harfleri kar…"): en fazla 2 satıra sarılır. */
-.aui-card-copy strong{font-size:14px;font-weight:850;line-height:1.2;white-space:normal;overflow-wrap:anywhere}
-.aui-card-copy small{font-size:12px;color:var(--aui-muted);line-height:1.3}
-.aui-uses{position:absolute;top:5px;right:8px;font-size:12px;font-weight:850;color:var(--aui-gold);font-variant-numeric:tabular-nums}
+.aui-icon,.aui-card-icon{grid-column:1;width:32px;text-align:center;font-size:24px;line-height:1}
+.aui-card-copy{grid-column:2;display:grid;gap:2px;min-width:0;padding-right:40px}
+.aui-card-copy strong{font-size:clamp(12px,.75vw,14px);font-weight:600;line-height:1.2;white-space:nowrap;overflow-wrap:normal;word-break:keep-all;hyphens:none}
+.aui-card-copy small{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:12px;color:var(--aui-muted);line-height:1.3;overflow-wrap:normal;word-break:normal;hyphens:none}
+.aui-uses{position:absolute;top:8px;right:8px;min-width:34px;text-align:center;padding:2px 4px;border:1px solid #ffc87a66;border-radius:5px;background:#39281a;color:var(--aui-gold);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .aui-card.is-empty .aui-uses{color:#ff8ea2}
 .aui-prep-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .aui-lock-note{margin-inline-end:auto;font-size:13px;color:var(--aui-muted)}
@@ -176,19 +175,16 @@
 
 /* ---------------- dar / kısa ekranlar ---------------- */
 @media(max-width:1200px){
-  .aui-cards{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .aui-cards-items{grid-template-columns:repeat(2,minmax(0,1fr))}
   .aui-medal{min-width:170px}
 }
 @media(max-width:820px){
   .aui-hud{grid-template-columns:1fr 1fr;grid-template-areas:'medal medal' 's1 s2'}
   .aui-medal{grid-area:medal}.aui-side-1{grid-area:s1}.aui-side-2{grid-area:s2}
-  .aui-cards,.aui-cards-items{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-height:820px){
   .aui-side{padding:5px 12px;gap:3px}
   .aui-secs{font-size:26px}
-  .aui-card{min-height:56px;padding:6px 8px}
+  .aui-card{min-height:64px;padding:6px 8px}
 }
 @media(max-width:480px){
   .aui-summary{top:132px;width:calc(100% - 16px);max-height:calc(100dvh - 146px);padding:10px}
@@ -200,7 +196,6 @@
   .aui-res-table{font-size:12px}
   .aui-res-table th,.aui-res-table td{padding:4px 3px}
   /* Telefonda hazırlık kartları iki sütunda yazı alanı 64 px'e iniyordu ("ezilmiş kart"): tek sütun. */
-  #pvp-root .aui-prep .aui-cards,#pvp-root .aui-prep .aui-cards-items{grid-template-columns:minmax(0,1fr)}
   /* Üst göstergede oyuncu adı kesiliyordu ("Sav…"): ad satırı sarılır. */
   .aui-side-top{flex-wrap:wrap;row-gap:2px}
   .aui-name{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
@@ -237,15 +232,20 @@
 /* Hazırlık başlarken önce "RAUND X" yazısı: panel yer tutar ama görünmez. */
 .aui-stage.is-banner .aui-prep{visibility:hidden}
 /* Hazırlık paneli: kısa kartlar (açıklama ipucu/aria'da), panel üst kenarı ekranın ~%55'inin altında kalır; taşan içerik panelde kayar. */
-#pvp-root .tt .aui-prep{gap:6px;max-height:calc(45dvh - 92px);overflow-y:auto;overscroll-behavior:contain}
+#pvp-root .tt .aui-prep{gap:6px;min-width:0;max-height:calc(45dvh - 92px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
 #pvp-root .tt .aui-prep .aui-group{gap:3px}
 #pvp-root .tt .aui-prep .aui-cards{gap:6px}
-#pvp-root .tt .aui-prep .aui-card{min-height:44px;padding:4px 28px 4px 8px;gap:6px;align-items:center}
-#pvp-root .tt .aui-prep .aui-card-copy small{display:none}
-#pvp-root .tt .aui-prep .aui-card-copy strong{font-size:13px;line-height:1.15}
+#pvp-root .tt .aui-prep .aui-card{min-height:64px;padding:6px 8px;gap:8px;align-items:center}
+#pvp-root .tt .aui-prep .aui-card-copy small{display:-webkit-box!important}
+#pvp-root .tt .aui-prep .aui-card-copy strong{font-size:clamp(12px,.75vw,14px);line-height:1.2}
 #pvp-root .tt .aui-prep .aui-icon{font-size:20px}
-#pvp-root .tt .aui-prep .aui-uses{top:3px;right:6px}
+#pvp-root .tt .aui-prep .aui-uses{top:8px;right:8px}
 @media(prefers-reduced-motion:reduce){.aui-banner .rui-banner-title{animation:rui-fade 150ms ease-out both!important}}
 /* Hazırlıkta panel daha geniş: 5 skill kartı yan yana, başlıklar harf harf bölünmez. */
-#pvp-root[data-layout="fullscreen"][data-arena-phase="prep"] .pvp2-shell>.tt{width:min(1040px,calc(100vw - 24px))}
-#pvp-root .tt .aui-prep .aui-card-copy strong{overflow-wrap:normal;word-break:normal;hyphens:manual}
+#pvp-root[data-layout="fullscreen"][data-arena-phase="prep"] .pvp2-shell>.tt.tt{width:min(1040px,calc(100vw - 24px))}
+#pvp-root .tt .aui-prep .aui-card-copy strong{overflow-wrap:normal;word-break:keep-all;hyphens:none}
+#pvp-root .aui-stage.me-2 .aui-prep .aui-card[aria-pressed="true"]{border-color:var(--aui-rune);background:#102a3be6}
+#pvp-root .aui-stage.me-2 .aui-prep .aui-card:hover:not(:disabled){border-color:var(--aui-rune-soft);background:#102a3be6}
+#pvp-root .aui-stage.me-2 .aui-prep .aui-card:focus-visible{outline-color:var(--aui-rune-soft)}
+#pvp-root .aui-prep .aui-card.is-empty{border-color:#ff8ea277;background:#20101c;color:#c2b5c4}
+#pvp-root .aui-prep.is-locked .aui-card:not(.is-empty){border-style:dashed}
