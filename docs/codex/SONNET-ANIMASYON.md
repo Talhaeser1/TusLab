@@ -50,3 +50,14 @@ TEST EKİ: bot saldırısı da yaklaşma içerir; gösterilen can temas karesind
 - 13. SAVUNMA EFEKTİ: savunan blokladığında (blok/kalkan) blok klibi + görünür savunma efekti (kalkan parıltısı/kıvılcım) ve saldırı yazısında "BLOK" / azaltılmış hasar belirtilir.
 - 14. SKILL ETKİSİ HİSSEDİLSİN: her Q/E/R'nin durum etkisi (yavaşlatma, dondurma, kalkan, zehir vb.; adları/etkileri pvp/shared/fighters.js ve ilgili kural dosyalarından OKU) sahnede görünür olsun: hedefin üstünde kısa durum rozeti + renkli aura/ton, etki süresince. Özellikle "Donmuş An": kural tarafında ne yaptığını bul ve raporda yaz; etkisi gerçekten uygulanıyorsa yalnız görselini ekle, kural tarafında HİÇ uygulanmıyorsa (hata) KOD DEĞİŞTİRME — dosya/satır ile raporla.
 - Işınlanma yok: konum değişimi her zaman yürüyüş/koşu klibi + easing ile.
+
+=== DÜZELTME TURU 2 (tarayıcı ölçümü, 1366×768, rounds bot maçı vargr vs nyx; commit'li halin üstünden) ===
+Ölçüm aracı: `node .playwright-mcp/run.mjs .playwright-mcp/dovus-probe.js` (headless; ~80 sn; çıktı JSON: combo[], callout[], crit[], status[], phases[[ms, activeSeat, phase, comboIndex, queued, "seat1durum/klip seat2durum/klip"]]). Düzeltmeden sonra bununla KENDİN doğrula ve çıktının ilgili satırlarını rapora koy.
+Ölçülen (iyi): seat1 approach→strike→return→idle sırası, saldırı yazısı "VARGR → NYX · BALTA SAVURUŞU · −105" (16/19/24 px), hit tepkisi.
+KUSURLAR:
+A. KOMBO SAYACI HİÇ GÖRÜNMEDİ: [data-combo-counter] 75 sn boyunca görünür olmadı. Zaman çizelgesi: 37766 strike comboIndex=1 queued=1 → 38065 strike comboIndex=1 queued=2 → return. Yani art arda iki vuruşta comboIndex 1'de kalıyor; ayrıca sonraki E ve R ayrı yaklaşmalarla oynadı (q×2 → dön → e → dön → r). Beklenen: aynı koltuğun birikmiş saldırıları TEK yaklaşmada zincirlenir, comboIndex 1,2,3… artar, "2 KOMBO!", "3 KOMBO!" görünür.
+B. ULTİ BEKLEMESİ: 39961 approach r/Charged_Axe_Chop → 42373'te model idle/Combat_Stance'a düştü ama phase 44803'e kadar "approach" kaldı (2,4 sn boş bekleme), strike 44803. Ulti sahnesi toplam ≤ ~3 sn olsun; klip bitince boşta bekleme olmasın, temas (hasar yazısı + hit tepkisi) klibin vuruş karesinde.
+C. BOT SAHNESİ YOK: 75 sn'de activeSeat hiç 2 olmadı. Botun hasarı sahnesiz mi düşüyor, yoksa bot hiç hasar vermedi mi? Kök nedeni bul (birim testi + probe); bot hasar veriyorsa onun da koş→vur→dön sahnesi oynamalı.
+D. KRİTİK ve durum rozetleri ölçümde hiç görülmedi; birim testiyle tetikleyip DOM'da göründüğünü ([data-crit-text], [data-status]) doğrula.
+E. Probe'a gerekiyorsa alan ekleyebilirsin (.playwright-mcp/dovus-probe.js senin).
+Kurallar aynı: yalnız sunum katmanı, yasak dosyalar aynı, commit/push yok.
