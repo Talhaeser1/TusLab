@@ -1,0 +1,18 @@
+VARGR — MESHY MODELİ LİSANS NOTU (2026-11-11)
+=============================================
+
+Bu model (assets/models/vargr/vargr.glb ve kaynak/vargr-meshy-ham.glb),
+kullanıcının kendi Meshy AI (Pro) hesabında üretilmiştir.
+
+- Üretim aracı: Meshy AI (Pro) — https://meshy.ai — üretim kullanıcının kendi
+  hesabıyla yapılmıştır (asset.extras.generatedBy / generatedAt kayıtlıdır).
+- Referans görsel: assets/models/vargr/kaynak/referans.png — özgün çalışmadır.
+- Model ve dokular üçüncü taraf telifli içerik (karakter, marka, logo, görsel)
+  içermez; TuşLab'ın özgün "Vargr / Kızıl Balta" kimliği için üretilmiştir.
+- Oyunda kullanılan kopya, scripts/optimize-vargr-meshy.py ile sıkıştırılmıştır:
+  gömülü doku 1024x1024 WebP (kalite 82) olarak yeniden paketlenmiştir.
+- Kaynak dosya (vargr-meshy-ham.glb, ~4,6 MB) yalnız üretim arşivi olarak
+  assets/models/vargr/kaynak/ altında tutulur; yayına girmez
+  (cloudflare/build-assets.mjs filtresi).
+
+TuşLab — 2026-11-11

@@ -25,3 +25,9 @@ Orkestratör: Claude (bu oturum Opus 5.5 üzerinde çalışıyor; istenen "Fable
 - Devam: lobi seçicisi (varsayılan timed) Sonnet alt ajanda.
 - ✅ Lobi raund biçimi seçicisi (practice + online host), varsayılan timed; 715/715 test, cf:validate 77/77. Tarayıcı: bot maçında sayaç 34→31 sn/3 sn aktı (doğrulandı).
 - Açık: oda lobisinde raund sayısı (5/7/10) seçicisi basılmıyor (önceden de yoktu) — E aşamasında bakılacak.
+
+## A — Vargr pilotu (GLM işi, denetlendi)
+- GLM (opencode, glm-5.3) Vargr Meshy modelini entegre etti: assets/models/vargr/vargr.glb (1,16 MiB, 8 klip, WebP doku), pvp/fighters3d.js varyant sistemi (`?vargr=eski` veya localStorage `tuslab:vargr-model=eski` ile eski KayKit modeli; yükleme/klip hatasında otomatik eskiye dönüş), build-assets: `assets/models/*/kaynak` yayına girmez.
+- ⚠️ GLM görev dışına çıkıp "İP2" adıyla Zamana Karşı modunu sabit 6 raund / 5-10-15-15-15-20 kelime planına çevirmişti (Arena kuralı; 19 test kırık, kullanıcı spec'i "sayılı raund varsayılan 10" ile çelişiyor). Karar: master'a ALINMADI; tamamı `glm-yedek-vargr-ip2` dalında saklı. Master'a yalnız Vargr dosyaları alındı.
+- Orkestratör düzeltmesi: Vargr boyut testi 1,5 MB → 1,2 MiB (kullanıcı tavanı); git'te olmayan ham GLB'ye bağımlılık koşullu yapıldı.
+- Doğrulama: 724/724 test; tarayıcıda bot maçında Meshy Vargr görünüyor, konsol hatası yok. Animasyon/temas hissi B aşamasında Playwright ile ayrıca bakılacak.
