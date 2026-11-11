@@ -4,7 +4,7 @@ import {budgetRatio, createFrameGovernor, PIXEL_BUDGETS} from './perf-governor.j
 import {buildStage} from './stages3d.js';
 import {DEFAULT_STAGE, normalizeStage} from './shared/stages.js';
 import {
-  createFighterRig, createSkillFx, isKnownFighter, loadFighterModel, fighterModelUrl, rootMotionAt, skillDuration,
+  createFighterRig, createSkillFx, contactDistance as contactGap, dashProgress, frameFighters, isKnownFighter, loadFighterModel, fighterModelUrl, rootMotionAt, skillDuration,
   MODEL_VIEW, FIGHTER_MODEL_BASE,
 } from './fighters3d.js';
 
@@ -1733,7 +1733,10 @@ export async function createArena3D({
     fighter.actor.add(rig.object);
     setPlaneVisible(fighter, false);
     fighter.actor.visible = true;
-    if (!skillFx) skillFx = safeCall(() => createSkillFx(THREE, scene)) || null;
+    if (!skillFx) {
+      skillFx = safeCall(() => createSkillFx(THREE, scene)) || null;
+      safeCall(() => skillFx?.setLowQuality(effectiveQuality() !== 'high'));
+    }
     if (fighter.ko) rig.play('ko');
     else if (fighter.victory) rig.play('win');
     if (readyState !== 'ready' && [...fighters.values()].every(f => f.model)) {
@@ -1825,17 +1828,17 @@ export async function createArena3D({
     const cast = fighter.lastCast;
     const opponent = fighters.get(otherSeat(seat));
     const scale = fighter.root.scale.x || 1;
-    const contactDistance = Math.max(0, Math.abs(opponent.root.position.x - fighter.root.position.x) / scale - 1.25);
+    // Dinamik temas mesafesi: model ölçeğinden (Box3 derinliği) saldıranın silah uzanımı + savunan gövdesi.
+    const contactDistance = contactGap(Math.abs(opponent.root.position.x - fighter.root.position.x) / scale, rig.reach);
     const dur = skillDuration(spec);
     const spinOk = !reduced();
     addTrack(fighter, dur, (p, o, m) => {
       const r = rootMotionAt(spec, p * dur);
       const elapsed = p * dur;
       if (!cast.ranged && skill !== 'r') {
+        // Hızlı ease-out ileri (temastan ~90 ms önce varış), temas sonrası ease-in geri dönüş.
         const hit = Math.max(1, cast.hitMs);
-        const approach = clamp((elapsed - hit * .15) / (hit * .7), 0, 1);
-        const back = clamp((elapsed - hit - 100) / Math.max(1, dur - hit - 100), 0, 1);
-        o.fwd += contactDistance * approach * approach * (1 - easeOutCubic(back)) * m;
+        o.fwd += contactDistance * dashProgress(elapsed, hit, {returnMs: Math.max(200, dur - hit - 100)}) * m;
       } else o.fwd += r.fwd * m;
       o.lift += r.lift * m;
       if (spinOk) o.yaw += r.yaw; // azaltılmış harekette kendi ekseninde dönüş yok
@@ -1870,6 +1873,7 @@ export async function createArena3D({
     };
     if (item.kind === 'slam') {
       impact(item.power ?? 0.7);
+      if (!quiet && skillFx) safeCall(() => skillFx.burst(rig.fighterId, api.seatAnchor(def), 0.8 + 0.4 * (item.power ?? 0.7)));
       return;
     }
     if (quiet || !skillFx) {
@@ -1881,19 +1885,19 @@ export async function createArena3D({
     const ground = api.seatGround(def);
     if (item.kind === 'spear' || item.kind === 'dagger' || item.kind === 'rune') {
       const from = rig.boneWorld(item.from || 'handslot.r');
-      skillFx.spawn({kind: item.kind, from, to: anchor, color, accent, flight: item.flight || 260, scale: s,
+      skillFx.spawn({kind: item.kind, from, to: anchor, color, accent, flight: item.flight || 260, scale: s, profile: rig.fighterId,
         onArrive: () => impact(item.kind === 'spear' ? 0.45 : 0.3)});
     } else if (item.kind === 'meteor') {
-      skillFx.spawn({kind: 'meteor', from: api.seatAnchor(seat), to: ground, color, accent, flight: item.flight || 500, scale: s * 1.2,
+      skillFx.spawn({kind: 'meteor', from: api.seatAnchor(seat), to: ground, color, accent, flight: item.flight || 500, scale: s * 1.2, profile: rig.fighterId,
         onArrive: () => impact(1.2)});
     } else if (item.kind === 'column') {
-      skillFx.spawn({kind: 'column', to: ground, color, accent, ms: item.ms || 900, scale: s, onArrive: () => impact(0.6)});
+      skillFx.spawn({kind: 'column', to: ground, color, accent, ms: item.ms || 900, scale: s, profile: rig.fighterId, onArrive: () => impact(0.6)});
     } else if (item.kind === 'shards') {
       shatterBubble(def);
       skillFx.spawn({kind: 'shards', to: anchor, color: fighters.get(def)?.palette.shield ?? 0xffffff, accent, ms: 650, scale: s});
       impact(0.7);
     } else if (item.kind === 'swirl') {
-      skillFx.spawn({kind: 'swirl', to: api.seatGround(seat), color, accent, ms: item.ms || 700, scale: s,
+      skillFx.spawn({kind: 'swirl', to: api.seatGround(seat), color, accent, ms: item.ms || 700, scale: s, profile: rig.fighterId,
         follow: out => {
           const g = api.seatGround(seat);
           out.set(g.x, 0.75 * s + (fighter.lastPose ? Math.max(0, fighter.lastPose.lift) * s : 0), g.z);
@@ -2879,6 +2883,18 @@ export async function createArena3D({
       lookOffset.y += 0.1 * d.k;
     }
 
+    // Yan görünüm kadrajı: iki dövüşçünün orta noktasını izle, yakınlaştıkça hafif yaklaş.
+    if (!quiet) {
+      const fa = fighters.get(1), fb = fighters.get(2);
+      if (fa && fb) {
+        const fr = frameFighters(fa.root.position.x + fa.actor.position.x * (fa.root.scale.x || 1),
+          fb.root.position.x + fb.actor.position.x * (fb.root.scale.x || 1));
+        cameraOffset.x += fr.centerX * 0.5;
+        lookOffset.x += fr.centerX * 0.5;
+        cameraOffset.z -= fr.zoom * 0.35;
+      }
+    }
+
     // Add after framing: trauma and punch never affect layout/HUD measurements.
     for (let i = shakes.length - 1; i >= 0; i--) {
       if (tNow - shakes[i].start >= shakes[i].dur) shakes.splice(i, 1);
@@ -3378,6 +3394,7 @@ export async function createArena3D({
 
   function applyQuality() {
     const high = effectiveQuality() === 'high';
+    safeCall(() => skillFx?.setLowQuality(!high));
     activeStage.applyQuality(effectiveQuality());
     for (const fighter of fighters.values()) fighter.accentLight.visible = high;
     floorGlow.mesh.visible = high; // scene polish is the first thing 'low' drops

@@ -128,3 +128,64 @@ test('rig: temas oncesi ikinci saldiri kuyruga girer ve birincinin ardindan oyna
   assert.equal(rig.stats().state, 'e', 'kuyruktaki saldiri oynadi');
   rig.dispose();
 });
+
+// ---- madde 3: temas / dash / kadraj (saf)
+import {contactDistance, reachFromDepth, dashProgress, frameFighters, createSkillFx, SKILL_PROFILES, PARTICLE_POOL} from '../pvp/fighters3d.js';
+
+test('contactDistance model uzanimina gore olceklenir', () => {
+  assert.equal(contactDistance(5, reachFromDepth(2.4)), 5 - 1.2 - 0.3);
+  assert.ok(contactDistance(5, reachFromDepth(1.6)) > contactDistance(5, reachFromDepth(3.0)), 'uzun silah daha az yol');
+  assert.equal(contactDistance(1, 1.5), 0, 'negatif olmaz');
+  assert.equal(reachFromDepth(NaN), 0.95);
+});
+
+test('dash: temastan 60-120 ms once varir, temasta tam mesafe, geri donus ease-in', () => {
+  const hit = 650;
+  assert.equal(dashProgress(0, hit), 0);
+  const arrive = dashProgress(hit - 90, hit);
+  assert.ok(arrive > 0.999, `varis ${arrive}`);
+  assert.ok(dashProgress(hit - 200, hit) < arrive);
+  assert.equal(dashProgress(hit, hit), 1);
+  assert.ok(dashProgress(hit + 100 + 160, hit, {returnMs: 320}) > 0.7, 'ease-in: ilk yarida cok az doner');
+  assert.ok(dashProgress(hit + 100 + 320, hit, {returnMs: 320}) < 1e-9, 'yerine doner');
+  // ease-out: ilk yarida mesafenin yarisindan fazlasi
+  assert.ok(dashProgress(hit * 0.15 + (hit - 90 - hit * 0.15) / 2, hit) > 0.8);
+});
+
+test('kadraj: orta noktayi izler, yaklasinca hafif zoom', () => {
+  const far = frameFighters(-3, 3), near = frameFighters(-0.8, 0.8);
+  assert.equal(far.centerX, 0);
+  assert.ok(near.zoom > far.zoom && near.zoom <= 0.45);
+  assert.ok(frameFighters(2, 6).centerX > 0);
+});
+
+// ---- madde 4: karakter profilleri ve parcacik havuzu
+test('skill fx: dort karakter profili, havuz sabit, dusuk cihazda azalir', () => {
+  assert.deepEqual(Object.keys(SKILL_PROFILES).sort(), ['doran', 'nyx', 'sira', 'vargr']);
+  const scene = new THREE.Scene();
+  const fx = createSkillFx(THREE, scene);
+  const pos = new THREE.Vector3(0, 1, 0);
+  const hi = fx.burst('vargr', pos);
+  fx.setLowQuality(true);
+  const lo = fx.burst('vargr', pos);
+  assert.ok(lo < hi && fx.stats().cap === PARTICLE_POOL.low);
+  fx.update(0.016);
+  assert.ok(fx.stats().particles > 0 && fx.stats().particles <= PARTICLE_POOL.high);
+  for (let i = 0; i < 80; i++) fx.update(0.05);
+  assert.equal(fx.stats().particles, 0, 'omur bitince temizlenir');
+  for (const id of Object.keys(SKILL_PROFILES)) assert.ok(fx.burst(id, pos) > 0, id);
+  fx.spawn({kind: 'spear', from: pos, to: new THREE.Vector3(3, 1, 0), flight: 100, profile: 'sira'});
+  fx.update(0.02);
+  fx.dispose();
+});
+
+// ---- block, hit sirasinda dusmez
+test('rig: hit sirasinda gelen block hit bitince oynar', () => {
+  const rig = createFighterRig(THREE, asset(), {fighterId: 'vargr', seat: 1});
+  rig.play('hit');
+  assert.equal(rig.play('block'), true);
+  assert.equal(rig.stats().state, 'hit');
+  for (let i = 0; i < 40 && rig.stats().state === 'hit'; i++) rig.update(0.05);
+  assert.equal(rig.stats().state, 'block');
+  rig.dispose();
+});

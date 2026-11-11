@@ -325,6 +325,44 @@ export function rootMotionAt(spec, ms) {
   return {fwd, lift, yaw};
 }
 
+// ------------------------------------------------------------ temas / dash / kadraj (saf)
+
+/** Savunanın gövdesi: silah ucunun değeceği yüzey, saldıran ucundan bu kadar içeride (gövde birimi). */
+export const BODY_HALF_DEPTH = 0.3;
+export const DEFAULT_REACH = 0.95;
+
+/** Model ölçeğinden (z derinliği = rakibe uzanan yön, silah dahil) saldıranın öne uzanımı. */
+export function reachFromDepth(depth) {
+  const d = Number(depth);
+  return Number.isFinite(d) && d > 0 ? clamp(d / 2, 0.8, 1.6) : DEFAULT_REACH;
+}
+
+/** Temasta kat edilecek mesafe: aradaki boşluk − (saldıran uzanımı + savunan gövde yarı derinliği). */
+export function contactDistance(gap, reach = DEFAULT_REACH, bodyHalf = BODY_HALF_DEPTH) {
+  return Math.max(0, (Number(gap) || 0) - (Number(reach) || 0) - (Number(bodyHalf) || 0));
+}
+
+/**
+ * Dash eğrisi (0..1): saldırı başından hızlı ease-out ileri, temas karesinden leadMs önce varış,
+ * temas sonrası holdMs bekleyip ease-in geri dönüş (returnMs).
+ */
+export function dashProgress(elapsedMs, hitMs, {leadMs = 90, holdMs = 100, startFrac = 0.15, returnMs = 320} = {}) {
+  const hit = Math.max(1, hitMs);
+  const start = hit * startFrac;
+  const arrive = Math.max(start + 40, hit - clamp(leadMs, 60, 120));
+  const out = easeOutCubic(clamp((elapsedMs - start) / (arrive - start), 0, 1));
+  const back = clamp((elapsedMs - hit - holdMs) / Math.max(1, returnMs), 0, 1);
+  return out * (1 - back * back);
+}
+
+/** İki dövüşçüyü kadrajda tut: orta noktayı izle, mesafe azaldıkça hafif yaklaş. x: dünya birimi. */
+export function frameFighters(xA, xB, {follow = 0.35, nearZoom = 0.45, farGap = 6, nearGap = 1.6} = {}) {
+  const gap = Math.abs((Number(xA) || 0) - (Number(xB) || 0));
+  const mid = ((Number(xA) || 0) + (Number(xB) || 0)) / 2;
+  const t = clamp((farGap - gap) / Math.max(0.01, farGap - nearGap), 0, 1);
+  return {centerX: mid * follow, zoom: nearZoom * t, gap};
+}
+
 // ------------------------------------------------------------------ loading
 
 const assetCache = new Map(); // url → Promise<{gltf, clips}>
@@ -499,6 +537,12 @@ export function createFighterRig(THREE, asset, {
   // Zemin: kutu yolu bbox tabanını (minY) y=0'a taşır; varyant yolu animasyon kaynaklı
   // sistematik zemine gömülmeyi (meshy duruşu -0,058) kalibre offset ile düzeltir.
   model.position.y = ((variantReady?.groundOffsetY) ?? -minY) * scale;
+  // Öne uzanım (silah dahil): yaw uygulanmadan önce modelin z derinliğinden; sahte THREE'de varsayılan.
+  let reach = DEFAULT_REACH;
+  try {
+    const box = new THREE.Box3().setFromObject(model);
+    reach = reachFromDepth(box.max.z - box.min.z);
+  } catch { /* sahte THREE */ }
   const baseYaw = face * (Math.PI / 2 - view.yawToCamera);
   yawGroup.rotation.y = baseYaw;
 
@@ -565,6 +609,7 @@ export function createFighterRig(THREE, asset, {
   }
 
   const anim = createAnimState();
+  let pendingBlock = null; // hit sırasında gelen block: hit bitince oynar
   const fading = []; // {action, left(ms)}: fade bitince stop() edilir
   function fadeTo(name, {loop = false, speed = 1, clamp: clampEnd = !loop, fade = view.fadeMs, offset = 0, endMs = 0} = {}) {
     const next = action(name);
@@ -603,6 +648,11 @@ export function createFighterRig(THREE, asset, {
 
   /** Klip bitti → idle ya da kuyruktaki tek saldırı (anim durum makinesi karar verir). */
   function finishToIdle(fade) {
+    if (pendingBlock) {
+      const b = pendingBlock; pendingBlock = null;
+      anim.finish(); // hit bitti → idle; sonra block
+      if (anim.request(b, {}).action === 'play') { playNow(b, {fade: animFadeMs('hit', b)}); return; }
+    }
     const queued = anim.finish();
     if (queued) { playNow(queued, {fade: animFadeMs('idle', queued)}); return; }
     goIdle(fade);
@@ -616,12 +666,17 @@ export function createFighterRig(THREE, asset, {
     if (state.disposed) return false;
     const contactMs = SKILLS.includes(next) ? (variantReady?.skills?.[next]?.contactMs || choreo[next]?.hitMs || 0) : 0;
     const d = anim.request(next, {contactMs, force: opts.force});
-    if (d.action === 'drop') return false; // öncelik / kilit (ko, zafer) reddetti
+    if (d.action === 'drop') {
+      // Hit sırasında gelen block düşmez: hit bitince oynar (kuyruk, en fazla 1).
+      if ((next === 'block' || next === 'blockHit') && anim.state.kind === 'hit') { pendingBlock = next; return true; }
+      return false; // öncelik / kilit (ko, zafer) reddetti
+    }
     if (d.action === 'queue') return true; // temas karesinden önce yeni saldırı: 1 kuyruk
     return playNow(next, {...opts, fade: d.fade});
   }
 
   function playNow(next, opts = {}) {
+    pendingBlock = null;
     state.plays++;
     state.elapsed = 0;
     state.queue.length = 0;
@@ -767,7 +822,7 @@ export function createFighterRig(THREE, asset, {
   goIdle(0);
 
   return {
-    fighterId, seat, face, palette, choreo, object, model, mixer, actions, bones, materials, height, scale,
+    fighterId, seat, face, palette, choreo, reach, object, model, mixer, actions, bones, materials, height, scale,
     variant: variantReady ? variantName : null, stateClips,
     anim, play, update, setTimeScale, setPaused, setYaw, setTint, setOpacity, boneWorld, reset, dispose,
     skillDuration: skill => (choreo[skill] ? skillDuration(choreo[skill]) : 0),
@@ -822,6 +877,26 @@ const ENERGY_FRAGMENT = /* glsl */ `
     #include <colorspace_fragment>
   }`;
 
+/**
+ * Karaktere özel parçacık profilleri (yalnız kodla; doku CanvasTexture ile üretilir).
+ * burst: [{color, n, speed, up, g (yerçekimi, + yukarı), life ms}]; trail: uçuş sırasında kare başına tek parçacık.
+ */
+export const SKILL_PROFILES = Object.freeze({
+  vargr: Object.freeze({color: 0xff7a1a, accent: 0xfff0dc, // turuncu kor + beyaz kar
+    burst: Object.freeze([{color: 0xff7a1a, n: 10, speed: 2.6, up: 1.4, g: -1.0, life: 640}, {color: 0xffffff, n: 7, speed: 1.3, up: 0.4, g: -1.5, life: 950}]),
+    trail: Object.freeze({color: 0xffa24a, speed: 0.5, up: 0.6, g: 0.6, life: 420})}),
+  sira: Object.freeze({color: 0xa14dff, accent: 0xe8d0ff, // mor ince iz + keskin kesik
+    burst: Object.freeze([{color: 0xc58cff, n: 9, speed: 4.6, up: 0.3, g: -0.3, life: 300}, {color: 0xffffff, n: 3, speed: 6.5, up: 0, g: 0, life: 200}]),
+    trail: Object.freeze({color: 0xb06bff, speed: 0.15, up: 0, g: 0, life: 520})}),
+  doran: Object.freeze({color: 0xffc93c, accent: 0xfff3c4, // altın ışık sütunu + kalkan halkası
+    burst: Object.freeze([{color: 0xffd35a, n: 10, speed: 1.7, up: 2.4, g: 0.5, life: 760}, {color: 0xfff3c4, n: 5, speed: 2.8, up: 0.2, g: 0, life: 420}]),
+    trail: Object.freeze({color: 0xffd35a, speed: 0.3, up: 0.8, g: 0.5, life: 480})}),
+  nyx: Object.freeze({color: 0x22d6e8, accent: 0xa56bff, // camgöbeği-mor rün + meteor kıvılcımı
+    burst: Object.freeze([{color: 0x22d6e8, n: 7, speed: 3.2, up: 1.6, g: -2.2, life: 560}, {color: 0xa56bff, n: 7, speed: 2.4, up: 1.0, g: -1.8, life: 620}]),
+    trail: Object.freeze({color: 0x9bf6ff, speed: 0.4, up: -0.3, g: -1.2, life: 360})}),
+});
+export const PARTICLE_POOL = Object.freeze({high: 128, low: 48});
+
 export function createSkillFx(THREE, scene) {
   const geos = [];
   const mats = [];
@@ -869,6 +944,94 @@ export function createSkillFx(THREE, scene) {
   const v = new THREE.Vector3();
   const prevPos = new THREE.Vector3();
 
+  // ---- karakter parçacık havuzu: sabit tamponlar, kare başına tahsis yok
+  const POOL = PARTICLE_POOL.high;
+  let activeCap = POOL;         // düşük cihazda azalır (setLowQuality)
+  const pPos = new Float32Array(POOL * 3);
+  const pCol = new Float32Array(POOL * 3);
+  const pVel = new Float32Array(POOL * 3);
+  const pLife = new Float32Array(POOL);   // kalan ms
+  const pMax = new Float32Array(POOL);
+  const pG = new Float32Array(POOL);
+  const pBase = new Float32Array(POOL * 3);
+  let pCursor = 0;
+  let pointsReady = false;
+  let points = null;
+  const tmpColor = new THREE.Color();
+  if (THREE.Points && THREE.BufferGeometry && THREE.PointsMaterial) {
+    const geo = g(new THREE.BufferGeometry());
+    geo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+    let map = null;
+    try {
+      if (typeof document !== 'undefined' && THREE.CanvasTexture) {
+        const c = document.createElement('canvas'); c.width = c.height = 32;
+        const ctx = c.getContext('2d');
+        const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+        grad.addColorStop(0, 'rgba(255,255,255,1)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, 32, 32);
+        map = new THREE.CanvasTexture(c);
+      }
+    } catch { map = null; }
+    const pm = new THREE.PointsMaterial({size: 0.16, map, vertexColors: true, transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending, toneMapped: false, sizeAttenuation: true});
+    mats.push(pm);
+    if (map) geos.push({dispose: () => map.dispose()});
+    points = new THREE.Points(geo, pm);
+    points.name = 'pvp-char-particles';
+    points.frustumCulled = false;
+    points.renderOrder = 10;
+    for (let i = 0; i < POOL; i++) pPos[i * 3 + 1] = -999;
+    scene.add(points);
+    pointsReady = true;
+  }
+  function emit(x, y, z, hex, vx, vy, vz, grav, life) {
+    if (!pointsReady) return;
+    const i = pCursor; pCursor = (pCursor + 1) % activeCap;
+    pPos[i * 3] = x; pPos[i * 3 + 1] = y; pPos[i * 3 + 2] = z;
+    pVel[i * 3] = vx; pVel[i * 3 + 1] = vy; pVel[i * 3 + 2] = vz;
+    tmpColor.setHex(hex);
+    pBase[i * 3] = tmpColor.r; pBase[i * 3 + 1] = tmpColor.g; pBase[i * 3 + 2] = tmpColor.b;
+    pG[i] = grav; pLife[i] = pMax[i] = life;
+  }
+  /** Temas/varış patlaması: profil parçacıkları (düşük cihazda sayı x0,4). */
+  function burst(profileId, pos, scale = 1) {
+    const prof = SKILL_PROFILES[profileId];
+    if (!prof || !pointsReady || !pos) return 0;
+    const k = activeCap < POOL ? 0.4 : 1;
+    let n = 0;
+    for (const b of prof.burst) {
+      const count = Math.max(1, Math.round(b.n * k));
+      for (let j = 0; j < count; j++) {
+        const a = (j / count) * Math.PI * 2 + b.speed * 0.37;
+        const sp = b.speed * scale * (0.6 + 0.4 * ((j * 7) % 5) / 4);
+        emit(pos.x, pos.y, pos.z, b.color, Math.cos(a) * sp, b.up * scale + Math.abs(Math.sin(a * 2)) * 0.6, Math.sin(a) * sp * 0.5, b.g * scale, b.life);
+        n++;
+      }
+    }
+    return n;
+  }
+  function updateParticles(dtMs) {
+    if (!pointsReady) return;
+    const dt = dtMs / 1000;
+    let dirty = false;
+    for (let i = 0; i < POOL; i++) {
+      if (pLife[i] <= 0) continue;
+      pLife[i] -= dtMs;
+      dirty = true;
+      if (pLife[i] <= 0) { pPos[i * 3 + 1] = -999; pCol[i * 3] = pCol[i * 3 + 1] = pCol[i * 3 + 2] = 0; continue; }
+      pVel[i * 3 + 1] += pG[i] * dt;
+      pPos[i * 3] += pVel[i * 3] * dt; pPos[i * 3 + 1] += pVel[i * 3 + 1] * dt; pPos[i * 3 + 2] += pVel[i * 3 + 2] * dt;
+      const f = pLife[i] / pMax[i];
+      pCol[i * 3] = pBase[i * 3] * f; pCol[i * 3 + 1] = pBase[i * 3 + 1] * f; pCol[i * 3 + 2] = pBase[i * 3 + 2] * f;
+    }
+    if (dirty && points) {
+      points.geometry.attributes.position.needsUpdate = true;
+      points.geometry.attributes.color.needsUpdate = true;
+    }
+  }
+  function setLowQuality(low) { activeCap = low ? PARTICLE_POOL.low : POOL; if (pCursor >= activeCap) pCursor = 0; }
+
   function make(kind, color, accent) {
     const group = new THREE.Group();
     group.name = `pvp32-fx-${kind}`;
@@ -906,13 +1069,15 @@ export function createSkillFx(THREE, scene) {
     return {group, own};
   }
 
-  function spawn({kind, from, to, color = 0xffffff, accent = 0xffffff, flight = 300, ms = 600, onArrive = null, follow = null, scale = 1}) {
+  function spawn({kind, from, to, color = 0xffffff, accent = 0xffffff, flight = 300, ms = 600, onArrive = null, follow = null, scale = 1, profile = null}) {
     if (!kind) return null;
+    const prof = profile ? SKILL_PROFILES[profile] : null;
+    if (prof) { color = prof.color; accent = prof.accent; }
     while (live.length >= MAX_FX) kill(live[0]);
     const {group, own} = make(kind, color, accent);
     group.scale.setScalar(scale);
     const item = {
-      kind, group, own, age: 0, arrived: false, onArrive, follow,
+      kind, group, own, age: 0, arrived: false, onArrive, follow, profile: prof ? profile : null,
       from: from?.clone ? from.clone() : new THREE.Vector3(), to: to?.clone ? to.clone() : new THREE.Vector3(),
       flight: Math.max(1, flight), ms: Math.max(1, ms),
     };
@@ -954,12 +1119,14 @@ export function createSkillFx(THREE, scene) {
   function arrive(item) {
     if (item.arrived) return;
     item.arrived = true;
+    if (item.profile) burst(item.profile, item.to, item.group.scale.x || 1);
     try { item.onArrive?.(item.to.clone()); } catch { /* kozmetik */ }
   }
 
   function update(dt) {
     const step = Math.max(0, Math.min(0.1, Number(dt) || 0)) * 1000;
     time.value = (time.value + step / 1000) % 1000;
+    updateParticles(step);
     for (const item of live.slice()) {
       item.age += step;
       const k = item.age;
@@ -970,6 +1137,10 @@ export function createSkillFx(THREE, scene) {
         v.lerpVectors(item.from, item.to, item.kind === 'meteor' ? p * p : easeOutCubic(p) * 0.15 + p * 0.85);
         if (item.kind !== 'meteor') v.y += Math.sin(Math.PI * p) * 0.35;
         grp.position.copy(v);
+        if (item.profile && p < 1) {
+          const tr = SKILL_PROFILES[item.profile].trail;
+          emit(v.x, v.y, v.z, tr.color, tr.speed * Math.sin(k * 0.05), tr.up, tr.speed * Math.cos(k * 0.07), tr.g, tr.life);
+        }
         if (item.trail) {
           const attr = item.trail.geometry.getAttribute('position');
           attr.array.copyWithin(3, 0, 72);
@@ -1032,11 +1203,13 @@ export function createSkillFx(THREE, scene) {
 
   function dispose() {
     clear();
+    if (points) { scene.remove(points); points = null; pointsReady = false; }
     for (const geometry of geos) geometry.dispose();
     for (const m of mats) m.dispose();
     geos.length = 0;
     mats.length = 0;
   }
 
-  return {spawn, update, clear, dispose, stats: () => ({live: live.length, kinds: live.map(i => i.kind)})};
+  return {spawn, burst, update, clear, dispose, setLowQuality,
+    stats: () => ({live: live.length, kinds: live.map(i => i.kind), particles: pLife.reduce((a, l) => a + (l > 0 ? 1 : 0), 0), cap: activeCap})};
 }

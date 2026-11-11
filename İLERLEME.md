@@ -31,3 +31,10 @@ Orkestratör: Claude (bu oturum Opus 5.5 üzerinde çalışıyor; istenen "Fable
 - ⚠️ GLM görev dışına çıkıp "İP2" adıyla Zamana Karşı modunu sabit 6 raund / 5-10-15-15-15-20 kelime planına çevirmişti (Arena kuralı; 19 test kırık, kullanıcı spec'i "sayılı raund varsayılan 10" ile çelişiyor). Karar: master'a ALINMADI; tamamı `glm-yedek-vargr-ip2` dalında saklı. Master'a yalnız Vargr dosyaları alındı.
 - Orkestratör düzeltmesi: Vargr boyut testi 1,5 MB → 1,2 MiB (kullanıcı tavanı); git'te olmayan ham GLB'ye bağımlılık koşullu yapıldı.
 - Doğrulama: 724/724 test; tarayıcıda bot maçında Meshy Vargr görünüyor, konsol hatası yok. Animasyon/temas hissi B aşamasında Playwright ile ayrıca bakılacak.
+
+## B — Animasyon + vuruş hissi
+- ✅ 63ab343: pvp/anim-state.js durum makinesi (knockdown > victory > hit > block > attack > idle; 1 saldırı kuyruğu; crossfade tablosu; yarım poz temizliği), hafif hitstop 50 ms.
+- ✅ (bu commit) dinamik temas mesafesi (model Box3 derinliğinden), dash eğrisi (temastan 60–120 ms önce varış), iki dövüşçüyü izleyen kamera + mesafe zoom'u, karaktere özel parçacık profilleri (Vargr kor+kar, Sira mor iz, Doran altın ışık, Nyx camgöbeği-mor rün/meteor), havuzlu parçacık (128/48), hit sırasında block kuyruğa alınır. 737/737 test.
+- Mevcut olan ve korunan: hitstop/sarsıntı/punch/knockback/flash (impact-feel.js + arena3d.js), reduced-motion kapatmaları.
+- Uygulayan: Sonnet alt ajan. Higgsfield efekt görselleri kullanılmadı (deneme klasörü yayına girmiyor, 7 kredi kaldı) → kodla CanvasTexture parçacık.
+- Gözle doğrulanmadı: dash/temas mesafesi ve kamera zoom katsayıları (son denetimde Playwright).
