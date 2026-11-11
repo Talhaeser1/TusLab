@@ -227,3 +227,12 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 - Meshy 722 (bu oturum 88 harcandı). Higgsfield: araç yok (7 kredi duruyordu). ElevenLabs: bakiye okunamıyor; bu oturum 7 ses efekti + 5 ses tasarımı + 1 kısa TTS.
 - ElevenLabs anahtarında eksik izinler: `music_generation`, `voices_read`, `user_read`.
 - İşçi komutu kalıbı: `claude -p "<istem>" --model sonnet --permission-mode acceptEdits --allowedTools "..."` (istem İLK argüman).
+
+## 2026-11-11 (6. oturum) — /goal devam (madde 1–10), orkestratör: Claude Fable 5.2 (hesap2), işçiler hesap1
+- **Başlangıç:** dal `is-4-dovus` (1b74fb2), 799/799 test, 5176'da serve.py açık (PID 4544), boş RAM 1,9 GB.
+- **hesap1 MCP:** Higgsfield ✅ · ElevenLabs ✅ · Meshy ✅ · Playwright ✅ (hepsi bağlı).
+- **Yarım işler:** f9fb91a dövüş düzeltme turu 2 (arena3d/fighters3d + testler; ölçülmedi) · 0f3c912 yeni modlar (match.js/room.js: içerik kimliği sunucuda `isContentId` ile doğrulanıyor, kelime modunda yol değişmiyor — ön denetimde izinsiz kural değişikliği görülmedi; tamamlanıp ölçülecek).
+- **Karar:** aynı anda en çok 2 işçi (dosya kümeleri ayrık). W1 dövüş (hesap1 Fable — iki Sonnet/GLM denemesi yarım kaldı), W2 görev I maç ekranı + kazanan + mekanik (hesap1 Sonnet). Sonra M → K → J2 → L → S → açıklar → ölçüm.
+- **Not:** docs/KONTROL-LISTESI.md eski 9 maddelik; bu oturumda 10 maddelik yeni düzene çevrilecek.
+- **22:35 — hesap1 5 saatlik sınıra takıldı** (sıfırlanma 02:10): W1 ve W2 yarıda kesildi (W1 yalnız ölçüm betiğini genişletti; W2 kazanan düzeltmesi + match-info taslağı bıraktı, 808/808 test). **Karar:** MCP gerektirmeyen işler hesap2 işçileriyle sürer (W1 dövüş → Opus, W2 görev I → Sonnet; günlükler scratchpad'de). MCP isteyen işler (Higgsfield raund arası görseli, ElevenLabs Hacı Usta sesleri) 02:10 sonrasına ya da eldeki varlıklarla (assets/higgsfield/final, assets/sfx) çözülür.
+- docs/KONTROL-LISTESI.md 10 maddelik düzene çevrildi (fcb8373).
