@@ -1,8 +1,0 @@
-TUSLAB PVP 20/20 - TEST RAPORU
-Yerel Node testleri: 161/161 BASARILI, 0 basarisiz.
-Yerel predeploy kontrolleri: 47/47 BASARILI.
-Statik build: BASARILI (cloudflare/public).
-Cloudflare deploy / Wrangler bundle: DOGRULANMADI.
-Neden: registry.npmjs.org DNS hatasi EAI_AGAIN; Cloudflare hesabi girisi yok.
-Iki gerçek uzak cihaz / HTTPS / WSS / production FPS: DOGRULANMADI.
-Uygulama yalnızca kod ve dagitim hazirligi açisindan teslim edildi.
