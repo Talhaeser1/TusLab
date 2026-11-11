@@ -28,7 +28,7 @@ test('preload fetches lobby+combat first; other scenes load lazily on first setS
  const fetched=[];
  const score=createDynamicScore({storage:null,AudioContextClass:Context,fetcher:async url=>{fetched.push(url.split('/').pop());return {ok:true,arrayBuffer:async()=>new Uint8Array(8).buffer};}});
  assert.equal(await score.preload(),true);
- assert.deepEqual(fetched.sort(),['combat.wav','lobby.wav']);
+ assert.deepEqual(fetched.sort(),['anadolu.mp3']);
  assert.equal(await score.unlock(),true);assert.equal(score.getState().current,'lobby');
  assert.equal(score.setScene('ultimate'),false,'not loaded yet');
  await new Promise(r=>setTimeout(r,0));

@@ -246,3 +246,6 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
   - Not: taraf arketipe göre (rune = mavi/2. koltuk); `fighter2` parametresi bot karakterini her zaman belirlemiyor (madde 9'da bakılacak).
 - Çalışan: W4 görev L raund arası · W5 görev S ses bağlama (hazır dosyalarla; hesap1/ElevenLabs gerekmiyor).
 - **23:36 — bellek baskısı:** boş RAM 496 MB / 7,9 GB. Claude Code, W4 ve W5'in sarmalayıcı kabuklarını bellek azlığı nedeniyle durdurdu; işçi süreçlerinin kendisi (PID 29756 L, 27400 S) hayatta kaldı ve çalışmayı sürdürüyor (yeniden BAŞLATILMADI). Bir işçi aynı anda 5 headless tarayıcı açmış (GPU süreci 840 MB). **Karar:** bu ikisi bitene kadar yeni işçi/ölçüm başlatılmaz; bundan sonra aynı anda en çok 1 işçi ve işçi istemlerine "aynı anda tek tarayıcı" kuralı eklenir. O andaki `npm test`: 824/825 (yarım ses işi: müzik ön yükleme testi; W5 sürüyor).
+
+## Görev S — SES (bağlandı)
+- pvp/sound.js: replik/anons/efekt/seyirci katmanı + tek kanallı kuyruk (pvp/voice-queue.js); konyali q/e/r mp3, hit/ko dosyası yok → arketip (404 yok). music23.js: anadolu.mp3 lobi+dövüş varsayılanı, .wav yedek. Ses düğmesi artık müziği de keser. arena3d.js: tek satır `tuslab:pvp-cast` olayı. Kanıt: .playwright-mcp/ses-probe.js.

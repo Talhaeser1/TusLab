@@ -4,7 +4,7 @@ import {exchangeGate,wordCommit,afterReject,queuedReady} from './word-queue.js';
 import {normalizeTyping} from './shared/typing-rules.js';
 import {createCharacterController,rigMarkup,MOTION_NAMES} from './characters.js';
 import {createCombatFxDirector} from './combat-fx.js';
-import {createPvPAudio,soundForCue} from './sound.js';
+import {createPvPAudio,soundForCue,weaponSfx} from './sound.js';
 import {isFighterId,normalizeFighter} from './shared/fighters.js';
 import {createComboCounter} from './combo-counter.js';
 import {createAttackCallout,createDisplayedHp} from './attack-callout.js';
@@ -167,7 +167,7 @@ let lastFighterKey='';
 function arena3dSyncFighters(){
   const map={1:fighterOfSeat(1),2:fighterOfSeat(2)};
   const key=`${map[1]}|${map[2]}`;
-  if(network.match&&key!==lastFighterKey){lastFighterKey=key;pvpAudio.preloadFighters?.([map[1],map[2]]);}
+  if(network.match&&key!==lastFighterKey){lastFighterKey=key;pvpAudio.preloadFighters?.([map[1],map[2]]);void pvpAudio.preloadVoices?.([map[1],map[2]]);}
   if(arena3d.instance?.setFighters)void arena3d.instance.setFighters(map); // aynı seçim → yeniden yüklemez
 }
 function arena3dSyncStage(){
@@ -181,6 +181,31 @@ function playFighterSfx(seat,key,gain=1){
   const fid=fighterOfSeat(seat);
   return pvpAudio.playFighter(fid,key,{character:seat===2?'rune':'fire',gain:gain*(FIGHTER_GAIN[`${fid}-${key}`]||1)});
 }
+/** Görev S: karakter repliği / spiker / seyirci yardımcıları (hepsi tek replik kanalından geçer, sessiz modda no-op). */
+function speakSeat(seat,key,opts){return (seat===1||seat===2)&&pvpAudio.speak?.(fighterOfSeat(seat),key,opts);}
+let lastRoundVoice='';
+function roundVoice(){
+  const m=network.match,r=m?.round;if(!r)return;
+  const tag=`${m.matchId}:${r.index}`;if(tag===lastRoundVoice)return;lastRoundVoice=tag;
+  const total=Number(r.total)||0;
+  pvpAudio.announce?.(r.index===1?'spiker-raund1':total&&r.index>=total?'spiker-son-raund':'spiker-yeni-raund',{priority:2,ttlMs:2500});
+  if(r.index===1)pvpAudio.announce?.('spiker-savas',{priority:2,ttlMs:3000});
+}
+let crowdOn=null;
+function syncCrowd(scene){
+  const on=['combat','tension','ultimate','prep'].includes(scene);
+  if(on===crowdOn)return;crowdOn=on;
+  if(on)pvpAudio.startCrowd?.();else pvpAudio.stopCrowd?.();
+}
+// Sahnenin cast anı (arena3d playModelSkill) → karakterin kendi sesiyle skill adı.
+root?.addEventListener('tuslab:pvp-cast',event=>{const d=event.detail||{};if(['q','e','r'].includes(d.skill))speakSeat(d.seat,d.skill,{priority:3,ttlMs:1200});});
+// Kombo vuruşunun temas karesi → seri anonsu ("2 KOMBO" …) + jingle + kalabalık.
+root?.addEventListener('tuslab:pvp-strike',event=>{
+  const n=Math.min(6,(Number(event.detail?.index)||0)+1);if(n<2)return;
+  pvpAudio.announce?.(`seri-${n}`,{priority:2,ttlMs:900});
+  pvpAudio.playExtra?.(`jingle-${n}`,{gain:.22});
+  if(n>=3)pvpAudio.cheer?.(.3);
+});
 function arena3dDestroy(){
   arena3d.token++;
   arena3d.instance?.destroy();
@@ -499,7 +524,7 @@ function show(open){
     for(const id of ['fire','rune']){fxDirectors[id]?.dispose();delete fxDirectors[id];choreographers[id]?.dispose();delete choreographers[id];}
     roundsUi?.destroy();roundsUi=null;arenaUi?.destroy();arenaUi=null;
     delete root.dataset.layout;delete root.dataset.pvpMode;delete root.dataset.arenaPhase;root.classList.remove('pvp15-results-open');
-    projectiles?.dispose();projectiles=null;fx24Destroy();arena3dDestroy();pvpAudio.stop();pvpMusic.stop();lastMusicScene=null;
+    projectiles?.dispose();projectiles=null;fx24Destroy();arena3dDestroy();pvpAudio.stop();pvpMusic.stop();lastMusicScene=null;crowdOn=null;
     root.replaceChildren();return;
   }
   root.innerHTML=screen();
@@ -513,6 +538,7 @@ function show(open){
   // İlk tuşta unlock() müziği zaten kendisi indirir; bu yalnız erken ısınma.
   void pvpAudio.preload();deferMusicPreload();pvpMusic.setScene('lobby');
   const audioSettings=pvpAudio.getState();
+  if(audioSettings.muted&&!pvpMusic.getState().muted)pvpMusic.setMuted(true); // SESSİZ MOD: tek düğme müziği de keser
   const musicSettings=pvpMusic.getState();
   const musicLevel=root.querySelector('[data-pvp23-music]');if(musicLevel)musicLevel.value=String(Math.round(musicSettings.volume*100));
   const musicLabel=root.querySelector('[data-pvp23-music-label]');if(musicLabel)musicLabel.textContent=Math.round(musicSettings.volume*100)+'%';
@@ -593,6 +619,8 @@ root?.addEventListener('click',event=>{
   } else if(action.dataset.pvpAction==='sound'){
     const next=pvpAudio.setMuted(!pvpAudio.getState().muted);
     action.setAttribute('aria-pressed',String(next));action.textContent=next?'🔇 Sesi aç':'🔊 Sesi kapat';
+    if(pvpMusic.getState().muted!==next){pvpMusic.setMuted(next);const mb=root.querySelector('[data-pvp23-music-toggle]');if(mb){mb.setAttribute('aria-pressed',String(next));mb.textContent=next?'♫ Müziği aç':'♫ Müziği kapat';}}
+    if(!next)void pvpMusic.unlock();
     if(!next)void pvpAudio.unlock().then(()=>pvpAudio.play('shield',{character:'center',gain:.22}));
   } else if(action.dataset.pvpAction==='reset') {
     const p=players[action.dataset.target];if(!p)return;
@@ -644,6 +672,7 @@ function playCombat(action){
   const defender=action.toSeat===2?'rune':'fire';
   if(action.type==='SKILL_CAST'){
     if(action.skill==='r'){pvpMusic.setScene('ultimate');setTimeout(()=>{if(root&&!root.hidden)syncMusic();},2200);}
+    if(!arena3d.instance&&['q','e','r'].includes(action.skill))speakSeat(action.fromSeat,action.skill,{priority:3,ttlMs:1200});
     controllers[actor]?.trigger(action.skill);
     projectiles?.launch({fromSeat:action.fromSeat,skill:action.skill,character:actor});
   }else if(action.type==='ULTIMATE_PHASE'){
@@ -665,6 +694,7 @@ function playCombat(action){
   }else if(action.type==='SHIELD_TRIGGERED'){
     const kind=action.seat===2?'rune':'fire';
     controllers[kind]?.trigger('s');
+    speakSeat(action.seat,'savunma',{priority:3,ttlMs:1200});
     choreographers[kind]?.onDefense(action.kind||'BLOCK');
     if(action.kind==='PERFECT_BLOCK'){
       fxDirectors[kind]?.play({cue:'ward-pulse',action:'s'});
@@ -673,7 +703,7 @@ function playCombat(action){
     }
   }else if(action.type==='PARRY_TRIGGERED'){
     const kind=action.seat===2?'rune':'fire';
-    controllers[kind]?.trigger('s');choreographers[kind]?.onDefense('PARRY');fxDirectors[kind]?.play({cue:'sparks'});
+    controllers[kind]?.trigger('s');speakSeat(action.seat,'savunma',{priority:3,ttlMs:1200});choreographers[kind]?.onDefense('PARRY');fxDirectors[kind]?.play({cue:'sparks'});
     pvpAudio.play('parry',{character:kind,gain:1});
     pvp13Banner(action.seat,'✧ PARRY!', 'parry');
   }else if(action.type==='COUNTERATTACK_CAST'){
@@ -700,7 +730,13 @@ function playImpactFeedback(action, scenePresented = true){
   if(arena3d.instance&&!action.blocked&&['q','e','r'].includes(action.skill))playFighterSfx(action.fromSeat,action.skill,.8);
   // Paket 32: temiz isabet hedefin kendi sesiyle; blok/kritik sesleri aynı kalır.
   const plainHit=!action.blocked&&!action.critical&&(Number(action.amount)||0)>0&&(action.toSeat===1||action.toSeat===2);
-  if(!(plainHit&&playFighterSfx(action.toSeat,'hit')))pvpAudio.combat(action);
+  // Görev S: temas karesinde silah / blok / kritik efekti (konyalı q/e/r zaten kendi mp3'ünü çalar).
+  const wpn=!action.blocked&&['q','e','r'].includes(action.skill)?weaponSfx(fighterOfSeat(action.fromSeat),action.skill):null;
+  if(wpn)pvpAudio.playExtra?.(wpn,{gain:.4});
+  const extra=action.blocked?'blok':action.critical?'kritik':null;
+  const extraDone=extra?Boolean(pvpAudio.playExtra?.(extra,{gain:action.blocked?.45:.5})):false;
+  if(action.critical&&!action.blocked)pvpAudio.cheer?.(.25);
+  if(!extraDone&&!(plainHit&&playFighterSfx(action.toSeat,'hit')))pvpAudio.combat(action);
   if(!action.blocked&&(Number(action.amount)||0)>0)hitFeelDamage(action);
   projectiles?.impact({toSeat:action.toSeat,blocked:action.blocked});
   if(!action.blocked)controllers[defender]?.trigger('hit');
@@ -709,6 +745,7 @@ function syncMusic(){
   const m=network.match;
   const next=m?.status==='ended'?(m.winnerSeat===network.seat?'victory':'defeat')
     :m?.status==='running'?(m.mode==='arena'&&m.round?.phase==='prep'?'prep':m.players?.some(x=>x.hp/x.maxHp<.3)?'tension':'combat'):'lobby';
+  syncCrowd(next);
   if(next!==lastMusicScene){lastMusicScene=next;pvpMusic.setScene(next);}
 }
 root?.addEventListener('tuslab:pvp-match',syncMusic);
@@ -753,6 +790,10 @@ root?.addEventListener('tuslab:pvp-match',()=>{
   if(m.winnerSeat===1||m.winnerSeat===2){
     pvpAudio.play(m.winnerSeat===network.seat?'victory':'defeat',{character:m.winnerSeat===1?'fire':'rune',gain:.7});
     playFighterSfx(m.winnerSeat===1?2:1,'ko',.9); // paket 32: kaybedenin KO sesi
+    // Görev S: düşme + zafer repliği + spiker + tezahürat (tek replik kanalı; üst üste binmez)
+    pvpAudio.playExtra?.('dusme',{gain:.5});pvpAudio.cheer?.(.4);
+    speakSeat(m.winnerSeat,'zafer',{priority:4,ttlMs:4000});
+    pvpAudio.announce?.(m.winnerSeat===network.seat?'spiker-zafer':'spiker-yenilgi',{priority:3,ttlMs:4000});
   }
 });
 // Paket 29: dövüş HUD'u (fx24Clear yapan dinleyiciden SONRA kayıtlı olmalı). Maç başı girişi (yeni matchId,
@@ -763,6 +804,11 @@ root?.addEventListener('tuslab:pvp-match',()=>{
   if(m.status==='running'&&m.matchId!==hudStartedId){
     hudStartedId=m.matchId;
     const fresh=!(Number(m.startedAt)>0)||network.serverNow()-Number(m.startedAt)<4000; // yeniden bağlanmada giriş oynamaz
+    if(fresh){
+      pvpAudio.playExtra?.('seyirci-baslangic',{gain:.35});
+      const mine=(m.players||[]).find(p=>p.playerId===network.myId)?.seat;
+      for(const seat of [mine,mine===1?2:1])speakSeat(seat,'soz',{priority:1,ttlMs:6000});
+    }
     if(fresh)hud.matchStart({players:(m.players||[]).map(p=>({seat:p.seat,name:p.name,character:p.character,fighter:p.fighter})),mode:m.mode,round:m.round?.index||1});
   }
   hud.update(m,network.myId);
@@ -945,7 +991,8 @@ root?.addEventListener('tuslab:pvp-round',event=>{
   const detail=event.detail||{};
   if(detail.type==='ROUND_START')arena3d.instance?.clear();
   if(detail.type==='ROUND_END')arena3d.instance?.visualQueue?.drain(1500);
-  if(detail.type==='ROUND_START')pvpAudio.play('round-start',{character:'center',gain:.6});
+  if(detail.type==='ROUND_START'){pvpAudio.play('round-start',{character:'center',gain:.6});roundVoice();}
+  if(detail.type==='ROUND_END'&&detail.payload?.reason==='TIME')pvpAudio.announce?.('spiker-sure',{priority:2,ttlMs:1800});
   if(detail.type==='ROUND_SKILL_ACK'){
     pvpAudio.play('skill-lock',{character:'center',gain:.45});
     const cue={timethief:'time-thief',freeze:'time-freeze',blindclock:'blind-clock'}[detail.payload?.skill];
@@ -969,7 +1016,7 @@ root?.addEventListener('tuslab:pvp-arena',event=>{
   if(detail.type==='ARENA_PREP_START')pvpAudio.play('prep',{character:'center',gain:.65});
   if(detail.type==='ARENA_PICK_ACK')pvpAudio.play('skill-lock',{character:'center',gain:.48});
   if(detail.type==='ARENA_ROUND_START'){
-    pvpAudio.play('round-start',{character:'center',gain:.7});
+    pvpAudio.play('round-start',{character:'center',gain:.7});roundVoice();
     const cue={scramble:'scramble',timethief:'time-thief',freeze:'time-freeze',blindclock:'blind-clock'}[network.match?.me?.picks?.skill];
     if(cue)pvpAudio.play(cue,{character:'center',gain:.55});
   }

@@ -1870,6 +1870,7 @@ export async function createArena3D({
     }
     probeMark('cast', {seat, skill, hitMs, chain: chain ? {strikes: chain.contacts.length, totalMs: chain.totalMs} : null,
       plan: plan ? {travelMs: plan.travelMs, speed: plan.speed, compress, skipReturn} : null});
+    emitDom('tuslab:pvp-cast', {seat, skill}); // ses: sahnenin cast anı (replik)
     const opponent = fighters.get(otherSeat(seat));
     const scale = fighter.root.scale.x || 1;
     // Dinamik temas mesafesi: model ölçeğinden (Box3 derinliği) saldıranın silah uzanımı + savunan gövdesi.

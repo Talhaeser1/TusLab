@@ -7,15 +7,19 @@
 export const MUSIC_SCENES=Object.freeze(['lobby','prep','combat','tension','ultimate','victory','defeat']);
 const PRIORITY_SCENES=Object.freeze(['lobby','combat']);
 const FADE=.6;
+/** Görev S: lobi ve dövüş için varsayılan Anadolu döngüsü (ney + bağlama); yoksa/yüklenemezse sahnenin .wav yedeği. */
+export const ANADOLU_TRACK='anadolu.mp3';
+export const ANADOLU_SCENES=Object.freeze(['lobby','combat']);
 const clip=n=>Math.max(0,Math.min(1,Number(n)||0));
 function read(storage,key,fallback){try{return storage?.getItem(key)??fallback;}catch{return fallback;}}
 function write(storage,key,value){try{storage?.setItem(key,String(value));}catch{}}
 export function createDynamicScore({storage=globalThis.localStorage,AudioContextClass=globalThis.AudioContext||globalThis.webkitAudioContext,fetcher=globalThis.fetch?.bind(globalThis),baseURL='./assets/music/'}={}){
  let ctx=null,master=null,compressor=null,disposed=false,loading=null,unlocked=false,duckTimer=null;
- let volume=clip(Number(read(storage,'tuslab-pvp-music-volume','0.20')));
+ let volume=clip(Number(read(storage,'tuslab-pvp-music-volume','0.25')));
  let muted=read(storage,'tuslab-pvp-music-muted','false')==='true';
  let requested='lobby',current=null,transitionTimer=null;
- const raw=new Map(),decoded=new Map(),voices=new Set();
+ const raw=new Map(),decoded=new Map(),voices=new Set(),trackOf=new Map();
+ let anadoluBytes=null,anadoluMissing=false;
  function setup(){
   if(disposed||!AudioContextClass)return false;
   if(ctx)return true;
@@ -37,8 +41,18 @@ export function createDynamicScore({storage=globalThis.localStorage,AudioContext
    try{
     if(!raw.has(scene)){
      if(!fetcher||disposed)return false;
-     const response=await fetcher(baseURL+scene+'.wav');if(!response.ok)throw new Error('Missing track');
-     raw.set(scene,await response.arrayBuffer());
+     let bytes=null;
+     if(ANADOLU_SCENES.includes(scene)&&!anadoluMissing){
+      try{
+       if(!anadoluBytes)anadoluBytes=fetcher(baseURL+ANADOLU_TRACK).then(r=>{if(!r.ok)throw new Error('Missing track');return r.arrayBuffer();});
+       bytes=await anadoluBytes;trackOf.set(scene,ANADOLU_TRACK);
+      }catch{anadoluMissing=true;anadoluBytes=null;}
+     }
+     if(!bytes){
+      const response=await fetcher(baseURL+scene+'.wav');if(!response.ok)throw new Error('Missing track');
+      bytes=await response.arrayBuffer();trackOf.set(scene,scene+'.wav');
+     }
+     raw.set(scene,bytes);
     }
     if(ctx&&unlocked&&!decoded.has(scene)){decoded.set(scene,await ctx.decodeAudioData(raw.get(scene).slice(0)));raw.delete(scene);}
     return true;
@@ -86,6 +100,9 @@ export function createDynamicScore({storage=globalThis.localStorage,AudioContext
  function applyScene(scene){
   if(disposed||muted||volume<=0||!unlocked||!ctx||!decoded.has(scene))return false;
   if(scene===current)return true;
+  // Aynı Anadolu döngüsü lobi→dövüşte baştan başlamaz; çalmaya devam eder.
+  const live=[...voices].find(v=>v.scene===current);
+  if(live&&trackOf.get(scene)&&trackOf.get(scene)===trackOf.get(live.scene)){live.scene=scene;current=scene;return true;}
   const time=ctx.currentTime||0;
   const src=ctx.createBufferSource(),gain=ctx.createGain();
   src.buffer=decoded.get(scene);src.loop=scene!=='victory'&&scene!=='defeat';
