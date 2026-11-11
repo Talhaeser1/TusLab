@@ -202,3 +202,28 @@ P1 15–19 (zemin teması, karakter seçiminin tüm modlarda geçişi, sayılı 
 - İşçi notu: `claude -p`'de `--allowedTools` istemden ÖNCE gelirse istemi yutuyor → istem ilk argüman. İşçiler doğrulamayı `node .playwright-mcp/run.mjs <probe>` ile kendileri yapabiliyor.
 - Çalışan (paralel, dosyalar ayrık): hesap2 → dövüş düzeltme turu 2 · hesap1 → M yeni modlar.
 - "Donmuş An" bulgusu (işçi raporu): kural tarafında çalışıyor — kullanana +3 sn süre veriyor (arena.js:95-97); "işe yaramıyor" hissi görsel geri bildirim eksikliğinden. Görsel/sesli vurgu I görevinde eklenecek.
+
+## 2026-11-11 (5. oturum) — DURDURULDU (kullanıcı talimatı, ~22:15)
+İki Sonnet işçisi (hesap1, hesap2) ve ölçüm betiği süreçleri kapatıldı; opencode süreci yok. Her şey `is-4-dovus` dalında commit'li (master'a ALINMADI, push yok). `npm test`: 799/799. 5176'daki `scripts/serve.py` açık bırakıldı.
+
+### Biten (commit'li, tarayıcıda doğrulandı)
+- **Madde 1 ana ekran** (cefd596): liderlik/başarımlar kalktı, ortadaki boss 3D + hareketli, komuta/performans panelleri sade. 1366/1920/375'te ölçüldü.
+- **Madde 0:** işçi ve MCP doğrulaması (tablo yukarıda).
+
+### Biten (commit'li, oyuna BAĞLANMADI)
+- Modeller: assets/models/konyali/konyali.glb (Hacı Usta, 9 klip) + portre; assets/models/harf-muhafizi/harf-muhafizi.glb (ana ekranda kullanılıyor).
+- Ses: assets/sfx/replik/ (5 karakter × 6 replik), assets/sfx/konyali-q/e/r.mp3, assets/music/anadolu.mp3. Kulakla dinlenmedi.
+- İçerik: pvp/shared/content-atasozu.js (122), content-siir.js (32 parça/114 dize), content-osmanlica.js (210).
+- Görev tanımları: docs/codex/I-MAC-MEKANIK.md, J-KALAN-GOREVLER.md (J1 ✅, J2, K, L, M, S).
+
+### Yarım
+- **Madde 4 dövüş:** 894d0bf ara durum ölçüldü (sıra sıra saldırı, saldırı adı + hasar yazısı, hit tepkisi ✅). "Düzeltme turu 2" (kombo sayacı görünmüyor, ultide 2,4 sn boş bekleme, bot sahnesi yok, KRİTİK/durum rozeti gözlenmedi) işçi yarıdayken kesildi → "YARIM: dövüş düzeltme turu 2" commit'i. Denetlenmedi, ölçülmedi. Devam: docs/codex/SONNET-ANIMASYON.md sonundaki bölüm + `node .playwright-mcp/run.mjs .playwright-mcp/dovus-probe.js`.
+- **Madde 8 yeni modlar:** işçi yarıdayken kesildi → "YARIM: yeni içerik modları" commit'i (pvp/shared/content-modes.js, match.js, network.js, practice.js, arena-ui.js, typing-top-model.js, cloudflare/src/room.js). ⚠️ Kural ve sunucu dosyalarına dokunuyor; diff DENETLENMEDİ. Master'a almadan önce `git show` ile kural değişikliği denetimi şart.
+
+### Başlanmadı
+Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: arena.js recordRoundHistory KO'yu saymıyor), 5 (mekanik testleri), 6 (raund arası), 7'nin bağlama kısmı + sessiz mod, 9'un oyuna bağlanması, 10 (önceki açıklar, üç çözünürlük tam maç ölçümü). docs/KONTROL-LISTESI.md GÜNCELLENMEDİ.
+
+### Krediler / ortam
+- Meshy 722 (bu oturum 88 harcandı). Higgsfield: araç yok (7 kredi duruyordu). ElevenLabs: bakiye okunamıyor; bu oturum 7 ses efekti + 5 ses tasarımı + 1 kısa TTS.
+- ElevenLabs anahtarında eksik izinler: `music_generation`, `voices_read`, `user_read`.
+- İşçi komutu kalıbı: `claude -p "<istem>" --model sonnet --permission-mode acceptEdits --allowedTools "..."` (istem İLK argüman).
