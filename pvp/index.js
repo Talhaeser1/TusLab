@@ -671,8 +671,9 @@ function playCombat(action){
     pvp13Banner(action.seat,'✹ SHIELD BREAK!', 'shatter');
   }
 }
-function playImpactFeedback(action){
+function playImpactFeedback(action, scenePresented = true){
   fx24.damage?.handle(action);
+  if(!scenePresented)return; // Sıkıştırılan sahne: yalnız hasar sayısı, yeni darbe/tepki yok.
   // Yalnız görsel: temas anı boyalı efekt katmanına (visual-enrich.js) duyurulur.
   try{root?.dispatchEvent(new CustomEvent('tuslab:pvp-impact',{bubbles:true,detail:{toSeat:action.toSeat,fromSeat:action.fromSeat,skill:action.skill,phase:action.phase,amount:Number(action.amount)||0,blocked:!!action.blocked,critical:!!action.critical}}));}catch{}
   const defender=action.toSeat===2?'rune':'fire';

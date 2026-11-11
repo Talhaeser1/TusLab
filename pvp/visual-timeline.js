@@ -10,9 +10,8 @@
 //   tl.flush()            // raund geçişi: son durumu anında uygula
 //   tl.isBusy() / tl.remainingMs() / tl.whenIdle(maxWaitMs)    // okuma API'si
 //
-// ctx (start'a verilir): {compress, skipReturn, backlogMs} — kuyruk birikimi
-// MAX_BACKLOG_MS'i aşınca sonraki saldırılarda yolculuk kısalır / hız 1,2'ye çıkar,
-// aynı koltuğun art arda saldırısında dönüş atlanır.
+// ctx (start'a verilir): {compress, skipReturn, backlogMs} — kuyruk birikimi.
+// Tavan aşılırsa bekleyen eski sahneler temas üretmeden tamamlanır.
 
 export const VISUAL_QUEUE = Object.freeze({
   maxBacklogMs: 2500,   // birikim bu değeri aşarsa sıkıştırma
@@ -50,7 +49,7 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
   function finish(item, forced) {
     if (item.done) return;
     item.done = true;
-    if (!item.contactFired) { item.contactFired = true; safe(item.onContact, {forced}); }
+    if (!item.contactFired && !forced) { item.contactFired = true; safe(item.onContact, {forced}); }
     if (forced) { stats.forced++; safe(item.complete, true); }
     safe(item.onEnd, {forced});
     stats.completed++;
@@ -62,8 +61,7 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
       const item = queue.shift();
       const backlog = (item.estimateMs || 0) + queue.reduce((s, q) => s + (q.estimateMs || 0), 0);
       const compress = backlog > VISUAL_QUEUE.maxBacklogMs;
-      const next = queue[0];
-      const skipReturn = compress && Boolean(next) && next.seat === item.seat;
+      const skipReturn = false;
       if (compress) stats.compressed++;
       if (skipReturn) stats.skippedReturns++;
       stats.lastLagMs = backlog;
@@ -105,7 +103,9 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
         return entry;
       }
       queue.push(entry);
-      while (queue.length > VISUAL_QUEUE.maxItems) { const old = queue.shift(); finish(old, true); }
+      while (queue.length > VISUAL_QUEUE.maxItems || (queue.length > 1 && remainingMs() > VISUAL_QUEUE.maxBacklogMs)) {
+        const old = queue.shift(); finish(old, true);
+      }
       if (!active) startNext();
       return entry;
     },

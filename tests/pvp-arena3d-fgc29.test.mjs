@@ -242,7 +242,7 @@ test('fgc29: dynamic camera is exactly the layout camera at home and frames the 
   instance.destroy();
 });
 
-test('fgc29: floor glow (one instanced draw), hit wave and fog pulse; off on low quality', async () => {
+test('fgc29: floor glow stays quiet for damage without an attack scene; off on low quality', async () => {
   const {instance, env} = await buildArena();
   const glow = instance.api.scene.getObjectByName('pvp29-floor-glow');
   assert.ok(glow?.isInstancedMesh && glow.count === 4, 'seat rings + waves share one InstancedMesh');
@@ -250,10 +250,10 @@ test('fgc29: floor glow (one instanced draw), hit wave and fog pulse; off on low
   assert.ok(glow.geometry.getAttribute('aParam').array[0] > 0.3, 'seat ring visible');
   instance.handle({type: 'DAMAGE_APPLIED', fromSeat: 1, toSeat: 2, amount: 120, blocked: false});
   run(instance, env, 16);
-  assert.equal(cin(instance).waves, 1, 'floor light wave');
-  assert.ok(cin(instance).fogPulse > 0.3, 'fog pulses');
+  assert.equal(cin(instance).waves, 0, 'orphan damage does not create a hit wave');
+  assert.equal(cin(instance).fogPulse, 0, 'orphan damage does not pulse fog');
   const fog = instance.api.scene.fog.color.clone();
-  assert.ok(fog.r > 0x15 / 255, 'fog tinted toward the attacker colour');
+  assert.ok(fog.r >= 0, 'fog colour remains valid');
   run(instance, env, 3000);
   assert.equal(cin(instance).waves, 0);
   assert.equal(cin(instance).fogPulse, 0);

@@ -213,8 +213,8 @@ test('arena3d: plugins receive handle/update, events map to animation state', as
   instance.handle({type: 'DAMAGE_APPLIED', fromSeat: 1, toSeat: 2, amount: 90, blocked: false, skill: 'e'});
   env.advance(60);
   instance._debug.tick();
-  assert.ok(instance._debug.fighter(2).pose.flash > 0, 'hit flash on defender');
-  assert.ok(instance._debug.fighter(2).pose.fwd < 0, 'knockback away from attacker');
+  assert.equal(instance._debug.fighter(2).pose.flash, 0, 'scene-free damage does not flash the defender');
+  assert.equal(instance._debug.fighter(2).pose.fwd, 0, 'scene-free damage does not knock the defender back');
 
   instance.handle({type: 'DAMAGE_APPLIED', fromSeat: 2, toSeat: 1, amount: 0, blocked: true, blockKind: 'NORMAL_BLOCK', skill: 'q'});
   instance.handle({type: 'SHIELD_TRIGGERED', seat: 1, kind: 'PERFECT_BLOCK'});
@@ -635,7 +635,7 @@ test('arena3d env: the crowd cheers on big hits and the knockout, then settles',
   assert.ok(instance._debug.environment().excite < 0.05);
   instance.handle({type: 'DAMAGE_APPLIED', fromSeat: 1, toSeat: 2, amount: 140, blocked: false, skill: 'r'});
   runFrames(instance, env, 50);
-  assert.ok(instance._debug.environment().excite > 0.3, 'cheer on a heavy hit');
+  assert.ok(instance._debug.environment().excite < 0.05, 'scene-free damage does not cheer');
   runFrames(instance, env, 5000);
   assert.ok(instance._debug.environment().excite < 0.05, 'settles down');
   instance.handle({type: 'KNOCKOUT', seat: 2});

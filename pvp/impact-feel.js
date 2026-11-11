@@ -10,7 +10,7 @@ export function impactTier(e={}) {
   return e.skill==='q'||e.skill==='e'||e.critical||e.bonusTags?.length||e.amount>=40 ? 'medium':'small';
 }
 export function createImpactState() {
-  return {trauma:0,punch:0,zoom:0,timeScale:1,stopId:0,stopUntil:0,slowUntil:0};
+  return {trauma:0,punch:0,zoom:0,timeScale:1,stopId:0,stopUntil:0,slowUntil:0,lastStopAt:-Infinity};
 }
 export function addTrauma(s,amount) { s.trauma=clamp(s.trauma+amount,0,1); }
 export function beginHitstop(s,now,ms) {
@@ -59,25 +59,31 @@ export function stepImpact(s,dt,now,reduced=false) {
 export function createImpactDirector({now,isReduced,contact,deliver}) {
   const state=createImpactState(), pending=[];
   const seen=new WeakSet();
-  function hit(event) {
+  function hit(event,scene=true) {
     if(seen.has(event))return;
     seen.add(event);
-    const spec=event.blocked ? {...IMPACT_TIERS.small,hitstopMs:0}
-      : triggerImpact(state,event,now(),isReduced());
-    try { contact(event,spec); } catch { /* presentation adapters are optional */ }
-    deliver(event);
+    if(scene){
+      const time=now();
+      const canStop=time-state.lastStopAt>=400;
+      const spec=event.blocked ? {...IMPACT_TIERS.small,hitstopMs:0}
+        : canStop ? triggerImpact(state,event,time,isReduced()) : {...IMPACT_TIERS[impactTier(event)],hitstopMs:0};
+      if(canStop&&!event.blocked&&!isReduced())state.lastStopAt=time;
+      try { contact(event,spec); } catch { /* presentation adapters are optional */ }
+    }
+    deliver(event,scene);
   }
   return {state,
     queue(event,ready,deadlineMs) {
       // A dropped/replaced visual cue must never retain an unbounded backlog.
-      if(pending.length>=16)hit(pending.shift().event);
+      if(pending.length>=16)hit(pending.shift().event,false);
       pending.push({event,ready,deadline:now()+(deadlineMs||(event.skill==='r'?5000:2400))});
     },
     flush() { for(let i=0;i<pending.length;i++) {
-      const p=pending[i]; if(!p.ready()&&now()<p.deadline)continue;
-      pending.splice(i--,1); hit(p.event);
+      const p=pending[i], ready=p.ready(); if(!ready&&now()<p.deadline)continue;
+      pending.splice(i--,1); hit(p.event,ready);
     } },
     hit,
+    silent(event) { hit(event,false); },
     clear() { pending.length=0; resetImpact(state); },
   };
 }

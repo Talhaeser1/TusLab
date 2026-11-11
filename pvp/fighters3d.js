@@ -383,7 +383,7 @@ export function dashProgress(elapsedMs, hitMs, {leadMs = 90, holdMs = 100, start
 export const TRAVEL = Object.freeze({
   travelMs: 400, minMs: 300, maxMs: 500,
   returnMs: 420, fastReturnMs: 240,
-  fastTravelMs: 220,   // kuyruk baskısında kısaltılmış yolculuk
+  fastTravelMs: 400,   // kuyruk baskısında da yolculuk görünür kalır
   holdMs: 200,         // KayKit için temas sonrası bekleyiş (Meshy: spec.recoverMs)
 });
 const easeInOutCubicK = k => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
@@ -656,7 +656,7 @@ export function createFighterRig(THREE, asset, {
    * Şerit H: yakın dövüş q/e planı. Yolculuk (koşu klibi) → saldırı klibi BAŞTAN (offset yok,
    * hız ≤ 1,2) → temasta (hitMs) vuruş → toparlanma → geri yürüyüş. Planlar önceden hesaplanır:
    *   plan(skill, {compress, skipReturn}) → {steps, hitMs, travelMs, holdMs, returnMs, totalMs, speed}
-   * compress (görsel kuyruk baskısı): kısa yolculuk, hız 1,2; skipReturn: dönüş adımı yok.
+   * compress (görsel kuyruk baskısı): hız en fazla 1,2; yolculuk ve dönüş korunur.
    */
   const stateRun = stateClips.run || STATE_CLIPS.run;
   const stateWalkBack = stateClips.walkBack || STATE_CLIPS.walkBack;
@@ -668,8 +668,8 @@ export function createFighterRig(THREE, asset, {
   function buildPlan(skill, {compress = false, skipReturn = false} = {}) {
     const base = baseChoreo[skill];
     const vs = variantReady?.skills?.[skill];
-    const travelMs = compress ? TRAVEL.fastTravelMs : TRAVEL.travelMs;
-    const returnMs = skipReturn ? 0 : compress ? TRAVEL.fastReturnMs : TRAVEL.returnMs;
+    const travelMs = TRAVEL.travelMs;
+    const returnMs = TRAVEL.returnMs;
     const walkSpeed = clamp(clipMs(stateWalkBack) / Math.max(1, returnMs || 1), 0.8, 1.2);
     const walkStep = returnMs && clipByName.has(stateWalkBack) ? {clip: stateWalkBack, speed: walkSpeed, endMs: returnMs * walkSpeed} : null;
     const runStep = clipByName.has(stateRun) ? {clip: stateRun, at: 0, speed: 1, endMs: 0} : null;
@@ -696,6 +696,12 @@ export function createFighterRig(THREE, asset, {
     const key = `${skill}|${opts.compress ? 1 : 0}|${opts.skipReturn ? 1 : 0}`;
     if (!planCache.has(key)) planCache.set(key, buildPlan(skill, opts));
     return planCache.get(key);
+  }
+  function sceneDuration(skill) {
+    const spec = choreo[skill];
+    if (!spec) return 0;
+    return Math.max(skillDuration(spec), ...spec.steps.map(step =>
+      (step.at || 0) + clipMs(step.clip) / clampAttackSpeed(step.speed || 1)));
   }
   // Varsayılan plan koreografiye yansır (skillDuration / hitMs / fx zamanları tutarlı olsun).
   for (const skill of meleeSkills) {
@@ -807,7 +813,7 @@ export function createFighterRig(THREE, asset, {
     while (state.queue.length && state.queue[0].at <= state.elapsed) {
       const step = state.queue.shift();
       fadeTo(step.clip, {
-        loop: false, speed: step.speed || 1, fade: step.at ? 110 : (state.fade ?? view.fadeMs),
+        loop: false, speed: clampAttackSpeed(step.speed || 1), fade: step.at ? 110 : (state.fade ?? view.fadeMs),
         offset: step.offset || 0, endMs: step.endMs || 0,
       });
     }
@@ -827,7 +833,9 @@ export function createFighterRig(THREE, asset, {
     if (cur && state.name !== 'idle' && state.name !== 'ko' && state.name !== 'win' && !state.queue.length) {
       const clip = cur.getClip?.();
       const endMs = state.endMs || (clip ? clip.duration * 1000 : 0);
-      const done = clip && (cur.time * 1000 >= endMs - 1 || !cur.isRunning?.());
+      const reactionCap = anim.state.kind === 'hit' || anim.state.kind === 'block' ? 1400 : Infinity;
+      const beforeContact = anim.state.kind === 'attack' && state.elapsed < anim.state.contactMs;
+      const done = clip && !beforeContact && (cur.time * 1000 >= endMs - 1 || !cur.isRunning?.() || state.elapsed >= reactionCap);
       if (done) finishToIdle(animFadeMs('attack', 'idle'));
     }
     for (let i = 0; i < fading.length; i++) {
@@ -925,10 +933,10 @@ export function createFighterRig(THREE, asset, {
     variant: variantReady ? variantName : null, stateClips,
     ultimatePeakMs: variantReady?.skills?.r?.peakMs || null,
     ultimateDurationMs: variantReady?.skills?.r ? clipMs(variantReady.skills.r.clip) : null,
-    anim, play, plan, update, setTimeScale, setPaused, setYaw, setTint, setOpacity, boneWorld, reset, dispose,
+    anim, play, plan, sceneDuration, update, setTimeScale, setPaused, setYaw, setTint, setOpacity, boneWorld, reset, dispose,
     skillDuration: skill => (choreo[skill] ? skillDuration(choreo[skill]) : 0),
     stats: () => ({
-      fighter: fighterId, state: state.name, clip: state.clip, timeScale: state.timeScale, paused: state.paused,
+      fighter: fighterId, state: state.name, clip: state.clip, clipTime: state.current?.time ?? 0, timeScale: state.timeScale, paused: state.paused,
       yaw: state.yaw, queued: state.queue.length, plays: state.plays, disposed: state.disposed,
       materials: materials.length, variant: variantReady ? variantName : null,
     }),

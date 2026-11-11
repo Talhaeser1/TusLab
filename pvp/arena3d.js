@@ -1815,7 +1815,7 @@ export async function createArena3D({
         if (f) f.impactFlash = {at: now(), whiteMs: spec.flashMs};
       }
     },
-    deliver: event => safeCall(onImpact, event),
+    deliver: (event, scene) => safeCall(() => onImpact(event, scene)),
   });
   let impactFrame = {shakeX:0, shakeY:0, punch:0, zoom:0, timeScale:1};
   let reactNow = false;
@@ -1843,8 +1843,9 @@ export async function createArena3D({
     if (!rig || fighter.ko) return false;
     const spec = rig.choreo[skill];
     if (!spec) return false;
-    // Şerit H: yakın dövüş q/e → yolculuk planı (kuyruk baskısında kısa/dönüşsüz plan).
+    // Yakın dövüş q/e için yolculuk planı; menzilli q/e için klip süresi.
     const plan = entry ? rig.plan?.(skill, {compress, skipReturn}) || null : null;
+    if (entry && (rig.anim.state.kind === 'hit' || rig.anim.state.kind === 'block')) rig.play('idle');
     rig.play(skill, plan ? {compress, skipReturn} : undefined);
     const hitMs = plan ? plan.hitMs : skill === 'r' && rig.ultimatePeakMs ? rig.ultimatePeakMs : spec.hitMs || 0;
     fighter.lastCast = {at: now(), hitMs,
@@ -1859,7 +1860,7 @@ export async function createArena3D({
     const contactDistance = contactGap(Math.abs(opponent.root.position.x - fighter.root.position.x) / scale, rig.reach);
     const dur = plan ? plan.totalMs : skill === 'r' && rig.ultimatePeakMs
       ? Math.max(skillDuration(spec), rig.ultimateDurationMs || rig.ultimatePeakMs)
-      : skillDuration(spec);
+      : rig.sceneDuration?.(skill) || skillDuration(spec);
     const spinOk = !reduced();
     const carry0 = Math.min(fighter.carry || 0, contactDistance);
     const from = contactDistance > 0.001 ? carry0 / contactDistance : 0;
@@ -1883,6 +1884,7 @@ export async function createArena3D({
       entry.track = track;
       entry.contactDistance = contactDistance;
       entry.plan = plan;
+      entry.scenePlan = {hitMs, durationMs: dur};
     }
     if (fx) {
       const def = otherSeat(seat);
@@ -1961,36 +1963,44 @@ export async function createArena3D({
   }
 
   /**
-   * Şerit H — yakın dövüş q/e görsel kuyruğa girer: yolculuk + klip(temasa) + toparlanma + dönüş.
+   * q/e görsel kuyruğa girer: varsa yolculuk, klip(temasa), toparlanma ve dönüş.
    * Döner: true = kuyruğa alındı (çağıran ayrıca oynatmaz). Modelsiz/azaltılmış harekette false.
    */
-  function enqueueMeleeSkill(seat, skill) {
+  function enqueueMeleeSkill(seat, skill, {fx = true} = {}) {
     if (reduced() || (skill !== 'q' && skill !== 'e')) return false;
     const fighter = fighters.get(seat);
     const rig = fighter?.model;
-    if (!rig || fighter.ko || !rig.plan?.(skill)) return false;
-    const entry = {seat, skill, cast: null, contact: false, bound: false, dead: false, track: null, plan: null, contactDistance: 0, skipReturn: false};
+    if (!rig || fighter.ko || !rig.choreo?.[skill]) return false;
+    const entry = {seat, skill, cast: null, contact: false, bound: false, dead: false, track: null, plan: null, contactDistance: 0, skipReturn: false, events: []};
     const finishEntry = forced => {
       entry.dead = true;
       const i = fighter.castQueue.indexOf(entry);
       if (i >= 0) fighter.castQueue.splice(i, 1);
       if (entry.track) { const j = fighter.tracks.indexOf(entry.track); if (j >= 0) fighter.tracks.splice(j, 1); }
-      if (forced) { fighter.carry = 0; if (fighter.model && !fighter.ko) safeCall(() => fighter.model.play('idle')); }
+      if (forced) {
+        for (const event of entry.events) impactFeel.silent(event);
+        fighter.carry = 0;
+        if (entry.cast && fighter.model && !fighter.ko) safeCall(() => fighter.model.play('idle'));
+      }
     };
     fighter.castQueue.push(entry);
-    if (fighter.castQueue.length > 8) fighter.castQueue.shift().dead = true;
+    if (fighter.castQueue.length > 8) {
+      const old = fighter.castQueue.shift(); old.dead = true;
+      for (const event of old.events) impactFeel.silent(event);
+    }
     timeline.enqueue({
-      seat, estimateMs: rig.plan(skill).totalMs, meta: {skill},
+      seat, estimateMs: rig.plan?.(skill)?.totalMs || rig.sceneDuration(skill), meta: {skill},
       start: ctx => {
         if (fighter.ko || fighter.model !== rig) { entry.dead = true; return {contactMs: 0, durationMs: 0}; }
-        playModelSkill(seat, skill, {compress: ctx.compress, skipReturn: ctx.skipReturn, entry});
+        playModelSkill(seat, skill, {fx, compress: ctx.compress, skipReturn: ctx.skipReturn, entry});
         entry.skipReturn = ctx.skipReturn;
-        const p = entry.plan;
-        return p ? {contactMs: p.hitMs, durationMs: p.totalMs} : {contactMs: 0, durationMs: 0};
+        const p = entry.scenePlan;
+        return p ? {contactMs: p.hitMs, durationMs: p.durationMs} : {contactMs: 0, durationMs: 0};
       },
       onContact: ({forced}) => {
-        entry.contact = true;
+        entry.contact = !forced;
         if (entry.cast) { entry.cast.contact = true; entry.cast.arrived = true; }
+        if (!forced) impactFeel.flush();
         probeMark('contact', {seat, skill, forced: Boolean(forced)});
       },
       onEnd: ({forced}) => {
@@ -2041,6 +2051,7 @@ export async function createArena3D({
     const rig = fighters.get(seat)?.model;
     if (!rig) return;
     const reactive = state === 'hit' || state === 'block' || state === 'blockHit';
+    if (reactive && timeline.isBusy() && !reactNow) return;
     const cast = reactive ? fighters.get(otherSeat(seat))?.lastCast : null;
     const wait = cast && !cast.contact && !reactNow ? cast.at + cast.hitMs - now() : 0;
     if (wait > 16 && wait < 2000) {
@@ -3320,7 +3331,7 @@ export async function createArena3D({
         api.flash(fighters.get(seat).palette.main, 0.14, 260);
       }
     } else if (type === 'COUNTERATTACK_CAST') {
-      if (isSeat(event.fromSeat) && !playModelSkill(event.fromSeat, 'q', {fx: false})) playLunge(event.fromSeat, {wind: 70, strike: 140, recover: 220, dist: 1.0, swing: 1.1, glow: 0.4});
+      if (isSeat(event.fromSeat) && !enqueueMeleeSkill(event.fromSeat, 'q', {fx: false}) && !playModelSkill(event.fromSeat, 'q', {fx: false})) playLunge(event.fromSeat, {wind: 70, strike: 140, recover: 220, dist: 1.0, swing: 1.1, glow: 0.4});
     } else if (type === 'ULTIMATE_PHASE') {
       if (!isSeat(event.fromSeat)) return;
       if (reduced()) ultimateFlashOnly(event);
@@ -3334,10 +3345,14 @@ export async function createArena3D({
         const parry = event.blockKind === 'PARRY';
         playBrace(seat, parry ? 1.3 : event.blockKind === 'PERFECT_BLOCK' ? 1.1 : 0.9);
         if (parry) {
-          api.hitStop(110, seat, 0.6);
+          if (now() - impactFeel.state.lastStopAt >= 400) {
+            impactFeel.state.lastStopAt = now(); api.hitStop(110, seat, 0.6);
+          }
           api.kick(-away, 0.55, 260); // parry pushes back toward the attacker
         } else {
-          api.hitStop(45, seat, 0.3);
+          if (now() - impactFeel.state.lastStopAt >= 400) {
+            impactFeel.state.lastStopAt = now(); api.hitStop(45, seat, 0.3);
+          }
         }
       } else if ((Number(event.amount) || 0) > 0) {
         const inUltTravel = Boolean(ult && ult.def === seat && fighters.get(seat).seg);
@@ -3418,18 +3433,14 @@ export async function createArena3D({
           const sequence = ult;
           impactFeel.queue(event, () => event.phase === 1 && cast.ranged
             ? cast.arrived : sequence.contacts.has(event.phase));
-        } else if (cast && event.skill !== 'r' && !reduced() && (entry = bindCastEntry(event.fromSeat))) {
+        } else if (event.skill !== 'r' && !reduced() && (entry = bindCastEntry(event.fromSeat))) {
           // Görsel kuyruğa bağlı hasar: gösterim (efekt/sarsıntı/sayı/tepki) klibin gerçek temas karesinde.
           const bound = entry;
+          bound.events.push(event);
           boundEvents.add(event);
-          impactFeel.queue(event, () => bound.contact || bound.dead, 9000);
-        } else if (cast && event.skill !== 'r' && !reduced()) {
-          impactFeel.queue(event, () => {
-            const ready = cast.ranged ? cast.arrived : attacker.modelClock - cast.clock >= cast.hitMs;
-            if (ready) cast.contact = true;
-            return ready;
-          });
-        } else impactFeel.hit(event);
+          impactFeel.queue(event, () => bound.contact && !bound.dead, 9000);
+        } else if (reduced()) impactFeel.hit(event);
+        else impactFeel.silent(event);
         return;
       }
       handleCore(event);
@@ -3988,6 +3999,7 @@ export async function createArena3D({
           fighter: f.fighterId, loaded: Boolean(f.model), loading: Boolean(f.modelJob), failed: Boolean(f.modelFailed),
           planeVisible: f.core.mesh.visible, fxQueued: f.fxQueue?.length || 0,
           ...(f.model ? f.model.stats() : {}),
+          x: f.root.position.x + f.actor.position.x * (f.root.scale.x || 1),
         }];
       })),
       skillFx: () => (skillFx ? skillFx.stats() : {live: 0, kinds: []}),

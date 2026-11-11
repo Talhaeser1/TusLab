@@ -17,16 +17,16 @@ test('visual timeline serializes casts and delivers their cosmetic contacts in o
   assert.equal(tl.isBusy(),false);
 });
 
-test('visual timeline compresses backlog and drains all pending contacts at round end',()=>{
+test('visual timeline drops waiting scenes silently and drains within round budget',()=>{
   const contexts=[],hits=[];const tl=createVisualTimeline();
   for(let i=0;i<5;i++)tl.enqueue({seat:1,estimateMs:900,start:ctx=>{contexts.push(ctx);return {contactMs:450,durationMs:900};},onContact:({forced})=>hits.push(forced)});
   tl.tick(900);
-  assert.equal(contexts[1].compress,true);
-  assert.equal(contexts[1].skipReturn,true);
+  assert.ok(tl.snapshot().forced > 0);
+  assert.equal(contexts[1].skipReturn,false);
   tl.drain(1500);tl.tick(1500);
   assert.equal(tl.isBusy(),false);
-  assert.equal(hits.length,5);
-  assert.ok(hits.some(Boolean));
+  assert.ok(hits.length <= 2);
+  assert.ok(hits.every(forced => !forced));
 });
 
 test('travel is continuous for 60 fps and returns home; attack speed stays at most 1.2',()=>{

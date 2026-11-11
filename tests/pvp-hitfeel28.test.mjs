@@ -110,36 +110,38 @@ import {createLowHpFeedback, heartbeatInterval, lowHpLevel} from '../pvp/lowhp.j
 
 // ------------------------------------------------------------- paket 28
 
-test('hit-feel: a landed hit freezes poses (hit-stop) and kicks the camera away from the attacker', async () => {
+test('hit-feel: scene-free damage does not freeze poses or kick the camera', async () => {
   const {instance, env} = await buildArena();
   for (const key of ['hitStop', 'kick']) assert.equal(typeof instance.api[key], 'function', key);
   instance.handle({type: 'SKILL_CAST', fromSeat: 1, toSeat: 2, skill: 'e'});
   env.advance(400); instance._debug.tick();
   instance.handle({type: 'DAMAGE_APPLIED', fromSeat: 1, toSeat: 2, amount: 140, blocked: false});
   const stop = instance._debug.hitStop();
-  assert.equal(stop.seat, 2);
-  assert.ok(stop.until - stop.start >= 110 && stop.until - stop.start <= 160, `heavy hit stop ${stop.until - stop.start} ms`);
-  assert.equal(instance._debug.camera().kicks, 1);
+  assert.equal(stop.seat, null);
+  assert.equal(stop.until, 0);
+  assert.equal(instance._debug.camera().kicks, 0);
   instance._debug.tick();
   const frozen = instance._debug.fighter(1).pose.fwd;
   env.advance(60); instance._debug.tick();
-  assert.ok(Math.abs(instance._debug.fighter(1).pose.fwd - frozen) < 0.02, 'attacker holds the impact pose');
+  assert.ok(Math.abs(instance._debug.fighter(1).pose.fwd - frozen) > 0.02, 'without hitstop the attack keeps moving');
   env.advance(400); instance._debug.tick();
-  assert.ok(Math.abs(instance._debug.fighter(1).pose.fwd - frozen) > 0.02, 'motion resumes after the stop');
+  assert.equal(instance._debug.hitStop().until, 0);
   instance.clear();
   assert.equal(instance._debug.camera().kicks, 0);
   assert.equal(instance._debug.hitStop().until, 0);
   instance.destroy();
 });
 
-test('hit-feel: small hits stop briefly, overlapping stops extend; reduced mode disables both', async () => {
+test('hit-feel: orphan damage stays quiet; explicit stops extend and reduced mode disables both', async () => {
   let quiet = false;
   const {instance} = await buildArena({isReduced: () => quiet});
   instance.handle({type: 'DAMAGE_APPLIED', fromSeat: 2, toSeat: 1, amount: 20, blocked: false});
   const small = instance._debug.hitStop();
-  assert.ok(small.until - small.start < 70, 'light hit: short stop');
+  assert.equal(small.until, 0, 'orphan hit: no stop');
+  instance.api.hitStop(50, 1);
+  const active = instance._debug.hitStop();
   instance.api.hitStop(10, 1); // shorter request never cuts an active stop
-  assert.equal(instance._debug.hitStop().until, small.until);
+  assert.equal(instance._debug.hitStop().until, active.until);
   instance.api.hitStop(9999, 1);
   assert.ok(instance._debug.hitStop().until - instance._debug.hitStop().start <= 160, 'clamped');
   instance.clear();
@@ -172,7 +174,7 @@ test('hpbars: shown only while a fighter is pulled off its seat; ghost trail lag
   assert.equal(bars.stats()[1].visible, true, 'bar follows the pulled fighter');
   s = bars.stats();
   assert.equal(s[2].shield, true);
-  instance.handle({type: 'DAMAGE_APPLIED', fromSeat: 2, toSeat: 1, amount: 2400, blocked: false, hpAfter: 600});
+  instance.handle({type: 'HP_SYNC', players: [{seat: 1, hp: 600, maxHp: 3000}, {seat: 2, hp: 3000, maxHp: 3000, shield: true}]});
   bars.update(0.05, 1);
   s = bars.stats()[1];
   assert.ok(Math.abs(s.target - 0.2) < 1e-9);

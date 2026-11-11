@@ -282,7 +282,7 @@ function el(name, rect = {left: 0, top: 0, width: 0, height: 0}) {
     removeEventListener(t, fn) { this.listeners[t]?.delete(fn); },
   };
 }
-async function buildArena({loadModel, reduced = false} = {}) {
+async function buildArena({loadModel, reduced = false, onImpact} = {}) {
   const root = el('root');
   const duel = el('duel', {left: 0, top: 0, width: 1000, height: 500});
   root.selectors['.pvp2-duel'] = duel;
@@ -299,7 +299,7 @@ async function buildArena({loadModel, reduced = false} = {}) {
   const renderer = {setPixelRatio() {}, setSize() {}, setClearColor() {}, render() {}, dispose() {}};
   const loads = [];
   const instance = await createArena3D({
-    root, THREE, env, isReduced: () => reduced, createRenderer: () => renderer,
+    root, THREE, env, isReduced: () => reduced, onImpact, createRenderer: () => renderer,
     loadTexture: async () => new THREE.Texture(),
     loadModel: loadModel || (async (url, id) => { loads.push(id); return fakeAsset(); }),
     cloneModel: o => o.clone(true),
@@ -375,6 +375,45 @@ test('arena3d + models: skills, hits, slowMo, hitStop, KO and victory drive the 
   run(16);
   assert.equal(instance._debug.models()[2].state, 'idle', 'clear() stands the fighters back up');
   instance.destroy();
+});
+
+test('arena visual queue keeps two ranged attacks separate and exposes position and clip time', async () => {
+  const impacts = [];
+  const {instance, run} = await buildArena({loadModel: async () => fakeAsset({duration: 1.2}),
+    onImpact: (event, scene) => impacts.push({event, scene})});
+  await instance.setFighters({1: 'sira', 2: 'sira'});
+  instance.handle({type: 'SKILL_CAST', fromSeat: 1, toSeat: 2, skill: 'q'});
+  instance.handle({type: 'DAMAGE_APPLIED', fromSeat: 1, toSeat: 2, skill: 'q', amount: 50});
+  instance.handle({type: 'SKILL_CAST', fromSeat: 2, toSeat: 1, skill: 'q'});
+  instance.handle({type: 'DAMAGE_APPLIED', fromSeat: 2, toSeat: 1, skill: 'q', amount: 50});
+  run(400);
+  let models = instance._debug.models();
+  assert.equal(models[1].clip, 'Throw');
+  assert.equal(models[2].state, 'idle');
+  assert.equal(typeof models[1].x, 'number');
+  assert.ok(models[1].clipTime > 0);
+  run(900);
+  models = instance._debug.models();
+  assert.equal(models[2].clip, 'Throw');
+  assert.equal(impacts.length, 1);
+  run(1100);
+  assert.equal(impacts.length, 2);
+  assert.ok(impacts.every(i => i.scene));
+  instance.destroy();
+});
+
+test('rig hit reaction returns to idle by 1.4 seconds even if the clip is long', () => {
+  const rig = createFighterRig(THREE, fakeAsset({duration: 9}), {fighterId: 'sira', seat: 1});
+  rig.play('hit');
+  for (let i = 0; i < 100; i++) rig.update(0.02);
+  assert.equal(rig.stats().state, 'idle');
+  rig.dispose();
+});
+
+test('ranged scene duration includes the full source clip', () => {
+  const rig = createFighterRig(THREE, fakeAsset({duration: 2}), {fighterId: 'sira', seat: 1});
+  assert.ok(rig.sceneDuration('q') >= 1800);
+  rig.dispose();
 });
 
 test('arena3d + models: projectile skills spawn their effect (sira spear, nyx meteor, doran shield break)', async () => {
