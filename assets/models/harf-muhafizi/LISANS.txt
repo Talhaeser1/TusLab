@@ -1,0 +1,8 @@
+Harf Muhafızı (ana menü boss'u) — MESHY MODELİ LİSANS NOTU (2026-11-11)
+
+Bu model (assets/models/harf-muhafizi/harf-muhafizi.glb ve kaynak/ altındaki ham dosyalar) kullanıcının kendi
+Meshy AI (Pro) hesabında üretilmiştir (image-to-3d meshy-t2.5 + meshy-n1 doku, otomatik rig,
+Meshy animasyon kitaplığı klipleri; Konyalı'da ek olarak metinden-harekete "ney çalma" klibi).
+Özgün kurgusal karakterdir; gerçek kişi, üçüncü taraf telifli karakter ya da marka içermez.
+Oyundaki kopya scripts/paketle-meshy.py ile sıkıştırılmıştır (WebP doku).
+Ham GLB yalnız üretim arşividir; git'e ve yayına girmez.
