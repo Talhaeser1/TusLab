@@ -24,6 +24,16 @@ export const ROUND_STYLE_LABELS=Object.freeze({timed:'Zamana karşı',counted:'S
 export const ROUND_WORD_CHOICES=Object.freeze([5,10,15]);
 export {DEFAULT_ROUND_STYLE,normalizeRoundStyle,normalizeRoundWords};
 const START_FLASH_MS=900;
+/** Raund arası: "RAUND X" yazısı önce tek başına bu kadar görünür; sonra kompakt özet/seçim paneli açılır. */
+export const ROUND_TITLE_MS=900;
+/** holdTransition (ör. dövüş animasyonu bitişi) bu süreden uzun beklemez; panel yine açılır. */
+export const ROUND_HOLD_MAX_MS=3000;
+/** Tur arası aşaması: 'title' (yalnız büyük yazı) → 'panel' (özet + beceri seçimi) → 'count' (son geri sayım). */
+export function intermissionStage({elapsed=0,remaining=Infinity}={}){
+  if(remaining<=ROUND_INTRO_MS)return 'count';
+  if(elapsed<ROUND_TITLE_MS)return 'title';
+  return 'panel';
+}
 const CLASH_MS=1300;
 const BREAK_MS=900;
 const PULSE_MS=300;
@@ -345,7 +355,7 @@ export function createRoundEndCard(doc,model){
  * createRoundsUi(root,{now}) → {update(match,myId), handle(packet), tick(), destroy()}
  * DOM tek kökte (`[data-rounds-ui]`) üretilir.
  */
-export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,timers=globalThis,isReduced=()=>false,onLockChange=null,send=()=>{}}={}){
+export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,timers=globalThis,isReduced=()=>false,onLockChange=null,send=()=>{},holdTransition=null}={}){
   const h=builder(doc);
   const el=h('div',{cls:'rui',attrs:{'data-rounds-ui':''},hidden:true});
   // Üst şerit: [taraf 1] [madalyon] [taraf 2]
@@ -390,6 +400,8 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
   clash.append(clashTitle,clashWord,clashDetail);
   const flash=h('div',{cls:'rui-flash',rui:'flash',hidden:true});
   const flashTitle=h('strong'),flashSub=h('span',{text:'BAŞLA!'});flash.append(flashTitle,flashSub);
+  const banner=h('div',{cls:'rui-banner',rui:'banner',hidden:true,attrs:{'aria-hidden':'true'}});
+  const bannerTitle=h('strong',{cls:'rui-banner-title'});banner.append(bannerTitle);
   const intro=h('div',{cls:'rui-intro',rui:'intro',hidden:true});
   const introTitle=h('span',{cls:'rui-intro-title'}),introCount=h('strong',{cls:'rui-intro-count'});intro.append(introTitle,introCount);
   const summary=h('section',{cls:'rui-summary',rui:'summary',hidden:true,attrs:{'aria-label':'Tur sonucu'}});
@@ -405,12 +417,12 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
   // Tur arası: sonuç + süre becerisi TEK panelde, boştaki yazma panelinin (.tt) yerine oturur;
   // beceri kartlarının, arenanın ya da HP çubuklarının üstüne binmez (docs/EKRAN-KONTROL-KURALLARI.md, H3).
   const inter=h('div',{cls:'rui-inter',rui:'inter',hidden:true},summary,picker);
-  el.append(bar,strip,clash,flash,intro,inter,reveal,live);
+  el.append(bar,strip,clash,flash,banner,intro,inter,reveal,live);
   root.append(el);
 
   const state={match:null,myId:null,visible:false,destroyed:false,interval:null,clashTimer:null,
     marks:new Map(),marksKey:null,lastRoundEnd:null,lastCallRound:null,announced:null,lockKey:'',summaryKey:null,shownClash:null,
-    selected:null,pending:false,pickKey:null,revealUntil:0,endCard:null,skillCards:[]};
+    selected:null,pending:false,pickKey:null,gate:null,pickerVisible:false,panelOpen:false,revealUntil:0,endCard:null,skillCards:[]};
   const later=(fn,ms)=>timers.setTimeout(fn,ms);
   const announce=text=>{live.textContent='';live.textContent=text;};
 
@@ -465,7 +477,8 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
   }
   function renderPicker(match){
     const model=roundSkillPickerModel(match,state.myId);
-    setHidden(picker,!model.visible);
+    state.pickerVisible=model.visible;
+    setHidden(picker,!(model.visible&&state.panelOpen));
     if(!model.visible)return;
     const key=`${match.matchId}:${match.round.index}`;
     if(state.pickKey!==key){state.pickKey=key;state.selected=null;state.pending=false;}
@@ -513,6 +526,32 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     summary.replaceChildren(state.endCard.node);
     setFlag(summary,'is-ko',m.ko);
   }
+  /**
+   * Tur arası geçişinin TEK giriş noktası. Her tur arası için bir kez: önce yalnız "RAUND X" yazısı, sonra panel.
+   * `holdTransition(match)` (createRoundsUi seçeneği) bir Promise döndürürse (ör. dövüş animasyonunun bitişi) yazı/panel
+   * o çözülene dek bekler; en fazla ROUND_HOLD_MAX_MS. Geri sayıma çok az kala görülen geçiş (yeniden bağlanma) yazıyı atlar.
+   */
+  function openIntermission(match,t,nextRoundAt){
+    const key=`${match.matchId}:${match.round.index}`;
+    if(state.gate&&state.gate.key===key)return state.gate;
+    if(state.gate?.timer!==null&&state.gate?.timer!==undefined)timers.clearTimeout(state.gate.timer);
+    // nextRoundAt, dövüş çözümlemesinden ÖNCE hesaplanır; bu yüzden süre "ilk görülme"den sayılır. Geri sayıma çok az kaldıysa yazı atlanır.
+    const gate=state.gate={key,ready:false,openedAt:t,timer:null,closeAt:nextRoundAt-(ROUND_SUMMARY_MS+ROUND_INTRO_MS)};
+    const late=nextRoundAt-t<=ROUND_INTRO_MS+ROUND_TITLE_MS+600;
+    let sync=true;
+    const open=()=>{
+      if(state.destroyed||state.gate!==gate||gate.ready)return;
+      gate.ready=true;gate.openedAt=late?-Infinity:now();
+      if(gate.timer!==null){timers.clearTimeout(gate.timer);gate.timer=null;}
+      if(!sync)tick();
+    };
+    let hold=null;
+    try{hold=holdTransition?.(match,{round:Number(match.round.index)||1,nextRoundAt});}catch{hold=null;}
+    if(hold&&typeof hold.then==='function'){hold.then(open,open);gate.timer=later(open,ROUND_HOLD_MAX_MS);}
+    else open();
+    sync=false;
+    return gate;
+  }
   function tick(){
     if(state.destroyed)return;
     const match=state.match;const t=now();
@@ -536,47 +575,48 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     const round=match.round;
     const src=round.phase==='round'?null:currentSummarySource(match);
     const nextRoundAt=Number(round.nextRoundAt??src?.nextRoundAt)||null;
-    let showSummary=false,showIntro=false,showFlash=false;
-    if(round.phase==='intermission'&&nextRoundAt&&t>=nextRoundAt-ROUND_INTRO_MS){
-      showIntro=true;
-      setText(introTitle,roundLabel(vm.index+1,vm.total));
-      setText(introCount,String(Math.max(1,Math.ceil((nextRoundAt-t)/1000))));
-    }else if(src&&round.phase!=='round'){showSummary=true;renderSummary(src,match);}
+    let showSummary=false,showIntro=false,showFlash=false,showBanner=false,panelOpen=false;
+    if(round.phase==='intermission'&&nextRoundAt){
+      // Tek giriş noktası: openIntermission() geçişi (yazı → panel) başlatır; holdTransition bitene dek bekletir.
+      const gate=openIntermission(match,t,nextRoundAt);
+      const stage=gate.ready?intermissionStage({elapsed:t-gate.openedAt,remaining:nextRoundAt-t}):'hold';
+      if(stage==='title'){showBanner=true;setText(bannerTitle,roundLabel(vm.index+1,vm.total));}
+      else if(stage==='count'){
+        showIntro=true;panelOpen=true; // seçilmemiş beceri son 3 sn'de de kilitlenebilsin
+
+        setText(introTitle,roundLabel(vm.index+1,vm.total));
+        setText(introCount,String(Math.max(1,Math.ceil((nextRoundAt-t)/1000))));
+      }else if(stage==='panel'){panelOpen=true;if(src){showSummary=true;renderSummary(src,match);}}
+    }else if(src&&round.phase!=='round'){showSummary=true;panelOpen=true;renderSummary(src,match);}
     else if(round.phase==='round'&&Number.isFinite(round.startedAt)&&t>=round.startedAt&&t-round.startedAt<START_FLASH_MS&&match.status==='running'){
       showFlash=true;setText(flashTitle,vm.suddenDeath?'ANİ ÖLÜM':`RAUND ${vm.index}`);
     }
-    setHidden(summary,!showSummary);setHidden(intro,!showIntro);setHidden(flash,!showFlash);
+    state.panelOpen=panelOpen;
+    setHidden(summary,!showSummary);setHidden(intro,!showIntro);setHidden(flash,!showFlash);setHidden(banner,!showBanner);
+    setHidden(picker,!(state.pickerVisible&&panelOpen));
     if(showSummary)state.endCard?.update(nextRoundAt,t,ROUND_SUMMARY_MS+ROUND_INTRO_MS);
     setHidden(reveal,t>=state.revealUntil);
     setFlag(el,'is-sudden',vm.suddenDeath);
     syncInter();
   }
-  // Paneli yazma panelinin ölçülen kutusuna yerleştir; yazma panelini görünmez yap (yer kaplamaya devam eder → kayma yok).
+  // Tur arası paneli ALT KISIMDA kompakt "dock": beceri satırının hemen üstünden başlar, yüksekliği ekranın ~%45'ini aşmaz
+  // (üst %55'te 3B karakterler/arena açık kalır); tam ekran karartma yok. Tüm yerleşimlerde (tam ekran dahil) aynı panel.
   function syncInter(){
     const open=!summary.hidden||!picker.hidden;
     setHidden(inter,!open);
     setFlag(inter,'is-solo',summary.hidden||picker.hidden);
     const pvp=el.closest?.('#pvp-root')||null;
     if(pvp)setFlag(pvp,'rui-inter-open',open);
-    if(pvp?.dataset?.layout==='fullscreen'){
-      inter.classList.add('is-centered');
-      inter.classList.remove('is-floating');
-      if(inter.style.removeProperty)for(const key of ['top','left','width','height'])inter.style.removeProperty(key);
-      return;
-    }
-    inter.classList.remove('is-centered');
+    inter.classList.toggle('is-dock',open);
     if(!open)return;
-    const tt=pvp?.querySelector('.tt');
-    const r=tt?.getBoundingClientRect?.();
-    if(!r||r.width<320||r.height<120){inter.classList.add('is-floating');return;}
-    inter.classList.remove('is-floating');
-    const box=`${Math.round(r.top)}|${Math.round(r.left)}|${Math.round(r.width)}|${Math.round(r.height)}`;
-    if(inter.dataset.box===box)return;
-    inter.dataset.box=box;
-    // Yükseklik = yazma paneli: alttaki oyuncu başlıklarına taşmaz; sığmayan içerik panel içinde kayar.
-    Object.assign(inter.style,{top:`${Math.round(r.top)}px`,left:`${Math.round(r.left)}px`,width:`${Math.round(r.width)}px`,height:`${Math.round(r.height)}px`});
+    // Alt boşluk: beceri satırının (yoksa yazma panelinin) üst kenarından; panel onların altına inmez/örtmez.
+    const ref=pvp?.querySelector?.('.pvp2-skillrow')||pvp?.querySelector?.('.tt');
+    const r=ref?.getBoundingClientRect?.();
+    const vh=Number(globalThis.innerHeight)||0;
+    const bottom=r&&r.height>0&&vh?Math.min(Math.max(8,Math.round(vh-r.top+8)),Math.round(vh*.2)):72;
+    if(inter.dataset.dock!==String(bottom)){inter.dataset.dock=String(bottom);inter.style.setProperty?.('--rui-dock-bottom',`${bottom}px`);}
   }
-  function hideOverlays(){setHidden(summary,true);setHidden(intro,true);setHidden(flash,true);setHidden(picker,true);setHidden(reveal,true);syncInter();}
+  function hideOverlays(){state.panelOpen=false;setHidden(banner,true);setHidden(summary,true);setHidden(intro,true);setHidden(flash,true);setHidden(picker,true);setHidden(reveal,true);syncInter();}
   function render(){
     if(state.destroyed)return;
     const match=state.match;
@@ -644,9 +684,10 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
       }catch(error){console.warn?.('Tur arayüzü paketi işlenemedi',error);}
     },
     tick,
+    openIntermission:()=>state.gate,
     handleKey(event){
       const model=roundSkillPickerModel(state.match,state.myId);
-      if(!model.visible||model.locked)return false;
+      if(!state.panelOpen||!model.visible||model.locked)return false;
       if(event.altKey||event.ctrlKey||event.metaKey)return false;
       const index=Number(event.key)-1;
       let handled=false;
@@ -660,6 +701,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     destroy(){
       if(state.destroyed)return;state.destroyed=true;
       ensureTicker(false);
+      if(state.gate?.timer!==null&&state.gate?.timer!==undefined)timers.clearTimeout(state.gate.timer);
       if(state.clashTimer!==null)timers.clearTimeout(state.clashTimer);
       for(const s of sideEls){if(s.breakTimer!==null)timers.clearTimeout(s.breakTimer);if(s.pulseTimer!==null)timers.clearTimeout(s.pulseTimer);s.breakTimer=s.pulseTimer=null;}
       state.clashTimer=null;(el.closest?.('#pvp-root'))?.classList.remove('rui-inter-open');el.remove();

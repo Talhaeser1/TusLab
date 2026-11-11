@@ -8,7 +8,7 @@ import {fileURLToPath} from 'node:url';
 import * as THREE from '../pvp/vendor/three.module.min.js';
 import {
   CHOREOGRAPHY, STATE_CLIPS, resolveChoreography, rootMotionAt, skillDuration, createFighterRig, createSkillFx,
-  fighterPalette, isKnownFighter, modelUrl,
+  fighterPalette, isKnownFighter, modelUrl, MODEL_VARIANTS,
 } from '../pvp/fighters3d.js';
 import {FIGHTERS, FIGHTER_IDS} from '../pvp/shared/fighters.js';
 import {createArena3D} from '../pvp/arena3d.js';
@@ -46,6 +46,29 @@ function fakeAsset({duration = 0.5} = {}) {
   ]));
   return {gltf: {scene, animations: clips}, clips, sharedMaterial: material};
 }
+
+test('Vargr melee plan plays each complete attack clip before walking back at natural speed',()=>{
+  const asset=fakeAsset();
+  const names=new Set(Object.values(MODEL_VARIANTS.vargr.meshy.clips).flat());
+  for(const skill of Object.values(MODEL_VARIANTS.vargr.meshy.skills))names.add(skill.clip);
+  for(const name of names)if(!asset.clips.some(c=>c.name===name))asset.clips.push(new THREE.AnimationClip(name,2.8,[]));
+  for(const name of ['Attack','Axe_Spin_Attack']){
+    const clip=asset.clips.find(c=>c.name===name);clip.duration=name==='Attack'?2.8:2.5;
+  }
+  const rig=createFighterRig(THREE,asset,{fighterId:'vargr',seat:1,variant:'meshy'});
+  for(const skill of ['q','e']){
+    const plan=rig.plan(skill),attack=plan.steps.find(s=>s.clip===MODEL_VARIANTS.vargr.meshy.skills[skill].clip);
+    const fullMs=asset.clips.find(c=>c.name===attack.clip).duration*1000;
+    assert.equal(attack.offset,0);
+    assert.ok(attack.speed<=1.2);
+    assert.ok(attack.endMs>=fullMs-1,`${skill} must include the whole clip`);
+    assert.ok(plan.hitMs+plan.holdMs>=plan.travelMs+fullMs/attack.speed-1);
+  }
+  rig.play('r',{force:true});
+  assert.equal(rig.actions.Charged_Axe_Chop.time,0,'ultimate starts at the first frame');
+  assert.ok(rig.actions.Charged_Axe_Chop.getEffectiveTimeScale()<=1.2);
+  rig.dispose();
+});
 
 // ------------------------------------------------------------- choreography
 
@@ -315,8 +338,10 @@ test('arena3d + models: skills, hits, slowMo, hitStop, KO and victory drive the 
   run(32);
   let m = instance._debug.models();
   assert.equal(m[1].state, 'e');
-  assert.equal(m[1].clip, '2H_Melee_Attack_Spin');
+  assert.equal(m[1].clip, 'Dodge_Forward', 'Şerit H: önce yolculuk (koşu/atılma) klibi');
   run(500);
+  assert.equal(instance._debug.models()[1].clip, '2H_Melee_Attack_Spin', 'yolculuktan sonra saldırı klibi');
+  run(400);
   assert.ok(Math.abs(instance._debug.models()[1].yaw) > 1, 'Kasırga turns the model on its own axis');
   assert.ok(instance._debug.skillFx().kinds.includes('swirl'));
   // Server damage arrives with the cast: the defender reacts at the attacker's hit moment.
@@ -360,12 +385,12 @@ test('arena3d + models: projectile skills spawn their effect (sira spear, nyx me
   assert.ok(instance._debug.skillFx().kinds.includes('spear'));
   instance.clear();
   instance.handle({type: 'SKILL_CAST', fromSeat: 2, skill: 'r'});
-  run(450);
+  run(750); // Şerit H: ulti başında kısa yavaş çekim (0,42) meteor çıkışını geciktirir
   assert.ok(instance._debug.skillFx().kinds.includes('meteor'));
   instance.clear();
   await instance.setFighters({1: 'sira', 2: 'doran'});
   instance.handle({type: 'SKILL_CAST', fromSeat: 2, skill: 'e'});
-  run(520);
+  run(950); // Şerit H: yolculuk 400 ms + kalkan vuruşu 480 ms
   assert.ok(instance._debug.fighter(1).bubble, "doran's shield bash shatters the opponent's guard");
   instance.destroy();
 });

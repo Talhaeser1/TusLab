@@ -7,8 +7,8 @@
  * kişisel `endsAt` üst sınırdır). Sunucu her gönderimi yine kendi saatiyle doğrular.
  */
 import {WORD_BANK} from './shared/words.js';
-import {createRoundEndCard,summaryColors} from './rounds-ui.js';
-import {ARENA_ROUND_DURATION_MS,ARENA_SUMMARY_MS} from './shared/arena.js';
+import {createRoundEndCard,summaryColors,ROUND_TITLE_MS} from './rounds-ui.js';
+import {ARENA_ROUND_DURATION_MS,ARENA_SUMMARY_MS,ARENA_PREP_DURATION_MS} from './shared/arena.js';
 
 // Şartname §2 sabitleri (yalnız sunum için aynalanır; otorite motordadır).
 export const ARENA_UI_ROUND_WORDS=Object.freeze([5,10,15,15,15,20]);
@@ -292,7 +292,7 @@ const secsOf=ms=>Math.max(0,Math.ceil(ms/1000));
  * hudHost: üst HUD satırı (.pvp2-announce); stageHost: üst yazma panelindeki yuva; overlayHost: özet kartı.
  */
 export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),doc=globalThis.document,timers=globalThis,
-  isReduced=()=>false,send=()=>{},onLockChange=null}={}){
+  isReduced=()=>false,send=()=>{},onLockChange=null,holdTransition=null}={}){
   const h=builder(doc);
   // ---------------- HUD: [taraf 1] [madalyon] [taraf 2]
   const sides=[1,2].map(seat=>{
@@ -339,7 +339,7 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
   const cardEls=[];
   const cardFor=c=>{
     const uses=h('span',{cls:'aui-uses'});
-    const btn=h('button',{cls:'aui-card',aui:'card',attrs:{type:'button','aria-pressed':'false','data-kind':ARENA_UI_SKILLS.includes(c)?'skill':'item','data-id':c.id,
+    const btn=h('button',{cls:'aui-card',aui:'card',attrs:{type:'button','aria-pressed':'false','data-kind':ARENA_UI_SKILLS.includes(c)?'skill':'item','data-id':c.id,title:`${c.name} · ${c.detail}`,
       'aria-label':`${c.verb} — ${c.name}. ${c.detail}. Kısayol ${c.key}`}},
       h('kbd',{cls:'aui-key',text:c.key}),h('span',{cls:'aui-icon',text:c.icon,attrs:{'aria-hidden':'true'}}),
       h('span',{cls:'aui-card-copy'},h('strong',{text:c.verb}),h('small',{text:`${c.name} · ${c.detail}`})),uses);
@@ -364,13 +364,16 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
 
   // ---------------- Özet kartı
   const summary=h('section',{cls:'aui-summary',aui:'summary',hidden:true,attrs:{'aria-label':'Raund özeti',role:'status'}});
-  const overlay=h('div',{cls:'aui-overlay',attrs:{'data-arena-overlay':''}},summary);
+  // Hazırlık başında "RAUND X" yazısı önce tek başına (≈900 ms); sonra kompakt seçim paneli açılır.
+  const bannerTitle=h('strong',{cls:'rui-banner-title'});
+  const banner=h('div',{cls:'rui-banner aui-banner',aui:'banner',hidden:true,attrs:{'aria-hidden':'true'}},bannerTitle);
+  const overlay=h('div',{cls:'aui-overlay',attrs:{'data-arena-overlay':''}},summary,banner);
   overlayHost?.append(overlay);
 
   const state={match:null,myId:null,destroyed:false,interval:null,visible:false,
     selected:{skill:null,item:null},prepKey:null,sentKey:null,
     marksKey:null,marks:new Map(),endKey:null,myEnd:Infinity,oppEnd:Infinity,roundStartEnd:null,lastSeq:null,
-    roundEnds:new Map(),damageBase:new Map(),summaryKey:null,endCard:null,lockKey:'',wordKey:null,announced:null};
+    roundEnds:new Map(),damageBase:new Map(),summaryKey:null,endCard:null,lockKey:'',wordKey:null,announced:null,summaryGate:null};
   const announce=text=>{live.textContent='';live.textContent=text;};
   const roundKey=m=>`${m?.matchId}:${Number(m?.round?.index)||0}`;
   const phase=()=>state.match?.round?.phase||null;
@@ -491,7 +494,7 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
       if(id===r.phase)li.setAttribute('aria-current','step');else li.removeAttribute('aria-current');
     }
     let value='—',label='';
-    if(r.phase==='prep'){value=String(secsOf((Number(r.endsAt)||t)-t));label='SEÇİM';}
+    if(r.phase==='prep'){value=String(secsOf((Number(r.endsAt)||t)-t));label='sn';}
     else if(r.phase==='round'){
       const me=m.me;const rem=myRemaining(t);const f=freezeUntil();
       const blind=blindMe();
@@ -499,9 +502,9 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
       label=me?.roundDone?'BİTİRDİN':blind?'KARANLIK':(f!==null&&t<f)||me?.frozen?'DONDU':'SANİYE';
       setFlag(medal,'is-urgent',!blind&&rem!==null&&rem<=5000&&!me?.roundDone);setFlag(medal,'is-frozen',label==='DONDU');setFlag(medal,'is-blind',blind);
     }
-    else if(r.phase==='resolve'){value='⚔';label='VURUŞLAR';}
-    else if(r.phase==='summary'){value=String(secsOf((Number(r.summaryEndsAt)||t)-t));label='ÖZET';}
-    else {value='—';label='BİTTİ';}
+    else if(r.phase==='resolve'){value='⚔';label='';} // etiket: yalnız etkin adım ("3 Vuruşlar"); iki etiket üst üste binmesin
+    else if(r.phase==='summary'){value=String(secsOf((Number(r.summaryEndsAt)||t)-t));label='sn';}
+    else {value='—';label='';}
     if(r.phase!=='round'){setFlag(medal,'is-urgent',false);setFlag(medal,'is-frozen',false);setFlag(medal,'is-blind',false);}
     setText(secs,value);setText(unit,label);
     // Ekran okuyucu: son 10/5 sn
@@ -555,12 +558,26 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
     setHidden(chipPicks,!(round&&picks.length));
     setText(chipPicks,`Seçimin: ${picks.map(c=>`${c.icon} ${c.name}`).join(' · ')}`);
   }
+  /** Hazırlık yazısı: yalnız taze hazırlıkta (yeniden bağlanmada atlanır) ve ROUND_TITLE_MS boyunca; bu sürede panel gizli. */
+  function prepBannerActive(m,t){
+    if(m.round.phase!=='prep'){state.bannerKey=null;return false;}
+    const key=roundKey(m);
+    if(state.bannerKey!==key){
+      state.bannerKey=key;
+      const start=(Number(m.round.endsAt)||t)-ARENA_PREP_DURATION_MS;
+      state.bannerAt=t-start<=800?t:-Infinity;
+    }
+    return t-state.bannerAt<ROUND_TITLE_MS;
+  }
   function renderPrep(){
     const m=state.match;if(!m)return;
     const isPrep=m.round.phase==='prep';
+    const t=now();
+    const banner_=isPrep&&prepBannerActive(m,t);
+    setHidden(banner,!banner_);if(banner_)setText(bannerTitle,`RAUND ${m.round.index}`);
+    setFlag(stage,'is-banner',banner_);
     setHidden(prep,!isPrep);
-    if(!isPrep)return;
-    const t=now();const left=secsOf((Number(m.round.endsAt)||t)-t);
+    if(!isPrep)return;const left=secsOf((Number(m.round.endsAt)||t)-t);
     const count=ARENA_UI_ROUND_WORDS[(Number(m.round.index)||1)-1]||0;
     setText(prepTitle,`RAUND ${m.round.index} · HAZIRLIK — ${count} kelime gelecek. 1 skill + 1 eşya seç`);
     setText(prepTimer,`${left} sn`);
@@ -596,10 +613,32 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
   }
   function renderSummary(m,t){
     const show=m.round.phase==='summary';
-    setHidden(summary,!show);
+    if(show){
+      const key=roundKey(m);
+      if(state.summaryGate?.key!==key){
+        const gate=state.summaryGate={key,ready:false,timer:null};
+        const open=()=>{
+          if(state.destroyed||state.summaryGate!==gate||gate.ready)return;
+          gate.ready=true;
+          if(gate.timer!==null){timers.clearTimeout(gate.timer);gate.timer=null;}
+          tick();
+        };
+        let hold;
+        try{hold=holdTransition?.(m,{round:Number(m.round.index)||1});}catch{hold=null;}
+        if(hold&&typeof hold.then==='function'){
+          gate.timer=timers.setTimeout(open,3000);
+          hold.then(open,open);
+        }else gate.ready=true;
+      }
+    }else if(state.summaryGate){
+      if(state.summaryGate.timer!==null)timers.clearTimeout(state.summaryGate.timer);
+      state.summaryGate=null;
+    }
+    const visible=show&&state.summaryGate?.ready;
+    setHidden(summary,!visible);
     const pvp=overlayHost?.closest?.('#pvp-root');
-    if(pvp)setFlag(pvp,'aui-summary-open',show);
-    if(!show)return;
+    if(pvp)setFlag(pvp,'aui-summary-open',visible);
+    if(!visible)return;
     const key=roundKey(m);const base=state.damageBase.get(key);
     const damage=base?{1:(Number(playerBySeat(m,1)?.combatStats?.damageDealt)||0)-base[1],2:(Number(playerBySeat(m,2)?.combatStats?.damageDealt)||0)-base[2]}:null;
     const source=m.roundSummary||currentRoundEnd(m)||{round:m.round.index};
@@ -680,6 +719,7 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
     /** Hazırlık klavyesi: 1–5 skill, 6–9 eşya, Enter kilitle, Esc seçmeden geç. Yazı alanında devre dışı. */
     handleKey(event){
       if(state.destroyed||!state.visible||phase()!=='prep'||locked())return false;
+      if(state.match&&prepBannerActive(state.match,now()))return false; // panel yazıdan sonra açılır
       const tag=event?.target?.tagName;
       if(['INPUT','TEXTAREA','SELECT'].includes(tag)&&event.target?.dataset?.input===undefined)return false;
       if(event.ctrlKey||event.metaKey||event.altKey)return false;
@@ -697,7 +737,8 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
     tick,
     destroy(){
       if(state.destroyed)return;state.destroyed=true;
-      ensureTicker(false);overlayHost?.closest?.('#pvp-root')?.classList.remove('aui-summary-open');hud.remove();stage.remove();overlay.remove();
+      if(state.summaryGate?.timer!==null&&state.summaryGate?.timer!==undefined)timers.clearTimeout(state.summaryGate.timer);
+      ensureTicker(false);overlayHost?.closest?.('#pvp-root')?.classList.remove('aui-summary-open');banner.remove();hud.remove();stage.remove();overlay.remove();
     }
   };
 }

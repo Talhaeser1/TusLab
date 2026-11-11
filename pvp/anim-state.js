@@ -22,6 +22,10 @@ export const HITSTOP_MS = Object.freeze({light: 50, heavy: 90, ulti: 120});
 
 export const MAX_ATTACK_QUEUE = 1;
 
+/** Şerit H: saldırı klibi hız sınırı (1 doğal; görsel kuyruk baskısında en fazla 1,2). */
+export const ATTACK_SPEED = Object.freeze({min: 0.8, normal: 1, max: 1.2});
+export const clampAttackSpeed = v => Math.min(ATTACK_SPEED.max, Math.max(ATTACK_SPEED.min, Number(v) || ATTACK_SPEED.normal));
+
 const kindOf = name => ANIM_KIND[name] || 'idle';
 const isLocked = kind => kind === 'knockdown' || kind === 'victory';
 

@@ -191,7 +191,8 @@ let roundsUi=null;
 function roundsUiCreate(){
   roundsUi?.destroy();roundsUi=null;
   const host=root?.querySelector('.pvp2-announce');if(!host)return;
-  roundsUi=createRoundsUi(host,{now:()=>network.serverNow(),isReduced:fx24Reduced,send:(type,payload)=>network.send(type,payload),onLockChange:()=>{textUpdate('fire');textUpdate('rune');}});
+  roundsUi=createRoundsUi(host,{now:()=>network.serverNow(),isReduced:fx24Reduced,send:(type,payload)=>network.send(type,payload),
+    holdTransition:()=>arena3d.instance?.visualQueue?.whenIdle(3000),onLockChange:()=>{textUpdate('fire');textUpdate('rune');}});
   roundsUi.update(network.match,network.myId);
 }
 // Arena HUD'u .pvp2-announce satırına, hazırlık kartları ve D/Y şeridi üst yazma paneline yerleşir.
@@ -201,6 +202,7 @@ function arenaUiCreate(){
   const hud=root?.querySelector('.pvp2-announce'),stage=root?.querySelector('[data-tt-arena]'),overlay=root?.querySelector('.pvp2-shell');
   if(!hud||!stage)return;
   arenaUi=createArenaUi({hudHost:hud,stageHost:stage,overlayHost:overlay,now:()=>network.serverNow(),isReduced:fx24Reduced,
+    holdTransition:()=>arena3d.instance?.visualQueue?.whenIdle(3000),
     send:(type,payload)=>{if(type==='ARENA_PICK')network.sendArenaPick(payload?.skill,payload?.item);},
     onLockChange:()=>{textUpdate('fire');textUpdate('rune');}});
   arenaUi.update(network.match,network.myId);
@@ -799,7 +801,8 @@ function flushQueued(id){
 // (Kutu çözüm sırasında stage-focus ile gizlenir; kilit, gizliyken açıldığında focus() işe yaramıyordu.)
 root?.addEventListener('tuslab:pvp-recovered',()=>arena3d.instance?.clear());
 root?.addEventListener('tuslab:pvp-arena',event=>{
-  if(['ARENA_ROUND_START','ARENA_ROUND_END','ARENA_PREP_START'].includes(event.detail?.type))arena3d.instance?.clear();
+  if(['ARENA_ROUND_START','ARENA_PREP_START'].includes(event.detail?.type))arena3d.instance?.clear();
+  if(event.detail?.type==='ARENA_ROUND_END')arena3d.instance?.visualQueue?.drain(1500);
 });
 root?.addEventListener('tuslab:pvp-round',event=>{
   const type=event.detail?.type;if(type!=='EXCHANGE_START'&&type!=='ROUND_START')return;
@@ -906,7 +909,8 @@ root?.addEventListener('click',event=>{
 root?.addEventListener('tuslab:pvp-match',()=>roundsUi?.update(network.match,network.myId));
 root?.addEventListener('tuslab:pvp-round',event=>{
   const detail=event.detail||{};
-  if(['ROUND_START','ROUND_END'].includes(detail.type))arena3d.instance?.clear();
+  if(detail.type==='ROUND_START')arena3d.instance?.clear();
+  if(detail.type==='ROUND_END')arena3d.instance?.visualQueue?.drain(1500);
   if(detail.type==='ROUND_START')pvpAudio.play('round-start',{character:'center',gain:.6});
   if(detail.type==='ROUND_SKILL_ACK'){
     pvpAudio.play('skill-lock',{character:'center',gain:.45});

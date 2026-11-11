@@ -31,6 +31,7 @@ test('vargr meshy: GLB var, ≤ 1,2 MiB, 8 klip tam, EXT_texture_webp, üretim n
   assert.deepEqual(json.animations.map(a => a.name), [
     'Combat_Stance', 'Attack', 'Axe_Spin_Attack', 'Charged_Axe_Chop',
     'Hit_Reaction', 'Knock_Down', 'Victory_Cheer', 'Two_Handed_Parry',
+    'Run_Charge', 'Walk_Back', // Şerit H: yolculuk klipleri (scripts/merge-vargr-clips.py)
   ]);
   assert.equal(json.images.length, 1, 'tek doku');
   assert.equal(json.images[0].mimeType, 'image/webp');
@@ -97,16 +98,13 @@ test('vargr meshy: her saldırının peakMs > 0, klip süresinden küçük ve hi
     const dur = duration(spec.clip);
     assert.ok(spec.peakMs > 0, `${skill}.peakMs pozitif`);
     assert.ok(spec.peakMs < dur, `${skill}.peakMs ${spec.peakMs} < klip süresi ${dur}`);
-    const target = spec.contactMs || CHOREOGRAPHY.vargr[skill].hitMs;
-    assert.ok(target > 0, `${skill} hizalama hedefi pozitif`);
-    assert.ok(spec.peakMs - target >= 0, `${skill}: peak hedeften geç → içeriden başlatma`);
-    if (spec.endMs) assert.ok(spec.endMs <= dur, `${skill}.endMs klip içinde`);
+    assert.ok(CHOREOGRAPHY.vargr[skill].hitMs > 0, `${skill} temel koreografi var`);
   }
   // Ölçülen zirveler ve ulti hizalaması (3. evre teması ≈ 1310 ms).
   assert.equal(MESHY.skills.q.peakMs, 1060);
   assert.equal(MESHY.skills.e.peakMs, 900);
   assert.equal(MESHY.skills.r.peakMs, 4375);
-  assert.equal(MESHY.skills.r.contactMs, 1310);
+  assert.equal(MESHY.skills.r.contactMs, undefined,'eski kısa temas ofseti kullanılmaz');
 });
 
 // --------------------------------------------------------------- 5) yükleme + otomatik geri dönüş
@@ -177,7 +175,7 @@ function meshyAsset() {
   mesh.name = 'char1';
   armature.add(mesh);
   const durations = {Combat_Stance: 1.667, Attack: 2.8, Axe_Spin_Attack: 2.5, Charged_Axe_Chop: 7.667,
-    Hit_Reaction: 1.633, Knock_Down: 2.5, Victory_Cheer: 9.333, Two_Handed_Parry: 1.333};
+    Hit_Reaction: 1.633, Knock_Down: 2.5, Victory_Cheer: 9.333, Two_Handed_Parry: 1.333, Run_Charge: 0.633, Walk_Back: 1.7};
   const clips = Object.entries(durations).map(([name, duration]) => new THREE.AnimationClip(name, duration, [
     new THREE.VectorKeyframeTrack('Hips.position', [0, duration], [0, 90.95, 0, 0, 90.95, 0]),
   ]));
@@ -216,29 +214,41 @@ test('vargr meshy: rig varyant tablolarını, kemik adlarını ve ölçeğini ku
   rig.dispose();
 });
 
-test('vargr meshy: saldırı klipleri hitMs/ulti temas anına hizalı — q 650, e 520, r 1310 ms', () => {
+test('vargr meshy: q/e yolculuk+temas; ulti baştan sona doğal hızda', () => {
   const rig = createFighterRig(THREE, meshyAsset(), {fighterId: 'vargr', seat: 1, clone: o => o.clone(true)});
-  // Q: Attack peak 1060 → içeriden 410 ms başlar; 650 ms sonra klibin 1060 ms'sinde.
+  // Şerit H: Q/E önce koşu klibi (yolculuk 400 ms), sonra saldırı klibi BAŞTAN (offset yok);
+  // temas = yolculuk + peakMs/hız. Kare kare ilerletip klip zamanını ölçeriz.
+  const run = (name, ms) => { for (let t = 0; t < ms; t += 1000 / 60) rig.update(1 / 60); };
   rig.play('q');
+  assert.equal(rig.stats().clip, 'Run_Charge', 'yolculukta koşu klibi');
+  const qPlan = rig.plan('q');
+  assert.equal(qPlan.travelMs, 400);
+  assert.ok(Math.abs(qPlan.hitMs - (400 + 1060 / 1.1)) < 1, `q temas ${qPlan.hitMs}`);
+  assert.ok(qPlan.speed <= 1.2 && qPlan.speed >= 1, 'saldırı klibi hızı 1–1,2');
+  run('q', 400 + 50);
   assert.equal(rig.stats().clip, 'Attack');
-  assert.ok(Math.abs(rig.actions.Attack.time - 0.410) < 0.005, `q başlangıç ofseti ${rig.actions.Attack.time.toFixed(3)}`);
-  rig.update(0.65);
-  assert.ok(Math.abs(rig.actions.Attack.time - 1.060) < 0.01, `q vuruş karesi ${rig.actions.Attack.time.toFixed(3)}`);
-  // E: Axe_Spin_Attack peak 900 → ofset 380; 520 ms sonra 900 ms'de.
+  assert.ok(rig.actions.Attack.time < 0.12, `q klibi baştan başlar ${rig.actions.Attack.time.toFixed(3)}`);
+  run('q', qPlan.hitMs - 450);
+  assert.ok(Math.abs(rig.actions.Attack.time - 1.060) < 0.05, `q vuruş karesi ${rig.actions.Attack.time.toFixed(3)}`);
+  run('q', qPlan.totalMs); // toparlanma + geri yürüyüş sonrası idle
+  assert.equal(rig.stats().state, 'idle');
   rig.play('e');
-  assert.ok(Math.abs(rig.actions.Axe_Spin_Attack.time - 0.380) < 0.005);
-  rig.update(0.52);
-  assert.ok(Math.abs(rig.actions.Axe_Spin_Attack.time - 0.900) < 0.01);
-  // R: Charged_Axe_Chop peak 4375 → ulti 3. evre temasına (1310 ms) hizalı ofset 3065.
+  const ePlan = rig.plan('e');
+  run('e', ePlan.travelMs + 50);
+  assert.ok(rig.actions.Axe_Spin_Attack.time < 0.12, 'e klibi baştan');
+  run('e', ePlan.hitMs - ePlan.travelMs - 50);
+  assert.ok(Math.abs(rig.actions.Axe_Spin_Attack.time - 0.900) < 0.05);
+  run('e', ePlan.totalMs);
+  assert.equal(rig.stats().state, 'idle');
+  // R: klip ilk kareden başlar, ölçülen 4375 ms zirvesini kesmeden oynar.
   rig.play('r');
-  assert.ok(Math.abs(rig.actions.Charged_Axe_Chop.time - 3.065) < 0.005);
-  rig.update(1.31);
+  assert.equal(rig.actions.Charged_Axe_Chop.time,0);
+  rig.update(4.375);
   assert.ok(Math.abs(rig.actions.Charged_Axe_Chop.time - 4.375) < 0.01, 'ana iniş son/büyük temasta');
-  // R penceresi (endMs 5400): toparlanma sonrası idle'a döner, klip sonuna kadar beklemez.
-  rig.update(1.0);
-  assert.equal(rig.stats().state, 'r', 'pencere içinde saldırı sürer');
-  rig.update(0.4); // klibin ~5,48 sn'i ≥ endMs 5,4
-  assert.equal(rig.stats().state, 'idle', 'endMs sonrası idle');
+  rig.update(2.5);
+  assert.equal(rig.stats().state, 'r', 'toparlanma sırasında saldırı sürer');
+  rig.update(0.8);
+  assert.equal(rig.stats().state, 'idle', 'tam klip bitince idle');
   rig.dispose();
 });
 

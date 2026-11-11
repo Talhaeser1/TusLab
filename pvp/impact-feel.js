@@ -68,10 +68,10 @@ export function createImpactDirector({now,isReduced,contact,deliver}) {
     deliver(event);
   }
   return {state,
-    queue(event,ready) {
+    queue(event,ready,deadlineMs) {
       // A dropped/replaced visual cue must never retain an unbounded backlog.
       if(pending.length>=16)hit(pending.shift().event);
-      pending.push({event,ready,deadline:now()+(event.skill==='r'?5000:2400)});
+      pending.push({event,ready,deadline:now()+(deadlineMs||(event.skill==='r'?5000:2400))});
     },
     flush() { for(let i=0;i<pending.length;i++) {
       const p=pending[i]; if(!p.ready()&&now()<p.deadline)continue;

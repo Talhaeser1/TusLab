@@ -200,6 +200,20 @@ test('arena DOM: summary overlay after the round and destroy clears timers',()=>
   assert.ok(timers.live.size>0);
   ui.destroy();assert.equal(timers.live.size,0);
 });
+test('arena summary waits for visual queue before showing result and starting its display timer',async()=>{
+  let m=toRound(fresh());m=advanceArenaMatch(m,T0+200+ARENA_ROUND_DURATION_MS+1).match;
+  const pub=arenaPublicMatch(m,1);
+  const hud=new FakeEl('div'),stage=new FakeEl('div'),overlay=new FakeEl('div'),timers=fakeTimers();
+  let release;const hold=new Promise(resolve=>{release=resolve;});let calls=0;
+  const ui=createArenaUi({hudHost:hud,stageHost:stage,overlayHost:overlay,now:()=>pub.round.summaryEndsAt-1000,
+    doc:fakeDoc,timers,holdTransition:()=>{calls++;return hold;}});
+  ui.update(pub,'me');ui.tick();
+  assert.equal(byRole(overlay,'summary')[0].hidden,true);
+  assert.equal(calls,1);
+  release();await hold;await Promise.resolve();
+  assert.equal(byRole(overlay,'summary')[0].hidden,false);
+  ui.destroy();
+});
 
 // ---------- kaynak bağlantıları ----------
 test('wiring: network.js routes arena packets, ARENA_PICK and practice mode; index.js maps ARENA_ATTACK',()=>{

@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const read = p => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
-test('tur arası: sonuç ve süre becerisi tek panelde (.rui-inter), yazma panelinin yerine oturur', () => {
+test('tur arası: RAUND yazısı ardından sonuç ve süre becerisi kompakt alt panelde', () => {
   const js = read('pvp/rounds-ui.js');
   assert.match(js, /h\('div',\{cls:'rui-inter',rui:'inter',hidden:true\},summary,picker\)/);
-  assert.match(js, /el\.append\(bar,strip,clash,flash,intro,inter,reveal,live\)/);
-  assert.match(js, /querySelector\('\.tt'\)/, 'panel yazma panelinin kutusunu ölçer');
-  assert.match(js, /height:`\$\{Math\.round\(r\.height\)\}px`/, 'yükseklik yazma paneliyle aynı → aşağı taşmaz');
+  assert.match(js, /el\.append\(bar,strip,clash,flash,banner,intro,inter,reveal,live\)/);
+  assert.match(js, /inter\.classList\.toggle\('is-dock',open\)/);
   const css = read('pvp/rounds-ui.css');
   assert.match(css, /#pvp-root\.rui-inter-open \.tt-type\{visibility:hidden\}/, 'yazma paneli gizlenir ama yer tutar');
-  assert.match(css, /\.rui-skill-picker \.aui-cards\.rui-skill-cards\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)\}/, '3 kart 3 sütun');
+  assert.match(css, /#pvp-root \.rui-inter\.is-dock\{position:fixed/);
+  assert.match(css, /max-height:calc\(44dvh - var\(--rui-dock-bottom,64px\)\)/);
+  assert.match(css, /\.rui-skill-picker \.aui-cards\.rui-skill-cards\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
 });
 
 test('saldırı sırası etiketi: yazma paneli açıksa onda, arena odağında arenanın üst ortasında', () => {

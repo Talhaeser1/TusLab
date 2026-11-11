@@ -19,7 +19,7 @@
  * GLTFLoader / SkeletonUtils dinamik import edilir (CSP: yalnız 'self').
  */
 import {FIGHTERS, FIGHTER_IDS, SHARED_CLIPS} from './shared/fighters.js';
-import {createAnimState, fadeMs as animFadeMs} from './anim-state.js';
+import {createAnimState, fadeMs as animFadeMs, clampAttackSpeed} from './anim-state.js';
 
 export const FIGHTER_MODEL_BASE = './assets/characters/';
 export const modelUrl = (fighterId, base = FIGHTER_MODEL_BASE) => `${base}${fighterId}.glb`;
@@ -67,35 +67,50 @@ export const MODEL_VARIANTS = Object.freeze({
         hit: Object.freeze(['Hit_Reaction']),
         ko: 'Knock_Down',
         win: 'Victory_Cheer',
+        // Şerit H: yolculuk klipleri (vargr.glb'ye scripts/merge-vargr-clips.py ekler).
+        run: 'Run_Charge',
+        walkBack: 'Walk_Back',
       }),
-      /**
-       * Saldırı klipleri + ölçülen vuruş karesi (peakMs): her saldırı klibinde
-       * RightHand kemiğinin dünya hızının zirve yaptığı an (ham GLB üzerinden
-       * 120 Hz örneklem; three.js FK analizi). Oynatmada klibin başlangıç ofseti
-       * öyle seçilir ki peakMs, koreografinin hitMs anına denk gelsin:
-       *   q Attack           peak 1060 ms ← hitMs 650                → ofset 410 ms
-       *   e Axe_Spin_Attack  peak  900 ms ← hitMs 520                → ofset 380 ms
-       *   r Charged_Axe_Chop peak 4375 ms ← ulti 3. evre teması 1310 → ofset 3065 ms
-       * r.contactMs türetimi (görsel hizalama notu): sunucu evre ofsetleri
-       * (fire 250/430/670 — pvp/shared/match.js ULTIMATE_PHASES + SHIELD_WINDOW_MS)
-       * ve arena3d ULTIMATE_TIMING zinciri (pull 340 + strike 160 + throw 560)
-       * → 3. evre (son/büyük) teması ≈ 250+340+160+560 = 1310 ms. r.endMs: iniş
-       * sonrası kısa toparlanma; klip 7,67 s'nin gerisi donuk bekleyiştir.
-       */
+      /** Ölçülen el hızı zirveleri (peakMs); klipler baştan sona oynatılır. */
       skills: Object.freeze({
-        q: Object.freeze({clip: 'Attack', peakMs: 1060}),
-        e: Object.freeze({clip: 'Axe_Spin_Attack', peakMs: 900}),
-        r: Object.freeze({clip: 'Charged_Axe_Chop', peakMs: 4375, contactMs: 1310, endMs: 5400}),
+        // Şerit H: q/e klibi BAŞTAN, timeScale 1,1 ile oynar (offset yok); temas = yolculuk + peakMs/speed.
+        // recoverMs: temastan sonra klibin toparlanma süresi (gerçek ms) — sonra Walk_Back ile geri yürüyüş.
+        q: Object.freeze({clip: 'Attack', peakMs: 1060, speed: 1.1, recoverMs: 380}),
+        e: Object.freeze({clip: 'Axe_Spin_Attack', peakMs: 900, speed: 1.1, recoverMs: 360}),
+        r: Object.freeze({clip: 'Charged_Axe_Chop', peakMs: 4375}),
       }),
     }),
   }),
 });
 
+/**
+ * Diğer karakterler için hazır (KAPALI) Meshy varyant taslakları: assets/models/<id>/<id>.glb
+ * Vargr ile AYNI klip adı kuralı (idle=Combat_Stance, Run_Charge, Walk_Back, Attack, Axe_Spin_Attack,
+ * Charged_Axe_Chop, Hit_Reaction, Knock_Down, Victory_Cheer, Two_Handed_Parry). Dosyalar gelince
+ * `enabled: true` yapılır ve peakMs/headToHeight/groundOffsetY o modelde ölçülüp güncellenir
+ * (buradakiler Vargr değerleri = yer tutucu). enabled=false iken fighterModelVariant 'eski' döner;
+ * etkin olup dosya yoksa/klip eksikse loadFighterModel otomatik KayKit modeline düşer.
+ */
+export function meshyVariantDraft(fighterId, overrides = {}) {
+  const base = MODEL_VARIANTS.vargr.meshy;
+  return Object.freeze({
+    ...base, ...overrides, enabled: overrides.enabled ?? false,
+    url: `./assets/models/${fighterId}/${fighterId}.glb`,
+  });
+}
+export const MODEL_VARIANT_DRAFTS = Object.freeze({
+  sira: meshyVariantDraft('sira'), doran: meshyVariantDraft('doran'), nyx: meshyVariantDraft('nyx'),
+});
+const variantSpecOf = (fighterId, variant) => {
+  const spec = MODEL_VARIANTS[fighterId]?.[variant] || (variant === 'meshy' ? MODEL_VARIANT_DRAFTS[fighterId] : null);
+  return spec && spec.enabled !== false ? spec : null;
+};
+
 /** Varyant seçimi: saf fonksiyon (localStorage/location yoksa hata vermez, test edilebilir).
  *  Vargr varsayılan 'meshy'; ?vargr=eski URL'yi ya da localStorage['tuslab:vargr-model']==='eski'
  *  eski KayKit modeline döndürür. Diğer karakterler etkilenmez ('eski'). */
 export function fighterModelVariant(fighterId, env = globalThis) {
-  if (fighterId !== 'vargr' || !MODEL_VARIANTS.vargr?.meshy) return 'eski';
+  if (!variantSpecOf(fighterId, 'meshy')) return 'eski';
   try {
     const search = String(env?.location?.search || '');
     if (/(?:^|[?&])vargr=eski(?=&|$)/.test(search)) return 'eski';
@@ -109,7 +124,7 @@ export function fighterModelVariant(fighterId, env = globalThis) {
 /** Varyantın model URL'si: meshy → assets/models/vargr/vargr.glb, diğerleri modelUrl(). */
 export function fighterModelUrl(fighterId, env = globalThis, base = FIGHTER_MODEL_BASE) {
   const variant = fighterModelVariant(fighterId, env);
-  return MODEL_VARIANTS[fighterId]?.[variant]?.url || modelUrl(fighterId, base);
+  return variantSpecOf(fighterId, variant)?.url || modelUrl(fighterId, base);
 }
 
 /** Varyant tablosunun beklediği kliplerden asset'te eksik olanlar (boşsa varyant kullanılabilir). */
@@ -133,7 +148,7 @@ const variantFallbackWarned = new Set();
  */
 export async function loadFighterModel(THREE, fighterId, {env = globalThis, base = FIGHTER_MODEL_BASE, loader = null} = {}) {
   const variant = fighterModelVariant(fighterId, env);
-  const spec = MODEL_VARIANTS[fighterId]?.[variant] || null;
+  const spec = variantSpecOf(fighterId, variant);
   if (spec) {
     try {
       const asset = await loadFighterAsset(THREE, spec.url, {loader});
@@ -174,6 +189,9 @@ export const STATE_CLIPS = Object.freeze({
   hit: Object.freeze(['Hit_A', 'Hit_B']),
   ko: SHARED_CLIPS?.ko || 'Death_A',
   win: SHARED_CLIPS?.win || 'Cheer',
+  // Şerit H: KayKit'te ayrı koşu klibi yok → Dodge_Forward (atılma) / Dodge_Backward (geri çekilme).
+  run: 'Dodge_Forward',
+  walkBack: 'Dodge_Backward',
 });
 
 /** Palet (shared/fighters.js yoksa): ana ve vurgu rengi. */
@@ -301,6 +319,7 @@ export function skillDuration(spec) {
   if (m.jumpMs) ends.push((m.jumpAt || 0) + m.jumpMs);
   if (m.spinMs) ends.push((m.spinAt || 0) + m.spinMs);
   for (const f of spec.fx || []) ends.push((f.at || 0) + (f.flight || 0) + 100);
+  if (spec.totalMs) ends.push(spec.totalMs);
   return Math.max(...ends);
 }
 
@@ -353,6 +372,48 @@ export function dashProgress(elapsedMs, hitMs, {leadMs = 90, holdMs = 100, start
   const out = easeOutCubic(clamp((elapsedMs - start) / (arrive - start), 0, 1));
   const back = clamp((elapsedMs - hit - holdMs) / Math.max(1, returnMs), 0, 1);
   return out * (1 - back * back);
+}
+
+// ------------------------------------------------------------ yolculuk (Şerit H)
+
+/**
+ * Saldırı yolculuğu: rakibe koşu 300–500 ms, yumuşak hızlanma + sonda hafif fren; temasta kısa
+ * bekleyiş (toparlanma, holdMs); sonra geri yürüyüş returnMs. Işınlanma yok: eğri sürekli.
+ */
+export const TRAVEL = Object.freeze({
+  travelMs: 400, minMs: 300, maxMs: 500,
+  returnMs: 420, fastReturnMs: 240,
+  fastTravelMs: 220,   // kuyruk baskısında kısaltılmış yolculuk
+  holdMs: 200,         // KayKit için temas sonrası bekleyiş (Meshy: spec.recoverMs)
+});
+const easeInOutCubicK = k => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+/** 0..1: ease-in-out + sonda ek fren (başlangıç eğimi küçük, bitiş yumuşak). */
+export const travelEase = k => { const x = clamp(k, 0, 1); return 0.65 * easeInOutCubicK(x) + 0.35 * easeOutCubic(x); };
+/**
+ * Yolculuk ilerlemesi (0 = ev, 1 = temas noktası); from = başlangıçta taşınan ilerleme (0..1; atlanan dönüş).
+ * hitMs sonrası holdMs bekler, sonra returnMs'de eve döner (returnMs 0 → temas noktasında kalır).
+ */
+export function travelProgress(elapsedMs, {travelMs = TRAVEL.travelMs, hitMs = TRAVEL.travelMs, holdMs = TRAVEL.holdMs, returnMs = TRAVEL.returnMs, from = 0} = {}) {
+  const out = from + (1 - from) * travelEase(elapsedMs / Math.max(1, travelMs));
+  if (!returnMs) return out;
+  const back = easeInOutSine(window01(elapsedMs, hitMs + holdMs, returnMs));
+  return out * (1 - back);
+}
+
+/** q/e menzilli (mermi/rün/sütun/meteor) değilse yakın dövüştür → yolculuk uygulanır. */
+const RANGED_FX = ['spear', 'dagger', 'rune', 'meteor', 'column'];
+export const isMeleeSkill = (skill, spec) => skill !== 'r' && !(spec?.fx || []).some(f => RANGED_FX.includes(f.kind));
+
+/** Koreografiyi yolculuk kadar kaydır (adım/efekt/hareket zamanları + hitMs). Girdiyi bozmaz. */
+export function applyTravel(spec, {travelMs = TRAVEL.travelMs, holdMs = TRAVEL.holdMs, returnMs = TRAVEL.returnMs} = {}) {
+  const m = {...spec.motion};
+  for (const key of ['dashAt', 'backAt', 'jumpAt', 'spinAt']) if (m[key] !== undefined) m[key] += travelMs;
+  const hitMs = (spec.hitMs || 0) + travelMs;
+  return {
+    ...spec, steps: spec.steps.map(s => ({...s, at: (s.at || 0) + travelMs, speed: s.speed ? clampAttackSpeed(s.speed) : s.speed})),
+    motion: m, fx: spec.fx.map(f => ({...f, at: (f.at || 0) + travelMs})),
+    hitMs, travelMs, holdMs, returnMs, totalMs: hitMs + holdMs + returnMs,
+  };
 }
 
 /** İki dövüşçüyü kadrajda tut: orta noktayı izle, mesafe azaldıkça hafif yaklaş. x: dünya birimi. */
@@ -467,7 +528,7 @@ export function createFighterRig(THREE, asset, {
   // seçilmiş varyant. Beklenen klipler asset'te yoksa sessizce varsayılan tabloya
   // dön (yükleyici enjeksiyonu testlerde KayKit varlığı döndürebilir).
   const variantName = typeof variant === 'string' ? variant : asset?.variant;
-  const variantSpec = variantName && MODEL_VARIANTS[fighterId]?.[variantName] || null;
+  const variantSpec = variantName ? variantSpecOf(fighterId, variantName) : null;
   const variantReady = variantSpec && variantMissingClips(asset.clips, variantSpec).length === 0 ? variantSpec : null;
   const stateClips = variantReady?.clips || STATE_CLIPS;
   const source = asset.gltf.scene;
@@ -577,35 +638,71 @@ export function createFighterRig(THREE, asset, {
     yaw: 0, hits: 0, disposed: false, plays: 0, endMs: 0,
   };
 
-  /**
-   * Varyant saldırı adımları (paket 23): tek klip + temas hizalaması. Klibin
-   * ölçülen vuruş karesi (peakMs), koreografinin hitMs anına (ulti r'de 3. evre
-   * temasına, contactMs) denk gelsin:
-   *   peakMs hedeften geçse → klibi içeriden başlat (ofset = peakMs − hedef),
-   *   peakMs hedeften erkense → timeScale'i düşür (peak tam hedef anında).
-   * Böylece impact-feel hitstop/sarsıntısı tam vuruş karesinde olur; oyunun
-   * zamanlama sabitleri (hitMs/motion/fx) değişmez.
-   */
+  /** Varyant saldırıları tam klip, sıfır başlangıç ofseti ve doğal hız kullanır. */
   const variantSteps = {};
   if (variantReady) {
     for (const skill of SKILLS) {
       const spec = variantReady.skills?.[skill];
       if (!spec || !clipByName.has(spec.clip)) continue;
-      const target = spec.contactMs || choreo[skill].hitMs || 0;
-      const peak = Math.max(0, Number(spec.peakMs) || 0);
       const durationMs = (clipByName.get(spec.clip)?.duration || 0) * 1000;
-      let offsetMs = peak - target;
-      let speed = 1;
-      if (offsetMs < 0) {
-        speed = clamp(peak / Math.max(1, target), 0.5, 1);
-        offsetMs = 0;
-      }
       variantSteps[skill] = [{
-        clip: spec.clip, at: 0, speed,
-        offset: clamp(offsetMs / 1000, 0, Math.max(0, durationMs / 1000 - 0.05)),
-        endMs: Math.min(spec.endMs || durationMs, durationMs),
+        clip: spec.clip, at: 0, speed: clampAttackSpeed(spec.speed || 1),
+        offset: 0, endMs: durationMs,
       }];
     }
+  }
+
+  /**
+   * Şerit H: yakın dövüş q/e planı. Yolculuk (koşu klibi) → saldırı klibi BAŞTAN (offset yok,
+   * hız ≤ 1,2) → temasta (hitMs) vuruş → toparlanma → geri yürüyüş. Planlar önceden hesaplanır:
+   *   plan(skill, {compress, skipReturn}) → {steps, hitMs, travelMs, holdMs, returnMs, totalMs, speed}
+   * compress (görsel kuyruk baskısı): kısa yolculuk, hız 1,2; skipReturn: dönüş adımı yok.
+   */
+  const stateRun = stateClips.run || STATE_CLIPS.run;
+  const stateWalkBack = stateClips.walkBack || STATE_CLIPS.walkBack;
+  const clipMs = name => (clipByName.get(name)?.duration || 0) * 1000;
+  const baseChoreo = {};
+  const planCache = new Map();
+  const meleeSkills = SKILLS.filter(skill => isMeleeSkill(skill, choreo[skill]));
+  for (const skill of meleeSkills) baseChoreo[skill] = choreo[skill];
+  function buildPlan(skill, {compress = false, skipReturn = false} = {}) {
+    const base = baseChoreo[skill];
+    const vs = variantReady?.skills?.[skill];
+    const travelMs = compress ? TRAVEL.fastTravelMs : TRAVEL.travelMs;
+    const returnMs = skipReturn ? 0 : compress ? TRAVEL.fastReturnMs : TRAVEL.returnMs;
+    const walkSpeed = clamp(clipMs(stateWalkBack) / Math.max(1, returnMs || 1), 0.8, 1.2);
+    const walkStep = returnMs && clipByName.has(stateWalkBack) ? {clip: stateWalkBack, speed: walkSpeed, endMs: returnMs * walkSpeed} : null;
+    const runStep = clipByName.has(stateRun) ? {clip: stateRun, at: 0, speed: 1, endMs: 0} : null;
+    let steps, hitMs, holdMs, speed;
+    if (vs && clipByName.has(vs.clip)) {
+      speed = clampAttackSpeed(compress ? Math.max(vs.speed || 1, 1.2) : vs.speed || 1);
+      // The return starts only after the full source clip has played.  A short
+      // fixed recovery window used to cut off over half of Vargr's attack.
+      holdMs = Math.max(vs.recoverMs ?? TRAVEL.holdMs,
+        (clipMs(vs.clip) - vs.peakMs) / speed);
+      hitMs = travelMs + vs.peakMs / speed;
+      steps = [{clip: vs.clip, at: travelMs, speed, offset: 0, endMs: clipMs(vs.clip)}];
+    } else {
+      const shifted = applyTravel(base, {travelMs, holdMs: TRAVEL.holdMs, returnMs});
+      steps = shifted.steps; hitMs = shifted.hitMs; holdMs = TRAVEL.holdMs;
+      speed = steps[0]?.speed || 1;
+    }
+    if (runStep) steps.unshift(runStep);
+    if (walkStep) steps.push({...walkStep, at: hitMs + holdMs});
+    return {skill, steps, hitMs, travelMs, holdMs, returnMs, totalMs: hitMs + holdMs + returnMs, speed, compress, skipReturn};
+  }
+  function plan(skill, opts = {}) {
+    if (!baseChoreo[skill]) return null;
+    const key = `${skill}|${opts.compress ? 1 : 0}|${opts.skipReturn ? 1 : 0}`;
+    if (!planCache.has(key)) planCache.set(key, buildPlan(skill, opts));
+    return planCache.get(key);
+  }
+  // Varsayılan plan koreografiye yansır (skillDuration / hitMs / fx zamanları tutarlı olsun).
+  for (const skill of meleeSkills) {
+    const p = plan(skill);
+    const shifted = applyTravel(baseChoreo[skill], {travelMs: p.travelMs, holdMs: p.holdMs, returnMs: p.returnMs});
+    const fx = shifted.fx.map(f => (f.kind === 'slam' ? {...f, at: p.hitMs} : f));
+    choreo[skill] = {...shifted, steps: p.steps, hitMs: p.hitMs, fx, totalMs: p.totalMs};
   }
 
   const anim = createAnimState();
@@ -664,7 +761,8 @@ export function createFighterRig(THREE, asset, {
    */
   function play(next, opts = {}) {
     if (state.disposed) return false;
-    const contactMs = SKILLS.includes(next) ? (variantReady?.skills?.[next]?.contactMs || choreo[next]?.hitMs || 0) : 0;
+    const melee = baseChoreo[next] ? plan(next, opts) : null;
+    const contactMs = SKILLS.includes(next) ? (melee?.hitMs || variantReady?.skills?.[next]?.contactMs || choreo[next]?.hitMs || 0) : 0;
     const d = anim.request(next, {contactMs, force: opts.force});
     if (d.action === 'drop') {
       // Hit sırasında gelen block düşmez: hit bitince oynar (kuyruk, en fazla 1).
@@ -684,7 +782,8 @@ export function createFighterRig(THREE, asset, {
     if (SKILLS.includes(next)) {
       const spec = choreo[next];
       state.name = next;
-      state.queue = (variantSteps[next] || spec.steps).map(s => ({...s}));
+      const melee = baseChoreo[next] ? plan(next, opts) : null;
+      state.queue = (melee?.steps || variantSteps[next] || spec.steps).map(s => ({...s}));
       state.fade = opts.fade;
       advanceQueue();
       return true;
@@ -824,7 +923,9 @@ export function createFighterRig(THREE, asset, {
   return {
     fighterId, seat, face, palette, choreo, reach, object, model, mixer, actions, bones, materials, height, scale,
     variant: variantReady ? variantName : null, stateClips,
-    anim, play, update, setTimeScale, setPaused, setYaw, setTint, setOpacity, boneWorld, reset, dispose,
+    ultimatePeakMs: variantReady?.skills?.r?.peakMs || null,
+    ultimateDurationMs: variantReady?.skills?.r ? clipMs(variantReady.skills.r.clip) : null,
+    anim, play, plan, update, setTimeScale, setPaused, setYaw, setTint, setOpacity, boneWorld, reset, dispose,
     skillDuration: skill => (choreo[skill] ? skillDuration(choreo[skill]) : 0),
     stats: () => ({
       fighter: fighterId, state: state.name, clip: state.clip, timeScale: state.timeScale, paused: state.paused,

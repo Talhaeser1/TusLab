@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 import {
   ROUND_OPTIONS,STREAK_SKILLS,PRACTICE_ROUNDS_KEY,normalizeRounds,isRoundMatch,streakMultiplier,multiplierLabel,
   streakModel,predictedSkill,winsNeeded,roundsViewModel,summaryModel,clashModel,roundsPickDecision,
-  roundInputLock,roundsResultModel,roundsPickerHTML,createRoundsUi
+  roundInputLock,roundsResultModel,roundsPickerHTML,createRoundsUi,intermissionStage,ROUND_TITLE_MS
 } from '../pvp/rounds-ui.js';
 
 // ---------- örnek yükler (spec §7) ----------
@@ -63,22 +63,26 @@ const all=node=>[node,...node.children.flatMap(all)];
 const byRole=(el,name)=>all(el).filter(n=>n.dataset?.rui===name);
 
 test('round skill cards remain mounted while keyboard selection changes',()=>{
-  const {el,ui}=mount(41_000);
+  const {el,ui,setNow}=mount(41_000);
   ui.update(roundMatch({round:{phase:'intermission',nextRoundAt:50_000}}),'me');
   const cards=all(el).filter(n=>n.getAttribute('data-round-skill'));
   assert.equal(cards.length,3);
+  assert.equal(ui.handleKey({key:'1',preventDefault(){}}),false,'title stage does not accept a hidden choice');
+  setNow(41_000+ROUND_TITLE_MS+10);ui.tick();
   ui.handleKey({key:'1',preventDefault(){}});
   assert.equal(all(el).find(n=>n.getAttribute('data-round-skill')==='timethief'),cards[0]);
   assert.equal(cards[0].getAttribute('aria-pressed'),'true');
   ui.destroy();
 });
 
-test('fullscreen round result uses the centered panel without measuring or covering the typing panel',()=>{
-  const {host,el,ui}=mount(41_000);host.dataset.layout='fullscreen';el.closest=()=>host;
-  host.querySelector=()=>{throw new Error('fullscreen must not place results in the typing box');};
+test('round result opens as a compact bottom dock (every layout) after the title, never as a centered modal',()=>{
+  const {host,el,ui,setNow}=mount(41_000);host.dataset.layout='fullscreen';el.closest=()=>host;
   const m=roundMatch({round:{phase:'intermission',nextRoundAt:50_000},roundHistory:[roundEnd]});
   ui.update(m,'me');const inter=byRole(el,'inter')[0];
-  assert.ok(inter.classList.contains('is-centered'));assert.equal(inter.hidden,false);assert.ok(host.classList.contains('rui-inter-open'));
+  assert.equal(inter.hidden,true,'önce yalnız RAUND yazısı');
+  setNow(41_000+ROUND_TITLE_MS+50);ui.tick();
+  assert.ok(inter.classList.contains('is-dock'));assert.equal(inter.classList.contains('is-centered'),false);
+  assert.equal(inter.hidden,false);assert.ok(host.classList.contains('rui-inter-open'));
   ui.destroy();assert.equal(host.classList.contains('rui-inter-open'),false);
 });
 
@@ -86,6 +90,7 @@ test('round end: shared player columns, winner emphasis, win pips and live count
   const {el,ui,setNow}=mount(41_000);
   const m=roundMatch({roundsWon:{1:1,2:1},round:{phase:'intermission',nextRoundAt:50_000}});
   ui.handle({type:'ROUND_END',payload:{...roundEnd,match:m}});ui.update(m,'me');
+  setNow(41_000+ROUND_TITLE_MS+50);ui.tick();
   const result=all(el).find(n=>n.classList.contains('m33-result'));
   assert.ok(result);
   const columns=all(result).filter(n=>n.classList.contains('m33-player'));
@@ -93,8 +98,56 @@ test('round end: shared player columns, winner emphasis, win pips and live count
   assert.ok(columns[0].textContent.includes('Doğru'));assert.ok(columns[0].textContent.includes('210'));
   assert.equal(all(result).filter(n=>n.classList.contains('m33-pip')).length,10);
   const ring=all(result).find(n=>n.getAttribute('class')==='m33-count-fill');
-  assert.equal(ring.getAttribute('stroke-dashoffset'),'0.00');
-  setNow(42_000);ui.tick();assert.ok(Number(ring.getAttribute('stroke-dashoffset'))>0);
+  const before=Number(ring.getAttribute('stroke-dashoffset'));
+  setNow(43_000);ui.tick();assert.ok(Number(ring.getAttribute('stroke-dashoffset'))>before);
+  ui.destroy();
+});
+
+// ---------- raund geçişi: önce yazı, sonra panel ----------
+test('intermissionStage: title (tek başına) → panel → count',()=>{
+  assert.ok(ROUND_TITLE_MS>=700&&ROUND_TITLE_MS<=1000);
+  assert.equal(intermissionStage({elapsed:0,remaining:9000}),'title');
+  assert.equal(intermissionStage({elapsed:ROUND_TITLE_MS-1,remaining:9000}),'title');
+  assert.equal(intermissionStage({elapsed:ROUND_TITLE_MS,remaining:9000}),'panel');
+  assert.equal(intermissionStage({elapsed:5000,remaining:2900}),'count');
+});
+test('tur arası: RAUND yazısı önce tek başına; özet + seçici sonra açılır',()=>{
+  const {el,ui,setNow}=mount(41_000);
+  const m=roundMatch({roundsWon:{1:1,2:1},round:{phase:'intermission',nextRoundAt:50_000}});
+  ui.handle({type:'ROUND_END',payload:{...roundEnd,match:m}});ui.update(m,'me');
+  const banner=byRole(el,'banner')[0],summary=byRole(el,'summary')[0],inter=byRole(el,'inter')[0];
+  const picker=all(el).find(n=>n.classList.contains('rui-skill-picker'));
+  assert.equal(banner.hidden,false);assert.ok(banner.textContent.includes('RAUND 3'));
+  assert.equal(summary.hidden,true);assert.equal(picker.hidden,true);assert.equal(inter.hidden,true);
+  setNow(41_000+ROUND_TITLE_MS+10);ui.tick();
+  assert.equal(banner.hidden,true);assert.equal(summary.hidden,false);assert.equal(picker.hidden,false);assert.equal(inter.hidden,false);
+  ui.destroy();
+});
+test('tur arası: holdTransition Promise çözülene dek yazı/panel bekler (tek giriş noktası); en çok ROUND_HOLD_MAX_MS',async()=>{
+  const host=new FakeEl('div');const timers=fakeTimers();let t=41_000;let release;
+  const gate=new Promise(r=>{release=r;});let calls=0;
+  const ui=createRoundsUi(host,{now:()=>t,doc:fakeDoc,timers,holdTransition:()=>{calls++;return gate;}});
+  const el=host.children[0];
+  const m=roundMatch({roundsWon:{1:1,2:1},round:{phase:'intermission',nextRoundAt:50_000}});
+  ui.handle({type:'ROUND_END',payload:{...roundEnd,match:m}});ui.update(m,'me');ui.tick();
+  assert.equal(calls,1);assert.equal(byRole(el,'banner')[0].hidden,true,'bekleme: yazı da yok');assert.equal(byRole(el,'summary')[0].hidden,true);
+  release();await gate;await Promise.resolve();
+  assert.equal(byRole(el,'banner')[0].hidden,false,'çözülünce yazı');assert.equal(calls,1);
+  ui.destroy();
+  // Asla çözülmeyen Promise: zaman aşımı kilidi açar.
+  const host2=new FakeEl('div');const timers2=fakeTimers();
+  const ui2=createRoundsUi(host2,{now:()=>t,doc:fakeDoc,timers:timers2,holdTransition:()=>new Promise(()=>{})});
+  ui2.handle({type:'ROUND_END',payload:{...roundEnd,match:m}});ui2.update(m,'me');
+  assert.equal(byRole(host2.children[0],'banner')[0].hidden,true);
+  timers2.runAll();
+  assert.equal(byRole(host2.children[0],'banner')[0].hidden,false);
+  ui2.destroy();
+});
+test('tur arası: geri sayıma az kala görülen geçiş (yeniden bağlanma) yazıyı atlar',()=>{
+  const {el,ui}=mount(46_800);
+  const m=roundMatch({roundsWon:{1:1,2:1},round:{phase:'intermission',nextRoundAt:50_000}});
+  ui.handle({type:'ROUND_END',payload:{...roundEnd,match:m}});ui.update(m,'me');
+  assert.equal(byRole(el,'banner')[0].hidden,true);
   ui.destroy();
 });
 

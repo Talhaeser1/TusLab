@@ -34,6 +34,8 @@ export const errorText=code=>ERROR_TEXT[code]||String(code||'Bilinmeyen hata');
  * exactly as it does for a room invite; mount() then starts a practice match. */
 const PRACTICE_URL_FLAG='__practice__';
 const practiceFromUrl=href=>{try{return ['practice','arena'].includes(new URL(href).searchParams.get('pvp'));}catch{return false;}};
+/** URL'den karakter: ?karakter=vargr|sira|doran|nyx (eski: ?fighter=). Geçersiz/yoksa null → kayıtlı tercih ya da varsayılan. */
+export const fighterFromUrl=href=>{try{const q=new URL(href).searchParams;const v=String(q.get('karakter')??q.get('fighter')??'').trim().toLowerCase();return isFighterId(v)?v:null;}catch{return null;}};
 const ROOM_CODE=/^[A-Z2-9]{16}$/;
 const CHARACTERS={fire:'Alev Celladı',rune:'Rün Muhafızı'};
 // Paket 32 — karakter kadrosu: seçim localStorage'da tutulur; bot maçına ve odaya (FIGHTER_SELECT) gider.
@@ -127,7 +129,7 @@ export class PvPNetworkConsole {
   constructor(root){
     this.root=root;this.ws=null;this.code='';this.myId=null;this.seat=null;
     this.name=safeStore(localStorage,'tuslab-pvp-name')||'Savaşçı';
-    this.fighter=readFighterPref()||defaultFighter('fire');
+    this.fighter=fighterFromUrl(location.href)||readFighterPref()||defaultFighter('fire');
     this.character=FIGHTERS[this.fighter].archetype;this.rune='none';this.status='Bağlı değil';this.players=[];this.phase='waiting';
     this.ready=false;this.startAt=null;this.hostPlayerId=null;this.open=true;this.connecting=false;this.rematchVotes=[];this.history=[];
     this.entries=[];this.autoInvite=invitedRoom(location.href)||(practiceFromUrl(location.href)?PRACTICE_URL_FLAG:null);this.ticker=null;
@@ -244,7 +246,7 @@ export class PvPNetworkConsole {
     if(this.autoInvite){const code=this.autoInvite;this.autoInvite=null;
       if(code===PRACTICE_URL_FLAG){const q=new URL(location.href).searchParams;
         if(q.has('mode')||q.get('pvp')==='arena')this.practiceMode=normalizeMode(q.get('mode')||'arena');
-        this.startPractice({difficulty:q.get('bot'),character:q.get('char'),fighter:q.get('fighter'),stage:q.get('stage')});}
+        this.startPractice({difficulty:q.get('bot'),character:q.get('char'),fighter:fighterFromUrl(location.href),stage:q.get('stage')});}
       else void this.join(code);}
   }
   /** Start an offline match against the bot. Its packets go through receive(),

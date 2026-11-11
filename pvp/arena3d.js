@@ -1,10 +1,11 @@
+import {createVisualTimeline} from './visual-timeline.js';
 import {createImpactDirector, stepImpact, addTrauma, beginHitstop, restoreHitstop} from './impact-feel.js';
 import {createArenaBloom} from './arena3d-bloom.js';
 import {budgetRatio, createFrameGovernor, PIXEL_BUDGETS} from './perf-governor.js';
 import {buildStage} from './stages3d.js';
 import {DEFAULT_STAGE, normalizeStage} from './shared/stages.js';
 import {
-  createFighterRig, createSkillFx, contactDistance as contactGap, dashProgress, frameFighters, isKnownFighter, loadFighterModel, fighterModelUrl, rootMotionAt, skillDuration,
+  createFighterRig, createSkillFx, contactDistance as contactGap, dashProgress, travelProgress, frameFighters, isKnownFighter, loadFighterModel, fighterModelUrl, rootMotionAt, skillDuration,
   MODEL_VIEW, FIGHTER_MODEL_BASE,
 } from './fighters3d.js';
 
@@ -1539,6 +1540,9 @@ export async function createArena3D({
       modelClock: 0,       // model simülasyon saati (ms): slowMo/hitStop ile birlikte ilerler
       fxQueue: [],         // zamanlı beceri efektleri {at, fn}
       lastCast: null,      // {at, hitMs}: rakibin isabet tepkisi vuruş anına ertelenir
+      carry: 0,            // Şerit H: atlanan dönüşten kalan ileri ofset (gövde birimi); sonraki saldırı oradan başlar
+      carryT: 0,
+      castQueue: [],       // görsel kuyruk girdileri (hasar olayı sırayla bunlara bağlanır)
     };
   }
 
@@ -1802,7 +1806,8 @@ export async function createArena3D({
         }
         kicks.push({start:t, dur:240});
       }
-      handleCore(event);
+      reactNow = boundEvents.has(event); // görsel kuyruğa bağlı olay: tepki TAM temas karesinde
+      try { handleCore(event); } finally { reactNow = false; }
       // Damage plugins share this exact contact; no second resolve delay.
       forwardToPlugins({...event, impactContact: true});
       if (!event.blocked && event.amount > 0) {
@@ -1813,29 +1818,59 @@ export async function createArena3D({
     deliver: event => safeCall(onImpact, event),
   });
   let impactFrame = {shakeX:0, shakeY:0, punch:0, zoom:0, timeScale:1};
+  let reactNow = false;
+  const boundEvents = new WeakSet();
+  let deferredHpSync = null;
+
+  // ---- Şerit H: görsel zaman çizelgesi (sunucu olayları sıraya alınır, temas karesinde gösterilir)
+  const timeline = createVisualTimeline({now, isReduced: reduced,
+    setTimer: (fn, ms) => env?.setTimeout?.(fn, ms), clearTimer: id => env?.clearTimeout?.(id)});
+  const probe = (() => {
+    try { return /(?:^|[?&])animprobe=1(?=&|$)/.test(String(env?.location?.search || '')); } catch { return false; }
+  })();
+  // Hata ayıklama kancası (varsayılan KAPALI; ?animprobe=1): kare başına saldıran/savunan izi + olay zamanları.
+  const animProbe = probe ? {frames: [], events: [], max: 6000, on: false,
+    start() { this.frames.length = 0; this.events.length = 0; this.on = true; },
+    stop() { this.on = false; return {frames: this.frames, events: this.events}; },
+    mark(type, data) { if (this.on) this.events.push({t: now(), type, ...data}); }} : null;
+  const probeMark = (type, data) => { if (animProbe) animProbe.mark(type, data); };
+  if (probe) safeCall(() => { env.__tuslabAnimProbe = animProbe; });
 
   /** Karaktere özel beceri: klip adımları + kök hareketi izi + zamanlı efektler. false → model yok. */
-  function playModelSkill(seat, skill, {fx = true} = {}) {
+  function playModelSkill(seat, skill, {fx = true, compress = false, skipReturn = false, entry = null} = {}) {
     const fighter = fighters.get(seat);
     const rig = fighter?.model;
     if (!rig || fighter.ko) return false;
     const spec = rig.choreo[skill];
     if (!spec) return false;
-    rig.play(skill);
-    fighter.lastCast = {at: now(), hitMs: spec.hitMs || 0,
+    // Şerit H: yakın dövüş q/e → yolculuk planı (kuyruk baskısında kısa/dönüşsüz plan).
+    const plan = entry ? rig.plan?.(skill, {compress, skipReturn}) || null : null;
+    rig.play(skill, plan ? {compress, skipReturn} : undefined);
+    const hitMs = plan ? plan.hitMs : skill === 'r' && rig.ultimatePeakMs ? rig.ultimatePeakMs : spec.hitMs || 0;
+    fighter.lastCast = {at: now(), hitMs,
       clock: fighter.modelClock, arrived: false,
       ranged: (spec.fx || []).some(x => ['spear','dagger','rune','meteor','column'].includes(x.kind))};
     const cast = fighter.lastCast;
+    if (entry) entry.cast = cast;
+    probeMark('cast', {seat, skill, hitMs, plan: plan ? {travelMs: plan.travelMs, speed: plan.speed, compress, skipReturn} : null});
     const opponent = fighters.get(otherSeat(seat));
     const scale = fighter.root.scale.x || 1;
     // Dinamik temas mesafesi: model ölçeğinden (Box3 derinliği) saldıranın silah uzanımı + savunan gövdesi.
     const contactDistance = contactGap(Math.abs(opponent.root.position.x - fighter.root.position.x) / scale, rig.reach);
-    const dur = skillDuration(spec);
+    const dur = plan ? plan.totalMs : skill === 'r' && rig.ultimatePeakMs
+      ? Math.max(skillDuration(spec), rig.ultimateDurationMs || rig.ultimatePeakMs)
+      : skillDuration(spec);
     const spinOk = !reduced();
-    addTrack(fighter, dur, (p, o, m) => {
+    const carry0 = Math.min(fighter.carry || 0, contactDistance);
+    const from = contactDistance > 0.001 ? carry0 / contactDistance : 0;
+    const track = addTrack(fighter, dur, (p, o, m) => {
       const r = rootMotionAt(spec, p * dur);
       const elapsed = p * dur;
-      if (!cast.ranged && skill !== 'r') {
+      if (plan) {
+        // Yumuşak ivmelenme + sonda fren, temasta toparlanma, sonra geri yürüyüş; sürekli eğri (ışınlanma yok).
+        const prog = travelProgress(elapsed, {travelMs: plan.travelMs, hitMs: plan.hitMs, holdMs: plan.holdMs, returnMs: plan.returnMs, from});
+        o.fwd += (contactDistance * prog - carry0) * m;
+      } else if (!cast.ranged && skill !== 'r') {
         // Hızlı ease-out ileri (temastan ~90 ms önce varış), temas sonrası ease-in geri dönüş.
         const hit = Math.max(1, cast.hitMs);
         o.fwd += contactDistance * dashProgress(elapsed, hit, {returnMs: Math.max(200, dur - hit - 100)}) * m;
@@ -1844,10 +1879,16 @@ export async function createArena3D({
       if (spinOk) o.yaw += r.yaw; // azaltılmış harekette kendi ekseninde dönüş yok
       o.glow += skill === 'r' ? 1.1 * (1 - p) : 0.3 * Math.sin(Math.PI * p);
     });
+    if (entry) {
+      entry.track = track;
+      entry.contactDistance = contactDistance;
+      entry.plan = plan;
+    }
     if (fx) {
       const def = otherSeat(seat);
       for (const item of spec.fx || []) {
-        fighter.fxQueue.push({at: fighter.modelClock + (item.at || 0), fn: () => spawnSkillFx(seat, def, item, cast)});
+        const at = skill === 'r' && rig.ultimatePeakMs && item.kind === 'slam' ? rig.ultimatePeakMs : item.at || 0;
+        fighter.fxQueue.push({at: fighter.modelClock + at, fn: () => spawnSkillFx(seat, def, item, cast)});
       }
       if (fighter.fxQueue.length > 12) fighter.fxQueue.splice(0, fighter.fxQueue.length - 12);
     }
@@ -1907,6 +1948,68 @@ export async function createArena3D({
 
   function fighterCast(seat) { return fighters.get(seat)?.lastCast; }
 
+  /**
+   * Şerit H — ulti sinematiği: 250–400 ms yavaş çekim (yalnız görsel; api.slowMo 0,42), kamera
+   * önce saldırana yaklaşır (ultimatePhase 2'de temas noktasına geçer). Reduced-motion'da yok.
+   */
+  const ULTI_INTRO = Object.freeze({slowScale: 0.42, slowMs: 340, dollyMs: 1100});
+  function ultimateIntro(seat) {
+    if (reduced()) return;
+    api.slowMo(ULTI_INTRO.slowScale, ULTI_INTRO.slowMs);
+    dollyTo(seat, ULTI_INTRO.dollyMs, false);
+    probeMark('ultiIntro', {seat, slowScale: ULTI_INTRO.slowScale, slowMs: ULTI_INTRO.slowMs});
+  }
+
+  /**
+   * Şerit H — yakın dövüş q/e görsel kuyruğa girer: yolculuk + klip(temasa) + toparlanma + dönüş.
+   * Döner: true = kuyruğa alındı (çağıran ayrıca oynatmaz). Modelsiz/azaltılmış harekette false.
+   */
+  function enqueueMeleeSkill(seat, skill) {
+    if (reduced() || (skill !== 'q' && skill !== 'e')) return false;
+    const fighter = fighters.get(seat);
+    const rig = fighter?.model;
+    if (!rig || fighter.ko || !rig.plan?.(skill)) return false;
+    const entry = {seat, skill, cast: null, contact: false, bound: false, dead: false, track: null, plan: null, contactDistance: 0, skipReturn: false};
+    const finishEntry = forced => {
+      entry.dead = true;
+      const i = fighter.castQueue.indexOf(entry);
+      if (i >= 0) fighter.castQueue.splice(i, 1);
+      if (entry.track) { const j = fighter.tracks.indexOf(entry.track); if (j >= 0) fighter.tracks.splice(j, 1); }
+      if (forced) { fighter.carry = 0; if (fighter.model && !fighter.ko) safeCall(() => fighter.model.play('idle')); }
+    };
+    fighter.castQueue.push(entry);
+    if (fighter.castQueue.length > 8) fighter.castQueue.shift().dead = true;
+    timeline.enqueue({
+      seat, estimateMs: rig.plan(skill).totalMs, meta: {skill},
+      start: ctx => {
+        if (fighter.ko || fighter.model !== rig) { entry.dead = true; return {contactMs: 0, durationMs: 0}; }
+        playModelSkill(seat, skill, {compress: ctx.compress, skipReturn: ctx.skipReturn, entry});
+        entry.skipReturn = ctx.skipReturn;
+        const p = entry.plan;
+        return p ? {contactMs: p.hitMs, durationMs: p.totalMs} : {contactMs: 0, durationMs: 0};
+      },
+      onContact: ({forced}) => {
+        entry.contact = true;
+        if (entry.cast) { entry.cast.contact = true; entry.cast.arrived = true; }
+        probeMark('contact', {seat, skill, forced: Boolean(forced)});
+      },
+      onEnd: ({forced}) => {
+        // Atlanan dönüş: kalan ofset taşınır (iz silinirken poz sıçramasın diye carry = varış noktası).
+        if (!forced) fighter.carry = entry.skipReturn ? entry.contactDistance : 0;
+        finishEntry(forced);
+        probeMark('end', {seat, skill, forced: Boolean(forced)});
+      },
+    });
+    return true;
+  }
+
+  /** Bu koltuğun henüz hasara bağlanmamış en eski kuyruk girdisi (hasar olayı sırayla eşlenir). */
+  function bindCastEntry(seat) {
+    const entry = fighters.get(seat)?.castQueue.find(e => !e.bound && !e.dead);
+    if (entry) entry.bound = true;
+    return entry || null;
+  }
+
   /** Mixer + efekt kuyruğu (tick içinde, poz güncellemesinden sonra). */
   function updateModels(dt, timeScale, frozenFighter, stopped) {
     for (const fighter of fighters.values()) {
@@ -1939,7 +2042,7 @@ export async function createArena3D({
     if (!rig) return;
     const reactive = state === 'hit' || state === 'block' || state === 'blockHit';
     const cast = reactive ? fighters.get(otherSeat(seat))?.lastCast : null;
-    const wait = cast && !cast.contact ? cast.at + cast.hitMs - now() : 0;
+    const wait = cast && !cast.contact && !reactNow ? cast.at + cast.hitMs - now() : 0;
     if (wait > 16 && wait < 2000) {
       cue(wait, () => { if (fighters.get(seat)?.model === rig && !fighters.get(seat).ko) safeCall(() => rig.play(state, opts)); });
       return;
@@ -2097,8 +2200,10 @@ export async function createArena3D({
   function addTrack(fighter, dur, fn, {replace = true} = {}) {
     if (!fighter || fighter.ko) return; // downed fighters stay down
     if (replace) fighter.tracks.length = 0;
-    fighter.tracks.push({start: now(), dur: Math.max(1, reduced() ? Math.min(dur, 360) : dur), fn, amp: amp()});
+    const track = {start: now(), dur: Math.max(1, reduced() ? Math.min(dur, 360) : dur), fn, amp: amp()};
+    fighter.tracks.push(track);
     if (fighter.tracks.length > 4) fighter.tracks.shift();
+    return track;
   }
 
   function cue(atMs, fn) {
@@ -2336,9 +2441,15 @@ export async function createArena3D({
 
   function processUltimate(tNow) {
     if (!ult) return;
+    const caster=fighters.get(ult.atk);
+    const cast=caster?.lastCast;
+    // Meshy ultimate's windup is long. Keep queued server phases cosmetic until
+    // the full clip reaches its measured strike frame (network timing is untouched).
+    if (ult.queue[0] === 2 && cast?.hitMs > 2000 && caster.modelClock - cast.clock < cast.hitMs - ULTIMATE_TIMING.strikeMs) return;
     if (ult.queue.length && tNow >= ult.nextAt) {
       const n = ult.queue.shift();
       runPhase(n);
+      if (n === 2 && !reduced() && fighters.get(ult.atk)?.model) dollyTo(ult.def, 900, false); // temas noktasına odak
       ult.shown = n;
       ult.nextAt = tNow + (fighters.get(ult.atk)?.model && n < 3
         ? (n === 1 ? ULTIMATE_TIMING.pullMs : ULTIMATE_TIMING.strikeMs) : ULTIMATE_TIMING.minGapMs);
@@ -2500,6 +2611,16 @@ export async function createArena3D({
     if (superHere) {
       if (fighter.seat === cine.superSeat) o.glow += 0.75 * cine.superK;
       else o.dark += (cine.superLight ? 0.15 : 0.35) * cine.superK;
+    }
+
+    // Şerit H: atlanan dönüşten kalan ofset (iz yokken yumuşakça eve döner; ışınlanma yok).
+    if (fighter.carry) {
+      if (!fighter.tracks.length) {
+        fighter.carry *= Math.exp(-clamp(tNow - (fighter.carryT || tNow), 0, 100) / 150);
+        if (fighter.carry < 1e-3) fighter.carry = 0;
+      }
+      fighter.carryT = tNow;
+      o.fwd += fighter.carry;
     }
 
     // Timed tracks.
@@ -3178,8 +3299,13 @@ export async function createArena3D({
     if (type === 'SKILL_CAST') {
       const seat = event.fromSeat;
       if (!isSeat(seat)) return;
-      if (playModelSkill(seat, event.skill)) {
-        if (event.skill === 'r') api.flash(fighters.get(seat).palette.main, 0.14, 260);
+      if (enqueueMeleeSkill(seat, event.skill)) {
+        /* görsel kuyruk: sırası gelince oynar */
+      } else if (playModelSkill(seat, event.skill)) {
+        if (event.skill === 'r') {
+          api.flash(fighters.get(seat).palette.main, 0.14, 260);
+          ultimateIntro(seat);
+        }
       } else if (event.skill === 'q') playLunge(seat, {wind: 120, strike: 170, recover: 240, dist: 0.85, swing: 1});
       else if (event.skill === 'e') playLunge(seat, {wind: 230, strike: 260, recover: 380, dist: 1.35, lift: 0.18, squash: 0.12, swing: 1.3});
       else if (event.skill === 'r') {
@@ -3239,6 +3365,7 @@ export async function createArena3D({
       cheer(0.45);
     } else if (type === 'KNOCKOUT') {
       // Client-only event sent by index.js right before onMatchEnd(); seat = loser.
+      timeline.drain(1500); // KO/raund sonu: görsel kuyruk en geç 1,5 s'de boşalır
       if (isSeat(event.seat)) startKnockout(event.seat);
     } else if (type === 'SHIELD_BROKEN') {
       if (!isSeat(event.seat)) return;
@@ -3277,13 +3404,25 @@ export async function createArena3D({
   function handle(event) {
     if (destroyed || !event || typeof event !== 'object' || typeof event.type !== 'string') return;
     try {
+      if (event.type === 'HP_SYNC' && timeline.isBusy() && !reduced()) {
+        // Authoritative snapshots may arrive ahead of the queued cosmetic hit.
+        // Contact events update the bars in order; the newest snapshot reconciles at idle.
+        deferredHpSync = event;
+        return;
+      }
       if (event.type === 'DAMAGE_APPLIED' && isSeat(event.toSeat)) {
         const attacker = fighters.get(event.fromSeat);
         const cast = attacker?.lastCast;
+        let entry = null;
         if (cast && event.skill === 'r' && event.phase && !reduced() && ult) {
           const sequence = ult;
           impactFeel.queue(event, () => event.phase === 1 && cast.ranged
             ? cast.arrived : sequence.contacts.has(event.phase));
+        } else if (cast && event.skill !== 'r' && !reduced() && (entry = bindCastEntry(event.fromSeat))) {
+          // Görsel kuyruğa bağlı hasar: gösterim (efekt/sarsıntı/sayı/tepki) klibin gerçek temas karesinde.
+          const bound = entry;
+          boundEvents.add(event);
+          impactFeel.queue(event, () => bound.contact || bound.dead, 9000);
         } else if (cast && event.skill !== 'r' && !reduced()) {
           impactFeel.queue(event, () => {
             const ready = cast.ranged ? cast.arrived : attacker.modelClock - cast.clock >= cast.hitMs;
@@ -3324,8 +3463,13 @@ export async function createArena3D({
 
   function clear(notifyPlugins = true) {
     if (destroyed) return;
+    timeline.flush();      // raund geçişi: kuyruk bitmediyse son durumu anında uygula
+    impactFeel.flush();    // bekleyen hasar gösterimleri teslim edilir (kayıp yok)
+    if (deferredHpSync) { forwardToPlugins(deferredHpSync); deferredHpSync = null; }
     impactFeel.clear();
     for (const fighter of fighters.values()) {
+      fighter.carry = 0;
+      fighter.castQueue.length = 0;
       fighter.tracks.length = 0;
       fighter.bubblePulses.length = 0;
       fighter.shatter = null;
@@ -3581,6 +3725,8 @@ export async function createArena3D({
       for (const w of floorGlow.waves) if (w.active) w.start += lostMs;
     }
 
+    // Şerit H: görsel kuyruk rig ile AYNI simülasyon dt'sini kullanır (hitstop'ta durur) → temas klip zirvesiyle hizalı.
+    timeline.tick(tNow < hitStop.until ? 0 : dtMs * timeScale);
     processUltimate(tNow);
     for (const fighter of fighters.values()) {
       updateTravel(fighter, tNow);
@@ -3589,6 +3735,24 @@ export async function createArena3D({
     processUltimate(tNow); // segments that just ended may finish the choreography
     // Paket 32: mixer — slowMo'da yavaşlar, hitStop'ta ve süper donmasında durur.
     updateModels(dt, timeScale, frozenFighter, tNow < hitStop.until);
+    // Deliver the queued damage on the same frame that the mixer reaches contact.
+    impactFeel.flush();
+    if (!timeline.isBusy() && deferredHpSync) {
+      forwardToPlugins(deferredHpSync);
+      deferredHpSync = null;
+    }
+    if (animProbe?.on && animProbe.frames.length < animProbe.max) {
+      const row = {t: tNow, ts: timeScale, hs: tNow < hitStop.until ? 1 : 0};
+      for (const f of fighters.values()) {
+        const rg = f.model, st = rg?.stats?.();
+        row[`x${f.seat}`] = f.root.position.x + f.actor.position.x * (f.root.scale.x || 1);
+        row[`c${f.seat}`] = st?.clip ?? null;
+        row[`ct${f.seat}`] = rg?.mixer && rg.anim ? (rg.actions?.[st?.clip]?.time ?? null) : null;
+        row[`s${f.seat}`] = st?.state ?? null;
+        row[`ats${f.seat}`] = rg?.actions?.[st?.clip]?.getEffectiveTimeScale?.() ?? st?.timeScale ?? null;
+      }
+      animProbe.frames.push(row);
+    }
 
     // Stage simulation follows the same slow-motion clock as the fighters.
     const quiet = reduced();
@@ -3692,8 +3856,11 @@ export async function createArena3D({
 
   function destroy() {
     if (destroyed) return;
+    timeline.flush();
     impactFeel.clear();
     stopLoop();
+    safeCall(() => { if (env?.__tuslabVisualQueue === visualQueueApi) delete env.__tuslabVisualQueue; });
+    safeCall(() => { if (env?.__tuslabAnimProbe === animProbe) delete env.__tuslabAnimProbe; });
     for (const plugin of plugins.splice(0)) {
       try {
         plugin.dispose?.();
@@ -3740,6 +3907,17 @@ export async function createArena3D({
     safeCall(() => root.classList?.remove?.('pvp26-3d'));
   }
 
+  // Şerit H: görsel kuyruk okuma API'si (raund özeti "kuyruk bitince" açılabilsin).
+  //   window.__tuslabVisualQueue.isBusy() / remainingMs() / whenIdle(maxWaitMs) / drain(ms) / snapshot()
+  const visualQueueApi = Object.freeze({
+    isBusy: () => timeline.isBusy(),
+    remainingMs: () => timeline.remainingMs(),
+    whenIdle: maxWaitMs => timeline.whenIdle(maxWaitMs),
+    drain: ms => timeline.drain(ms),
+    snapshot: () => timeline.snapshot(),
+  });
+  safeCall(() => { env.__tuslabVisualQueue = visualQueueApi; });
+
   // ------------------------------------------------------------- public object
   const arena = {
     available: true,
@@ -3753,6 +3931,8 @@ export async function createArena3D({
     destroy,
     registerPlugin,
     api,
+    /** Şerit H: görsel kuyruk (isBusy / remainingMs / whenIdle / drain / snapshot). */
+    visualQueue: visualQueueApi,
     /** Paket 32: koltuklara karakter ata ({1:'vargr', 2:'doran'}); GLB tembel yüklenir. */
     setFighters,
     /** Resolves true once the rig textures are on the GPU (false on fallback). */

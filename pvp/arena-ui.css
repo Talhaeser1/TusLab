@@ -210,3 +210,25 @@
   .aui-hp-fill,.aui-cell,.aui-card{transition:none}
 }
 #pvp-root.pvp4-reduced .aui-summary{animation:none}
+
+/* ---------------- raund geçişi: tek etiket + kompakt alt panel (ekranın üst ~%55'i açık kalır) ---------------- */
+/* Madalyon akışı: yalnız etkin adımın adı yazılır, diğerleri numaralı nokta → dar madalyona sığar, "Özet" rozetlere binmez. */
+.aui-steps{max-width:100%;justify-content:center}
+.aui-step:not(.is-active) span{display:none}
+.aui-step:not(.is-active){padding-inline:6px}
+.aui-unit:empty{display:none}
+/* Hazırlık başlarken önce "RAUND X" yazısı: panel yer tutar ama görünmez. */
+.aui-stage.is-banner .aui-prep{visibility:hidden}
+/* Hazırlık paneli: kısa kartlar (açıklama ipucu/aria'da), panel üst kenarı ekranın ~%55'inin altında kalır; taşan içerik panelde kayar. */
+#pvp-root .tt .aui-prep{gap:6px;max-height:calc(45dvh - 92px);overflow-y:auto;overscroll-behavior:contain}
+#pvp-root .tt .aui-prep .aui-group{gap:3px}
+#pvp-root .tt .aui-prep .aui-cards{gap:6px}
+#pvp-root .tt .aui-prep .aui-card{min-height:44px;padding:4px 28px 4px 8px;gap:6px;align-items:center}
+#pvp-root .tt .aui-prep .aui-card-copy small{display:none}
+#pvp-root .tt .aui-prep .aui-card-copy strong{font-size:13px;line-height:1.15}
+#pvp-root .tt .aui-prep .aui-icon{font-size:20px}
+#pvp-root .tt .aui-prep .aui-uses{top:3px;right:6px}
+@media(prefers-reduced-motion:reduce){.aui-banner .rui-banner-title{animation:rui-fade 150ms ease-out both!important}}
+/* Hazırlıkta panel daha geniş: 5 skill kartı yan yana, başlıklar harf harf bölünmez. */
+#pvp-root[data-layout="fullscreen"][data-arena-phase="prep"] .pvp2-shell>.tt{width:min(1040px,calc(100vw - 24px))}
+#pvp-root .tt .aui-prep .aui-card-copy strong{overflow-wrap:normal;word-break:normal;hyphens:manual}
