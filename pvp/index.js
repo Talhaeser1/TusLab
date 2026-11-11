@@ -22,6 +22,7 @@ import {createParticleLayer} from './fx-particles.js';
 import {createLowHpFeedback} from './lowhp.js';
 // Tur sistemi arayüzü (docs/TUR-SISTEMI.md §10). Klasik maçta gizli kalır.
 import {createRoundsUi,renderRoundsResult,roundInputLock,isRoundMatch} from './rounds-ui.js';
+import {createMatchInfo} from './match-info.js'; // görev I2: SEN rozeti, yazılan kelime şeritleri, classic sayacı
 // Arena modu arayüzü (docs/ARENA-MODU.md §8.2) ve tüm modlarda ortak üst yazma paneli.
 import {createArenaUi,renderArenaResult,arenaInputLock,arenaTarget,arenaCombatActions,isArenaMatch,looksScrambled} from './arena-ui.js';
 import {ttModeLabel,ttUpcoming,ttExchange,ttNotice,ttHint} from './typing-top-model.js';
@@ -213,6 +214,14 @@ function arenaUiCreate(){
     send:(type,payload)=>{if(type==='ARENA_PICK')network.sendArenaPick(payload?.skill,payload?.item);},
     onLockChange:()=>{textUpdate('fire');textUpdate('rune');}});
   arenaUi.update(network.match,network.myId);
+}
+// Görev I2: SEN rozeti + her oyuncunun yazdığı kelimeler (kendi can barının altında) + süre/raund tutamaçları.
+let matchInfo=null;
+function matchInfoCreate(){
+  matchInfo?.destroy();matchInfo=null;
+  if(!root)return;
+  matchInfo=createMatchInfo(root,{now:()=>network.serverNow(),getTyped:seat=>players[seat===2?'rune':'fire']?.typed||''});
+  matchInfo.update(network.match,network.myId);
 }
 /** Bu tarayıcının yazdığı taraf: maçta koltuk, maç öncesi seçili savaşçı. */
 const myKey=()=>network.seat===2?'rune':network.seat===1?'fire':(network.character==='rune'?'rune':'fire');
@@ -514,7 +523,7 @@ function show(open){
   const levelText=root.querySelector('[data-pvp-volume-label]');if(levelText)levelText.textContent=Math.round(audioSettings.volume*100)+'%';
   root.classList.toggle('pvp4-reduced',reducedEffects);
   fx24Create();
-  roundsUiCreate();arenaUiCreate();arenaLayoutSync();fullscreenLayoutSync();fullscreenButtonSync();
+  roundsUiCreate();arenaUiCreate();matchInfoCreate();arenaLayoutSync();fullscreenLayoutSync();fullscreenButtonSync();
   void arena3dCreate();
   for(const id of ['fire','rune']){
     const stage=root.querySelector(`.pvp2-side[data-player="${id}"] .pvp2-stage`);
@@ -931,6 +940,7 @@ root?.addEventListener('click',event=>{
 
 // Tur sistemi: snapshot → HUD, ROUND_* → katmanlar, WORD_CLASH → çarpışma çağrısı.
 root?.addEventListener('tuslab:pvp-match',()=>roundsUi?.update(network.match,network.myId));
+root?.addEventListener('tuslab:pvp-match',()=>matchInfo?.update(network.match,network.myId));
 root?.addEventListener('tuslab:pvp-round',event=>{
   const detail=event.detail||{};
   if(detail.type==='ROUND_START')arena3d.instance?.clear();

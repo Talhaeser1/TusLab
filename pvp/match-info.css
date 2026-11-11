@@ -1,0 +1,45 @@
+/* Maç bilgi katmanı (görev I2) — SEN rozeti, yazılan kelime şeritleri, classic sayacı. Tüm yazılar ≥ 12 px. */
+.mi{position:fixed;inset:0;z-index:7;pointer-events:none}
+.mi[hidden],.mi [hidden]{display:none!important}
+.mi-strip{position:fixed;display:flex;align-items:center;gap:8px;min-width:0;height:24px;padding:0 8px;box-sizing:border-box;
+  border-radius:8px;background:#120c33cc;border:1px solid #ffffff22;font-size:13px;line-height:1;color:#f1ecff;overflow:hidden}
+.mi-strip-2{flex-direction:row-reverse;border-color:#5ccbff44}.mi-strip-1{border-color:#ff8a4c44}
+.mi-strip.is-me{border-color:#ffd166aa;box-shadow:0 0 0 1px #ffd16644}
+.mi-who{flex:none;display:inline-flex;align-items:center;gap:6px;max-width:42%;min-width:0}
+.mi-name{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.mi-sen{flex:none;padding:2px 7px;border-radius:5px;background:#ffd166;color:#241505;font-size:12px;font-weight:900;letter-spacing:.06em}
+.mi-words{flex:1 1 auto;display:flex;gap:6px;min-width:0;overflow:hidden;white-space:nowrap}
+.mi-strip-2 .mi-words{flex-direction:row-reverse}
+.mi-w{flex:none;padding:2px 6px;border-radius:5px;background:#ffffff14;color:#cfc6f2}
+.mi-w.is-new{background:#3ddc9733;color:#d9ffe9}
+.mi-live{flex:none;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 6px;border-radius:5px;background:#ffffff26;color:#fff;font-weight:800}
+.mi-live::after{content:"▍";margin-left:1px;opacity:.7}
+/* classic: kendi üst-orta sayacı */
+.mi-clock{position:fixed;left:50%;transform:translateX(-50%);display:flex;align-items:baseline;gap:6px;color:#fff;
+  padding:2px 16px;border-radius:12px;background:#120c33f2;border:1px solid #ffd166}
+.mi-clock-secs{font-size:34px;line-height:1.1;font-weight:900;font-variant-numeric:tabular-nums}
+.mi-clock small{font-size:13px;font-weight:800;color:#cfc6f2}
+.mi-clock.is-urgent .mi-clock-secs{color:#ff8ea2}
+.mi-label{position:fixed;left:50%;transform:translateX(-50%);padding:2px 10px;border-radius:6px;background:#1c1240;border:1px solid #ffd166;
+  color:#ffd166;font-size:13px;font-weight:900;letter-spacing:.06em;white-space:nowrap}
+@media (max-width:520px){
+  .mi-strip{height:22px;padding:0 6px;font-size:12px;gap:5px}
+  .mi-who{max-width:38%}
+  .mi-clock-secs{font-size:28px}
+}
+/* Donmuş An: kullanan şerit buz tonu + sayaç yanında +3 sn rozeti */
+.mi-strip.is-freeze{border-color:#8fe3ff;background:#0f2a44e6;box-shadow:0 0 0 1px #8fe3ff66,0 0 14px #5ccbff55;color:#dff3ff}
+.mi-strip.is-freeze .mi-w{background:#8fe3ff22;color:#dff3ff}
+.mi-bonus{position:fixed;padding:3px 9px;border-radius:999px;background:#0f2a44;border:1px solid #8fe3ff;color:#dff3ff;font-size:13px;font-weight:900;white-space:nowrap;animation:mi-bonus-pulse 1.2s ease-in-out 3}
+@keyframes mi-bonus-pulse{50%{box-shadow:0 0 14px #8fe3ffaa;transform:scale(1.08)}}
+/* Dar (yığılmış) düzen: 2. can barı ve süre/raund bandı, şeritlere yer açmak için aşağı kayar (görev I2). */
+@media (max-width:720px){
+  #pvp-root[data-layout="fullscreen"] .pvp2-side[data-seat="2"]>.pvp2-health{margin-top:28px!important}
+  #pvp-root[data-layout="fullscreen"] .pvp2-announce{top:240px!important}
+}
+@media (prefers-reduced-motion:reduce){.mi *{transition:none!important;animation:none!important}}
+/* Raund etiketi saat halkasının üstüne binmesin: pill halkanın ALTINDA, akış içinde durur (görev I2). */
+#pvp-root .rui-medal{padding-bottom:0;gap:4px}
+#pvp-root .rui-medal .rui-title{position:static;transform:none;margin:0}
+#pvp-root .rui-medal .rui-lastcall{bottom:0}
+#pvp-root.pvp4-reduced .mi *{transition:none!important;animation:none!important}

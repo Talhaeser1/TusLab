@@ -197,7 +197,9 @@ export function arenaSummaryModel(roundEnd,match,myId,{damage=null,record=null}=
     {label:'Verilen hasar',values:dealt.map(num)},
     {label:'Kalan HP',values:hp.map(known)}
   ];
-  const winnerSeat=dealt[0]===dealt[1]?null:dealt[0]>dealt[1]?1:2;
+  // Sunucunun raund kaydı varsa (nakavt dahil) kazanan odur; yoksa (özet henüz gelmedi) verilen hasara bakılır.
+  const recorded=roundEnd&&Object.hasOwn(roundEnd,'winnerSeat')?(roundEnd.winnerSeat===1||roundEnd.winnerSeat===2?roundEnd.winnerSeat:null):undefined;
+  const winnerSeat=recorded!==undefined?recorded:dealt[0]===dealt[1]?null:dealt[0]>dealt[1]?1:2;
   const next=round+1;
   const wins={1:0,2:0};
   for(const r of match?.roundResults||[])if(r.winnerSeat)wins[r.winnerSeat]++;

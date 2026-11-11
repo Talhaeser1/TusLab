@@ -109,11 +109,13 @@ function startRound(m,at,list){
 function scores(m){return [...m.participants].sort((a,b)=>a.seat-b.seat).map(p=>({seat:p.seat,correct:p.roundCorrect,wrong:p.roundWrong,
   bestStreak:p.roundBestStreak,damageDealt:p.roundDamage,hpLeft:p.hp}));}
 function roundPicks(m){return [...m.participants].sort((a,b)=>a.seat-b.seat).map(p=>({seat:p.seat,skill:p.roundSkill,item:p.roundItem}));}
-function recordRoundHistory(m){
+/** Raund galibi: o raundda rakibi nakavt eden (koSeat) ya da — nakavt yoksa — verilen hasarı fazla olan. */
+function recordRoundHistory(m,koSeat=null){
   if(m.roundHistory.some(h=>h.round===m.round.index))return;
-  const currentScores=scores(m),winnerSeat=currentScores[0].damageDealt===currentScores[1].damageDealt?null:
+  const currentScores=scores(m),byDamage=currentScores[0].damageDealt===currentScores[1].damageDealt?null:
     (currentScores[0].damageDealt>currentScores[1].damageDealt?currentScores[0].seat:currentScores[1].seat);
-  m.roundHistory.push({round:m.round.index,scores:currentScores,winnerSeat,picks:roundPicks(m)});
+  const winnerSeat=koSeat||byDamage;
+  m.roundHistory.push({round:m.round.index,scores:currentScores,winnerSeat,...(koSeat?{reason:'KO'}:{}),picks:roundPicks(m)});
 }
 function closeTyping(m,at,list){
   const r=m.round;r.phase='resolve';r.endedAt=at;
@@ -142,7 +144,7 @@ function closeTyping(m,at,list){
   roundEvent(m,list,'ARENA_ROUND_END',{round:r.index,scores:scores(m),roundsWon,picks:roundPicks(m)});
 }
 function finish(m,at,reason,list){
-  if(m.round.endedAt!==null)recordRoundHistory(m);
+  if(m.round.endedAt!==null)recordRoundHistory(m,reason==='KNOCKOUT'?m.winnerSeat:null);
   m.status='ended';m.round.phase='ended';m.endedAt=at;m.endsAt=at;m.endReason=reason;m.pendingAttacks=[];
   if(reason!=='SURRENDER'&&reason!=='KNOCKOUT'){
     const [a,b]=[...m.participants].sort((x,y)=>x.seat-y.seat);
