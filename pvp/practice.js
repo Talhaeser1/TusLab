@@ -19,6 +19,7 @@
  */
 import {createMatch,submitWord,advanceMatch,nextDeadline,roundStartPayload,pickRoundSkill,ROUND_TIME_SKILLS,normalizeRounds as engineNormalizeRounds,surrenderMatch,publicMatch,normalizeRoundStyle,normalizeRoundWords} from './shared/match.js';
 import {normalizeTyping} from './shared/typing-rules.js';
+import {normalizeContent} from './shared/content-modes.js';
 import {normalizeAssist} from './shared/assist-rules.js';
 import {normalizeStageChoice,pickStage} from './shared/stages.js';
 import {createArenaMatch,submitArenaPick,submitArenaWord,advanceArenaMatch,nextArenaDeadline,arenaPublicMatch,surrenderArenaMatch} from './shared/arena.js';
@@ -130,6 +131,7 @@ export function createPracticeSession(o={}){
   const profile=BOT_DIFFICULTIES[difficulty];
   const rounds=normalizeRounds(o.rounds);
   const roundStyle=normalizeRoundStyle(o.roundStyle),roundWords=normalizeRoundWords(o.roundWords);
+  const content=classic?'kelime':normalizeContent(o.content); // atasözü/şiir/Osmanlıca: yalnız raund modunda
   const typing=normalizeTyping(o.typing); // paket 30: büyük/küçük harf + noktalama kuralları
   const assist=normalizeAssist(o.assist); // paket 31: partner desteği (varsayılan açık)
   const stageChoice=normalizeStageChoice(o.stage); // paket 33
@@ -205,7 +207,7 @@ export function createPracticeSession(o={}){
     // Local seed comes from the injected RNG and fresh id, so tests can replay
     // a duel exactly while each rematch still receives different words.
     const stage=pickStage(stageChoice,rng);
-    match=classic?createMatch(players,at,id,{exchangeMs:10000,typing,assist,stage}):createMatch(players,at,id,{rounds,roundStyle,roundWords,seed:`${id}:${Math.floor(rng()*0x100000000)}`,resolveAtEnd:true,typing,assist,stage});
+    match=classic?createMatch(players,at,id,{exchangeMs:10000,typing,assist,stage}):createMatch(players,at,id,{rounds,roundStyle,roundWords,content,seed:`${id}:${Math.floor(rng()*0x100000000)}`,resolveAtEnd:true,typing,assist,stage});
     lastEmittedCombatId=0;rematchVotes=[];
     emit('MATCH_START',{match:snapshot(),serverTime:at,...(rematch?{rematch:true}:{})});
     if(!classic)broadcastRound([{type:'ROUND_START',payload:roundStartPayload(match)}],at);
@@ -354,7 +356,7 @@ export function createPracticeSession(o={}){
     /** Number of live timers owned by this session (0 after dispose). */
     get activeTimers(){return [tickTimer,botTimer,rematchTimer].filter(x=>x!==null).length;},
     get stage(){return match?.stage??(stageChoice==='random'?'colosseum':stageChoice);},stageChoice,
-    humanId:HUMAN_ID,botId:BOT_ID,humanSeat,botSeat,difficulty,profile,character,fighter,botFighter,rounds,roundStyle,roundWords,typing,assist,mode:classic?'classic':'rounds'
+    humanId:HUMAN_ID,botId:BOT_ID,humanSeat,botSeat,difficulty,profile,character,fighter,botFighter,rounds,roundStyle,roundWords,content,typing,assist,mode:classic?'classic':'rounds'
   };
 }
 

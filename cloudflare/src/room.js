@@ -3,6 +3,7 @@
  */
 import {createMatch,publicMatch,submitWord,advanceMatch,nextDeadline,roundStartPayload,ROUND_OPTIONS,SERVER_ONLY_EVENTS,pauseMatch,resumeMatch,endDisconnectedMatch,surrenderMatch,matchResult,validateRune} from './match.js';
 import {pickRoundSkill,ROUND_STYLES,normalizeRoundStyle,normalizeRoundWords,validRoundWords} from '../../pvp/shared/match.js';
+import {normalizeContent,isContentId} from '../../pvp/shared/content-modes.js';
 import {normalizeTyping,isTypingPayload} from '../../pvp/shared/typing-rules.js';
 import {normalizeAssist,isAssistPayload} from '../../pvp/shared/assist-rules.js';
 import {normalizeStageChoice,isStageChoicePayload,pickStage} from '../../pvp/shared/stages.js';
@@ -22,6 +23,7 @@ const roomRounds=data=>ROUND_OPTIONS.includes(data?.rounds)?data.rounds:DEFAULT_
 const roomRoundStyle=data=>normalizeRoundStyle(data?.roundStyle);
 const roomRoundWords=data=>normalizeRoundWords(data?.roundWords);
 const roomMode=data=>data?.mode==='arena'?'arena':data?.mode==='classic'?'classic':'rounds';
+const roomContent=data=>roomMode(data)==='rounds'?normalizeContent(data?.content):'kelime';
 const snapshot=(match,seat)=>match?.mode==='arena'?arenaPublicMatch(match,seat):publicMatch(match,match?.mode==='rounds'?seat:undefined);
 const wrap=(type,payload={})=>{
   const match=payload.match;
@@ -66,7 +68,7 @@ export class PvPRoom {
   summary(data){
     const online=this.connectedIds();
     const connected=data.players.filter(p=>online.has(p.playerId)).map(({playerId,seat})=>({playerId,seat}));
-    return {phase:data.phase,startAt:data.startAt,capacity:2,connected,mode:roomMode(data),rounds:roomRounds(data),roundStyle:roomRoundStyle(data),roundWords:roomRoundWords(data),typing:normalizeTyping(data.typing),assist:normalizeAssist(data.assist),stage:normalizeStageChoice(data.stage),hostPlayerId:data.hostPlayerId||data.players[0]?.playerId||null,
+    return {phase:data.phase,startAt:data.startAt,capacity:2,connected,mode:roomMode(data),content:roomContent(data),rounds:roomRounds(data),roundStyle:roomRoundStyle(data),roundWords:roomRoundWords(data),typing:normalizeTyping(data.typing),assist:normalizeAssist(data.assist),stage:normalizeStageChoice(data.stage),hostPlayerId:data.hostPlayerId||data.players[0]?.playerId||null,
       players:data.players.map(({playerId,seat,name,character,fighter,rune,ready,reservedUntil})=>({playerId,seat,name,character,fighter:normalizeFighter(fighter,character),rune:rune||'none',ready,online:online.has(playerId),reconnectUntil:online.has(playerId)?null:reservedUntil||null}))};
   }
   broadcast(type,payload){for(const {ws} of authenticated(this.ctx))safeSend(ws,type,payload);}
@@ -387,11 +389,13 @@ export class PvPRoom {
       if(keys.length!==1||!ROUND_OPTIONS.includes(payload.rounds))return safeSend(ws,'ERROR',{code:'INVALID_ROUNDS'});
       data.mode='rounds';data.rounds=payload.rounds;
     }else if(payload.mode==='rounds'){
-      if(!keys.every(k=>['mode','rounds'].includes(k))||!ROUND_OPTIONS.includes(payload.rounds))return safeSend(ws,'ERROR',{code:'INVALID_ROUNDS'});
-      data.mode='rounds';data.rounds=payload.rounds;
+      if(!keys.every(k=>['mode','rounds','content'].includes(k))||!ROUND_OPTIONS.includes(payload.rounds))return safeSend(ws,'ERROR',{code:'INVALID_ROUNDS'});
+      // İçerik modları (atasözü/şiir/Osmanlıca): yalnız izinli kimlik; yoksa kelime bankası.
+      if(payload.content!==undefined&&!isContentId(payload.content))return safeSend(ws,'ERROR',{code:'INVALID_MATCH_CONFIG'});
+      data.mode='rounds';data.rounds=payload.rounds;data.content=normalizeContent(payload.content);
     }else if(payload.mode==='arena'||payload.mode==='classic'){
       if(keys.length!==1)return safeSend(ws,'ERROR',{code:'INVALID_MATCH_CONFIG'});
-      data.mode=payload.mode;
+      data.mode=payload.mode;data.content='kelime';
     }else return safeSend(ws,'ERROR',{code:'INVALID_MATCH_CONFIG'});
     for(const p of data.players)p.ready=false;
     if(data.phase==='countdown'){
@@ -405,7 +409,7 @@ export class PvPRoom {
     const assist=normalizeAssist(data.assist); // paket 31: yalnız klasik + tur modunda; arenada kapalı
     const stage=pickStage(normalizeStageChoice(data.stage)); // paket 33: 'random' her maç başında somut sahneye çözülür
     const match=roomMode(data)==='arena'?createArenaMatch(data.players,now,undefined,{typing,stage}):
-      createMatch(data.players,now,undefined,roomMode(data)==='classic'?{exchangeMs:10000,typing,assist,stage}:{rounds:roomRounds(data),roundStyle:roomRoundStyle(data),roundWords:roomRoundWords(data),resolveAtEnd:true,typing,assist,stage});
+      createMatch(data.players,now,undefined,roomMode(data)==='classic'?{exchangeMs:10000,typing,assist,stage}:{rounds:roomRounds(data),roundStyle:roomRoundStyle(data),roundWords:roomRoundWords(data),content:roomContent(data),resolveAtEnd:true,typing,assist,stage});
     return {match,announce:()=>{
       this.broadcastMatch('MATCH_START',{serverTime:now,...extra},match);
       if(match.mode==='arena'){

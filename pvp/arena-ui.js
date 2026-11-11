@@ -238,29 +238,42 @@ export const MODE_OPTIONS=Object.freeze([
   {id:'rounds',label:'Zamana Karşı',hint:'tur · 40 sn'},
   {id:'arena',label:'Arena',hint:'6 raund · skill + eşya'}
 ].map(Object.freeze));
+/** İçerik modları (yazma içeriği değişir, dövüş kuralları raund modu ile aynı). Seçici düğmeleri mod seçiciyle aynı satırda. */
+export const CONTENT_OPTIONS=Object.freeze([
+  {id:'atasozu',label:'Atasözü',hint:'sıralı atasözleri'},
+  {id:'siir',label:'Şiir',hint:'eski şiirler · şair adı'},
+  {id:'osmanlica',label:'Osmanlıca',hint:'kelime + anlam ipucu'}
+].map(Object.freeze));
 export const PRACTICE_MODE_KEY='tuslab-pvp-practice-mode';
+export const PRACTICE_CONTENT_KEY='tuslab-pvp-practice-content';
 export function normalizeMode(value){return MODE_OPTIONS.some(o=>o.id===value)?value:'rounds';}
+export const isContentOption=value=>CONTENT_OPTIONS.some(o=>o.id===value);
+/** Mod seçicideki basılı düğme: içerik modu seçiliyse içerik kimliği, değilse mod kimliği. */
+export const modeSelectionKey=(mode,content)=>mode==='rounds'&&isContentOption(content)?content:normalizeMode(mode);
 /** Odada yalnız host, waiting/countdown iken MATCH_CONFIG gönderir; antrenmanda yerel saklanır. */
 export function modePickDecision({scope,value,isHost,phase,current,rounds}={}){
-  if(!MODE_OPTIONS.some(o=>o.id===value))return null;
-  if(scope==='practice')return {store:value};
+  const content=isContentOption(value);
+  if(!content&&!MODE_OPTIONS.some(o=>o.id===value))return null;
+  if(scope==='practice')return content?{store:'rounds',content:value}:{store:value};
   if(scope!=='room'||!isHost||!['waiting','countdown'].includes(phase)||value===current)return null;
+  if(content)return {type:'MATCH_CONFIG',payload:{mode:'rounds',rounds:Number(rounds)||5,content:value}};
   return {type:'MATCH_CONFIG',payload:value==='rounds'?{mode:'rounds',rounds:Number(rounds)||5}:{mode:value}};
 }
 export function modePickerHTML(scope){
   const s=scope==='practice'?'practice':'room';
   return `<div class="rui-picker aui-modes" data-mode-picker="${s}"><span class="rui-picker-label" id="aui-mode-${s}">Oyun modu</span>`
     +`<div class="rui-seg" role="group" aria-labelledby="aui-mode-${s}">`
-    +MODE_OPTIONS.map(o=>`<button type="button" data-lobby-action="mode" data-mode-scope="${s}" data-mode="${o.id}" aria-pressed="${o.id==='rounds'}" title="${o.label} modunu seç · ${o.hint}"><b>${o.label}</b> <small>${o.hint}</small></button>`).join('')
+    +[...MODE_OPTIONS,...CONTENT_OPTIONS].map(o=>`<button type="button" data-lobby-action="mode" data-mode-scope="${s}" data-mode="${o.id}" aria-pressed="${o.id==='rounds'}" title="${o.label} modunu seç · ${o.hint}"><b>${o.label}</b> <small>${o.hint}</small></button>`).join('')
     +`</div><small class="rui-picker-note" data-mode-note></small></div>`;
 }
-export function syncModePicker(container,scope,{value,editable,note=''}={}){
+export function syncModePicker(container,scope,{value,content,editable,note=''}={}){
   const box=container?.querySelector(`[data-mode-picker="${scope}"]`);if(!box)return;
-  const current=normalizeMode(value);
+  const current=normalizeMode(value),key=modeSelectionKey(current,content);
   box.dataset.readonly=String(!editable);box.dataset.mode=current;
+  if(isContentOption(content)&&current==='rounds')box.dataset.content=content;else delete box.dataset.content;
   box.querySelectorAll('[data-mode]').forEach(b=>{
     if(!b.dataset.modeScope)return;
-    const pressed=String(b.dataset.mode===current);
+    const pressed=String(b.dataset.mode===key);
     if(b.getAttribute('aria-pressed')!==pressed)b.setAttribute('aria-pressed',pressed);
     if(b.disabled!==!editable)b.disabled=!editable;
   });

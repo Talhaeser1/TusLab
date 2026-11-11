@@ -24,7 +24,7 @@ import {createLowHpFeedback} from './lowhp.js';
 import {createRoundsUi,renderRoundsResult,roundInputLock,isRoundMatch} from './rounds-ui.js';
 // Arena modu arayüzü (docs/ARENA-MODU.md §8.2) ve tüm modlarda ortak üst yazma paneli.
 import {createArenaUi,renderArenaResult,arenaInputLock,arenaTarget,arenaCombatActions,isArenaMatch,looksScrambled} from './arena-ui.js';
-import {ttModeLabel,ttUpcoming,ttExchange,ttNotice} from './typing-top-model.js';
+import {ttModeLabel,ttUpcoming,ttExchange,ttNotice,ttHint} from './typing-top-model.js';
 // Yetenek çubuğu (Q/E/S/R) — pasif HUD kartları, pvp/skillbar.css.
 import {skillCardHTML,applySkillRow,applySkillPreview} from './skillbar.js';
 import {attachResolveUi} from './resolve-ui.js';
@@ -274,7 +274,8 @@ function typeTopRender(id,{live,own,serverPlayer,target,typed,result,markup,disa
   const reset=top.querySelector('[data-tt-reset]');if(reset){reset.dataset.target=id;reset.hidden=Boolean(live);}
   const put=(sel,text)=>{const el=top.querySelector(sel);if(el&&el.textContent!==text)el.textContent=text;};
   put('[data-tt-mode]',ttModeLabel(live?match:null));
-  put('[data-tt-label]',live?(own?'Senin kelimen':'Rakip yazıyor'):'Örnek metin');
+  const contentHint=live&&own?ttHint(match,match.players.find(x=>x.playerId===network.myId)):''; // şiir: şair adı · Osmanlıca: anlam ipucu
+  put('[data-tt-label]',live?(own?`Senin kelimen${contentHint?` · ${contentHint}`:''}`:'Rakip yazıyor'):'Örnek metin');
   const notice=ttNotice({live,own,disabled,pending:Boolean(players[id]?.pending),scrambled,exchange:xchg,status});
   const statusEl=top.querySelector('[data-tt-status]');
   if(statusEl){if(statusEl.textContent!==notice.text)statusEl.textContent=notice.text;if(statusEl.dataset.kind!==notice.kind)statusEl.dataset.kind=notice.kind;}

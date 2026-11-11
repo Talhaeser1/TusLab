@@ -14,7 +14,8 @@ import {PRACTICE_ROUND_STYLE_KEY,PRACTICE_ROUND_WORDS_KEY,normalizeRoundStyle,no
 const ROUND_PACKETS=new Set(['ROUND_START','ROUND_LAST_CALL','ROUND_END','ROUND_SKILL_ACK','ROUND_RESOLVE','EXCHANGE_START','EXCHANGE_RESOLVE']);
 // Arena modu (docs/ARENA-MODU.md §7.1): her paket kişisel anlık görüntü (`match`) taşır.
 // ARENA_ATTACK ayrıca anlık görüntünün combatEvents listesinde gelir (id ile tekilleştirilir).
-import {isArenaMatch,normalizeMode,modePickDecision,modePickerHTML,syncModePicker,PRACTICE_MODE_KEY} from './arena-ui.js';
+import {isArenaMatch,normalizeMode,modePickDecision,modePickerHTML,syncModePicker,modeSelectionKey,PRACTICE_MODE_KEY,PRACTICE_CONTENT_KEY} from './arena-ui.js';
+import {normalizeContent,isContentMode,CONTENT_LABELS} from './shared/content-modes.js';
 const ARENA_PACKETS=new Set(['ARENA_PREP_START','ARENA_PICK_ACK','ARENA_ROUND_START','ARENA_ROUND_END','ARENA_MATCH_END','ARENA_ATTACK']);
 /** Sunucu hata kodları → oyuncu dili (kod sızdırmaz; bilinmeyen kod olduğu gibi kalır). */
 export const ERROR_TEXT=Object.freeze({
@@ -140,6 +141,7 @@ export class PvPNetworkConsole {
     this.practiceRoundStyle=normalizeRoundStyle(safeStore(localStorage,PRACTICE_ROUND_STYLE_KEY));this.practiceRoundWords=normalizeRoundWords(Number(safeStore(localStorage,PRACTICE_ROUND_WORDS_KEY)));
     this.roomRoundStyle=normalizeRoundStyle();this.roomRoundWords=normalizeRoundWords();
     this.practiceMode=normalizeMode(safeStore(localStorage,PRACTICE_MODE_KEY));this.roomMode='rounds';
+    this.practiceContent=this.practiceMode==='rounds'?normalizeContent(safeStore(localStorage,PRACTICE_CONTENT_KEY)):'kelime';this.roomContent='kelime';
     this.practiceTyping=readTypingPref();this.roomTyping=normalizeTyping();
     this.practiceAssist=safeStore(localStorage,ASSIST_KEY)!=='off';this.roomAssist=true;
     this.practiceStage=normalizeStageChoice(safeStore(localStorage,STAGE_KEY)||DEFAULT_STAGE);this.roomStage=DEFAULT_STAGE;
@@ -210,9 +212,9 @@ export class PvPNetworkConsole {
       }
       if(action==='mode'){
         const scope=b.dataset.modeScope==='practice'?'practice':'room';
-        const decision=modePickDecision({scope,value:b.dataset.mode,isHost:Boolean(this.myId)&&!this.practice&&this.hostPlayerId===this.myId,phase:this.phase,current:this.roomMode,rounds:this.roomRounds});
-        if(decision?.store){this.practiceMode=decision.store;safeStore(localStorage,PRACTICE_MODE_KEY,decision.store);}
-        else if(decision?.type==='MATCH_CONFIG'){this.send('MATCH_CONFIG',decision.payload);this.roomMode=decision.payload.mode;this.log(`Oyun modu: ${b.querySelector('b')?.textContent||decision.payload.mode}. Hazır durumları sıfırlandı.`);}
+        const decision=modePickDecision({scope,value:b.dataset.mode,isHost:Boolean(this.myId)&&!this.practice&&this.hostPlayerId===this.myId,phase:this.phase,current:modeSelectionKey(this.roomMode,this.roomContent),rounds:this.roomRounds});
+        if(decision?.store){this.practiceMode=decision.store;this.practiceContent=normalizeContent(decision.content);safeStore(localStorage,PRACTICE_MODE_KEY,decision.store);safeStore(localStorage,PRACTICE_CONTENT_KEY,this.practiceContent);}
+        else if(decision?.type==='MATCH_CONFIG'){this.send('MATCH_CONFIG',decision.payload);this.roomMode=decision.payload.mode;this.roomContent=normalizeContent(decision.payload.content);this.log(`Oyun modu: ${b.querySelector('b')?.textContent||decision.payload.mode}. Hazır durumları sıfırlandı.`);}
         this.render();
       }
       if(action==='kick'){const id=b.dataset.target;if(id&&window.confirm('Rakibi lobiden çıkarmak istiyor musun?'))this.send('HOST_KICK',{playerId:id});}
@@ -246,6 +248,10 @@ export class PvPNetworkConsole {
     if(this.autoInvite){const code=this.autoInvite;this.autoInvite=null;
       if(code===PRACTICE_URL_FLAG){const q=new URL(location.href).searchParams;
         if(q.has('mode')||q.get('pvp')==='arena')this.practiceMode=normalizeMode(q.get('mode')||'arena');
+        // İçerik modu: ?icerik=atasozu|siir|osmanlica (ya da ?mode=atasozu…) → raund modu + içerik. Aksi hâlde kelime bankası.
+        const urlContent=isContentMode(q.get('icerik'))?q.get('icerik'):isContentMode(q.get('mode'))?q.get('mode'):null;
+        if(urlContent){this.practiceMode='rounds';this.practiceContent=urlContent;}
+        else if(q.has('mode')||q.get('pvp')==='arena')this.practiceContent='kelime';
         this.startPractice({difficulty:q.get('bot'),character:q.get('char'),fighter:fighterFromUrl(location.href),stage:q.get('stage')});}
       else void this.join(code);}
   }
@@ -299,13 +305,13 @@ export class PvPNetworkConsole {
     if(isFighterId(fighter)){this.fighter=fighter;this.character=FIGHTERS[fighter].archetype;}
     else if((character==='fire'||character==='rune')&&character!==this.character){this.character=character;this.fighter=normalizeFighter(this.fighter,character);}
     const session=createPracticeSession({
-      difficulty:this.practiceDifficulty,character:this.character,fighter:this.fighter,rune:this.rune,name:this.readName()||'Savaşçı',rounds:this.practiceRounds,roundStyle:this.practiceRoundStyle,roundWords:this.practiceRoundWords,mode:this.practiceMode,typing:this.practiceTyping,assist:this.practiceAssist,stage:normalizeStageChoice(stage||this.practiceStage),
+      difficulty:this.practiceDifficulty,character:this.character,fighter:this.fighter,rune:this.rune,name:this.readName()||'Savaşçı',rounds:this.practiceRounds,roundStyle:this.practiceRoundStyle,roundWords:this.practiceRoundWords,mode:this.practiceMode,content:this.practiceMode==='rounds'?this.practiceContent:'kelime',typing:this.practiceTyping,assist:this.practiceAssist,stage:normalizeStageChoice(stage||this.practiceStage),
       // Deliver asynchronously (like a socket) and drop packets from a disposed session.
       onPacket:packet=>queueMicrotask(()=>{if(this.practice===session)this.receive(packet);})
     });
     this.practice=session;this.code='';this.open=false; // bot maçı başlarken lobi paneli kapanır (maç ekranının arkasında açık kalmasın)
     this.myId=session.humanId;this.seat=session.humanSeat;
-    this.status=`Antrenman · ${this.practiceMode==='arena'?'Arena':this.practiceMode==='classic'?'Klasik':'Zamana Karşı'} · Bot (${BOT_DIFFICULTIES[this.practiceDifficulty].label}) · çevrimdışı`;
+    this.status=`Antrenman · ${this.practiceMode==='arena'?'Arena':this.practiceMode==='classic'?'Klasik':isContentMode(this.practiceContent)?CONTENT_LABELS[this.practiceContent]:'Zamana Karşı'} · Bot (${BOT_DIFFICULTIES[this.practiceDifficulty].label}) · çevrimdışı`;
     this.log('Bota karşı antrenman başladı. Sunucu yok; profil ve puan etkilenmez.');
     session.start();
   }
@@ -474,6 +480,7 @@ export class PvPNetworkConsole {
       const rstyle=p.roundStyle??p.summary?.roundStyle;if(rstyle!==undefined)this.roomRoundStyle=normalizeRoundStyle(rstyle);
       const rwords=p.roundWords??p.summary?.roundWords;if(rwords!==undefined)this.roomRoundWords=normalizeRoundWords(rwords);
       const mode=p.mode??p.summary?.mode;if(mode!==undefined)this.roomMode=normalizeMode(mode);
+      const content=p.content??p.summary?.content;if(content!==undefined)this.roomContent=normalizeContent(content);
       const typing=p.typing??p.summary?.typing;if(typing!==undefined)this.roomTyping=normalizeTyping(typing);
       const assist=p.assist??p.summary?.assist;if(assist!==undefined)this.roomAssist=normalizeAssist(assist);
       const stage=p.stage??p.summary?.stage;if(stage!==undefined)this.roomStage=normalizeStageChoice(stage);
@@ -725,14 +732,14 @@ export class PvPNetworkConsole {
     syncRoundsPicker(panel,'practice',{value:this.practiceRounds,editable:true,note:''});
     syncRoundStylePicker(panel,'room',{style:this.roomRoundStyle,words:this.roomRoundWords,editable:roomEditable,note:roomEditable?'Değiştirmek iki oyuncunun hazır durumunu sıfırlar.':'Raund biçimini oda sahibi belirler.'});
     syncRoundStylePicker(panel,'practice',{style:this.practiceRoundStyle,words:this.practiceRoundWords,editable:true,note:''});
-    syncModePicker(panel,'room',{value:this.roomMode,editable:roomEditable,note:roomEditable?'Modu değiştirmek hazır durumlarını sıfırlar.':host?'Maç başladı; rövanş aynı modda oynanır.':'Oyun modunu oda sahibi belirler.'});
+    syncModePicker(panel,'room',{value:this.roomMode,content:this.roomContent,editable:roomEditable,note:roomEditable?'Modu değiştirmek hazır durumlarını sıfırlar.':host?'Maç başladı; rövanş aynı modda oynanır.':'Oyun modunu oda sahibi belirler.'});
     syncTypingPicker(panel,'practice',{value:this.practiceTyping,editable:true,note:''});
     syncTypingPicker(panel,'room',{value:this.roomTyping,editable:roomEditable,note:roomEditable?'Değiştirmek hazır durumlarını sıfırlar.':host?'Maç başladı; rövanş aynı kurallarla oynanır.':'Yazma kurallarını oda sahibi belirler.'});
     syncAssistPicker(panel,'practice',{value:this.practiceAssist,editable:true,character:this.character,arena:this.practiceMode==='arena'});
     syncAssistPicker(panel,'room',{value:this.roomAssist,editable:roomEditable,character:this.character,arena:this.roomMode==='arena'});
     syncStagePicker(panel,'practice',{value:this.practiceStage,editable:true,note:''});
     syncStagePicker(panel,'room',{value:this.roomStage,editable:roomEditable,note:roomEditable?'':host?'':'(Sahneyi oda sahibi seçer.)'});
-    syncModePicker(panel,'practice',{value:this.practiceMode,editable:true,note:this.practiceMode==='arena'?'6 raund · 3.000 HP · raund öncesi skill + eşya seçilir.':''});
+    syncModePicker(panel,'practice',{value:this.practiceMode,content:this.practiceContent,editable:true,note:this.practiceMode==='arena'?'6 raund · 3.000 HP · raund öncesi skill + eşya seçilir.':''});
     const hostBox=panel.querySelector('[data-pvp17-host]');if(hostBox)hostBox.hidden=!host||!['waiting','countdown'].includes(this.phase);
     const kickButton=panel.querySelector('[data-lobby-action="kick"]');const opponent=this.players.find(p=>p.playerId!==this.myId);
     if(kickButton){kickButton.hidden=!opponent;kickButton.dataset.target=opponent?.playerId||'';}

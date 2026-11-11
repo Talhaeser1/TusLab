@@ -2,13 +2,23 @@
 const live=m=>Boolean(m&&['running','paused'].includes(m.status));
 const hasRound=m=>Boolean(m&&m.round&&typeof m.round==='object');
 
+const CONTENT_TITLES=Object.freeze({atasozu:'ATASÖZÜ',siir:'ŞİİR',osmanlica:'OSMANLICA'});
+
+/** İçerik modunda (şiir: şair adı · Osmanlıca: anlam) yazılan kelimenin ipucu; yoksa ''. */
+export function ttHint(match,me){
+  if(!live(match)||!me||match.mode!=='rounds'||!hasRound(match)||match.round.phase!=='round'||me.roundDone)return '';
+  const hints=match.round.hints;
+  return Array.isArray(hints)?String(hints[Number(me.roundWordIndex)||0]||''):'';
+}
+
 /** Mod/faz etiketi: CANLI MAÇ · ZAMANA KARŞI · RAUND n/t · ARENA · RAUND n/t · YEREL YAZMA TESTİ. */
 export function ttModeLabel(match){
   if(!live(match))return 'YEREL YAZMA TESTİ';
   const r=match.round;
   if(match.mode==='rounds'&&hasRound(match)){
-    if(r.suddenDeath)return 'ZAMANA KARŞI · ALTIN RAUND';
-    return `ZAMANA KARŞI · RAUND ${r.index}${r.total?`/${r.total}`:''}`;
+    const name=CONTENT_TITLES[match.content]||'ZAMANA KARŞI'; // atasözü/şiir/Osmanlıca modunda mod adı içerik adıdır
+    if(r.suddenDeath)return `${name} · ALTIN RAUND`;
+    return `${name} · RAUND ${r.index}${r.total?`/${r.total}`:''}`;
   }
   if(match.mode==='arena'&&hasRound(match))return `ARENA · RAUND ${r.index}${r.total?`/${r.total}`:''}`;
   return 'CANLI MAÇ';

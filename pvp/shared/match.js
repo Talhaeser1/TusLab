@@ -11,6 +11,7 @@
  */
 import {pickWords as bankPickWords,createSeed} from './words.js';
 import {normalizeTyping,wordsMatch,charScore} from './typing-rules.js';
+import {normalizeContent,contentWords,DEFAULT_CONTENT} from './content-modes.js';
 import {ARENA_SKILLS,ARENA_MAX_USES} from './arena-skills.js';
 import {ASSIST_RULES,assistPartner,assistDamage,assistGainFromDamage} from './assist-rules.js';
 import {normalizeFighter} from './fighters.js';
@@ -160,6 +161,7 @@ function wordRule(r,total){
   if(r>total)return {minLen:5,maxLen:10,difficulty:'hard'};
   return r<=Math.ceil(total/2)?{minLen:3,maxLen:7,difficulty:'easy'}:{minLen:4,maxLen:9,difficulty:'normal'};
 }
+const isContentMatch=m=>Boolean(m?.content)&&m.content!==DEFAULT_CONTENT;
 const cleanWords=list=>Array.from(list||[],w=>String(w).trim().normalize('NFC')).filter(w=>w&&!/\s/u.test(w));
 function dealWords(pick,seed,r,total,used,count=ROUND_WORDS){
   const rule=wordRule(r,total);
@@ -179,6 +181,10 @@ function ensureRoundWords(match,needed){
   if(match.roundStyle!=='timed')return;
   while(r.words.length<needed){
     const k=(r.extended||0)+1;r.extended=k;
+    if(isContentMatch(match)){ // atasözü/şiir: kaldığı yerden sıra; Osmanlıca: aynı dilimden yeni kelimeler
+      const more=contentWords(match.content,{start:(r.contentStart||0)+r.words.length,seed:`${match.seed}:x${k}`,round:r.index,total:match.totalRounds,count:ROUND_EXTEND_CHUNK,exclude:r.words});
+      r.words.push(...more.words);r.hints.push(...more.hints);continue;
+    }
     const rule=wordRule(r.index,match.totalRounds);
     let more=cleanWords(bankPickWords({seed:`${match.seed}:r${r.index}:x${k}`,count:ROUND_EXTEND_CHUNK,...rule,exclude:r.words.slice(-ROUND_EXTEND_CHUNK*2)}));
     if(!more.length)more=r.words.slice(0,ROUND_EXTEND_CHUNK);
@@ -194,8 +200,16 @@ function resetForRound(p,words){
 /** Mutates `match`: opens the next round at `at`. */
 function startRound(match,at){
   const index=(match.round?.index||0)+1;
-  const words=[...(match.roundPlan[index-1]||match.roundPlan.at(-1))];
-  match.round={index,total:match.totalRounds,suddenDeath:index>match.totalRounds,phase:'round',words,
+  let words,extra={};
+  if(isContentMatch(match)){
+    // Sıralı içerik bir önceki raundun en çok yazılan kelimesinden devam eder (sunucu ve bot aynı sonucu görür).
+    const prev=match.round;
+    const typed=prev?Math.min(prev.words.length,Math.max(0,...match.participants.map(p=>p.roundWordIndex||0))):0;
+    const contentStart=prev?(prev.contentStart||0)+typed:0;
+    const c=contentWords(match.content,{start:contentStart,seed:match.seed,round:index,total:match.totalRounds,count:match.roundWords,exclude:match.usedWords});
+    words=[...c.words];extra={hints:[...c.hints],contentStart};
+  }else words=[...(match.roundPlan[index-1]||match.roundPlan.at(-1))];
+  match.round={index,total:match.totalRounds,suddenDeath:index>match.totalRounds,phase:'round',words,...extra,
     startedAt:at,endsAt:at+ROUND_DURATION_MS,settleUntil:null,nextRoundAt:null,
     koSeat:null,koAt:null,allDone:false,lastResolvedAt:null,endedAt:null};
   match.usedWords.push(...words);
@@ -216,6 +230,7 @@ function startRound(match,at){
 export function roundStartPayload(match){
   const r=match?.round;if(!r)return null;
   return {round:r.index,totalRounds:match.totalRounds,suddenDeath:r.suddenDeath,words:[...r.words],
+    ...(isContentMatch(match)?{content:match.content,...(match.content!=='atasozu'?{hints:[...r.hints]}:{})}:{}),
     startedAt:r.startedAt,endsAt:r.endsAt,roundHp:ROUND_HP,
     skills:Object.fromEntries(match.participants.map(p=>[p.seat,p.roundSkill]))};
 }
@@ -225,9 +240,10 @@ function setupRounds(match,options,at){
     :(typeof options.seed==='string'&&options.seed?options.seed:randomSeed());
   const pick=typeof options.pickWords==='function'?options.pickWords:bankPickWords;
   const roundStyle=normalizeRoundStyle(options.roundStyle),roundWords=normalizeRoundWords(options.roundWords);
+  const content=normalizeContent(options.content);
   const plan=[],used=[];
-  for(let r=1;r<=total+SUDDEN_DEATH_MAX;r++){const words=dealWords(pick,seed,r,total,used,roundWords);plan.push(words);used.push(...words);}
-  Object.assign(match,{mode:'rounds',totalRounds:total,roundStyle,roundWords,seed,roundPlan:plan,usedWords:[],roundsWon:{1:0,2:0},
+  if(content===DEFAULT_CONTENT)for(let r=1;r<=total+SUDDEN_DEATH_MAX;r++){const words=dealWords(pick,seed,r,total,used,roundWords);plan.push(words);used.push(...words);}
+  Object.assign(match,{mode:'rounds',totalRounds:total,roundStyle,roundWords,seed,roundPlan:plan,...(content===DEFAULT_CONTENT?{}:{content}),usedWords:[],roundsWon:{1:0,2:0},
     roundHistory:[],clashes:{},activeMs:0,round:null,roundSkillPicks:{1:null,2:null},roundSkillPickLocked:{1:false,2:false}});
   if(options.resolveAtEnd===true)match.resolveAtEnd=true;
   for(const p of match.participants)p.roundSkillUses={timethief:0,blindclock:0,freeze:0};
@@ -283,11 +299,12 @@ export function pickRoundSkill(match,{playerId,skill},at=Date.now()){
 /** counted: tüm kelimeler (en çok 20). timed: yalnız görünen pencere; pencere öncesi indeksler '' ile doldurulur,
  * böylece words[roundWordIndex] her istemci kodunda doğru kelimeyi verir ve anlık görüntü küçük kalır (geçmiş kelime metni gitmez). */
 function publicWords(match,viewer){
-  const r=match.round;
-  if(match.roundStyle!=='timed')return {words:[...r.words]};
+  const r=match.round,hinted=isContentMatch(match)&&match.content!=='atasozu'; // atasözünde ipucu yok (bayt tasarrufu)
+  if(match.roundStyle!=='timed')return {words:[...r.words],...(hinted?{hints:[...r.hints]}:{})};
   const idx=Math.max(0,viewer?.roundWordIndex||0);
   const from=Math.max(0,idx-ROUND_VIEW_BEHIND);
-  return {words:[...Array(from).fill(''),...r.words.slice(from,idx+ROUND_VIEW_AHEAD+1)]};
+  return {words:[...Array(from).fill(''),...r.words.slice(from,idx+ROUND_VIEW_AHEAD+1)],
+    ...(hinted?{hints:[...Array(from).fill(''),...r.hints.slice(from,idx+ROUND_VIEW_AHEAD+1)]}:{})};
 }
 /** Çözüm fazının biteceği an (bekleyen son saldırı); yoksa null. */
 function resolveEndsAt(match){
@@ -302,7 +319,7 @@ export function publicMatch(match,viewerSeat){
   const viewer=rounds&&[1,2].includes(viewerSeat)?roundPlayer(match,viewerSeat):null;
   const victim=viewer&&r?.phase==='round'&&roundPlayer(match,viewerSeat===1?2:1)?.roundSkill==='blindclock';
   return {matchId:id,version,sequence,status,startedAt,endsAt,endedAt,winnerSeat,endReason,
-    mode:rounds?'rounds':'classic',stage:normalizeStage(match.stage),typing:normalizeTyping(match.typing),assistEnabled:match.assistEnabled===true,
+    mode:rounds?'rounds':'classic',...(rounds&&isContentMatch(match)?{content:match.content}:{}),stage:normalizeStage(match.stage),typing:normalizeTyping(match.typing),assistEnabled:match.assistEnabled===true,
     ...(match.exchange?{exchange:{index:match.exchange.index,endsAt:match.exchange.endsAt,phase:match.exchange.phase}}:{}),
     round:rounds&&r?{index:r.index,total:r.total,suddenDeath:r.suddenDeath,phase:r.phase,...publicWords(match,viewer),
       style:normalizeRoundStyle(match.roundStyle),
