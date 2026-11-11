@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 import {
   ROUND_OPTIONS,STREAK_SKILLS,PRACTICE_ROUNDS_KEY,normalizeRounds,isRoundMatch,streakMultiplier,multiplierLabel,
   streakModel,predictedSkill,winsNeeded,roundsViewModel,summaryModel,clashModel,roundsPickDecision,
-  roundInputLock,roundsResultModel,roundsPickerHTML,createRoundsUi,intermissionStage,ROUND_TITLE_MS
+  roundInputLock,roundsResultModel,roundsPickerHTML,createRoundsUi,intermissionStage,ROUND_TITLE_MS,ROUND_HOLD_MAX_MS,ROUND_HOLD_TITLE_SKIP_MS
 } from '../pvp/rounds-ui.js';
 
 // ---------- örnek yükler (spec §7) ----------
@@ -148,6 +148,65 @@ test('tur arası: geri sayıma az kala görülen geçiş (yeniden bağlanma) yaz
   const m=roundMatch({roundsWon:{1:1,2:1},round:{phase:'intermission',nextRoundAt:50_000}});
   ui.handle({type:'ROUND_END',payload:{...roundEnd,match:m}});ui.update(m,'me');
   assert.equal(byRole(el,'banner')[0].hidden,true);
+  ui.destroy();
+});
+
+// ---------- GÖREV C: özet okunurluğu (hold tavanı, uzun hold'da yazı atlama, count'ta özet kalıcı) ----------
+test('tur arası: hold tavanı tur arasının başından sayılır ve en çok 2000 msdir',()=>{
+  assert.ok(ROUND_HOLD_MAX_MS>0&&ROUND_HOLD_MAX_MS<=2000,'ROUND_HOLD_MAX_MS ≤ 2000');
+  assert.ok(ROUND_HOLD_TITLE_SKIP_MS>=500&&ROUND_HOLD_TITLE_SKIP_MS<ROUND_HOLD_MAX_MS,'yazı atlma eşiği tavanın altında');
+});
+test('tur arası: hold 3 sn sürse bile özet ≥2,5 sn görünür — tavan 2 sn, yazı atlanır, countta geri sayımla birlikte kalır',()=>{
+  const host=new FakeEl('div');const timers=fakeTimers();let t=41_000;
+  const ui=createRoundsUi(host,{now:()=>t,doc:fakeDoc,timers,holdTransition:()=>new Promise(()=>{})});
+  const el=host.children[0];
+  const m=roundMatch({roundsWon:{1:1,2:1},round:{phase:'intermission',nextRoundAt:50_000}});
+  ui.handle({type:'ROUND_END',payload:{...roundEnd,match:m}});ui.update(m,'me');ui.tick();
+  assert.equal(byRole(el,'summary')[0].hidden,true,'bekleme çözülmeden panel açılmaz');
+  t=41_000+ROUND_HOLD_MAX_MS;timers.runAll();ui.tick(); // hiç çözülmeyen Promise: tavan anında panel açılır
+  const summary=byRole(el,'summary')[0],banner=byRole(el,'banner')[0],intro=byRole(el,'intro')[0],inter=byRole(el,'inter')[0];
+  assert.equal(banner.hidden,true,'uzun hold: "RAUND X" yazı aşaması atlanır');
+  assert.equal(summary.hidden,false,'özet tavan anında doğrudan açılır');
+  let visibleMs=0;
+  for(;t<50_000;t+=100){ui.tick();if(!summary.hidden)visibleMs+=100;}
+  assert.ok(visibleMs>=2500,`özet en az 2,5 sn görünür olmalı (${visibleMs} ms)`);
+  assert.equal(intro.hidden,false,'son 3 sn: geri sayım özetle birlikte görünür');
+  assert.ok(inter.classList.contains('is-count'),'son 3 sn: kompakt düzen işareti (is-count)');
+  ui.destroy();
+});
+test('tur arası: kısa hold yazı → panel sırasını korur; uzun hold yazıyı atlayıp özeti doğrudan açar',async()=>{
+  const m=roundMatch({roundsWon:{1:1,2:1},round:{phase:'intermission',nextRoundAt:50_000}});
+  // Kısa hold (≤ ROUND_HOLD_TITLE_SKIP_MS): yazı yine görünür, sonra panel.
+  const host=new FakeEl('div');const timers=fakeTimers();let t=41_000;let release;
+  const hold=new Promise(resolve=>{release=resolve;});
+  const ui=createRoundsUi(host,{now:()=>t,doc:fakeDoc,timers,holdTransition:()=>hold});
+  const el=host.children[0];
+  ui.handle({type:'ROUND_END',payload:{...roundEnd,match:m}});ui.update(m,'me');ui.tick();
+  t=41_000+ROUND_HOLD_TITLE_SKIP_MS-500;release();await hold;await Promise.resolve();ui.tick();
+  const banner=byRole(el,'banner')[0],summary=byRole(el,'summary')[0];
+  assert.equal(banner.hidden,false,'kısa hold: yazı gösterilir');
+  assert.equal(summary.hidden,true,'panel yazı bitince açılır');
+  t+=ROUND_TITLE_MS+10;ui.tick();
+  assert.equal(banner.hidden,true);assert.equal(summary.hidden,false);
+  ui.destroy();
+  // Uzun hold (> ROUND_HOLD_TITLE_SKIP_MS): yazı atlanır, özet doğrudan açılır.
+  const host2=new FakeEl('div');const timers2=fakeTimers();let t2=41_000;let release2;
+  const hold2=new Promise(resolve=>{release2=resolve;});
+  const ui2=createRoundsUi(host2,{now:()=>t2,doc:fakeDoc,timers:timers2,holdTransition:()=>hold2});
+  ui2.handle({type:'ROUND_END',payload:{...roundEnd,match:m}});ui2.update(m,'me');ui2.tick();
+  t2=41_000+ROUND_HOLD_TITLE_SKIP_MS+300;release2();await hold2;await Promise.resolve();ui2.tick();
+  assert.equal(byRole(host2.children[0],'banner')[0].hidden,true,'uzun hold: yazı aşaması atlanır');
+  assert.equal(byRole(host2.children[0],'summary')[0].hidden,false,'özet doğrudan açılır');
+  ui2.destroy();
+});
+test('tur arası: count aşamasında beceri seçici açık kalır ve kilitlenebilir (son 3 sn davranışı korunur)',()=>{
+  const {el,ui,setNow}=mount(41_000);
+  const m=roundMatch({roundsWon:{1:1,2:1},round:{phase:'intermission',nextRoundAt:50_000}});
+  ui.handle({type:'ROUND_END',payload:{...roundEnd,match:m}});ui.update(m,'me');
+  setNow(48_000);ui.tick(); // remaining=2000 → count
+  assert.equal(byRole(el,'summary')[0].hidden,false);assert.equal(byRole(el,'intro')[0].hidden,false);
+  assert.equal(ui.handleKey({key:'1',preventDefault(){}}),true,'count aşamasında seçim yapılabilir');
+  assert.equal(ui.handleKey({key:'Enter',preventDefault(){}}),true,'count aşamasında kilitlenebilir');
   ui.destroy();
 });
 
@@ -324,7 +383,8 @@ test('rounds DOM: last call, clash callout, summary overlay and unknown packets'
   const summary=byRole(el,'summary')[0];assert.equal(summary.hidden,false);
   assert.ok(summary.textContent.includes('TUR 2 BİTTİ'));assert.ok(summary.textContent.includes('KO'));assert.ok(summary.textContent.includes('1.170'));
   setNow(48_500);ui.tick();
-  assert.equal(summary.hidden,true);
+  // Yeni davranış: son 3 sn'de (count) özet GİZLENMEZ; geri sayımla birlikte görünür kalır.
+  assert.equal(summary.hidden,false);
   const intro=byRole(el,'intro')[0];assert.equal(intro.hidden,false);assert.ok(intro.textContent.includes('RAUND 3'));assert.ok(intro.textContent.includes('2'));
   ui.destroy();
 });

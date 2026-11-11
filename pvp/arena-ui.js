@@ -7,7 +7,7 @@
  * kişisel `endsAt` üst sınırdır). Sunucu her gönderimi yine kendi saatiyle doğrular.
  */
 import {WORD_BANK} from './shared/words.js';
-import {createRoundEndCard,summaryColors,ROUND_TITLE_MS} from './rounds-ui.js';
+import {createRoundEndCard,summaryColors,ROUND_TITLE_MS,ROUND_HOLD_MAX_MS} from './rounds-ui.js';
 import {ARENA_ROUND_DURATION_MS,ARENA_SUMMARY_MS,ARENA_PREP_DURATION_MS} from './shared/arena.js';
 
 // Şartname §2 sabitleri (yalnız sunum için aynalanır; otorite motordadır).
@@ -626,7 +626,8 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
         let hold;
         try{hold=holdTransition?.(m,{round:Number(m.round.index)||1});}catch{hold=null;}
         if(hold&&typeof hold.then==='function'){
-          gate.timer=timers.setTimeout(open,3000);
+          // Hold tavanı rounds-ui ile aynı (ROUND_HOLD_MAX_MS): ARENA_SUMMARY_MS(7 sn) içinde özet en az ~5 sn görünür.
+          gate.timer=timers.setTimeout(open,ROUND_HOLD_MAX_MS);
           hold.then(open,open);
         }else gate.ready=true;
       }

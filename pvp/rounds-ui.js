@@ -26,9 +26,13 @@ export {DEFAULT_ROUND_STYLE,normalizeRoundStyle,normalizeRoundWords};
 const START_FLASH_MS=900;
 /** Raund arası: "RAUND X" yazısı önce tek başına bu kadar görünür; sonra kompakt özet/seçim paneli açılır. */
 export const ROUND_TITLE_MS=900;
-/** holdTransition (ör. dövüş animasyonu bitişi) bu süreden uzun beklemez; panel yine açılır. */
-export const ROUND_HOLD_MAX_MS=3000;
-/** Tur arası aşaması: 'title' (yalnız büyük yazı) → 'panel' (özet + beceri seçimi) → 'count' (son geri sayım). */
+/** holdTransition (ör. dövüş animasyonu bitişi) tur arasının başından sayılarak bu süreden uzun beklemez; panel yine açılır.
+ *  Kalan görsel kuyruk panelin arkasında oynamaya devam edebilir (panel alt dock, sahne üstte açık). */
+export const ROUND_HOLD_MAX_MS=2000;
+/** Bekletme bundan uzun sürdüyse "RAUND X" yazı aşaması atlanır, özet doğrudan açılır (özet ≥ ~3 sn okunur kalsın). */
+export const ROUND_HOLD_TITLE_SKIP_MS=1000;
+/** Tur arası aşaması: 'title' (yalnız büyük yazı) → 'panel' (özet + beceri seçimi) → 'count' (son geri sayım; özet GİZLENMEZ,
+ *  geri sayım özetle birlikte/üstünde durur — rounds-ui.css `.rui-inter.is-count` gerekirse özeti kompakt tek satıra indirir). */
 export function intermissionStage({elapsed=0,remaining=Infinity}={}){
   if(remaining<=ROUND_INTRO_MS)return 'count';
   if(elapsed<ROUND_TITLE_MS)return 'title';
@@ -532,7 +536,8 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
   /**
    * Tur arası geçişinin TEK giriş noktası. Her tur arası için bir kez: önce yalnız "RAUND X" yazısı, sonra panel.
    * `holdTransition(match)` (createRoundsUi seçeneği) bir Promise döndürürse (ör. dövüş animasyonunun bitişi) yazı/panel
-   * o çözülene dek bekler; en fazla ROUND_HOLD_MAX_MS. Geri sayıma çok az kala görülen geçiş (yeniden bağlanma) yazıyı atlar.
+   * o çözülene dek bekler; tavan ROUND_HOLD_MAX_MS ve süre tur arasının İLK görülmesinden sayılır. Hold ROUND_HOLD_TITLE_SKIP_MS'ni
+   * aştıysa yazı aşaması atlanır, özet doğrudan açılır. Geri sayıma çok az kala görülen geçiş (yeniden bağlanma) de yazıyı atlar.
    */
   function openIntermission(match,t,nextRoundAt){
     const key=`${match.matchId}:${match.round.index}`;
@@ -544,7 +549,9 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     let sync=true;
     const open=()=>{
       if(state.destroyed||state.gate!==gate||gate.ready)return;
-      gate.ready=true;gate.openedAt=late?-Infinity:now();
+      gate.ready=true;
+      // Uzun bekletme (veya yeniden bağlanma): "RAUND X" yazısını atla, özet doğrudan açılsın.
+      gate.openedAt=(late||now()-t>ROUND_HOLD_TITLE_SKIP_MS)?-Infinity:now();
       if(gate.timer!==null){timers.clearTimeout(gate.timer);gate.timer=null;}
       if(!sync)tick();
     };
@@ -586,9 +593,10 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
       if(stage==='title'){showBanner=true;setText(bannerTitle,roundLabel(vm.index+1,vm.total));}
       else if(stage==='count'){
         showIntro=true;panelOpen=true; // seçilmemiş beceri son 3 sn'de de kilitlenebilsin
-
         setText(introTitle,roundLabel(vm.index+1,vm.total));
         setText(introCount,String(Math.max(1,Math.ceil((nextRoundAt-t)/1000))));
+        // Son 3 sn'de özet GİZLENMEZ: kart görünür kalır, geri sayım üstte onunla birlikte durur.
+        if(src){showSummary=true;renderSummary(src,match);}
       }else if(stage==='panel'){panelOpen=true;if(src){showSummary=true;renderSummary(src,match);}}
     }else if(src&&round.phase!=='round'){showSummary=true;panelOpen=true;renderSummary(src,match);}
     else if(round.phase==='round'&&Number.isFinite(round.startedAt)&&t>=round.startedAt&&t-round.startedAt<START_FLASH_MS&&match.status==='running'){
@@ -597,6 +605,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     state.panelOpen=panelOpen;
     setHidden(summary,!showSummary);setHidden(intro,!showIntro);setHidden(flash,!showFlash);setHidden(banner,!showBanner);
     setHidden(picker,!(state.pickerVisible&&panelOpen));
+    setFlag(inter,'is-count',showIntro&&showSummary); // son 3 sn: geri sayım + özet birlikte → gerekirse kompakt düzen
     if(showSummary)state.endCard?.update(nextRoundAt,t,ROUND_SUMMARY_MS+ROUND_INTRO_MS);
     setHidden(reveal,t>=state.revealUntil);
     setFlag(el,'is-sudden',vm.suddenDeath);
@@ -619,7 +628,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     const bottom=r&&r.height>0&&vh?Math.min(Math.max(8,Math.round(vh-r.top+8)),Math.round(vh*.2)):72;
     if(inter.dataset.dock!==String(bottom)){inter.dataset.dock=String(bottom);inter.style.setProperty?.('--rui-dock-bottom',`${bottom}px`);}
   }
-  function hideOverlays(){state.panelOpen=false;setHidden(banner,true);setHidden(summary,true);setHidden(intro,true);setHidden(flash,true);setHidden(picker,true);setHidden(reveal,true);syncInter();}
+  function hideOverlays(){state.panelOpen=false;setHidden(banner,true);setHidden(summary,true);setHidden(intro,true);setHidden(flash,true);setHidden(picker,true);setHidden(reveal,true);setFlag(inter,'is-count',false);syncInter();}
   function render(){
     if(state.destroyed)return;
     const match=state.match;

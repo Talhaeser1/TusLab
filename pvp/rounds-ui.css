@@ -241,6 +241,16 @@
 #pvp-root .me-2 .rui-skill-picker .aui-card:focus-visible{outline-color:var(--rui-rune-soft)}
 #pvp-root .rui-inter.is-dock .rui-pick-actions{margin-top:0;gap:6px}
 #pvp-root .rui-inter.is-dock .rui-pick-lock,#pvp-root .rui-inter.is-dock .rui-pick-skip{min-height:44px;padding:4px 10px;font-size:13px}
+/* Son 3 sn geri sayım (.rui-inter.is-count): özet GİZLENMEZ — geri sayım kutusu üstte küçük durur,
+   özet + beceri seçici dock'ta birlikte kalır. Ekran kısaySA özet kompakt tek satıra iner (satır içi istatistikler katlanır). */
+#pvp-root .rui-inter.is-count{max-height:calc(38dvh - var(--rui-dock-bottom,64px))}
+@media(max-height:700px){
+  #pvp-root .rui-inter.is-count .m33-result{gap:3px}
+  #pvp-root .rui-inter.is-count .m33-players{gap:4px}
+  #pvp-root .rui-inter.is-count .m33-stats{display:none}
+  #pvp-root .rui-inter.is-count .m33-player{padding:4px 8px}
+  #pvp-root .rui-inter.is-count .m33-player h3{margin:0;font-size:13px}
+}
 @media(max-width:900px){
   #pvp-root .rui-inter.is-dock{flex-direction:column;flex-wrap:nowrap}
   #pvp-root .rui-inter.is-dock>.rui-summary,#pvp-root .rui-inter.is-dock>.rui-skill-picker{flex:0 0 auto}
