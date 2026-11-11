@@ -194,15 +194,16 @@ test('vargr meshy: q/e yolculuk+temas; ulti baştan sona doğal hızda', () => {
   assert.ok(Math.abs(rig.actions.Axe_Spin_Attack.time - 0.900) < 0.05);
   run('e', ePlan.totalMs);
   assert.equal(rig.stats().state, 'idle');
-  // R: klip ilk kareden başlar, ölçülen 4375 ms zirvesini kesmeden oynar.
+  // R (düzeltme turu 2 / B): sahne ≤ ~3 sn. Klip temastan 1,8 sn önce başlar (2,575 s), 4375 ms zirvesi
+  // temas karesidir; temastan 1,2 sn sonra biter (boşta bekleme yok).
   rig.play('r');
-  assert.equal(rig.actions.Charged_Axe_Chop.time,0);
-  rig.update(4.375);
+  assert.ok(Math.abs(rig.actions.Charged_Axe_Chop.time - 2.575) < 0.01, 'hazırlık 1,8 sn ile sınırlı');
+  rig.update(1.8);
   assert.ok(Math.abs(rig.actions.Charged_Axe_Chop.time - 4.375) < 0.01, 'ana iniş son/büyük temasta');
-  rig.update(2.5);
+  rig.update(0.6);
   assert.equal(rig.stats().state, 'r', 'toparlanma sırasında saldırı sürer');
   rig.update(0.8);
-  assert.equal(rig.stats().state, 'idle', 'tam klip bitince idle');
+  assert.equal(rig.stats().state, 'idle', 'temas + 1,2 sn sonra idle');
   rig.dispose();
 });
 

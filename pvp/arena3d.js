@@ -1998,7 +1998,7 @@ export async function createArena3D({
     const last = index >= entry.strikes.length - 1;
     for (const event of strike.events) event.finisher = last && !entry.ultimate;
     if (!entry.ultimate) impactFeel.flush();
-    if (last) entry.open = false; // son temas atıldı: yeni saldırı yeni girdiye gider
+    // Girdi açık kalır: dönüş başlayana dek yeni saldırı aynı yaklaşmada zincire eklenir (extendMeleeEntry).
     probeMark('contact', {seat: entry.seat, skill: strike.skill, index, finisher: last, forced: false});
     emitDom('tuslab:pvp-strike', {seat: entry.seat, index, skill: strike.skill, finisher: last});
   }
@@ -2018,6 +2018,12 @@ export async function createArena3D({
     if (!rig || entry.dead || entry.ultimate) return false;
     if (entry.strikes.length >= COMBO.maxStrikes) return false; // süre tavanı: yeni girdi
     const prevContacts = entry.chain ? entry.chain.contacts.length : 0;
+    let plan = null;
+    if (entry.started) {
+      // Dönüş başladıysa zincir kapanmıştır: yeni saldırı yeni girdiye (yeni yaklaşma) gider.
+      plan = rig.extendChain?.([skill], {compress: entry.compress || false});
+      if (!plan || !plan.contacts) { entry.open = false; return false; }
+    }
     entry.strikes.push({skill, bound: false, contact: false, cast: null, events: []});
     entry.open = true;
     if (!entry.started) {
@@ -2026,8 +2032,6 @@ export async function createArena3D({
       if (rough) entry.handle?.reestimate?.(rough.totalMs);
       return true;
     }
-    const plan = rig.extendChain?.([skill], {compress: entry.compress || false});
-    if (!plan || !plan.contacts) return true; // rig eklemedi (ör. bitmiş): hasar yine son temasa bağlanır
     for (let i = prevContacts; i < plan.contacts.length; i++) {
       const idx = i; // kapanak: temas fn'si eklendiği andaki indisi görür
       entry.handle?.addContact?.({ms: plan.contacts[idx].ms, fn: () => strikeContact(entry, idx)});
@@ -2101,7 +2105,7 @@ export async function createArena3D({
       for (const event of old.events) impactFeel.silent(event);
     }
     const estimate = ultimate
-      ? Math.max(rig.sceneDuration?.(skill) || 0, rig.ultimatePeakMs || 0)
+      ? (rig.ultimateDurationMs || Math.max(rig.sceneDuration?.(skill) || 0, rig.ultimatePeakMs || 0))
       : rig.chainPlan?.([skill])?.totalMs || rig.plan?.(skill)?.totalMs || rig.sceneDuration(skill);
     entry.handle = timeline.enqueue({
       seat, estimateMs: estimate, meta: {skill, ultimate},

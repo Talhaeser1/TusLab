@@ -65,7 +65,9 @@ test('Vargr melee plan plays each complete attack clip before walking back at na
     assert.ok(plan.hitMs+plan.holdMs>=plan.travelMs+fullMs/attack.speed-1);
   }
   rig.play('r',{force:true});
-  assert.equal(rig.actions.Charged_Axe_Chop.time,0,'ultimate starts at the first frame');
+  // Düzeltme turu 2 / B: ulti sahnesi ≤ ~3 sn → hazırlık temastan 1,8 sn önce başlar.
+  assert.ok(Math.abs(rig.actions.Charged_Axe_Chop.time-(4.375-1.8*rig.actions.Charged_Axe_Chop.getEffectiveTimeScale()))<0.01,'ultimate windup is capped at 1.8s');
+  assert.ok(rig.ultimatePeakMs<=1800+1&&rig.ultimateDurationMs<=3000+1,'ultimate scene <= 3s');
   assert.ok(rig.actions.Charged_Axe_Chop.getEffectiveTimeScale()<=1.2);
   rig.dispose();
 });
@@ -485,6 +487,53 @@ test('Görev 4: 3 birikmiş saldırı = 1 yaklaşma + 3 temas + 1 dönüş; bot 
   assert.ok(['approach', 'strike'].includes(q().phase));
   run(2400);
   assert.equal(q().busy, false);
+  instance.destroy();
+});
+
+test('Düzeltme turu 2 / A: ilk temastan SONRA gelen saldırılar aynı yaklaşmada zincirlenir (comboIndex 1,2,3)', async () => {
+  const impacts = [];
+  const {instance, run} = await buildArena({onImpact: event => impacts.push(event)});
+  await instance.setFighters({1: 'vargr', 2: 'nyx'});
+  const cast = (seat, skill, amount) => {
+    instance.handle({type: 'SKILL_CAST', fromSeat: seat, toSeat: 3 - seat, skill});
+    instance.handle({type: 'DAMAGE_APPLIED', fromSeat: seat, toSeat: 3 - seat, skill, amount});
+  };
+  const q = () => instance.visualQueue.snapshot();
+  cast(1, 'q', 40);
+  run(420); // ilk temas (~340 ms) geçti
+  assert.equal(impacts.length, 1);
+  assert.equal(q().comboIndex, 1);
+  cast(1, 'q', 40); // temastan ~80 ms sonra: eskiden yeni girdi açılıyordu
+  assert.equal(q().queued, 0, 'yeni girdi yok: zincire eklendi');
+  run(300);
+  assert.equal(q().comboIndex, 2);
+  cast(1, 'e', 40);
+  assert.equal(q().queued, 0);
+  run(1500);
+  assert.equal(impacts.length, 3);
+  assert.equal(q().started, 1, 'tek yaklaşma + tek dönüş');
+  run(1500);
+  assert.equal(q().busy, false);
+  // Dönüş başladıktan sonra gelen saldırı yeni girdi (yeni yaklaşma) olur; ışınlanma yok.
+  cast(1, 'q', 40);
+  assert.equal(q().started, 2);
+  instance.destroy();
+});
+
+test('Düzeltme turu 2 / C: bot (koltuk 2) hasarı sahnesiz düşmez — koş→vur→dön, activeSeat 2', async () => {
+  const impacts = [];
+  const {instance, run} = await buildArena({onImpact: event => impacts.push(event)});
+  await instance.setFighters({1: 'vargr', 2: 'nyx'});
+  const q = () => instance.visualQueue.snapshot();
+  instance.handle({type: 'SKILL_CAST', fromSeat: 2, toSeat: 1, skill: 'q'});
+  instance.handle({type: 'DAMAGE_APPLIED', fromSeat: 2, toSeat: 1, skill: 'q', amount: 30});
+  run(80);
+  assert.equal(q().activeSeat, 2);
+  assert.equal(impacts.length, 0, 'temas karesinden önce hasar yok');
+  const phases = new Set();
+  for (let i = 0; i < 160 && q().busy; i++) { run(16); phases.add(q().phase); }
+  assert.equal(impacts.length, 1, 'hasar bot sahnesinin temas karesinde');
+  assert.ok(phases.has('approach') && phases.has('strike'), `fazlar: ${[...phases]}`);
   instance.destroy();
 });
 

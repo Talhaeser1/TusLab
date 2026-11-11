@@ -357,3 +357,16 @@ test('index.js entegrasyonu', () => {
   assert.match(src, /getArenaApi:\(\)=>arena3d\.instance\?\.api/);
   assert.match(src, /hud\.matchEnd\(/);
 });
+
+// ---- Düzeltme turu 2 / D: KRİTİK yazısı DOM'da ölçülebilir ve arka planda ----------------------
+test('KRİTİK: [data-crit-text] öğesi çıkar, katman fhud-layer-crit, bant yok, soluk CSS', () => {
+  const {root, hud} = setup();
+  hud.handle(hit({amount: 200, bonusTags: ['Kızıl Öfke']}));
+  const crit = all(root).find(e => 'data-crit-text' in e.attrs);
+  assert.ok(crit, 'data-crit-text öğesi DOM\'da');
+  assert.equal(crit.textContent, CALLS.crit);
+  assert.match(crit.className, /fhud-call-crit/);
+  assert.ok(layers(root).some(l => String(l.className).includes('fhud-layer-crit')));
+  const css = readFileSync(new URL('../pvp/arena3d.css', import.meta.url), 'utf8');
+  assert.match(css, /\.fhud-call-text\.fhud-call-crit\{[^}]*opacity:\.3[^}]*pointer-events:none/);
+});
