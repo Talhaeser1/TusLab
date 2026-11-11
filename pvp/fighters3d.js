@@ -2,7 +2,7 @@
  * TuşLab PvP / paket 32 — 3B rig'li dövüşçüler (karakter motoru).
  * ================================================================
  *
- * arena3d.js'in düz (2.5D) rig düzlemlerinin yerine, assets/characters/<id>.glb'deki
+ * arena3d.js'in düz (2.5D) rig düzlemlerinin yerine, assets/models/<id>/<id>.glb'deki
  * kemikli, animasyonlu modeli koyar. Tamamen kozmetiktir (HP/hasar sunucudadır).
  *
  *   const asset = await loadFighterAsset(THREE, url);           // GLTFLoader, url başına önbellekli
@@ -21,43 +21,22 @@
 import {FIGHTERS, FIGHTER_IDS, SHARED_CLIPS} from './shared/fighters.js';
 import {createAnimState, fadeMs as animFadeMs, clampAttackSpeed} from './anim-state.js';
 
-export const FIGHTER_MODEL_BASE = './assets/characters/';
-export const modelUrl = (fighterId, base = FIGHTER_MODEL_BASE) => `${base}${fighterId}.glb`;
+export const FIGHTER_MODEL_BASE = './assets/models/';
+export const modelUrl = fighterId => `${FIGHTER_MODEL_BASE}${fighterId}/${fighterId}.glb`;
 
 // ------------------------------------------------------------------ model varyantları (paket 23)
 
 /**
- * Karakter başına model varyantları. Yalnız Vargr'un ikinci modeli var:
- *   'eski'  → KayKit GLB (assets/characters/vargr.glb; diğer karakterlerin tek yolu)
- *   'meshy' → Meshy AI üretimi model (assets/models/vargr/vargr.glb) — varsayılan
- * Varyant tablosu klip eşlemesini, kemik adlarını ve ölçülen vuruş karelerini
- * (peakMs) tutar; CHOREOGRAPHY'nin hitMs/motion/fx sabitleri DEĞİŞMEZ.
+ * Karakter başına model tablosu (paket 23 → 3B: dört karakterin TEK modeli Meshy).
+ * Yalnız 'meshy' varyantı var: Meshy AI üretimi GLB (assets/models/<id>/<id>.glb).
+ * Eski KayKit modelleri assets/_eski/characters/ arşivindedir; koda dönüş yolu YOKTUR.
+ * Tablo klip eşlemesini ve ölçülen vuruş karelerini (peakMs) tutar; CHOREOGRAPHY'nin
+ * hitMs/motion/fx sabitleri DEĞİŞMEZ.
  */
 export const MODEL_VARIANTS = Object.freeze({
   vargr: Object.freeze({
     meshy: Object.freeze({
       url: './assets/models/vargr/vargr.glb',
-      /**
-       * Ölçek kalibrasyonu (paket 23). KayKit iskeletinde baş kemiği boyun hizasında
-       * ve bind bbox (kalkan/balta dahil) ≈ baş × 1,93 olduğu için genel katsayı
-       * headToHeight 1,95 KayKit'te görünen boyu 2,68'e taşır. Meshy iskeletinde
-       * 'Head' kemiği yine boyun hizasında ama bind bbox yalnız baş × 1,244
-       * (1,80 ham birim; ayaklar 0, tepe 1,80): aynı 1,95 katsayısı modeli %36
-       * küçük gösterirdi (1,71 birim). Kalibrasyon: İKİ modelin de KENDİ idle
-       * klibindeki skinned-mesh görünür yüksekliği eşitlendi —
-       *   KayKit 2H_Melee_Idle: ham 2,358 × ölçek 1,1071 = 2,610 görünür birim
-       *   Meshy Combat_Stance: ham 1,678 × ölçek 1,5560 = 2,610 görünür birim
-       * → headToHeight = 2,68 / (1,5560 × baş 1,4470) = 1,19.
-       */
-      headToHeight: 1.19,
-      /**
-       * Zemin ofseti (ham birim): Meshy Combat_Stance/parry/isabet pozlarında mesh
-       * alt kenarı -0,058'e gömülür (animasyon yazarı zemini bind zemininin ~6 cm
-       * altına koymuş). +0,058 kaydırma idle ayağını tam y=0'a oturtur; şarj
-       * çömelmesi/KO yatışı gibi derin pozlar oransal olarak aynı görece derinlikte
-       * kalır (yerçekimi/yere gömülme etkisi oyunlarda alışıldık).
-       */
-      groundOffsetY: 0.058,
       /** Durum klipleri (STATE_CLIPS karşılığı; global tabloya dokunulmaz). */
       clips: Object.freeze({
         idle: 'Combat_Stance',
@@ -81,51 +60,36 @@ export const MODEL_VARIANTS = Object.freeze({
       }),
     }),
   }),
+  sira: Object.freeze({meshy: Object.freeze({
+    url: modelUrl('sira'),
+    clips: Object.freeze({idle:'Combat_Stance',idleHeavy:'Combat_Stance',run:'Standard_Forward_Charge_inplace',walkBack:'Standard_Forward_Charge_inplace',block:'Sword_Parry',blockHit:'Sword_Parry',hit:Object.freeze(['Hit_Reaction']),ko:'Knock_Down',win:'Victory_Cheer'}),
+    skills: Object.freeze({q:Object.freeze({clip:'Thrust_Slash',peakMs:1200,speed:1.1,recoverMs:380}),e:Object.freeze({clip:'Double_Blade_Spin',peakMs:2550,speed:1.1,recoverMs:360}),r:Object.freeze({clip:'Triple_Combo_Attack',peakMs:2450})}),
+  })}),
+  doran: Object.freeze({meshy: Object.freeze({
+    url: modelUrl('doran'),
+    clips: Object.freeze({idle:'Combat_Stance',idleHeavy:'Combat_Stance',run:'Standard_Forward_Charge_inplace',walkBack:'Standard_Forward_Charge_inplace',block:'Block1',blockHit:'Block1',hit:Object.freeze(['Hit_Reaction_1']),ko:'Knock_Down_1',win:'Victory_Fist_Pump'}),
+    skills: Object.freeze({q:Object.freeze({clip:'Right_Hand_Sword_Slash',peakMs:600,speed:1.1,recoverMs:380}),e:Object.freeze({clip:'Shield_Push_Left',peakMs:1065,speed:1.1,recoverMs:360}),r:Object.freeze({clip:'Sword_Judgment',peakMs:2450})}),
+  })}),
+  nyx: Object.freeze({meshy: Object.freeze({
+    url: modelUrl('nyx'),
+    clips: Object.freeze({idle:'Combat_Stance',idleHeavy:'Combat_Stance',run:'Standard_Forward_Charge_inplace',walkBack:'Standard_Forward_Charge_inplace',block:'Block3',blockHit:'Block3',hit:Object.freeze(['Hit_Reaction']),ko:'dying_backwards',win:'victory'}),
+    skills: Object.freeze({q:Object.freeze({clip:'mage_soell_cast',peakMs:900}),e:Object.freeze({clip:'Charged_Spell_Cast',peakMs:1200}),r:Object.freeze({clip:'Charged_Ground_Slam',peakMs:1700})}),
+  })}),
 });
 
 /**
- * Diğer karakterler için hazır (KAPALI) Meshy varyant taslakları: assets/models/<id>/<id>.glb
- * Vargr ile AYNI klip adı kuralı (idle=Combat_Stance, Run_Charge, Walk_Back, Attack, Axe_Spin_Attack,
- * Charged_Axe_Chop, Hit_Reaction, Knock_Down, Victory_Cheer, Two_Handed_Parry). Dosyalar gelince
- * `enabled: true` yapılır ve peakMs/headToHeight/groundOffsetY o modelde ölçülüp güncellenir
- * (buradakiler Vargr değerleri = yer tutucu). enabled=false iken fighterModelVariant 'eski' döner;
- * etkin olup dosya yoksa/klip eksikse loadFighterModel otomatik KayKit modeline düşer.
+ * Tek model kuralı (3B): her karakterin yayındaki tek GLB'si Meshy üretimidir
+ * (assets/models/<id>/<id>.glb). Eski KayKit modellerine dönüş yolu, bayrağı ya da
+ * yedek yüklemesi YOKTUR; loadFighterModel hata verirse arena düzlem siluetini gösterir.
  */
-export function meshyVariantDraft(fighterId, overrides = {}) {
-  const base = MODEL_VARIANTS.vargr.meshy;
-  return Object.freeze({
-    ...base, ...overrides, enabled: overrides.enabled ?? false,
-    url: `./assets/models/${fighterId}/${fighterId}.glb`,
-  });
-}
-export const MODEL_VARIANT_DRAFTS = Object.freeze({
-  sira: meshyVariantDraft('sira'), doran: meshyVariantDraft('doran'), nyx: meshyVariantDraft('nyx'),
-});
-const variantSpecOf = (fighterId, variant) => {
-  const spec = MODEL_VARIANTS[fighterId]?.[variant] || (variant === 'meshy' ? MODEL_VARIANT_DRAFTS[fighterId] : null);
-  return spec && spec.enabled !== false ? spec : null;
-};
+const variantSpecOf = fighterId => MODEL_VARIANTS[fighterId]?.meshy || null;
 
 /** Varyant seçimi: saf fonksiyon (localStorage/location yoksa hata vermez, test edilebilir).
- *  Vargr varsayılan 'meshy'; ?vargr=eski URL'yi ya da localStorage['tuslab:vargr-model']==='eski'
- *  eski KayKit modeline döndürür. Diğer karakterler etkilenmez ('eski'). */
-export function fighterModelVariant(fighterId, env = globalThis) {
-  if (!variantSpecOf(fighterId, 'meshy')) return 'eski';
-  try {
-    const search = String(env?.location?.search || '');
-    if (/(?:^|[?&])vargr=eski(?=&|$)/.test(search)) return 'eski';
-  } catch { /* location erişimi yok */ }
-  try {
-    if (env?.localStorage?.getItem?.('tuslab:vargr-model') === 'eski') return 'eski';
-  } catch { /* localStorage erişimi yok */ }
-  return 'meshy';
-}
+ *  Dört karakterin de tek varyantı 'meshy'dir; eski ?vargr=eski / localStorage bayrakları yok sayılır. */
+export function fighterModelVariant(fighterId) { return variantSpecOf(fighterId) ? 'meshy' : null; }
 
-/** Varyantın model URL'si: meshy → assets/models/vargr/vargr.glb, diğerleri modelUrl(). */
-export function fighterModelUrl(fighterId, env = globalThis, base = FIGHTER_MODEL_BASE) {
-  const variant = fighterModelVariant(fighterId, env);
-  return variantSpecOf(fighterId, variant)?.url || modelUrl(fighterId, base);
-}
+/** Karakterin model URL'si: ./assets/models/<id>/<id>.glb (bilinmeyen kimlikte null). */
+export function fighterModelUrl(fighterId) { return variantSpecOf(fighterId)?.url || null; }
 
 /** Varyant tablosunun beklediği kliplerden asset'te eksik olanlar (boşsa varyant kullanılabilir). */
 export function variantMissingClips(clips, variant) {
@@ -139,41 +103,25 @@ export function variantMissingClips(clips, variant) {
   return [...new Set(want)].filter(name => !names.has(name));
 }
 
-const variantFallbackWarned = new Set();
-
 /**
- * Karakterin modelini varyantına göre yükler (paket 23). Meshy GLB yüklenemez ya
- * da beklenen klipleri içermiyorsa OTOMATİK eski KayKit modeline düşer (konsola
- * karakter+varyant başına tek uyarı). Diğer karakterler için modelUrl() ile aynı.
+ * Karakterin Meshy modelini yükler (paket 23 → 3B). GLB yüklenemez ya da beklenen
+ * klipleri içermiyorsa HATA FIRLATIR (eski modele dönüş yok): arena3d bu durumda
+ * düzlem yükleme siluetini göstermeye devam eder.
  */
-export async function loadFighterModel(THREE, fighterId, {env = globalThis, base = FIGHTER_MODEL_BASE, loader = null} = {}) {
-  const variant = fighterModelVariant(fighterId, env);
-  const spec = variantSpecOf(fighterId, variant);
-  if (spec) {
-    try {
-      const asset = await loadFighterAsset(THREE, spec.url, {loader});
-      const missing = variantMissingClips(asset?.clips, spec);
-      if (missing.length) throw new Error(`eksik klipler: ${missing.join(', ')}`);
-      asset.variant = variant;
-      return asset;
-    } catch (error) {
-      const key = `${fighterId}:${variant}`;
-      if (!variantFallbackWarned.has(key)) {
-        variantFallbackWarned.add(key);
-        try { globalThis.console?.warn?.(`[fighters3d] ${fighterId} "${variant}" modeli yüklenemedi (${error?.message || error}); eski modele dönülüyor.`); } catch { /* konsol yok */ }
-      }
-    }
-  }
-  return loadFighterAsset(THREE, modelUrl(fighterId, base), {loader});
+export async function loadFighterModel(THREE, fighterId, {loader = null} = {}) {
+  const spec = variantSpecOf(fighterId);
+  if (!spec) throw new Error(`bilinmeyen dövüşçü: ${fighterId}`);
+  const asset = await loadFighterAsset(THREE, spec.url, {loader});
+  const missing = variantMissingClips(asset?.clips, spec);
+  if (missing.length) throw new Error(`eksik klipler: ${missing.join(', ')}`);
+  asset.variant = 'meshy';
+  return asset;
 }
 
 /** Görünüm: koltuk yönüne bakan yarı profil; kameraya hafif dönük. */
 export const MODEL_VIEW = Object.freeze({
   yawToCamera: 0.5,   // rad: tam profilden (π/2) kameraya doğru dönüş
-  heightUnits: 2.68,  // gövde-yerel hedef boy = rig düzleminin görünen boyu (≈ 2.67), şapkasız
-  headToHeight: 1.95, // KayKit iskeleti: baş kemiği y × 1.95 ≈ şapkasız boy
-  // Uzun şapkalı karakter (nyx) HP satırına yaklaşmasın: şapka ucu dahil boy ≈ diğerleri.
-  fighterScale: Object.freeze({nyx: 0.93}),
+  heightUnits: 2.68,  // hedef GÖVDE boyu (head_end kemiği – en alçak ayak kemiği), dört modelde aynı
   tiltScale: 0.3,     // düzlem pozunun eğimi modele bu oranda uygulanır (klip baskın)
   squashScale: 0.25,
   fadeMs: 140,        // klip geçişi (crossFade)
@@ -528,8 +476,9 @@ export function createFighterRig(THREE, asset, {
   // seçilmiş varyant. Beklenen klipler asset'te yoksa sessizce varsayılan tabloya
   // dön (yükleyici enjeksiyonu testlerde KayKit varlığı döndürebilir).
   const variantName = typeof variant === 'string' ? variant : asset?.variant;
-  const variantSpec = variantName ? variantSpecOf(fighterId, variantName) : null;
-  const variantReady = variantSpec && variantMissingClips(asset.clips, variantSpec).length === 0 ? variantSpec : null;
+  const variantSpec = variantName === 'meshy' ? variantSpecOf(fighterId) : null;
+  if (variantName === 'meshy' && variantMissingClips(asset.clips, variantSpec).length) throw new Error(`eksik Meshy klipleri: ${fighterId}`);
+  const variantReady = variantSpec;
   const stateClips = variantReady?.clips || STATE_CLIPS;
   const source = asset.gltf.scene;
   const model = typeof clone === 'function' ? clone(source) : source.clone(true);
@@ -575,20 +524,30 @@ export function createFighterRig(THREE, asset, {
   // göre ayarlanmıştır, meshy'de modeli %36 küçük gösterirdi (MODEL_VARIANTS notuna bak).
   let height = 1;
   let minY = 0;
+  let footY = null;
   try {
-    let headY = 0;
+    let headY = null;
+    const feet = [];
     model.updateMatrixWorld?.(true);
-    model.traverse(o => { if (typeof o.name === 'string' && o.name.toLowerCase() === 'head' && !headY && o.getWorldPosition) headY = o.getWorldPosition(new THREE.Vector3()).y; });
-    if (headY > 0.1) height = headY * (variantReady?.headToHeight ?? view.headToHeight);
-    else {
-      const box = new THREE.Box3().setFromObject(model);
-      if (Number.isFinite(box.max.y - box.min.y) && box.max.y - box.min.y > 0.05) {
-        height = box.max.y - box.min.y;
-        minY = box.min.y;
-      }
+    model.traverse(o => {
+      if (!o.getWorldPosition || typeof o.name !== 'string') return;
+      const name = o.name.toLowerCase();
+      if (name === 'head_end') headY = o.getWorldPosition(new THREE.Vector3()).y;
+      if (name === 'leftfoot' || name === 'rightfoot') feet.push(o.getWorldPosition(new THREE.Vector3()).y);
+    });
+    const box = new THREE.Box3().setFromObject(model);
+    if (Number.isFinite(box.min.y)) minY = box.min.y;
+    if (feet.length && Number.isFinite(headY)) {
+      // Ayak kemiği bilektedir (ham ~0,15 yukarıda); taban = bbox tabanı, ama silah/asa ucu
+      // tabandan aşağı sarkıyorsa en fazla bilek − 0,2'ye kadar güvenilir. Boy = baş üstü − taban.
+      const ankleY = Math.min(...feet);
+      footY = Number.isFinite(minY) && minY <= ankleY ? Math.max(minY, ankleY - 0.2) : ankleY;
+      height = headY - footY;
+    } else if (Number.isFinite(box.max.y - box.min.y) && box.max.y - box.min.y > 0.05) {
+      height = box.max.y - box.min.y;
     }
   } catch { /* sahte THREE */ }
-  const scale = (view.heightUnits / height) * (view.fighterScale?.[fighterId] ?? 1);
+  const scale = view.heightUnits / height;
   const object = new THREE.Group();
   object.name = `pvp32-fighter-${seat}`;
   const yawGroup = new THREE.Group(); // kendi ekseninde dönüş (vargr E) burada
@@ -597,7 +556,7 @@ export function createFighterRig(THREE, asset, {
   model.scale.setScalar(scale);
   // Zemin: kutu yolu bbox tabanını (minY) y=0'a taşır; varyant yolu animasyon kaynaklı
   // sistematik zemine gömülmeyi (meshy duruşu -0,058) kalibre offset ile düzeltir.
-  model.position.y = ((variantReady?.groundOffsetY) ?? -minY) * scale;
+  model.position.y = -(footY ?? minY) * scale;
   // Öne uzanım (silah dahil): yaw uygulanmadan önce modelin z derinliğinden; sahte THREE'de varsayılan.
   let reach = DEFAULT_REACH;
   try {
@@ -938,7 +897,7 @@ export function createFighterRig(THREE, asset, {
     stats: () => ({
       fighter: fighterId, state: state.name, clip: state.clip, clipTime: state.current?.time ?? 0, timeScale: state.timeScale, paused: state.paused,
       yaw: state.yaw, queued: state.queue.length, plays: state.plays, disposed: state.disposed,
-      materials: materials.length, variant: variantReady ? variantName : null,
+      materials: materials.length, variant: variantReady ? variantName : null, height: height * scale,
     }),
   };
 }

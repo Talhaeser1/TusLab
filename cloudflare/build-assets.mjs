@@ -9,7 +9,7 @@ const dest=resolve(import.meta.dirname,'public');
  *  - assets/higgsfield/deneme: sahne denemeleri.
  *  - assets/models/<ad>/kaynak: 3B model üretim arşivleri (paket 23: ham Meshy GLB'leri,
  *    örn. assets/models/vargr/kaynak ~4,6 MB; oyun optimize assets/models/<ad>/<ad>.glb kullanır). */
-export const EXCLUDED_ASSETS=/[\\/]characters-src([\\/]|$)|[\\/]higgsfield[\\/]deneme([\\/]|$)|[\\/]models[\\/][^\\/]+[\\/]kaynak([\\/]|$)/;
+export const EXCLUDED_ASSETS=/[\\/]_eski([\\/]|$)|[\\/]characters-src([\\/]|$)|[\\/]higgsfield[\\/]deneme([\\/]|$)|[\\/]models[\\/][^\\/]+[\\/]kaynak([\\/]|$)/;
 export async function buildAssets(){
   await rm(dest,{recursive:true,force:true});
   await mkdir(dest,{recursive:true});

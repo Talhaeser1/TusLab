@@ -125,7 +125,7 @@ test('fighters3d: unknown fighters / shared data fallback', () => {
   assert.equal(resolveChoreography('doran', {}).e.steps[0].clip, 'Block_Attack');
   assert.equal(fighterPalette('nyx', {}).main, 0x22d6e8);
   assert.equal(fighterPalette('vargr', {vargr: {palette: {main: '#112233', accent: 0x445566}}}).main, 0x112233);
-  assert.equal(modelUrl('sira'), './assets/characters/sira.glb');
+  assert.equal(modelUrl('sira'), './assets/models/sira/sira.glb');
 });
 
 // ------------------------------------------------------------------- rig
@@ -221,23 +221,22 @@ test('fighters3d fx: projectiles arrive once, effects expire, dispose frees ever
 
 // ------------------------------------------------------------- GLB assets
 
-test('characters: optimized GLBs exist, ≤ 900 KB, keep only the needed clips', () => {
-  for (const [id, build] of Object.entries(CHARACTER_BUILDS)) {
-    const file = resolve(ROOT, 'assets', 'characters', `${id}.glb`);
+test('characters: four Meshy GLBs exist, fit 1.2 MiB and supply mapped clips', () => {
+  for (const id of ['vargr','sira','doran','nyx']) {
+    const file = resolve(ROOT, 'assets', 'models', id, `${id}.glb`);
     assert.ok(existsSync(file), `${id}.glb`);
     const bytes = statSync(file).size;
-    assert.ok(bytes <= 900 * 1024, `${id}.glb ${bytes} B`);
+    assert.ok(bytes <= 1.2 * 1024 * 1024, `${id}.glb ${bytes} B`);
     const {json} = readGlb(readFileSync(file));
     const names = json.animations.map(a => a.name);
-    assert.ok(names.length <= 18, `${id}: ${names.length} clips`);
-    for (const clip of [...COMMON_CLIPS, ...build.clips]) assert.ok(names.includes(clip), `${id} has ${clip}`);
-    const c = resolveChoreography(id);
-    for (const s of SKILLS) for (const step of c[s].steps) assert.ok(names.includes(step.clip), `${id}.${s} clip ${step.clip} shipped`);
-    assert.ok(names.includes(c.idle));
+    assert.ok(names.length >= 9, `${id}: ${names.length} clips`);
+    const variant = MODEL_VARIANTS[id].meshy;
+    for (const value of Object.values(variant.clips)) for (const clip of Array.isArray(value) ? value : [value]) assert.ok(names.includes(clip), `${id} has ${clip}`);
+    for (const s of SKILLS) assert.ok(names.includes(variant.skills[s].clip), `${id}.${s} clip shipped`);
     assert.equal(json.images.length, 1);
-    assert.match(json.asset.copyright, /CC0/);
+    assert.match(json.asset.generator, /Meshy AI/);
   }
-  assert.ok(existsSync(resolve(ROOT, 'assets', 'characters', 'LICENSE-KayKit.txt')), 'licence copied next to the models');
+  assert.ok(existsSync(resolve(ROOT, 'assets', 'characters', 'LICENSE-KayKit.txt')));
 });
 
 test('optimize: keyframe reduction keeps endpoints and linear shape', () => {

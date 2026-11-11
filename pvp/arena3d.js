@@ -1688,7 +1688,7 @@ export async function createArena3D({
   // (aynı karakter iki koltukta → aynı varlıktan iki SkeletonUtils klonu). Model gelince
   // düzlem katmanları gizlenir, model aynı actor grubuna girer: poz izleri (fwd/lift/tilt)
   // kök hareketi olarak uygulanmaya devam eder, gövdeyi klip animasyonu taşır.
-  // Model yüklenemezse (404, WebGL kemik sınırı) düzlem dövüşçü yedek olarak kalır.
+  // Meshy yüklenirken veya hata verdiğinde mevcut düzlem yükleme silueti kalır.
 
   let skillFx = null;
   let cloneFn = typeof cloneModel === 'function' ? cloneModel : null;
@@ -1702,10 +1702,7 @@ export async function createArena3D({
     return cloneFn;
   }
   function fetchModel(id) {
-    // Paket 23: Vargr varsayılan olarak Meshy modelini kullanır (fighterModelVariant:
-    // ?vargr=eski ya da localStorage 'tuslab:vargr-model'='eski' → KayKit GLB).
-    // Meshy GLB yüklenemez ya da klipleri eksikse loadFighterModel tek uyarıyla
-    // eski modele düşer; diğer karakterlerin yolu değişmez.
+    // Dört karakterin tek yayın modeli Meshy GLB'dir.
     if (typeof loadModel === 'function') return Promise.resolve().then(() => loadModel(fighterModelUrl(id, env), id));
     return loadFighterModel(THREE, id, {env, base: modelBase});
   }
@@ -1726,7 +1723,7 @@ export async function createArena3D({
     fighter.modelAsset = null;
     fighter.fxQueue = [];
     setPlaneVisible(fighter, true);
-    fighter.actor.visible = Boolean(fighter.core.material.map);
+    fighter.actor.visible = true;
   }
   function attachModel(fighter, rig, asset) {
     detachModel(fighter);
@@ -1777,7 +1774,7 @@ export async function createArena3D({
           return true;
         } catch (error) {
           if (token === fighter.modelToken) fighter.modelFailed = true;
-          safeCall(() => env?.console?.warn?.(`[arena3d] ${id} modeli yüklenemedi; düzlem dövüşçü kullanılıyor.`, error?.message || error));
+          safeCall(() => env?.console?.warn?.(`[arena3d] ${id} Meshy modeli yüklenemedi; yükleme silueti gösteriliyor.`, error?.message || error));
           return false;
         } finally {
           if (token === fighter.modelToken) fighter.modelJob = null;
@@ -3997,6 +3994,7 @@ export async function createArena3D({
         const f = fighters.get(seat);
         return [seat, {
           fighter: f.fighterId, loaded: Boolean(f.model), loading: Boolean(f.modelJob), failed: Boolean(f.modelFailed),
+          variant: f.model?.variant || (f.fighterId ? 'meshy' : null), height: f.model ? f.model.height * f.model.scale : null,
           planeVisible: f.core.mesh.visible, fxQueued: f.fxQueue?.length || 0,
           ...(f.model ? f.model.stats() : {}),
           x: f.root.position.x + f.actor.position.x * (f.root.scale.x || 1),

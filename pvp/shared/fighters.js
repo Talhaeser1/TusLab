@@ -9,7 +9,7 @@ const freezeDeep=o=>{for(const v of Object.values(o))if(v&&typeof v==='object')f
 export const FIGHTERS=freezeDeep({
  vargr:{
   id:'vargr',name:'Vargr',title:'Kızıl Balta',archetype:'fire',source:'Barbarian',
-  model:'./assets/characters/vargr.glb',
+  model:'./assets/models/vargr/vargr.glb',
   palette:{main:'#c2412d',accent:'#f2a541',hex:0xc2412d},
   blurb:'Kuzey buzullarında kor yakıp kışı deviren balta ustası; her yenilgiyi bir sonraki savuruşa öfke olarak saklar.',
   skills:{
@@ -21,7 +21,7 @@ export const FIGHTERS=freezeDeep({
  },
  sira:{
   id:'sira',name:'Sira',title:'Gölge Mızrak',archetype:'fire',source:'Rogue',
-  model:'./assets/characters/sira.glb',
+  model:'./assets/models/sira/sira.glb',
   palette:{main:'#7b3fc4',accent:'#3ee0c8',hex:0x7b3fc4},
   blurb:'Çöl kervanlarının izini gölgelerden süren iz sürücü; mızrağını ancak hedefi ışığa çıktığında fırlatır.',
   skills:{
@@ -33,7 +33,7 @@ export const FIGHTERS=freezeDeep({
  },
  doran:{
   id:'doran',name:'Doran',title:'Demir Sur',archetype:'rune',source:'Knight',
-  model:'./assets/characters/doran.glb',
+  model:'./assets/models/doran/doran.glb',
   palette:{main:'#2f6fb5',accent:'#d9c27a',hex:0x2f6fb5},
   blurb:'Yıkılan kale kentinin son muhafızı; surları yeniden örene dek kalkanını kimseye indirmeyeceğine ant içti.',
   skills:{
@@ -45,7 +45,7 @@ export const FIGHTERS=freezeDeep({
  },
  nyx:{
   id:'nyx',name:'Nyx',title:'Rün Kâhini',archetype:'rune',source:'Mage',
-  model:'./assets/characters/nyx.glb',
+  model:'./assets/models/nyx/nyx.glb',
   palette:{main:'#1f9e8f',accent:'#b79cff',hex:0x1f9e8f},
   blurb:'Gece gökyüzündeki takımyıldızları rün diye okuyan kâhin; her savaşı yıldızlarda önceden görmüş gibi dövüşür.',
   skills:{

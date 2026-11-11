@@ -70,17 +70,16 @@ test('render33: auto starts at full resolution and only slow frame windows can l
   } finally { arena.destroy(); }
 });
 
-test('render33: all shipped GLBs contain a 512px PNG atlas and fit 1200000 bytes', () => {
+test('render33: all shipped Meshy GLBs fit 1.2 MiB and contain texture data', () => {
   for (const id of ['vargr', 'sira', 'doran', 'nyx']) {
-    const bytes = readFileSync(new URL(`../assets/characters/${id}.glb`, import.meta.url));
-    assert.ok(bytes.length <= 1_200_000, `${id}: ${bytes.length} bytes`);
+    const bytes = readFileSync(new URL(`../assets/models/${id}/${id}.glb`, import.meta.url));
+    assert.ok(bytes.length <= 1.2 * 1024 * 1024, `${id}: ${bytes.length} bytes`);
     const {json, bin} = readGlb(bytes);
     for (const image of json.images) {
       const view = json.bufferViews[image.bufferView];
-      const png = bin.subarray(view.byteOffset || 0, (view.byteOffset || 0) + view.byteLength);
-      assert.equal(png.toString('ascii', 1, 4), 'PNG');
-      assert.equal(png.readUInt32BE(16), 512, `${id} width`);
-      assert.equal(png.readUInt32BE(20), 512, `${id} height`);
+      const data = bin.subarray(view.byteOffset || 0, (view.byteOffset || 0) + view.byteLength);
+      assert.ok(data.length > 1000, `${id} texture data`);
+      assert.ok(['image/png','image/webp'].includes(image.mimeType), `${id} texture type`);
     }
   }
 });

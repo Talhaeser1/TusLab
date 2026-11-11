@@ -67,22 +67,12 @@ test('vargr meshy: varyant tablosundaki tüm klipler GLBde var; eski sözleşmey
 
 // --------------------------------------------------------------- 3) bayrak fonksiyonu
 
-test('vargr meshy: bayrak — varsayılan meshy; ?vargr=eski ya da localStorage eski', () => {
-  assert.equal(fighterModelVariant('vargr', {}), 'meshy', 'varsayılan yeni model');
-  assert.equal(fighterModelUrl('vargr', {}), './assets/models/vargr/vargr.glb');
-  assert.equal(fighterModelVariant('vargr', {location: {search: '?vargr=eski'}}), 'eski');
-  assert.equal(fighterModelVariant('vargr', {location: {search: '?karakter=vargr&vargr=eski&scene=colosseum'}}), 'eski');
-  assert.equal(fighterModelVariant('vargr', {location: {search: '?vargr=yeni'}}), 'meshy', 'yalnız eski geri döndürür');
-  assert.equal(fighterModelVariant('vargr', {localStorage: {getItem: k => (k === 'tuslab:vargr-model' ? 'eski' : null)}}), 'eski');
-  assert.equal(fighterModelVariant('vargr', {localStorage: {getItem: () => { throw new Error('erişim yok'); }}}), 'meshy', 'localStorage hatası yutulur');
-  assert.equal(fighterModelUrl('vargr', {localStorage: {getItem: () => 'eski'}}), './assets/characters/vargr.glb');
-  assert.equal(fighterModelUrl('vargr', {location: {search: '?vargr=eski'}}), './assets/characters/vargr.glb');
-  // Diğer karakterler etkilenmez.
-  for (const id of ['sira', 'doran', 'nyx']) {
-    assert.equal(fighterModelVariant(id, {}), 'eski');
-    assert.equal(fighterModelUrl(id, {}), modelUrl(id));
+test('all fighters always select Meshy, even with obsolete flags', () => {
+  for (const id of ['vargr', 'sira', 'doran', 'nyx']) {
+    const env = {location: {search: '?vargr=eski'}, localStorage: {getItem: () => 'eski'}};
+    assert.equal(fighterModelVariant(id, env), 'meshy');
+    assert.equal(fighterModelUrl(id, env), modelUrl(id));
   }
-  assert.equal(modelUrl('sira'), './assets/characters/sira.glb');
 });
 
 // --------------------------------------------------------------- 4) temas hizalaması (peakMs)
@@ -109,50 +99,16 @@ test('vargr meshy: her saldırının peakMs > 0, klip süresinden küçük ve hi
 
 // --------------------------------------------------------------- 5) yükleme + otomatik geri dönüş
 
-test('vargr meshy: GLB yüklenemezse ya da klipler eksikse eski modele düşer (tek uyarı)', async () => {
-  // loadFighterAsset yükleyiciden ham gltf ({scene, animations}) alır; sarmalama onun işi.
-  const kaykitGltf = {scene: new THREE.Group(), animations: [{name: 'Idle'}]};
-  const calls = [];
-  const loader = {loadAsync: async url => {
-    calls.push(url);
-    if (url.includes('models/vargr')) throw new Error('404');
-    return kaykitGltf;
-  }};
-  const warns = [];
-  const origWarn = console.warn;
-  console.warn = message => warns.push(String(message));
-  try {
-    const asset = await loadFighterModel(THREE, 'vargr', {env: {}, loader});
-    assert.equal(asset.gltf, kaykitGltf, 'eski varlık döner');
-    assert.equal(asset.variant, undefined, 'varyant etiketi yok');
-    assert.deepEqual(calls, ['./assets/models/vargr/vargr.glb', './assets/characters/vargr.glb']);
-    assert.equal(warns.length, 1, 'tek uyarı');
-    assert.match(warns[0], /vargr.*meshy.*eski modele/i);
-    // Aynı başarısızlık ikinci kez uyarı biriktirmez.
+test('Meshy load and missing-clip failures reject without requesting another GLB', async () => {
+  for (const id of ['vargr', 'sira', 'doran', 'nyx']) {
+    const calls = [];
+    const bad = {loadAsync: async url => { calls.push(url); throw new Error('404'); }};
+    await assert.rejects(loadFighterModel(THREE, id, {loader: bad}), /404/);
+    assert.deepEqual(calls, [modelUrl(id)]);
     calls.length = 0;
-    await loadFighterModel(THREE, 'vargr', {env: {}, loader});
-    assert.equal(warns.length, 1, 'uyarı yalnız bir kez');
-    // Klipleri eksik GLB: yine eski modele düşer (uyarı süresiz tek).
-    calls.length = 0;
-    const eksikGltf = {scene: new THREE.Group(), animations: [{name: 'Idle'}]}; // meshy klipleri yok
-    const loader2 = {loadAsync: async url => {
-      calls.push(url);
-      return url.includes('models/vargr') ? eksikGltf : kaykitGltf;
-    }};
-    const asset2 = await loadFighterModel(THREE, 'vargr', {env: {}, loader: loader2});
-    assert.equal(asset2.gltf, kaykitGltf, 'eksik klipte eski varlık');
-    assert.deepEqual(calls, ['./assets/models/vargr/vargr.glb', './assets/characters/vargr.glb']);
-    assert.equal(warns.length, 1, 'uyarı hâlâ tek');
-    // Eski bayrağı: yalnız eski URL istenir.
-    calls.length = 0;
-    await loadFighterModel(THREE, 'vargr', {env: {localStorage: {getItem: () => 'eski'}}, loader});
-    assert.deepEqual(calls, ['./assets/characters/vargr.glb']);
-    // Diğer karakterler: tek istek, yol değişmez.
-    calls.length = 0;
-    await loadFighterModel(THREE, 'sira', {env: {}, loader});
-    assert.deepEqual(calls, ['./assets/characters/sira.glb']);
-  } finally {
-    console.warn = origWarn;
+    const incomplete = {loadAsync: async url => { calls.push(url); return {scene: new THREE.Group(), animations: [{name:'Combat_Stance'}]}; }};
+    await assert.rejects(loadFighterModel(THREE, id, {loader: incomplete}), /eksik klipler/);
+    assert.deepEqual(calls, [modelUrl(id)]);
   }
 });
 
@@ -192,14 +148,12 @@ test('vargr meshy: rig varyant tablolarını, kemik adlarını ve ölçeğini ku
   assert.equal(rig.bones['handslot.r']?.name, 'RightHand', 'el kemik takma adı');
   assert.equal(rig.bones['handslot.l']?.name, 'LeftHand');
   assert.ok(rig.boneWorld('handslot.r') instanceof THREE.Vector3, 'projektil çıkış noktası çalışır');
-  // Ölçek kalibrasyonu (MODEL_VARIANTS notu): meshy headToHeight 1,19 — KayKit idle
-  // görünür boyuyla (2,610 birim) eşitler; genel 1,95 katsayısı modeli %36 küçültürdü.
-  // Boy = Head 1,447 × 1,19 = 1,722 → ölçek = 2,68 / 1,722 = 1,556.
-  assert.ok(Math.abs(rig.height - 1.447 * 1.19) < 0.02, `height ${rig.height.toFixed(3)}`);
-  assert.ok(Math.abs(rig.scale - 2.68 / (1.447 * 1.19)) < 0.02, `scale ${rig.scale.toFixed(3)}`);
-  assert.ok(rig.scale > 1.5 && rig.scale < 1.6, 'meshy ölçeği kalibre aralıkta');
-  // Zemin ofseti: model.position.y = groundOffsetY 0,058 × ölçek (idle ayağı y=0'a kalkar).
-  assert.ok(Math.abs(rig.model.position.y - 0.058 * rig.scale) < 1e-6, `zemin ofseti ${rig.model.position.y.toFixed(4)}`);
+  // Ölçek kuralı (3B): boy = gövde yüksekliği (head_end kemiği – en alçak ayak kemiği); hedef 2,68 birim,
+  // dört Meshy modelinde aynı kural → silah/kalkan/asa boyu şişirmez (Doran artık büyük değil).
+  assert.ok(rig.height > 1.2 && rig.height < 2.2, `height ${rig.height.toFixed(3)}`);
+  assert.ok(Math.abs(rig.scale * rig.height - 2.68) < 0.02, `scale ${rig.scale.toFixed(3)} × height ${rig.height.toFixed(3)} = 2,68`);
+  // Zemin: taban (bbox tabanı, en fazla bilek − 0,2) y=0'a taşınır → model zemine gömülmez/havada kalmaz.
+  assert.ok(Number.isFinite(rig.model.position.y) && Math.abs(rig.model.position.y) <= 0.25 * rig.scale + 1e-6, `zemin ofseti ${rig.model.position.y.toFixed(4)}`);
   // Durum klipleri varyant tablosundan.
   rig.play('block');
   assert.equal(rig.stats().clip, 'Two_Handed_Parry');
@@ -252,14 +206,10 @@ test('vargr meshy: q/e yolculuk+temas; ulti baştan sona doğal hızda', () => {
   rig.dispose();
 });
 
-test('vargr meshy: varyant klipleri eksikse rig sessizce varsayılan tabloya döner', () => {
+test('incomplete Meshy rig rejects instead of using generic clips', () => {
   const asset = meshyAsset();
-  asset.clips = asset.clips.slice(0, 2); // yalnız Combat_Stance + Attack kalsın
-  const rig = createFighterRig(THREE, asset, {fighterId: 'vargr', seat: 1, clone: o => o.clone(true)});
-  assert.equal(rig.variant, null, 'varyant kullanılamaz');
-  assert.equal(rig.stateClips, STATE_CLIPS, 'varsayılan durum klipleri');
-  assert.equal(rig.stats().clip, 'Combat_Stance', 'idle ilk kliple çözülür');
-  rig.dispose();
+  asset.clips = asset.clips.slice(0, 2);
+  assert.throws(() => createFighterRig(THREE, asset, {fighterId: 'vargr', seat: 1, clone: o => o.clone(true)}), /eksik Meshy klipleri/);
 });
 
 // --------------------------------------------------------------- 7) yayın filtresi

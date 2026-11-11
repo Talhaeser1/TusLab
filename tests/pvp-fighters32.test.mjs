@@ -17,7 +17,7 @@ test('kadro sözleşmesi: 4 karakter, arketip, varsayılanlar ve normalizeFighte
   assert.deepEqual(FIGHTER_IDS.map(id=>FIGHTERS[id].source),['Barbarian','Rogue','Knight','Mage']);
   for(const id of FIGHTER_IDS){
     const f=FIGHTERS[id];
-    assert.equal(f.model,`./assets/characters/${id}.glb`);
+    assert.equal(f.model,`./assets/models/${id}/${id}.glb`);
     assert.match(f.palette.main,/^#[0-9a-f]{6}$/);assert.equal(typeof f.palette.hex,'number');
     assert.ok(f.blurb.length>20);
     for(const k of ['q','e','r','s']){assert.ok(f.skills[k].name&&f.skills[k].desc&&f.skills[k].clip&&f.skills[k].fx,`${id}.${k}`);}
