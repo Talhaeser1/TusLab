@@ -548,3 +548,38 @@
 @media(max-width:720px){#pvp-root .rui-inter.rui-band.is-dock{padding:12px 14px 10px;border-radius:14px}
   #pvp-root .m33-result.m33-band .m33-player,#pvp-root .m33-result.m33-band .m33-player:last-child{padding-right:10px}
   #pvp-root .m33-result.m33-band .m33-player:last-child{padding:2px 0 2px 10px}}
+
+/* ===== HUD v3 · BANTTA BECERILER ONDE (13 Kas 2026) — hasar ozeti kuculur, uc beceri bandin yildizi olur:
+   her beceri kendi renginde (calan=kor, karartan=mor, donduran=buz), buyuk simge karosu, secilen kart yukselir. Hareket yalniz transform/opacity. ===== */
+#pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-dmg{font-size:clamp(24px,2.5vw,32px)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker{gap:14px}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .aui-cards.rui-skill-cards{gap:12px}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card{--sk:#ff8a4c;gap:12px;min-height:78px;padding:10px 14px 10px 10px;
+  border:0;border-radius:14px;overflow:visible;cursor:pointer;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--sk) 26%,#0d0a1e),#0d0a1e 70%);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sk) 45%,transparent);transition:transform .14s ease-out,opacity .14s ease-out}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card:nth-child(2){--sk:#b48cff}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card:nth-child(3){--sk:#6fd8ff}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card:hover{transform:translateY(-2px)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon{display:grid;place-items:center;flex:none;width:56px;height:56px;border-radius:12px 12px 12px 4px;
+  font-size:30px;line-height:1;color:#fff;background:linear-gradient(160deg,var(--sk),color-mix(in srgb,var(--sk) 45%,#12091c));box-shadow:0 6px 14px rgba(0,0,0,.45)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-key{position:absolute;left:-6px;top:-8px;min-width:24px;height:24px;border-radius:7px;
+  background:#f6c460;color:#1c1204;font:900 14px/24px system-ui,sans-serif;box-shadow:0 3px 8px rgba(0,0,0,.5)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-auto-flow:row!important;gap:3px;text-align:left}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy strong{font:900 italic 17px/1.15 system-ui,sans-serif;letter-spacing:.01em;color:#fff}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy small{font:700 13px/1.2 system-ui,sans-serif;color:color-mix(in srgb,var(--sk) 55%,#fff)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-uses{position:absolute;right:10px;top:-9px;padding:2px 8px;border:0;border-radius:7px;background:#1d1535;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sk) 60%,transparent),0 3px 8px rgba(0,0,0,.5);color:#fff;font:800 12px/1.3 system-ui,sans-serif}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[aria-pressed="true"]{transform:translateY(-6px);
+  background:linear-gradient(135deg,color-mix(in srgb,var(--sk) 46%,#0d0a1e),#17112c 80%);box-shadow:inset 0 0 0 2px #f6c460,0 12px 24px rgba(0,0,0,.55)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards:has(.aui-card[aria-pressed="true"]) .aui-card[aria-pressed="false"]{opacity:.55}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card.is-empty{--sk:#6b6480;opacity:.5;background:#100d1f;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-pick-actions{gap:6px;min-width:150px}
+#pvp-root .rui-inter.rui-band.is-dock .rui-pick-lock{flex:1 1 auto;height:auto;min-height:44px;border-radius:12px;font:900 italic 14px/1.2 system-ui,sans-serif;letter-spacing:.02em}
+#pvp-root .rui-inter.rui-band.is-dock .rui-pick-skip{height:28px;border-radius:8px}
+@media(max-width:720px){
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card{min-height:58px;padding:8px 10px;gap:10px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon{width:40px;height:40px;font-size:22px;border-radius:9px 9px 9px 3px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-key{left:-4px;top:-6px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy strong{font-size:15px}
+}
+@media(prefers-reduced-motion:reduce){#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card{transition:none;transform:none!important}}
