@@ -5,6 +5,7 @@ import {normalizeStage,pickStage} from './stages.js';
 import {normalizeTyping,wordsMatch,charScore} from './typing-rules.js';
 import {resolveRoundAttacks,ARENA_ITEMS} from './arena-damage.js';
 import {validatePick,scrambleWord,ARENA_OVERTIME_MS,ARENA_FREEZE_MS,ARENA_TIME_THIEF_MS,ARENA_SKILL_IDS,ARENA_MAX_USES} from './arena-skills.js';
+import {planResolve} from './resolve-timing.js';
 
 export const ARENA_ROUND_WORDS=Object.freeze([5,10,15,15,15,20]);
 export const ARENA_TOTAL_ROUNDS=6;
@@ -136,9 +137,15 @@ function closeTyping(m,at,list){
   const ordered=[];while(queues[1].length||queues[2].length){
     for(const seat of [first,other(first)])if(queues[seat].length)ordered.push(queues[seat].shift());
   }
-  const step=arenaResolveStep(ordered.length);
-  m.pendingAttacks=ordered.map((a,i)=>({...a,turn:i+1,resolveAt:at+(i+1)*step}));
+  // KESINYAP iş 12: çözüm süresi bekleyen vuruşlardan saf planla (match.js ile aynı; görsel sahne sınırları).
+  // FİNAL vuruşu görselde 'e' (arenaCombatActions); planda da öyle sayılır.
+  const plan=planResolve(ordered.map(a=>({fromSeat:a.fromSeat,skill:(a.tags||[]).includes('FİNAL')?'e':'q',src:a})));
+  const slotOf=new Map([...plan.slots].map(([k,v])=>[k.src,v]));
+  m.pendingAttacks=ordered.map((a,i)=>{const s=slotOf.get(a);
+    return {...a,turn:i+1,resolveAt:at+s.startMs+s.slot,scene:s.scene+1,sceneSlot:s.slot,...(s.fold?{fold:true}:{})};})
+    .sort((a,b)=>a.resolveAt-b.resolveAt);
   r.resolveAt=m.pendingAttacks[0]?.resolveAt??at;
+  r.resolveUntil=at+plan.totalMs;
   const roundsWon={1:0,2:0};
   for(const h of m.roundHistory)if(h.winnerSeat)roundsWon[h.winnerSeat]++;
   roundEvent(m,list,'ARENA_ROUND_END',{round:r.index,scores:scores(m),roundsWon,picks:roundPicks(m)});
@@ -201,7 +208,7 @@ export function nextArenaDeadline(match){
   const r=match.round;
   if(r.phase==='prep')return r.prepEndsAt;
   if(r.phase==='round')return r.endsAt;
-  if(r.phase==='resolve')return match.pendingAttacks[0]?.resolveAt??r.endedAt;
+  if(r.phase==='resolve')return match.pendingAttacks[0]?.resolveAt??Math.max(r.resolveLastAt??r.endedAt,r.resolveUntil??-Infinity);
   if(r.phase==='summary')return r.summaryEndsAt;
   return null;
 }
@@ -221,14 +228,18 @@ export function advanceArenaMatch(match,at=Date.now(),rng=Math.random){
         defender.hp=Math.max(0,defender.hp-hit.amount);defender.combatStats.damageTaken+=hit.amount;
         attacker.combatStats.damageDealt+=hit.amount;attacker.roundDamage+=hit.amount;
         const e=event(m,'ARENA_ATTACK',{fromSeat:hit.fromSeat,toSeat:hit.toSeat,wordIndex:hit.wordIndex,turn:hit.turn,defenderAction:'brace',
+          ...(hit.scene?{scene:hit.scene,sceneSlot:hit.sceneSlot}:{}),...(hit.fold?{fold:true}:{}),
           amount:hit.amount,multiplier:hit.multiplier,penalty:hit.penalty,tags:hit.tags,hpAfter:defender.hp});
         events.push(e);m.sequence++;m.clockAt=hit.resolveAt;m.round.resolveLastAt=hit.resolveAt;
         if(defender.hp===0){m.winnerSeat=attacker.seat;finish(m,hit.resolveAt,'KNOCKOUT',roundEvents);continue;}
         continue;
       }
       if(!attack){
+        // İş 12: özet kartı son sahne bitip dövüşçüler yerine dönünce (plan bitişi) açılır.
+        const closeAt=Math.max(m.round.resolveLastAt??m.round.endedAt,m.round.resolveUntil??-Infinity);
+        if(at<closeAt)break;
         m=structuredClone(m);m.round.phase='summary';
-        m.round.summaryEndsAt=(m.round.resolveLastAt??m.round.endedAt)+ARENA_SUMMARY_MS;
+        m.round.summaryEndsAt=closeAt+ARENA_SUMMARY_MS;
         recordRoundHistory(m);m.sequence++;continue;
       }
     }

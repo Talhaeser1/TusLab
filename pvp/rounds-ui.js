@@ -29,7 +29,8 @@ const START_FLASH_MS=900;
 export const ROUND_TITLE_MS=900;
 /** holdTransition (ör. dövüş animasyonu bitişi) tur arasının başından sayılarak bu süreden uzun beklemez; panel yine açılır.
  *  Kalan görsel kuyruk panelin arkasında oynamaya devam edebilir (panel alt dock, sahne üstte açık). */
-export const ROUND_HOLD_MAX_MS=2000;
+// İş 12: motor kartı son sahne bitince açar; bu yalnız güvenlik (sahne bitmeden kart açılmasın), en çok +3 sn.
+export const ROUND_HOLD_MAX_MS=3000;
 /** Bekletme bundan uzun sürdüyse "RAUND X" yazı aşaması atlanır, özet doğrudan açılır (özet ≥ ~3 sn okunur kalsın). */
 export const ROUND_HOLD_TITLE_SKIP_MS=1000;
 /** Tur arası aşaması: 'title' (yalnız büyük yazı) → 'panel' (özet + beceri seçimi) → 'count' (son geri sayım; özet GİZLENMEZ,
@@ -224,7 +225,7 @@ export function roundInputLock(match,myId,serverNow){
   if(match?.status==='running'&&match.exchange?.phase==='resolve')return {locked:true,clearInput:true,reason:'Saldırı sırası · dövüşü izle'};
   if(!isRoundMatch(match)||match.status!=='running')return {locked:false,reason:null};
   const round=match.round;
-  if(round.phase==='resolve')return {locked:true,clearInput:true,reason:'Saldırı sırası · dövüşü izle'};
+  if(round.phase==='resolve')return {locked:true,clearInput:true,reason:'RAUND BİTTİ · vuruşlar oynuyor'};
   if(round.phase==='intermission')return {locked:true,clearInput:true,reason:'Tur arası · sonraki raund bekleniyor'};
   if(round.phase==='settling')return {locked:true,clearInput:true,reason:'Süre doldu · saldırılar çözülüyor'};
   const me=match.players?.find(p=>p.playerId===myId);

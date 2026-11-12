@@ -43,3 +43,7 @@
 #pvp-root .rui-medal .rui-title{position:static;transform:none;margin:0}
 #pvp-root .rui-medal .rui-lastcall{bottom:0}
 #pvp-root.pvp4-reduced .mi *{transition:none!important;animation:none!important}
+/* KESINYAP 14: ad artık can barı kimliğinde; şeritte yinelenmez, kelimelere yer kalır. */
+#pvp-root.fhud-on .mi-strip .mi-name{display:none}
+#pvp-root.fhud-on .mi-strip .mi-who:not(:has(.mi-sen:not([hidden]))){display:none}
+#pvp-root.fhud-on .mi-live{max-width:70%}

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {createMatch,submitWord,advanceMatch,publicMatch,pickRoundSkill,roundDurationMs,ROUND_COUNTED_CAP_MS,ROUND_CAP_WARN_MS,ROUND_DURATION_MS,ROUND_HP,ROUND_DAMAGE_CAP,ROUND_TOTAL,ROUND_WORD_PLAN} from '../pvp/shared/match.js';
+import {createMatch,submitWord,advanceMatch,nextDeadline,publicMatch,pickRoundSkill,roundDurationMs,ROUND_COUNTED_CAP_MS,ROUND_CAP_WARN_MS,ROUND_DURATION_MS,ROUND_HP,ROUND_DAMAGE_CAP,ROUND_TOTAL,ROUND_WORD_PLAN} from '../pvp/shared/match.js';
 import * as cf from '../cloudflare/src/match.js';
 import {roundsViewModel,roundInputLock,roundSkillPickerModel,roundStylePickerHTML} from '../pvp/rounds-ui.js';
 import {createPracticeSession,HUMAN_ID,BOT_ID} from '../pvp/practice.js';
@@ -31,7 +31,7 @@ test('kelime raundu: ilk bitiren raundu kapatır, rakibin yazdıkları sayılır
   const adv=advanceMatch(m,T0+1400,NO_BLOCK);
   assert.equal(adv.match.round.phase,'resolve','bekleyen vuruşlar çözüm akışıyla oynar');
   assert.ok(adv.roundEvents.some(e=>e.type==='ROUND_RESOLVE'));
-  let r=adv.match;for(let i=0;i<20&&r.round.phase==='resolve';i++)r=advanceMatch(r,r.pendingAttacks.length?Math.min(...r.pendingAttacks.map(a=>a.resolveAt)):r.round.endsAt+9000,NO_BLOCK).match;
+  let r=adv.match;for(let i=0;i<20&&r.round.phase==='resolve';i++)r=advanceMatch(r,r.pendingAttacks.length?Math.min(...r.pendingAttacks.map(a=>a.resolveAt)):nextDeadline(r),NO_BLOCK).match; // İş 12: kart plan bitişinde açılır
   assert.equal(r.round.phase,'intermission');assert.equal(r.roundHistory.at(-1).reason,'ALL_DONE');
 });
 

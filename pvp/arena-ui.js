@@ -161,7 +161,9 @@ export function arenaCombatActions(event){
   if(event.type!=='ARENA_ATTACK')return [event];
   const tags=Array.isArray(event.tags)?event.tags.map(String):[];
   const skill=tags.includes('FİNAL')?'e':'q';
-  const base={id:event.id,fromSeat:event.fromSeat,toSeat:event.toSeat,arena:true};
+  // İş 12: motorun sahne yuvası görsele geçer (yuva > 0 yeni yaklaşma açmaz; fold = toplu vuruş).
+  const base={id:event.id,fromSeat:event.fromSeat,toSeat:event.toSeat,arena:true,
+    ...(Number.isInteger(event.sceneSlot)?{scene:event.scene,sceneSlot:event.sceneSlot}:{}),...(event.fold?{fold:true}:{})};
   return [
     {...base,type:'SKILL_CAST',skill},
     {...base,type:'DAMAGE_APPLIED',skill,amount:Math.max(0,Math.round(Number(event.amount)||0)),blocked:false,blockKind:null,

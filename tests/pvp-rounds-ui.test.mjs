@@ -155,7 +155,7 @@ test('tur arası: geri sayıma az kala görülen geçiş (yeniden bağlanma) yaz
 
 // ---------- GÖREV C: özet okunurluğu (hold tavanı, uzun hold'da yazı atlama, count'ta özet kalıcı) ----------
 test('tur arası: hold tavanı tur arasının başından sayılır ve en çok 2000 msdir',()=>{
-  assert.ok(ROUND_HOLD_MAX_MS>0&&ROUND_HOLD_MAX_MS<=2000,'ROUND_HOLD_MAX_MS ≤ 2000');
+  assert.ok(ROUND_HOLD_MAX_MS>0&&ROUND_HOLD_MAX_MS<=3000,'ROUND_HOLD_MAX_MS ≤ 3000 (İş 12: sahne bitmeden kart açılmaz, en çok +3 sn)');
   assert.ok(ROUND_HOLD_TITLE_SKIP_MS>=500&&ROUND_HOLD_TITLE_SKIP_MS<ROUND_HOLD_MAX_MS,'yazı atlma eşiği tavanın altında');
 });
 test('tur arası: hold 3 sn sürse bile özet ≥2,5 sn görünür — tavan 2 sn, yazı atlanır, countta geri sayımla birlikte kalır',()=>{

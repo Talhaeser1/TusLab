@@ -193,3 +193,14 @@
 }
 /* Tur uzunluğu seçicisi yalnız "Zamana Karşı" modunda anlamlıdır. */
 #pvp-root .aui-modes:not([data-mode="rounds"]) + .rui-picker{display:none}
+
+/* KESINYAP 14 — yazma paneli yeni HUD diline uyar: ince çerçeve, büyük aktif kelime, soluk sıradakiler, düzenli alt satır. */
+#pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt{width:min(640px,92vw);padding:8px 18px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:rgba(10,8,24,.9)}
+#pvp-root.fhud-on[data-layout="fullscreen"] .tt-target{font-weight:800;color:#fff}
+#pvp-root.fhud-on[data-layout="fullscreen"] .tt-next{color:#b9b0d6;opacity:1;font-size:16px}
+#pvp-root.fhud-on[data-layout="fullscreen"] .tt-input{border-radius:4px}
+#pvp-root.fhud-on[data-layout="fullscreen"] .tt-meta{display:flex;justify-content:space-between;gap:16px;font-size:13px}
+#pvp-root.fhud-on[data-layout="fullscreen"] .tt-who{flex:1 1 0;min-width:0}
+#pvp-root.fhud-on[data-layout="fullscreen"] .tt-opp{text-align:right}
+#pvp-root.fhud-on[data-layout="fullscreen"] .tt-who-line{display:block;white-space:normal;color:#e6e0f7}
+#pvp-root.fhud-on[data-layout="fullscreen"] .tt-who-line b{color:#fff}

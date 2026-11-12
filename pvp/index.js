@@ -914,10 +914,14 @@ root?.addEventListener('tuslab:pvp-recovered',()=>arena3d.instance?.clear());
 root?.addEventListener('tuslab:pvp-arena',event=>{
   // İş 1, 3. tur: hazırlık (PREP) kartlarının arkasında bekleyen sahneler animasyonla biter; temizlik yeni raund başında.
   if(event.detail?.type==='ARENA_ROUND_START')arena3d.instance?.clear();
-  if(event.detail?.type==='ARENA_ROUND_END')arena3d.instance?.visualQueue?.drain(12000); // İş 1, 3. tur: bekleyenler sıralı ve animasyonlu; gerekirse raund arası kartının arkasında sürer
+  if(event.detail?.type==='ARENA_PREP_START'||event.detail?.type==='ARENA_ROUND_START')arena3d.instance?.settleCamera?.(500); // İş 12
+  // İş 12: ARENA_ROUND_END çözümün BAŞIDIR; süre motor planında (≤ 20 sn) — burada boşaltma yok (12 sn sonra kalanlar sahnesiz biterdi).
 });
 root?.addEventListener('tuslab:pvp-round',event=>{
-  const type=event.detail?.type;if(type!=='EXCHANGE_START'&&type!=='ROUND_START')return;
+  const type=event.detail?.type;
+  // İş 12: raund arası kartı / geri sayım / yeni raund başında kamera genel plana (iki dövüşçü kadrajda) yumuşak döner.
+  if(['ROUND_END','ROUND_START','EXCHANGE_START'].includes(type))arena3d.instance?.settleCamera?.(500);
+  if(type!=='EXCHANGE_START'&&type!=='ROUND_START')return;
   flushQueued(myKey());
   focusTypingWhenReady();
 });

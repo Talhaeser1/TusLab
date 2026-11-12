@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 import {createMatch,publicMatch,submitWord,advanceMatch,nextDeadline,resolveStepMs,
   ROUND_WORDS,ROUND_WORD_PLAN,ROUND_VIEW_AHEAD,roundDurationMs,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,
   RESOLVE_STEP_MS,RESOLVE_MIN_STEP_MS,RESOLVE_BUDGET_MS,SKILL_THRESHOLDS,STREAK_SKILLS,normalizeRoundStyle,
-  roundSkillMs,DEFAULT_ROUND_STYLE} from '../pvp/shared/match.js';
+  roundSkillMs,DEFAULT_ROUND_STYLE,RESOLVE_SCENE} from '../pvp/shared/match.js';
 // KESINYAP mekanik: sayılı raund süresi kelime sayısına bağlı; testlerde "varsayılan raund süresi" = varsayılan sayılı raund (10 kelime → 60 sn).
 const ROUND_DURATION_MS=roundDurationMs({});
 import {roundsViewModel,phaseOverdueMs,PHASE_STALL_MS} from '../pvp/rounds-ui.js';
@@ -147,18 +147,19 @@ test('F2: resolveStepMs aralığı saldırı sayısına göre kısalır, alt sı
   assert.equal(resolveStepMs(100),RESOLVE_MIN_STEP_MS);
   for(const n of [1,3,5,8,12,17])assert.ok(resolveStepMs(n)*n<=RESOLVE_BUDGET_MS+n,`n=${n}`);
 });
-test('F2: çok sayıda birikmiş saldırı ≈ 6 sn içinde oynatılır ("ÇÖZÜLÜYOR" takılmaz)',()=>{
+// İş 12: eski 6 sn bütçesi görsel sahnelere (~4,5 sn/yaklaşma) sığmıyordu → kart sahneler sürerken açılıyordu.
+// Yeni kural: çözüm süresi bekleyen vuruşlardan saf planla (resolve-timing.js) ölçeklenir, üst sınır RESOLVE_SCENE.maxMs.
+test('F2: çok sayıda birikmiş saldırı ≤ 20 sn plan içinde oynatılır ("ÇÖZÜLÜYOR" takılmaz)',()=>{
   let m=make();
   for(let i=0;i<10;i++){m=type(m,1,T0+500+i*100).match;m=type(m,2,T0+520+i*100).match;}
   const before=m.pendingAttacks.length;assert.ok(before>=4);
   const ended=advanceMatch(m,m.round.endsAt,NO_BLOCK).match;
   if(ended.round.phase!=='resolve')return; // KO vb. erken kapanış
   const times=ended.pendingAttacks.map(a=>a.resolveAt);
-  const span=Math.max(...times)-ended.round.endsAt;
-  assert.ok(span<=RESOLVE_BUDGET_MS+RESOLVE_STEP_MS,`çözüm ${span} ms`);
-  const gaps=times.slice(1).map((t,i)=>t-times[i]).filter(g=>g>0);
-  assert.ok(gaps.every(g=>g>=RESOLVE_MIN_STEP_MS||g<RESOLVE_MIN_STEP_MS),'aralık tanımlı');
-  assert.equal(publicMatch(ended,1).round.resolveEndsAt,Math.max(...times));
+  const span=ended.round.resolveUntil-ended.round.endsAt;
+  assert.ok(span<=RESOLVE_SCENE.maxMs+RESOLVE_SCENE.ultMs,`çözüm ${span} ms`);
+  assert.ok(Math.max(...times)<ended.round.resolveUntil,'kart son sahne bitince');
+  assert.equal(publicMatch(ended,1).round.resolveEndsAt,ended.round.resolveUntil);
 });
 function viewOf(phase,extra={},roundExtra={}){
   return {mode:'rounds',status:'running',matchId:'x',totalRounds:5,roundsWon:{1:0,2:0},blindClock:false,

@@ -12,6 +12,7 @@
 // yazma kutusunun üstüne çıkmaz (katman yalnız arena alanını kaplar), tüm metin textContent ile yazılır.
 
 import {FIGHTERS,isFighterId,getFighter} from './shared/fighters.js';
+import {createHudV2} from './hud-v2.js';
 
 export const HUD_TIMES = Object.freeze({
   round: 500, fight: 550, // giriş toplamı 1050 ms (≤ 2200); VS ekranı kaldırıldı
@@ -107,6 +108,9 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
   const el = (tag, cls, text) => { const n = doc.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = String(text); return n; };
 
   root.classList?.add('fhud-on'); // fight-hud.css: fx-damage'ın küçük "KOMBO xN" sayacını gizler (tek sayaç)
+  // KESINYAP 14: eğik can barları, seri göstergesi, yetenek rayı (hud-v2.js). Sahte DOM'da (testler) kurulamazsa sessizce atlanır.
+  let hud2 = null;
+  try { hud2 = createHudV2({root, doc, reduced: () => reduced(), later, cancel}); } catch { hud2 = null; }
 
   const stageOf = seat => root.querySelector?.(`.pvp2-side[data-seat="${seat}"] .pvp2-stage`)
     || root.querySelector?.(`.pvp2-side[data-player="${sideOf(seat)}"] .pvp2-stage`) || null;
@@ -427,6 +431,7 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
       const mine = (match.players || []).find(p => p && myId != null && p.playerId === myId);
       mySeat = seatOf(mine?.seat) ?? mySeat;
       const live = match.status === 'running' || match.status === 'paused';
+      try { hud2?.update(match, myId); } catch { /* süs */ }
       for (const seat of [1, 2]) {
         const p = (match.players || []).find(x => x?.seat === seat);
         paintSuper(seat, live && p ? superValue(match, p) : null);
@@ -453,7 +458,7 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
     stopIntro(false); cancel(pendingIntro); pendingIntro = null;
     dropCalls();
     for (const seat of [...combos.keys()]) hideCombo(seat, false);
-    hideSupers(); hideAssists();
+    hideSupers(); hideAssists(); hud2?.hide();
     const w = seatOf(winnerSeat);
     const text = !w ? CALLS.draw : mySeat ? (w === mySeat ? CALLS.victory : CALLS.defeat)
       : `${players.get(w)?.name || `OYUNCU ${w}`} KAZANDI`;
@@ -468,7 +473,7 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
     stopIntro(false); cancel(pendingIntro); pendingIntro = null;
     dropCalls();
     for (const seat of [...combos.keys()]) hideCombo(seat, false);
-    hideSupers(); hideAssists();
+    hideSupers(); hideAssists(); hud2?.hide();
     lastRound = null; introRound = null; lastPhase = null; introWaitsForRound = false;
   }
 
@@ -477,6 +482,7 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
     clear();
     for (const id of timers) scheduler.clearTimeout(id);
     timers.clear();
+    hud2?.destroy();
     destroyed = true;
     root.classList?.remove('fhud-on');
   }

@@ -10,6 +10,8 @@
  * Without options the classic 90 s match is unchanged.
  */
 import {pickWords as bankPickWords,pickSentence as bankSentence,createSeed} from './words.js';
+import {planResolve,RESOLVE_SCENE} from './resolve-timing.js';
+export {planResolve,resolveDurationMs,RESOLVE_SCENE} from './resolve-timing.js';
 import {normalizeTyping,wordsMatch,charScore} from './typing-rules.js';
 import {normalizeContent,contentWords,DEFAULT_CONTENT} from './content-modes.js';
 import {ARENA_SKILLS,ARENA_MAX_USES} from './arena-skills.js';
@@ -330,9 +332,11 @@ function publicWords(match,viewer){
   return {words:[...Array(from).fill(''),...r.words.slice(from,idx+ROUND_VIEW_AHEAD+1)],
     ...(hinted?{hints:[...Array(from).fill(''),...r.hints.slice(from,idx+ROUND_VIEW_AHEAD+1)]}:{})};
 }
-/** Çözüm fazının biteceği an (bekleyen son saldırı); yoksa null. */
+/** Çözüm fazının biteceği an: planın bitişi (son sahne + yerleşme; İş 12) ya da bekleyen son saldırı; yoksa null. */
 function resolveEndsAt(match){
   const t=(match.pendingAttacks||[]).map(a=>a.resolveAt).filter(Number.isFinite);
+  const until=match.round?.resolveUntil;
+  if(Number.isFinite(until))t.push(until);
   return t.length?Math.max(...t):null;
 }
 export function publicMatch(match,viewerSeat){
@@ -491,15 +495,16 @@ function scheduleAlternating(match,at){
   for(const seat of [1,2])queues[seat].sort((a,b)=>a.issuedAt-b.issuedAt||a.roundWordIndex-b.roundWordIndex);
   const ordered=[];
   while(queues[1].length||queues[2].length)for(const seat of [1,2])if(queues[seat].length)ordered.push(queues[seat].shift());
-  let nextAt=at;
-  const extra=ordered.reduce((sum,a)=>sum+(a.skill==='r'?ULTIMATE_PHASES[a.character].at(-1).offset+ULTIMATE_RECOVERY_MS:0),0);
-  const step=resolveStepMs(ordered.length,extra);
+  // KESINYAP iş 12: çözüm süresi bekleyen vuruşlardan SAF planla (pvp/shared/resolve-timing.js; görsel kuyrukla aynı sabitler).
+  // Sahnedeki vuruşlar sahne başında (1 ms arayla, sıra korunur) çözülür; görsel katman temas karesinde gösterir.
+  const plan=planResolve(ordered,{maxMs:match.exchange?RESOLVE_SCENE.exchangeMaxMs:RESOLVE_SCENE.maxMs});
   match.pendingAttacks=ordered.map((attack,i)=>{
-    nextAt+=step;
-    const scheduled={...attack,turn:i+1,resolve:true,resolveAt:nextAt};
-    if(attack.skill==='r')nextAt+=ULTIMATE_PHASES[attack.character].at(-1).offset+ULTIMATE_RECOVERY_MS;
-    return scheduled;
+    const slot=plan.slots.get(attack);
+    return {...attack,turn:i+1,resolve:true,resolveAt:at+slot.startMs+slot.slot,scene:slot.scene+1,sceneSlot:slot.slot,...(slot.fold?{fold:true}:{})};
   });
+  const until=at+plan.totalMs;
+  if(match.exchange)match.exchange.resolveUntil=until;
+  else if(match.round)match.round.resolveUntil=until;
   return ordered.length;
 }
 /** Round mode: every attempt consumes the word; absolute streak thresholds cast Q/E/R (no Q/E/R cooldowns). */
@@ -666,6 +671,12 @@ export function resolveDueAttacks(match,at=Date.now(),rng=Math.random){
           const counter={fromSeat:defender.seat,toSeat:attacker.seat,skill:'counter',character:defender.character,
             amount:DEFENSE_RULES.counterDamage,issuedAt:attack.resolveAt,resolveAt:attack.resolveAt+DEFENSE_RULES.counterDelayMs,
             unblockable:true,counter:true,...(attack.resolve?{resolve:true,turn:attack.turn}: {})};
+          // İş 12: karşı saldırı kendi sahnesinde oynar → sıradaki sahneler (ve çözüm bitişi) onun kadar kayar.
+          if(attack.resolve&&attack.scene){
+            for(const p of next.pendingAttacks)if(p.resolve&&p.scene&&!(attack.ultimateId&&p.ultimateId===attack.ultimateId))p.resolveAt+=RESOLVE_SCENE.counterMs;
+            if(next.exchange?.resolveUntil)next.exchange.resolveUntil+=RESOLVE_SCENE.counterMs;
+            if(next.round?.resolveUntil)next.round.resolveUntil+=RESOLVE_SCENE.counterMs;
+          }
           next.pendingAttacks.push(counter);
           stats.counters++;
           events.push(addEvent(next,'COUNTERATTACK_CAST',{...counter,at:attack.resolveAt}));
@@ -784,11 +795,12 @@ export function advanceMatch(match,at=Date.now(),rng=Math.random){
         continue;
       }
       const settled=resolveDueAttacks(m,at,rng);m=settled.match;events.push(...settled.events);
-      if(m.status!=='running'||m.pendingAttacks.length||at<m.exchange.endsAt)break;
+      const resolveUntil=Math.max(m.exchange.endsAt,m.exchange.resolveUntil??-Infinity);
+      if(m.status!=='running'||m.pendingAttacks.length||at<resolveUntil)break;
       if(m.exchange.endsAt>=m.startedAt+MATCH_DURATION_MS){m=finishMatch(m,at);break;}
       // Sonraki pencere çözüm (vuruşların oynatılması) BİTİNCE başlar; yoksa çözüm süresi
-      // bir sonraki 10 sn'lik pencereden yenir ("Pencere 3 · 3 sn" hatası).
-      m=structuredClone(m);m.exchange.index++;m.exchange.startedAt=Math.max(at,m.exchange.endsAt);
+      // bir sonraki 10 sn'lik pencereden yenir ("Pencere 3 · 3 sn" hatası). İş 12: bitiş = plan bitişi (son sahne + yerleşme).
+      m=structuredClone(m);m.exchange.index++;m.exchange.startedAt=Math.max(at,resolveUntil);delete m.exchange.resolveUntil;
       m.exchange.endsAt=Math.min(m.exchange.startedAt+m.exchange.duration,m.startedAt+MATCH_DURATION_MS);
       m.exchange.phase='typing';m.sequence++;
       roundEvents.push({type:'EXCHANGE_START',payload:{index:m.exchange.index,endsAt:m.exchange.endsAt},sequence:m.sequence});
@@ -816,7 +828,10 @@ export function advanceMatch(match,at=Date.now(),rng=Math.random){
         const settled=resolveDueAttacks(m,at,rng);m=settled.match;events.push(...settled.events);
         if(m.round.koSeat){m=closeRound(m,m.round.koAt,'KO',roundEvents);continue;}
         if(m.pendingAttacks.length)break;
-        m=closeRound(m,Math.max(m.round.endsAt,m.round.lastResolvedAt??-Infinity),m.round.allDone?'ALL_DONE':'TIME',roundEvents);
+        // İş 12: raund arası kartı son sahne bitip dövüşçüler yerine dönünce (plan bitişi) açılır.
+        const closeAt=Math.max(m.round.endsAt,m.round.lastResolvedAt??-Infinity,m.round.resolveUntil??-Infinity);
+        if(at<closeAt)break;
+        m=closeRound(m,closeAt,m.round.allDone?'ALL_DONE':'TIME',roundEvents);
         continue;
       }
     }
@@ -848,12 +863,12 @@ export function advanceMatch(match,at=Date.now(),rng=Math.random){
 export function nextDeadline(match){
   if(!match||match.status!=='running')return null;
   const pending=(match.pendingAttacks||[]).map(a=>a.resolveAt);
-  if(match.exchange)return match.exchange.phase==='typing'?match.exchange.endsAt:(pending.length?Math.min(...pending):match.exchange.endsAt);
+  if(match.exchange)return match.exchange.phase==='typing'?match.exchange.endsAt:(pending.length?Math.min(...pending):Math.max(match.exchange.endsAt,match.exchange.resolveUntil??-Infinity));
   if(match.mode!=='rounds')return Math.min(match.endsAt,...pending);
   const r=match.round;
   if(r.koSeat)return r.koAt;
   if(match.resolveAtEnd){if(r.phase==='round')return r.allDone?Math.max(...match.participants.map(p=>p.finishedAt??r.endsAt)):r.endsAt;
-    if(r.phase==='resolve')return pending.length?Math.min(...pending):r.endsAt;}
+    if(r.phase==='resolve')return pending.length?Math.min(...pending):Math.max(r.endsAt,r.lastResolvedAt??-Infinity,r.resolveUntil??-Infinity);}
   if(r.phase==='round')return Math.min(r.endsAt,...pending);
   if(r.phase==='settling')return Math.min(r.settleUntil,...pending);
   if(r.phase==='intermission')return r.nextRoundAt;

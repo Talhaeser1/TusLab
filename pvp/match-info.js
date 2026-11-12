@@ -136,17 +136,25 @@ export function createMatchInfo(root,{doc=globalThis.document,now=()=>Date.now()
     let anyShown=false;
     const frozen=live?freezeSeats(match,myId):[];
     for(const s of strips){
-      const health=root.querySelector(`.pvp2-side[data-seat="${s.seat}"] .pvp2-health`);
+      // KESINYAP 14: yeni HUD'da seri göstergesi şeridin çapasıdır; SEN rozeti kimlik satırındaki yuvaya taşınır.
+      const series=root.querySelector(`[data-fhud-series="${s.seat}"]`);
+      const slot=root.querySelector(`[data-sen-slot="${s.seat}"]`);
+      if(slot&&s.badge.parentNode!==slot)slot.append(s.badge);
+      const health=series||root.querySelector(`.pvp2-side[data-seat="${s.seat}"] .pvp2-health`);
       const rect=health?.getBoundingClientRect();
-      const show=Boolean(live&&rect&&rect.width>40&&rect.height>4);
+      const m=stripModel(match,myId,s.seat,typed[s.seat],getTyped(s.seat));
+      if(slot)setHidden(s.badge,!(live&&m.mine));
+      // Boş şerit (kelime yok, yazılan yok) hiçbir çerçeve çizmez.
+      const hasContent=!series||m.words.length>0||Boolean(m.mine&&m.typed);
+      const show=Boolean(live&&rect&&rect.width>40&&rect.height>4&&hasContent);
+      if(series&&live&&rect&&rect.width>40)anyShown=true;
       setHidden(s.node,!show);
       if(!show)continue;
       anyShown=true;
       setStyle(s.node,'left',`${Math.round(rect.left)}px`);
       setStyle(s.node,'top',`${Math.round(rect.bottom+4)}px`);
       setStyle(s.node,'width',`${Math.round(rect.width)}px`);
-      const m=stripModel(match,myId,s.seat,typed[s.seat],getTyped(s.seat));
-      setHidden(s.badge,!m.mine);setText(s.name,m.name);
+      if(!slot)setHidden(s.badge,!m.mine);setText(s.name,m.name);
       s.node.classList.toggle('is-me',m.mine);
       s.node.classList.toggle('is-freeze',frozen.includes(s.seat));
       const shownWords=m.words.slice(-(narrow?STRIP_WORDS_NARROW:STRIP_WORDS));
@@ -167,7 +175,9 @@ export function createMatchInfo(root,{doc=globalThis.document,now=()=>Date.now()
       clock.classList.toggle('is-urgent',model.seconds<=10);
       const health=root.querySelector('.pvp2-side .pvp2-health');const r=health?.getBoundingClientRect();
       // Dar düzende iki bar alt alta: sayaç ikinci şeridin altına iner; geniş düzende barların hizasında, üst-ortada.
-      const top=narrow?Math.max(...strips.map(s=>s.node.getBoundingClientRect().bottom))+6:r?.top;
+      // KESINYAP 14: yeni HUD'da barlar yan yana; sayaç seri satırının (ve varsa şeridin) altına iner.
+      const hudSeries=[...root.querySelectorAll('[data-fhud-series]')];
+      const top=narrow?Math.max(...strips.map(s=>s.node.getBoundingClientRect().bottom),...hudSeries.map(n=>n.getBoundingClientRect().bottom))+6:r?.top;
       if(Number.isFinite(top)){setStyle(clock,'top',`${Math.round(top)}px`);setStyle(label,'top',`${Math.round(top+46)}px`);}
     }
     if(model.visible&&model.mode!=='classic')tagMedal();

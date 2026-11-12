@@ -17,7 +17,14 @@ test('arena begins with the first finisher and alternates while both have attack
   const seen=[];while(m.round.phase==='resolve'&&m.pendingAttacks.length){
     const step=advanceArenaMatch(m,nextArenaDeadline(m));seen.push(...step.events);m=step.match;
   }
-  assert.deepEqual(seen.slice(0,4).map(e=>e.fromSeat),[2,1,2,1]);
-  assert.deepEqual(seen.map(e=>e.turn),seen.map((_,i)=>i+1));
+  // İş 12: SAHNELER ilk bitirenden başlayıp dönüşümlü; 7 vuruş 20 sn'ye sığmadığı için aynı saldıranın vuruşları
+  // tek yaklaşmada zincirlenir (sahne başına ≤ 3), sıra sahne içinde korunur.
+  // İş 12 (K şeridi): 3 sahne (2-1-2) 22,1 sn sürerdi (> 20 sn sınırı; eski plan 20,7 sn ile sınırı aşıyordu). Yeni plan
+  // koltuk başına tek yaklaşma: 2 (3 görünür vuruş + 2 katlı toplu vuruş) → 1; toplam 16 sn. Katlı vuruşlar fold:true.
+  const sceneSeats=[...new Map(seen.map(e=>[e.scene,e.fromSeat])).values()];
+  assert.deepEqual(sceneSeats,[2,1]);
+  assert.ok(seen.every(e=>Number.isInteger(e.scene)&&Number.isInteger(e.sceneSlot)&&(e.fold||e.sceneSlot<3)));
+  assert.equal(seen.filter(e=>e.fold).length,2);
+  assert.deepEqual(seen.map(e=>e.turn).sort((a,b)=>a-b),seen.map((_,i)=>i+1));
   assert.ok(seen.every(e=>e.defenderAction==='brace'));
 });

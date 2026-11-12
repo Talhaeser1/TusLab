@@ -39,10 +39,11 @@ export const LABELS = Object.freeze({
 // fill: main ink, top: highlight (upper half of the glyphs), line: outline,
 // shadow: hard drop shadow under the outline. Exposed to CSS as custom properties.
 export const PALETTES = Object.freeze({
-  fire:    { fill: '#ff8a46', top: '#ffffff', line: '#ff5a1f', shadow: '#2a0a06' },
-  rune:    { fill: '#9ffcff', top: '#ffffff', line: '#00b7ff', shadow: '#120a2e' },
-  skillFire: { fill: '#fff1c2', top: '#ffffff', line: '#ff3d00', shadow: '#2a0500' },
-  skillRune: { fill: '#e6f9ff', top: '#ffffff', line: '#00b7ff', shadow: '#0a0630' },
+  // KESINYAP 14: Q beyaz-sarı · E turuncu/camgöbeği · R altın (ultimate).
+  fire:    { fill: '#fff3b4', top: '#ffffff', line: '#ffb020', shadow: '#2a0a06' },
+  rune:    { fill: '#fff6c8', top: '#ffffff', line: '#ffc23a', shadow: '#120a2e' },
+  skillFire: { fill: '#ffa650', top: '#ffe2bd', line: '#ff5a00', shadow: '#2a0500' },
+  skillRune: { fill: '#8defff', top: '#e6fcff', line: '#00b7ff', shadow: '#0a0630' },
   ultimate: { fill: '#ffc93c', top: '#fff7b8', line: '#7a2c00', shadow: '#1a0800' },
   counter: { fill: '#9ffcff', top: '#ffffff', line: '#007c91', shadow: '#00151c' },
   block:   { fill: '#bfefff', top: '#ffffff', line: '#1f5fa8', shadow: '#06142b' },

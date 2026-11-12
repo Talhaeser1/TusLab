@@ -21,6 +21,10 @@
 // Bekleyen girdiler birikirse eskiler themesiz tamamlanır; `keep: true` girdileri (kombo)
 // yalnız maxItems sınırında düşer — baskı yerine arena katmanı komboyu SIKIŞTIRIR.
 
+import {VISUAL_TURN, RESOLVE_SCENE, planResolve, resolveDurationMs} from './shared/resolve-timing.js';
+// İş 12: motor (match.js/arena.js) raund sonu çözümünü AYNI sabit ve saf planla zamanlar.
+export {RESOLVE_SCENE, planResolve, resolveDurationMs};
+
 export const VISUAL_QUEUE = Object.freeze({
   // İş 1, 3. tur: okunur sahne ~4,5 sn → birikim eşiği ~1,5 sahne (bunun üstünde sıkıştırma ×1,25 ve zincirleme/katlama).
   maxBacklogMs: 6000,   // bekleyen sıradan sahnelere ilişkin birikim eşiği (keep:true hariç)
@@ -35,7 +39,7 @@ export const VISUAL_QUEUE = Object.freeze({
  *  settleCapMs sonra yine sayılmaya başlar (kilitlenme yok).
  *  createVisualTimeline'da varsayılan KAPALIdır (breathMs: 0) — arena3d açar. */
 // İş 1, 3. tur: ara 1,3 sn; baskıda bile 1,0 sn altına inmez (kullanıcı: "1–2 saniye sonra diğeri saldırsın").
-export const TURN = Object.freeze({breathMs: 1300, minMs: 1000, maxMs: 2000, settleCapMs: 700, sameSeatMs: 300});
+export const TURN = Object.freeze({breathMs: VISUAL_TURN.breathMs, minMs: 1000, maxMs: 2000, settleCapMs: 700, sameSeatMs: VISUAL_TURN.sameSeatMs});
 
 /** Saf: bekleyen kuyruk süresine göre saldıran değişimi arası (ms). draining → en kısa ara. */
 export function turnGapMs(backlogMs = 0, {base = TURN.breathMs, min = TURN.minMs, pressureMs = VISUAL_QUEUE.maxBacklogMs, draining = false} = {}) {

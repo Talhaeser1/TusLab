@@ -165,7 +165,7 @@ export function createPvPAudio({storage=globalThis.localStorage, AudioContextCla
  }
  // ---- Görev S: replik / anons / efekt / seyirci katmanı (tembel yüklenir, ilk etkileşimden sonra; eksik dosya 1 kez denenir)
  const assets=new Map(),assetLoads=new Map(),failedAssets=new Set(),wantedAssets=new Set(),assetVoices=new Set();
- let crowdWanted=false,crowdEntry=null,lastCheer=0;
+ let crowdWanted=false,crowdEntry=null,lastCheer=0,decodeChain=Promise.resolve();
  const CROWD_KEY='extra/seyirci-ugultu';
  function loadAsset(key){
    if(disposed||!fetcher||!ctx||failedAssets.has(key))return Promise.resolve(null);
@@ -174,7 +174,9 @@ export function createPvPAudio({storage=globalThis.localStorage, AudioContextCla
    const job=(async()=>{
      try{
        const response=await fetcher(`${baseURL}${key}.mp3`);if(!response.ok)throw new Error(`HTTP ${response.status}`);
-       const buffer=await ctx.decodeAudioData(await response.arrayBuffer());
+       const bytes=await response.arrayBuffer();
+       // İş 12 (kasma): çözümler TEK sırada — onlarca mp3'ün aynı anda çözülüp ana iş parçacığına dönmesi kare donduruyordu.
+       const buffer=await (decodeChain=decodeChain.then(()=>ctx.decodeAudioData(bytes),()=>ctx.decodeAudioData(bytes)));
        assets.set(key,buffer);return buffer;
      }catch{failedAssets.add(key);return null;}
      finally{assetLoads.delete(key);}

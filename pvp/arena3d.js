@@ -1322,7 +1322,8 @@ export async function createArena3D({
       s.cone.visible = i < caps.spotlights;
       s.pool.visible = i < caps.spotlights;
     });
-    c.brazierLights.forEach((b, i) => { b.light.visible = i < caps.lights; });
+    // İş 12 (kasma): ışık SAYISI sabit — gizlemek yerine şiddet 0 (sayı değişince sahnedeki tüm programlar yeniden derleniyordu).
+    c.brazierLights.forEach((b, i) => { b.on = i < caps.lights; b.light.visible = true; if (!b.on) b.light.intensity = 0; });
     safeCall(() => c.embers.geometry.setDrawRange(0, caps.embers));
   }
 
@@ -1355,7 +1356,7 @@ export async function createArena3D({
     }
 
     for (const b of c.brazierLights) {
-      if (!b.light.visible) continue;
+      if (b.on === false) continue;
       b.light.intensity = b.base * (quiet ? 0.88 : 0.82 + 0.12 * Math.sin(t * 13 + b.phase) + 0.06 * Math.sin(t * 29 + b.phase * 3) + excite * 0.4);
     }
 
@@ -1741,7 +1742,33 @@ export async function createArena3D({
       layout(true);
     }
     safeCall(() => ensureCritBackdrop()); // İş 1: KRİTİK düzlemi de ön-ısıtmaya girsin
+    safeCall(() => warmGhost(fighter)); // İş 12: destek siluetinin (kemikli + dokulu MeshBasic) programı da şimdi
     safeCall(() => queueWarmup()); // kemikli malzeme programları savaş ortasında değil şimdi derlensin
+  }
+
+  /**
+   * İş 12 (kasma): destek vuruşu ilk geldiğinde partner silueti (createFighterGhost) ve düz destek düzlemi
+   * yeni program istiyordu (dövüş ortasında ~1–2 sn donma). Aynı malzeme düzenleri gizli olarak sahnede
+   * tutulur; ön-ısıtma (compile + warmDraw) derler, programlar maç boyunca paylaşılır.
+   */
+  const warmGhosts = new Map();
+  let warmAssistPlane = null;
+  function warmGhost(fighter) {
+    if (!fighter?.model || !fighter.modelAsset || warmGhosts.get(fighter.seat)?.id === fighter.fighterId) return;
+    const old = warmGhosts.get(fighter.seat);
+    if (old) { scene.remove(old.rig.object); safeCall(() => old.rig.dispose?.()); }
+    const rig = createFighterRig(THREE, fighter.modelAsset, {fighterId: fighter.fighterId, seat: fighter.seat, clone: cloneFn, ghost: {color: 0xffffff, opacity: 0.4}});
+    if (!rig?.object) return;
+    rig.object.visible = false;
+    rig.object.scale.setScalar(1e-4);
+    scene.add(rig.object);
+    warmGhosts.set(fighter.seat, {id: fighter.fighterId, rig});
+    if (!warmAssistPlane) {
+      warmAssistPlane = new THREE.Mesh(new THREE.PlaneGeometry(0.01, 0.01), new THREE.MeshBasicMaterial({
+        color: 0xffffff, transparent: true, opacity: 0, alphaTest: 0.02, side: THREE.DoubleSide, depthWrite: false, toneMapped: false}));
+      warmAssistPlane.visible = false; warmAssistPlane.frustumCulled = false;
+      scene.add(warmAssistPlane);
+    }
   }
 
   /** Koltuk → karakter kimliği; bilinmeyen kimlikler yok sayılır. Döner: Promise<boolean> (hepsi yüklendi mi). */
@@ -2175,15 +2202,19 @@ export async function createArena3D({
    * bekletilir ki ulti başka bir saldırıyla üst üste binmesin (ulti korunumu).
    * Döner: true = kuyruğa alındı (çağıran ayrıca oynatmaz). Modelsiz/azaltılmış harekette false.
    */
-  function enqueueMeleeSkill(seat, skill, {fx = true, ultimate = false} = {}) {
+  function enqueueMeleeSkill(seat, skill, {fx = true, ultimate = false, join = false, fold = false} = {}) {
     if (reduced() || (skill !== 'q' && skill !== 'e' && !ultimate)) return false;
     const fighter = fighters.get(seat);
     const rig = fighter?.model;
     if (!rig || fighter.ko || !rig.choreo?.[skill]) return false;
+    // İş 12: toplu vuruş sahnesi — hasar koltuğun açık sahnesinin son vuruşunda (tek temas karesi) gösterilir.
+    if (fold && foldTarget(seat)) { probeMark('fold', {seat, skill}); return true; }
     // Aynı koltuğun açık kombo girdisi varsa: yeni saldırı ZİNCİRE EKLENİR (yaklaşma tek kalır).
     if (!ultimate) {
       const open = fighter.castQueue.find(e => e.open && !e.dead && !e.ultimate);
       if (open && extendMeleeEntry(open, skill)) return true;
+      // Motor bu vuruşu açık sahneye yerleştirdi: zincir dolu/menzil uyuşmuyorsa yeni sahne açmak yerine katlanır.
+      if (join && foldTarget(seat)) { probeMark('fold', {seat, skill, join: true}); return true; }
       // Süre tavanı (madde 6): kuyruk tavanı aşmışsa yeni sahne AÇILMAZ; bu saldırının hasarı koltuğun
       // henüz temas etmemiş son vuruşunda toplu gösterilir (bindCastEntry yedeği). Işınlanma/hızlandırma yok.
       if (timeline.remainingMs() > timeline.VISUAL_QUEUE.maxBacklogMs && foldTarget(seat)) return true;
@@ -2766,10 +2797,10 @@ export async function createArena3D({
     const n = clamp(Math.round(Number(event.phase) || 1), 1, 3);
     const id = event.ultimateId ?? null;
     const key = ultKey(atk, id);
-    if (id !== null && finishedUlts.includes(key)) return; // late duplicate of a finished ultimate
+    if (id !== null && finishedUlts.includes(key)) { probeMark('ultSkip', {seat: atk, skill: `dup${n}`}); return; } // late duplicate of a finished ultimate
     if (ult && ult.key !== key) ult = null;               // a new ultimate takes over (tweens blend)
     if (!ult) {
-      if (fighters.get(def)?.ko || fighters.get(atk)?.ko) return;
+      if (fighters.get(def)?.ko || fighters.get(atk)?.ko) { probeMark('ultSkip', {seat: atk, skill: `ko${n}`}); return; }
       ult = {key, atk, def, contacts: new Set(), blocked: false, shown: 0, queue: [], nextAt: 0, watchdogAt: Infinity, ending: false, knockout: false};
       // First phase seen is late (1 lost): still show the pull/hit before a throw.
       if (n === 3) ult.queue.push(2);
@@ -3599,6 +3630,15 @@ export async function createArena3D({
     dolly(seat, ms = 1200) {
       dollyTo(seat, ms, false);
     },
+    /**
+     * İş 12: genel plana yumuşak dönüş (raund sonu kartı, geri sayım, yeni raund başı). Yakın çekim (dolly)
+     * ≤ ms içinde bırakılır; maç sonu tutuşuna (hold) dokunulmaz. Dinamik kadraj zaten iki dövüşçüyü izler.
+     */
+    settleCamera(ms = 500) {
+      if (destroyed || dollyState.track?.hold) return;
+      if (dollyState.k > 0.001) dollyTo(null, Math.min(600, ms));
+      else { dollyState.track = null; dollyState.k = 0; }
+    },
     quality() {
       return effectiveQuality();
     },
@@ -3689,7 +3729,9 @@ export async function createArena3D({
     if (type === 'SKILL_CAST') {
       const seat = event.fromSeat;
       if (!isSeat(seat)) return;
-      if (enqueueMeleeSkill(seat, event.skill, {ultimate: event.skill === 'r'})) {
+      // İş 12: motor planındaki sahne yuvası — yuva > 0 yeni sahne AÇMAZ (aynı yaklaşmaya eklenir ya da son vuruşa katlanır).
+      const join = event.skill !== 'r' && (Number(event.sceneSlot) > 0 || event.fold === true);
+      if (enqueueMeleeSkill(seat, event.skill, {ultimate: event.skill === 'r', join, fold: event.fold === true})) {
         /* görsel kuyruk: sırası gelince oynar (q/e kombo zinciri; r ulti girdisi) */
       } else if (playModelSkill(seat, event.skill)) {
         if (event.skill === 'r') {
@@ -3709,6 +3751,9 @@ export async function createArena3D({
         });
         api.flash(fighters.get(seat).palette.main, 0.14, 260);
       }
+    } else if (type === 'ASSIST_CAST' && event.resolve && Number(event.sceneSlot) === 0) {
+      // İş 12: yalnız destek vuruşu olan sahne — sahnesiz hasar kalmasın diye koltuk kendi q sahnesini oynar.
+      if (isSeat(event.fromSeat)) enqueueMeleeSkill(event.fromSeat, 'q', {fx: false});
     } else if (type === 'COUNTERATTACK_CAST') {
       if (isSeat(event.fromSeat) && !enqueueMeleeSkill(event.fromSeat, 'q', {fx: false}) && !playModelSkill(event.fromSeat, 'q', {fx: false})) playLunge(event.fromSeat, {wind: 70, strike: 140, recover: 220, dist: 1.0, swing: 1.1, glow: 0.4});
     } else if (type === 'ULTIMATE_PHASE') {
@@ -3850,8 +3895,11 @@ export async function createArena3D({
         let entry = null;
         if (cast && event.skill === 'r' && event.phase && !reduced() && ult) {
           const sequence = ult;
-          impactFeel.queue(event, () => event.phase === 1 && cast.ranged
-            ? cast.arrived : sequence.contacts.has(event.phase));
+          // İş 12: faz segmenti sonraki fazca kesilirse (temas işaretlenmez) hasar zaman aşımına kalıp kart
+          // açıkken düşüyordu (ölçüm: "2/3" sahne bitiminden 1,8 sn sonra). Sonraki fazın teması ya da ultinin
+          // bitişi de bu fazın hasarını o karede gösterir (sıra korunur).
+          impactFeel.queue(event, () => (event.phase === 1 && cast.ranged ? cast.arrived : sequence.contacts.has(event.phase))
+            || [...sequence.contacts].some(p => p > event.phase) || ult !== sequence);
         } else if (event.skill !== 'r' && !reduced() && (entry = bindCastEntry(event.fromSeat))) {
           // Görsel kuyruğa bağlı hasar: gösterim (efekt/sarsıntı/sayı/tepki) klibin gerçek temas karesinde.
           // Görev 4: hasar KENDİ vuruşunun (strike) temas karesine bağlanır.
@@ -3860,7 +3908,9 @@ export async function createArena3D({
           // Bağ dinamik: boşaltma sıkıştırması olayı başka sahneye taşıyabilir (compactForDrain).
           impactFeel.queue(event, () => { const b = boundEvents.get(event) || entry; return b.strike.contact && !b.entry.dead; }, 9000);
         } else if (reduced()) impactFeel.hit(event);
-        else silentDamage(event, 'unbound');
+        else silentDamage(event, event.skill === 'r'
+          ? `unbound-u${ult ? 1 : 0}c${cast ? 1 : 0}p${event.phase ?? '-'}q${attacker?.castQueue?.map(e => `${e.ultimate ? 'r' : e.skill}${e.started ? 's' : ''}${e.dead ? 'd' : ''}`).join('') ?? '-'}`
+          : 'unbound');
         return;
       }
       handleCore(event);
@@ -3973,10 +4023,21 @@ export async function createArena3D({
     const high = effectiveQuality() === 'high';
     safeCall(() => skillFx?.setLowQuality(!high));
     activeStage.applyQuality(effectiveQuality());
-    for (const fighter of fighters.values()) fighter.accentLight.visible = high;
+    keepLightCount();
+    for (const fighter of fighters.values()) fighter.accentLight.intensity = high ? 4 : 0; // görünür kalır (ışık sayısı sabit)
     floorGlow.mesh.visible = high; // scene polish is the first thing 'low' drops
     if (!high) for (const w of floorGlow.waves) w.active = false;
     layout(true);
+  }
+
+  /** İş 12: sahne modülünün kalite için gizlediği nokta/spot ışıkları görünür kalır, şiddeti 0 olur (program yeniden derlenmez). */
+  function keepLightCount() {
+    safeCall(() => activeStage.group?.traverse?.(o => {
+      if (!(o.isPointLight || o.isSpotLight)) return;
+      if (o.userData.pvpBase === undefined) o.userData.pvpBase = o.intensity;
+      if (o.visible) o.intensity = o.userData.pvpBase;
+      else { o.intensity = 0; o.visible = true; }
+    }));
   }
 
   function setQuality(mode) {
@@ -4005,7 +4066,60 @@ export async function createArena3D({
     warmQueue.length = 0;
     if (bloom) warmQueue.push({level: 'high', target: bloom.target});
     warmQueue.push({level: 'high', target: null}, {level: 'low', target: null});
+    if (readyState === 'ready' && !reduced()) warmQueue.push({rehearse: true});
     warmQueue.push({draw: true});
+  }
+
+  /**
+   * İş 12 (kasma): havuzdaki/tembel efekt nesneleri (mermi, halka, sütun, kıvılcım…) sahneye ancak ilk
+   * vuruşta girdiği için ön-ısıtmaya hiç girmiyordu; ANGLE ilk çizimde gölgelendirici varyantı üretip
+   * 1–2 sn donuyordu. Maç başında (VS/geri sayım) her efekt türü bir kez GÖRÜNMEZ biçimde kurulur, aynı
+   * tick'te çizilir (normal kare üstüne çizildiği için ekranda görünmez) ve hemen temizlenir. Kamera/flaş
+   * çağrıları prova boyunca etkisizdir; hasar/can olayı gönderilmez (HUD'a dokunulmaz).
+   */
+  const rehearsed = new Set();
+  function rehearseFx() {
+    const key = SEATS.map(s => fighters.get(s)?.fighterId || '').join('|');
+    if (rehearsed.has(key)) return;
+    rehearsed.add(key);
+    const quietApi = ['flash', 'shake', 'kick', 'hitStop', 'slowMo', 'superFreeze', 'introSweep', 'cheer'];
+    const saved = {};
+    for (const k of quietApi) if (typeof api[k] === 'function') { saved[k] = api[k]; api[k] = () => {}; }
+    const fxPlugins = plugins.filter(p => p && p.root && typeof p.handle === 'function'); // 3B efekt eklentileri (DOM/HUD değil)
+    try {
+      const at = new THREE.Vector3(0, -50, 0);
+      if (skillFx) {
+        for (const seat of SEATS) {
+          const id = fighters.get(seat)?.fighterId;
+          for (const kind of ['spear', 'dagger', 'rune', 'bread', 'meteor', 'column', 'shockring', 'shards', 'swirl']) {
+            safeCall(() => skillFx.spawn({kind, from: at.clone(), to: at.clone(), color: 0xffffff, accent: 0xffffff, flight: 300, ms: 300, scale: 1,
+              profile: id, onArrive: () => {}, follow: out => out.copy(at)}));
+          }
+          safeCall(() => skillFx.burst(id, at.clone(), 1));
+        }
+      }
+      for (const seat of SEATS) {
+        const to = otherSeat(seat);
+        const events = [
+          ...['q', 'e', 'r'].map(skill => ({type: 'SKILL_CAST', fromSeat: seat, toSeat: to, skill, warm: true})),
+          ...[1, 2, 3].map(phase => ({type: 'ULTIMATE_PHASE', fromSeat: seat, toSeat: to, skill: 'r', phase, totalPhases: 3, warm: true})),
+          {type: 'COUNTERATTACK_CAST', fromSeat: seat, toSeat: to, skill: 'counter', warm: true},
+          {type: 'SHIELD_TRIGGERED', seat, kind: 'PERFECT_BLOCK', warm: true},
+          {type: 'PARRY_TRIGGERED', seat, againstSeat: to, warm: true},
+          {type: 'SHIELD_BROKEN', seat, warm: true},
+        ];
+        for (const plugin of fxPlugins) for (const ev of events) safeCall(() => plugin.handle(ev));
+      }
+      for (let i = 0; i < 3; i++) {
+        if (skillFx) safeCall(() => skillFx.update(0.05));
+        for (const plugin of fxPlugins) safeCall(() => plugin.update?.(0.05, 0));
+      }
+      warmDraw();
+    } finally {
+      for (const k of Object.keys(saved)) api[k] = saved[k];
+      safeCall(() => skillFx?.clear?.());
+      for (const plugin of fxPlugins) safeCall(() => plugin.clear?.());
+    }
   }
   /**
    * ANGLE (Windows/D3D11) program bağlandıktan sonra bile ilk ÇİZİMDE sürücü
@@ -4042,19 +4156,18 @@ export async function createArena3D({
     }
   }
   function setLightLevel(level) {
-    const high = level === 'high';
-    for (const fighter of fighters.values()) fighter.accentLight.visible = high;
-    const c = env3d?.colosseum;
-    if (c) {
-      const caps = ARENA_ENV_CAPS[level] || ARENA_ENV_CAPS.high;
-      c.brazierLights.forEach((b, i) => { b.light.visible = i < caps.lights; });
-    }
+    // İş 12: ışık sayısı kademeden bağımsız (hepsi görünür); ön-derleme yalnız çıktı hedeflerini dolaşır.
+    void level;
   }
   function warmStep() {
     const job = warmQueue.shift();
     if (!job || destroyed || contextLost) return;
     if (job.draw) {
       try { warmDraw(); } catch { /* kozmetik */ }
+      return;
+    }
+    if (job.rehearse) {
+      try { rehearseFx(); } catch { /* kozmetik */ }
       return;
     }
     const current = effectiveQuality();
@@ -4080,6 +4193,7 @@ export async function createArena3D({
       if (bloomActive()) {
         try {
           bloom.render(scene, camera);
+          flushGpu();
           return;
         } catch {
           // A post-process shader or target failure must not black out the arena.
@@ -4088,9 +4202,19 @@ export async function createArena3D({
         }
       }
       renderer.render(scene, camera);
+      flushGpu();
     } catch {
       /* lost context etc. */
     }
+  }
+  /**
+   * İş 12 (kasma kök nedeni): Chrome/ANGLE(D3D11) WebGL komutlarını kare sonunda tek paket olarak
+   * GPU sürecine yolluyordu; paket GPU iş parçacığında DOM rasterıyla aynı kuyrukta 1,2–2,6 sn
+   * tıkanıyordu (izleme: GpuChannel::ExecuteDeferredRequest › WebGL flush; boş WebGL sayfasında yok,
+   * her çizimden sonra flush/finish ile 0). Kare sonunda açık flush — engellemeyen, ucuz.
+   */
+  function flushGpu() {
+    try { renderer.getContext().flush(); } catch { /* yok */ }
   }
 
   function tick(tNow = now()) {
@@ -4411,6 +4535,17 @@ export async function createArena3D({
         return {
           floaters: env3d.floaters.map(f => ({...proj(f.object.position), world: [f.object.position.x, f.object.position.y, f.object.position.z].map(n => Math.round(n * 10) / 10)})),
           fighters: [...fighters.entries()].map(([seat, f]) => ({seat, head: proj(f.root.position, 2.2), feet: proj(f.root.position, 0)})),
+          // İş 12: modelin ekran kutusu (dünya AABB'sinin 8 köşesinin izdüşümü; CSS px).
+          boxes: [...fighters.entries()].filter(([, f]) => f.model?.object).map(([seat, f]) => {
+            const box = new THREE.Box3().setFromObject(f.model.object);
+            let l = Infinity, t = Infinity, rr = -Infinity, b = -Infinity;
+            for (let i = 0; i < 8; i++) {
+              const p = new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).project(camera);
+              const x = r.left + (p.x + 1) / 2 * r.width, y = r.top + (1 - p.y) / 2 * r.height;
+              l = Math.min(l, x); rr = Math.max(rr, x); t = Math.min(t, y); b = Math.max(b, y);
+            }
+            return {seat, l: Math.round(l), t: Math.round(t), r: Math.round(rr), b: Math.round(b)};
+          }),
         };
       },
       environment: () => {
@@ -4421,7 +4556,7 @@ export async function createArena3D({
           braziers: c.flames.count,
           banners: c.banners.count,
           spotlights: c.spots.filter(s => s.cone.visible).length,
-          lights: c.brazierLights.filter(b => b.light.visible).length,
+          lights: c.brazierLights.filter(b => b.on !== false).length,
           embers: c.embers.geometry.drawRange.count,
           excite: c.excite,
         };
@@ -4459,6 +4594,10 @@ export async function createArena3D({
       perf: () => ({step: autoStep(), quality: effectiveQuality(), bloom: bloomActive(), ratio: safeCall(() => renderer.getPixelRatio?.()) ?? null,
         w: layoutState.width, h: layoutState.height, calls: renderer.info?.render?.calls ?? null, tris: renderer.info?.render?.triangles ?? null,
         programs: renderer.info?.programs?.length ?? null, textures: renderer.info?.memory?.textures ?? null, geometries: renderer.info?.memory?.geometries ?? null}),
+      /** İş 12 (kasma tanısı): görünür ışık sayıları (sayı değişirse tüm programlar yeniden derlenir) + sis. */
+      lights: () => { const c = {}; scene.traverseVisible(o => { if (o.isLight) c[o.type] = (c[o.type] || 0) + 1; }); return `${Object.entries(c).map(([k, v]) => k.replace('Light', '') + v).join(' ')} fog${scene.fog ? 1 : 0}`; },
+      /** İş 12 (kasma tanısı): bağlı programların adları — dövüş ortasında yeni program derlenip derlenmediği. */
+      programs: (full = false) => (renderer.info?.programs || []).map(p => full ? String(p.cacheKey || '') : `${p.name || '?'}#${String(p.cacheKey || '').length}:${String(p.cacheKey || '').slice(0, 60)}`),
       /** Zincir planı tanısı (oynatmaz): koltuğun rig'i bu becerilerden kombo kurabiliyor mu? */
       chainPlan: (seat, skills) => fighters.get(seat)?.model?.chainPlan?.(skills) || null,
       plugins: () => plugins.length,

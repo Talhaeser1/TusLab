@@ -110,6 +110,9 @@ test('arena word submission closes on first finisher, resolves attacks, summariz
   }
   assert.equal(got(f.a,'ARENA_ATTACK').length,attackCount);
   assert.equal(got(f.b,'ARENA_ATTACK').length,attackCount);
+  // İş 12: özet, çözüm planı (son sahne + yerleşme) bitince açılır.
+  m=await f.ctx.storage.get('match');assert.equal(m.round.phase,'resolve');assert.ok(Number.isFinite(m.round.resolveUntil));
+  m.round.resolveUntil=Date.now()-1;await f.ctx.storage.put('match',m);await f.room.alarm();
   m=await f.ctx.storage.get('match');assert.equal(m.round.phase,'summary');
   m.round.summaryEndsAt=Date.now()-1;await f.ctx.storage.put('match',m);await f.room.alarm();
   m=await f.ctx.storage.get('match');assert.equal(m.round.phase,'prep');assert.equal(m.round.index,2);
