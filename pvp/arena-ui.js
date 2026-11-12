@@ -205,7 +205,12 @@ export function arenaSummaryModel(roundEnd,match,myId,{damage=null,record=null}=
   const next=round+1;
   const wins={1:0,2:0};
   for(const r of match?.roundResults||[])if(r.winnerSeat)wins[r.winnerSeat]++;
-  return {round,title:`RAUND ${round} BİTTİ`,names,rows,winnerSeat,...summaryPresentation(winnerSeat,match,myId),ko:roundEnd?.reason==='KO',colors:summaryColors(match),players:summaryPlayers(match),
+  const colors=summaryColors(match);
+  const duel=(meSeat?[meSeat===1?2:1,meSeat]:[1,2]).map(seat=>({seat,me:seat===meSeat,winner:winnerSeat===seat,
+    label:meSeat?(seat===meSeat?'Sen vurdun':'Rakip vurdu'):`${nameOf(match,seat)} vurdu`,damage:num(dealt[seat-1]),capped:false,color:colors[seat-1],
+    detail:`${known(scores[seat-1].correct)} doğru · ${known(scores[seat-1].wrong)} yanlış · seri ${known(scores[seat-1].bestStreak)}`}));
+  return {round,title:`RAUND ${round} BİTTİ`,names,rows,winnerSeat,duel,progress:{filled:Math.min(total,round),total},
+    countText:round<total?`Raund ${next} başlıyor`:'Sonuç hazırlanıyor',...summaryPresentation(winnerSeat,match,myId),ko:roundEnd?.reason==='KO',colors,players:summaryPlayers(match),
     pips:[1,2].map(seat=>({filled:wins[seat],total})),
     winnerText:winnerSeat?`${nameOf(match,winnerSeat)} RAUNDU ALDI`:'BERABERE',
     nextText:round<total?`Sıradaki: RAUND ${next} · ${ARENA_UI_ROUND_WORDS[next-1]??'—'} kelime`:'Maç sonucu hazırlanıyor'};

@@ -19,8 +19,11 @@
 }
 /* Yazma panelinin içinde: başlık satırının boş ortasında. (Önce dikey ortadaydı: yeni pencerenin özeti
    1,5 sn boyunca hedef kelimeyi ve giriş kutusunu kapatıyordu, oyuncu o sırada yazıyor.) */
-#pvp-root .tt-type .rsv-banner{top:0;transform:translateX(-50%);animation-name:rsv-fade;
-  font-size:clamp(13px,.85vw,16px);padding:5px 16px}
+/* KESINYAP 18: etiket yazma panelinin BAŞLIK satırına (tt-head, ~24 px) oturur; önceden .tt kutusunun üst kenarından başlayıp
+   başlık satırının 21–29 px üstüne biniyordu. */
+#pvp-root .tt-type{position:relative}
+#pvp-root .tt-type .rsv-banner{top:0;transform:translateX(-50%);animation-name:rsv-fade;box-sizing:border-box;height:24px;display:flex;align-items:center;
+  font-size:clamp(13px,.85vw,16px);line-height:1;padding:0 16px
 @keyframes rsv-fade{from{opacity:0}to{opacity:1}}
 /* Arenadaki etiket yalnız arena odağında anlamlı: maç odak sırasında biterse oyuncu başlığının üstünde asılı kalıyordu. */
 #pvp-root:not(.stage-focus) .pvp2-duel>.rsv-banner{display:none}

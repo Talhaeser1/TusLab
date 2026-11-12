@@ -5,7 +5,7 @@ const read = p => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('tur arası: RAUND yazısı ardından sonuç ve süre becerisi kompakt alt panelde', () => {
   const js = read('pvp/rounds-ui.js');
-  assert.match(js, /h\('div',\{cls:'rui-inter',rui:'inter',hidden:true\},summary,picker\)/);
+  assert.match(js, /h\('div',\{cls:'rui-inter rui-band',rui:'inter',hidden:true\},summary,picker\)/);
   assert.match(js, /el\.append\(bar,strip,clash,flash,banner,intro,inter,reveal,live\)/);
   assert.match(js, /inter\.classList\.toggle\('is-dock',open\)/);
   const css = read('pvp/rounds-ui.css');

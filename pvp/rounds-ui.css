@@ -423,3 +423,95 @@
 /* Metin satırlarının ARKASINA yerel koyu bant: zemin görseli bantların arasında net görünür, yazı kontrastı >= 4.5:1 kalır. */
 #pvp-root .m33-result :is(header,.m33-winner,.m33-hpline,.m33-footer,.m33-player){background:#0a0a1ce6}
 #pvp-root .m33-result .m33-player h3{color:color-mix(in srgb,var(--m33-player) 55%,#fff)}
+
+/* ===== KESINYAP 18 · RAUND ARASI TEK BANT =====
+   Kutu yığını yok: etiket → iki sütun hasar düellosu → 7 parçalı ilerleme → sıradaki/ipucu → üç beceri (tek satır) → geri sayım.
+   Rounds: bant = .rui-inter (ızgara); .rui-summary ve .m33-result `display:contents` olup çocukları bant ızgarasına geçirir.
+   Arena: aynı kart .aui-summary içinde alt-orta bant olur (arena-ui.css). Hareket yalnız opacity/transform. */
+#pvp-root .rui-inter.rui-band.is-dock{display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:7px;
+  width:min(960px,var(--rui-band-w,960px),calc(100vw - 16px));box-sizing:border-box;padding:11px 18px 10px;
+  max-height:calc(100dvh - var(--rui-dock-bottom,64px) - 8px);overflow-y:auto;
+  background:linear-gradient(180deg,#0b0e26f2,#070918f7);border:1px solid #ffffff1c;border-top:2px solid var(--rui-gold);border-radius:12px;
+  box-shadow:0 14px 38px #020510d9,0 0 0 1px #00000066}
+#pvp-root .rui-inter.rui-band.is-dock>.rui-summary,#pvp-root .rui-inter.rui-band.is-dock .m33-result{display:contents}
+#pvp-root .rui-inter.rui-band.is-dock>.rui-summary[hidden],#pvp-root .rui-inter.rui-band.is-dock>.rui-skill-picker[hidden]{display:none}
+#pvp-root .rui-inter.rui-band.is-dock .m33-result::before,#pvp-root .rui-inter.rui-band.is-dock .m33-result::after{display:none}
+/* Bant açıkken ortadaki ayrı "RAUND n / sayı" kutusu yok: sayım bandın içinde. */
+#pvp-root.rui-inter-open .rui-intro{display:none!important}
+
+/* --- kart (rounds + arena) --- */
+#pvp-root .m33-result.m33-band{display:grid;gap:7px;min-width:0;font-size:13px;line-height:1.3;font-weight:600;color:#f3eeff}
+#pvp-root .m33-result.m33-band .m33-head{order:1;display:flex;align-items:center;gap:10px;margin:0;padding:0;background:none}
+#pvp-root .m33-result.m33-band .m33-title{margin:0;font-family:inherit;font-size:12px;line-height:1.2;letter-spacing:.14em;font-weight:800;color:var(--rui-gold);text-shadow:none;white-space:nowrap;text-transform:uppercase}
+#pvp-root .m33-result.m33-band .m33-players{order:2;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;min-width:0}
+#pvp-root .m33-result.m33-band .m33-player{display:grid;gap:1px;min-width:0;padding:6px 14px 7px;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--m33-player) 22%,#0a0c20),#0a0c20 78%);
+  border:1px solid color-mix(in srgb,var(--m33-player) 40%,transparent);border-left:3px solid var(--m33-player);border-radius:8px;box-shadow:none}
+#pvp-root .m33-result.m33-band .m33-player:last-child{text-align:right;border-left-width:1px;border-right:3px solid var(--m33-player);
+  background:linear-gradient(270deg,color-mix(in srgb,var(--m33-player) 22%,#0a0c20),#0a0c20 78%)}
+#pvp-root .m33-result.m33-band .m33-who{display:block;min-width:0;font-size:12px;font-weight:700;color:#d6d0f2;white-space:nowrap;word-break:normal;overflow-wrap:normal;overflow:hidden;text-overflow:ellipsis}
+#pvp-root .m33-result.m33-band .m33-dmgrow{display:flex;align-items:baseline;gap:8px;min-width:0}
+#pvp-root .m33-result.m33-band .m33-player:last-child .m33-dmgrow{justify-content:flex-end}
+#pvp-root .m33-result.m33-band .m33-dmg{font-family:Impact,'Arial Narrow',system-ui,sans-serif;font-size:clamp(28px,3.4vw,44px);line-height:1;font-weight:900;letter-spacing:.02em;
+  white-space:nowrap;word-break:normal;font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 2px 0 #000a,0 0 18px color-mix(in srgb,var(--m33-player) 55%,transparent)}
+#pvp-root .m33-result.m33-band .m33-cap{flex:none;font-size:12px;line-height:1.2;font-weight:900;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:4px;background:var(--rui-gold);color:#241500;white-space:nowrap}
+#pvp-root .m33-result.m33-band .m33-detail{display:block;min-width:0;font-size:12px;line-height:1.25;font-weight:600;color:#c9c4e8;white-space:nowrap;word-break:normal;overflow:hidden;text-overflow:ellipsis}
+#pvp-root .m33-result.m33-band .m33-pips{order:3;display:flex;gap:4px;margin:0;padding:0}
+#pvp-root .m33-result.m33-band .m33-pip{flex:1 1 0;min-width:0;height:6px;border-radius:3px;background:#ffffff26;font-size:0;line-height:0;text-shadow:none}
+#pvp-root .m33-result.m33-band .m33-pip.is-won{background:var(--rui-gold);box-shadow:0 0 8px #ffc87a66}
+#pvp-root .m33-result.m33-band .m33-foot{order:4;display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:2px 16px;margin:0;padding:0;background:none}
+#pvp-root .m33-result.m33-band .m33-next{font-size:13px;line-height:1.3;font-weight:700;color:#f3eeff}
+#pvp-root .m33-result.m33-band .m33-hint{font-size:12px;line-height:1.3;font-weight:600;color:#c9c4e8}
+#pvp-root .rui-inter.is-solo .m33-hint,#pvp-root .aui-summary .m33-hint{display:none}
+#pvp-root .m33-result.m33-band .m33-countdown{order:6;justify-self:end;display:flex;align-items:baseline;gap:8px;width:auto;height:auto;font-size:13px;font-weight:700;color:#f3eeff;white-space:nowrap}
+#pvp-root .m33-result.m33-band .m33-countdown[hidden]{display:none}
+#pvp-root .m33-result.m33-band .m33-countdown strong{min-width:1ch;font-size:22px;line-height:1;font-weight:900;color:var(--rui-gold);font-variant-numeric:tabular-nums}
+
+/* --- becerileri tek satır --- */
+#pvp-root .rui-inter.rui-band.is-dock>.rui-skill-picker{order:5;display:flex;flex-direction:row;align-items:stretch;gap:10px;flex:none;width:auto;max-width:none;min-width:0;margin:0;padding:0;background:none;border:0;box-shadow:none}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker>strong{display:none}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .aui-cards.rui-skill-cards{flex:1 1 0;min-width:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-content:stretch}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card{position:relative;display:flex;align-items:center;gap:6px;min-width:0;min-height:44px;height:auto;padding:5px 8px;
+  border-radius:8px;border:1px solid #ffffff2e;background:#12142c;box-shadow:none;text-align:left}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[aria-pressed="true"]{border-color:var(--rui-gold);background:#2b210f;box-shadow:inset 0 0 0 1px var(--rui-gold)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card.is-empty{border-color:#ff8ea277;background:#20101c}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-key{position:static;flex:none;display:grid;place-items:center;min-width:22px;height:22px;padding:0 4px;border-radius:5px;background:#ffffff1f;border:1px solid #ffffff40;color:#fff;font-size:12px;font-weight:800}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon{display:none}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy{flex:1 1 auto;min-width:0;display:grid;gap:0}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy strong{font-size:13px;line-height:1.2;font-weight:800;white-space:nowrap;overflow:visible;text-overflow:clip;overflow-wrap:normal;word-break:normal}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy small{font-size:12px;line-height:1.2;font-weight:600;color:#c9c4e8;white-space:nowrap;overflow:visible;text-overflow:clip;overflow-wrap:normal;word-break:normal}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-uses{position:static;flex:none;min-width:0;padding:1px 5px;font-size:12px;white-space:nowrap}
+#pvp-root .rui-inter.rui-band.is-dock .rui-pick-actions{flex:none;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:4px;min-width:136px;margin:0}
+#pvp-root .rui-inter.rui-band.is-dock .rui-pick-status{margin:0;font-size:12px;line-height:1.2;color:#c9c4e8;text-align:center;white-space:normal;word-break:normal}
+#pvp-root .rui-inter.rui-band.is-dock .rui-pick-status:empty{display:none}
+#pvp-root .rui-inter.rui-band.is-dock .rui-pick-lock,#pvp-root .rui-inter.rui-band.is-dock .rui-pick-skip{min-height:0;height:26px;padding:0 8px;font-size:12px;font-weight:700;white-space:nowrap;border-radius:6px}
+
+/* --- dar ekran: 2 hasar sütunu yan yana kalır, beceriler alt alta --- */
+@media(max-width:720px){
+  #pvp-root .rui-inter.rui-band.is-dock{padding:10px 12px 9px;gap:6px}
+  #pvp-root .m33-result.m33-band .m33-player{padding:5px 10px 6px}
+  #pvp-root .m33-result.m33-band .m33-detail{white-space:normal}
+  #pvp-root .rui-inter.rui-band.is-dock>.rui-skill-picker{flex-direction:column;gap:6px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .aui-cards.rui-skill-cards{grid-template-columns:minmax(0,1fr);gap:5px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card{min-height:34px;padding:3px 10px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy{grid-auto-flow:column;justify-content:start;align-items:baseline;column-gap:8px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy small{white-space:normal}
+  #pvp-root .m33-result.m33-band .m33-hint{display:none}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-pick-actions{flex-direction:row;min-width:0;flex-wrap:wrap}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-pick-lock,#pvp-root .rui-inter.rui-band.is-dock .rui-pick-skip{flex:1 1 0;height:32px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-pick-status{flex:1 1 100%}
+}
+
+/* portre: küçük, dar ekranda gizli (sayı + rozet sığsın) */
+#pvp-root .m33-result.m33-band .m33-player.has-portrait{grid-template-columns:44px minmax(0,1fr);column-gap:10px;align-items:center}
+#pvp-root .m33-result.m33-band .m33-player.has-portrait:last-child{grid-template-columns:minmax(0,1fr) 44px}
+#pvp-root .m33-result.m33-band .m33-player.has-portrait>.m33-portrait{grid-row:1;grid-column:1;align-self:center;width:44px;height:44px;min-width:44px;min-height:44px;border-radius:50%;object-fit:cover;object-position:50% 20%;border:2px solid var(--m33-player);box-shadow:none;filter:none}
+#pvp-root .m33-result.m33-band .m33-player.has-portrait:last-child>.m33-portrait{grid-column:2}
+#pvp-root .m33-result.m33-band .m33-player.has-portrait>.m33-body{grid-row:1;grid-column:2;min-width:0;display:grid;gap:1px}
+#pvp-root .m33-result.m33-band .m33-player.has-portrait:last-child>.m33-body{grid-column:1}
+#pvp-root .m33-result.m33-band .m33-body{display:grid;gap:1px;min-width:0}
+@media(max-width:720px){
+  #pvp-root .m33-result.m33-band .m33-player.has-portrait,#pvp-root .m33-result.m33-band .m33-player.has-portrait:last-child{grid-template-columns:minmax(0,1fr)}
+  #pvp-root .m33-result.m33-band .m33-player.has-portrait>.m33-portrait{display:none}
+  #pvp-root .m33-result.m33-band .m33-player.has-portrait>.m33-body,#pvp-root .m33-result.m33-band .m33-player.has-portrait:last-child>.m33-body{grid-column:1}
+}

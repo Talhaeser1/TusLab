@@ -257,3 +257,13 @@
 #pvp-root .aui-stage.me-2 .aui-prep .aui-card:focus-visible{outline-color:var(--aui-rune-soft)}
 #pvp-root .aui-prep .aui-card.is-empty{border-color:#ff8ea277;background:#20101c;color:#c2b5c4}
 #pvp-root .aui-prep.is-locked .aui-card:not(.is-empty){border-style:dashed}
+
+/* ===== KESINYAP 18 · arena raund arası: aynı tek bant (alt-orta). Kart stilleri rounds-ui.css `.m33-band` kurallarındadır. ===== */
+#pvp-root.aui-summary-open .aui-overlay>.aui-summary:has(.m33-band){position:fixed;inset:auto;left:50%;top:auto;bottom:clamp(12px,5vh,56px);transform:translateX(-50%);z-index:40;
+  box-sizing:border-box;width:min(960px,calc(100vw - 16px));max-width:none;height:auto;max-height:calc(100dvh - 24px);overflow-y:auto;padding:11px 18px 10px;
+  background:linear-gradient(180deg,#0b0e26f2,#070918f7);border:1px solid #ffffff1c;border-top:2px solid #ffc87a;border-radius:12px;
+  box-shadow:0 14px 38px #020510d9,0 0 0 1px #00000066;animation:aui-band-in 240ms cubic-bezier(.16,1,.3,1) both}
+@keyframes aui-band-in{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%)}}
+@media(max-width:720px){#pvp-root.aui-summary-open .aui-overlay>.aui-summary:has(.m33-band){padding:10px 12px 9px}}
+@media(prefers-reduced-motion:reduce){#pvp-root.aui-summary-open .aui-overlay>.aui-summary:has(.m33-band){animation:none}}
+#pvp-root.pvp4-reduced.aui-summary-open .aui-overlay>.aui-summary:has(.m33-band){animation:none}

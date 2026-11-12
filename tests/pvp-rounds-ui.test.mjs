@@ -94,14 +94,16 @@ test('round end: shared player columns, winner emphasis, win pips and live count
   const result=all(el).find(n=>n.classList.contains('m33-result'));
   assert.ok(result);
   const columns=all(result).filter(n=>n.classList.contains('m33-player'));
-  assert.equal(columns.length,2);assert.ok(columns[1].classList.contains('is-winner'));
-  assert.ok(columns[0].textContent.includes('Doğru'));assert.ok(columns[0].textContent.includes('210'));
+  assert.equal(columns.length,2);assert.equal(columns.filter(c=>c.classList.contains('is-winner')).length,1);
+  // KESINYAP 18: sol rakip, sağ sen; sayı + "n doğru · n yanlış · seri n" tek bantta.
+  assert.ok(columns[0].textContent.includes('Rakip vurdu'));assert.ok(columns[1].textContent.includes('Sen vurdun'));
+  assert.ok(columns[1].textContent.includes('doğru')&&columns[1].textContent.includes('yanlış')&&columns[1].textContent.includes('seri'));
   // KESINYAP 11: pipler raund galibiyeti değil, raund ilerleme noktaları (toplam raund kadar, tek sıra).
   assert.equal(all(result).filter(n=>n.classList.contains('m33-pip')).length,5);
-  assert.ok(result.textContent.includes('Kalan can'));
-  const ring=all(result).find(n=>n.getAttribute('class')==='m33-count-fill');
-  const before=Number(ring.getAttribute('stroke-dashoffset'));
-  setNow(43_000);ui.tick();assert.ok(Number(ring.getAttribute('stroke-dashoffset'))>before);
+  assert.equal(result.textContent.includes('Kalan can'),false,'kalan can tekrar yazılmaz (üst HUD gösteriyor)');
+  const count=all(result).find(n=>n.classList.contains('m33-countdown'));
+  assert.ok(count.textContent.includes('başlıyor'));const before=Number(count.querySelector?.('strong')?.textContent??all(count).find(n=>n.tagName==='STRONG').textContent);
+  setNow(43_000);ui.tick();assert.ok(Number(all(count).find(n=>n.tagName==='STRONG').textContent)<before);
   ui.destroy();
 });
 
@@ -398,7 +400,7 @@ test('rounds DOM: last call, clash callout, summary overlay and unknown packets'
   setNow(46_000);ui.handle({type:'ROUND_END',payload:{...roundEnd,match:ended}});ui.update(ended,'me');
   const summary=byRole(el,'summary')[0];assert.equal(summary.hidden,false);
   // KESINYAP 11: başlık RAUND; kart iki tarafın hasarını (tavana göre) gösterir.
-  assert.ok(summary.textContent.includes('RAUND 2 BİTTİ'));assert.ok(summary.textContent.includes('NAKAVT'));assert.ok(summary.textContent.includes('1200/1300'));
+  assert.ok(summary.textContent.includes('RAUND 2 BİTTİ'));assert.ok(summary.textContent.includes('NAKAVT'));assert.ok(summary.textContent.includes('1.200'));assert.ok(summary.textContent.includes('Rakip vurdu')&&summary.textContent.includes('Sen vurdun'));
   setNow(48_500);ui.tick();
   // Yeni davranış: son 3 sn'de (count) özet GİZLENMEZ; geri sayımla birlikte görünür kalır.
   assert.equal(summary.hidden,false);

@@ -261,12 +261,20 @@ export function summaryModel(roundEnd,match,myId){
   const ko=roundEnd?.reason==='KO';
   const pres=ko?summaryPresentation(winnerSeat,match,myId):{mine:false,tone:winnerSeat&&mySeat?(winnerSeat===mySeat?'win':'loss'):'draw',headline:damageLine};
   const next=roundEnd?.next||(roundEnd?.nextRoundAt?{round:round+1}:null);
-  return {round,title:`RAUND ${round} BİTTİ`,winnerSeat,draw:winnerSeat===null,
+  // Tek bant düellosu: solda rakip, sağda sen (koltuk bilinmiyorsa 1 → 2); sayılar tek satır, tavan rozeti yalnız tavanda.
+  const colors=summaryColors(match);
+  const stat=seat=>{const s=scores[seat-1];return `${num(s.correct)} doğru · ${num(s.wrong)} yanlış · seri ${num(s.bestStreak)}`;};
+  const duel=(mySeat?[mySeat===1?2:1,mySeat]:[1,2]).map(seat=>({seat,me:seat===mySeat,winner:winnerSeat===seat,
+    label:mySeat?(seat===mySeat?'Sen vurdun':'Rakip vurdu'):`${nameOf(match,seat)} vurdu`,
+    damage:num(dmg(seat)),capped:dmg(seat)>=ROUND_DAMAGE_CAP,detail:stat(seat),color:colors[seat-1]}));
+  const nextIdx=Number(next?.round)||round+1;
+  return {round,title:`RAUND ${round} BİTTİ`,winnerSeat,draw:winnerSeat===null,duel,progress:roundDots(round,total,'intermission'),
+    countText:next&&!roundEnd?.matchOver?(nextIdx>total?'Ani ölüm başlıyor':`Raund ${nextIdx} başlıyor`):'Sonuç hazırlanıyor',
     winnerText:damageLine,...pres,damageLine,hpLine,
     ko,reasonText:REASON_LABELS[roundEnd?.reason]||'',names,
     rows:[row('Doğru','correct'),row('Yanlış','wrong'),row('En iyi seri','bestStreak'),
       {label:'Hasar',values:[1,2].map(s=>roundDamageText(dmg(s)))},row('Kalan can','hpLeft')],
-    colors:summaryColors(match),players:summaryPlayers(match),pips:[1,2].map(()=>roundDots(round,total,'intermission')),
+    colors,players:summaryPlayers(match),pips:[1,2].map(()=>roundDots(round,total,'intermission')),
     scoreline:`${num(hpOf(1))} – ${num(hpOf(2))}`,
     nextText:next&&!roundEnd?.matchOver?nextRoundText(next,match?.round?.style,total):'Maç sonucu hazırlanıyor'};
 }
@@ -379,35 +387,34 @@ export function summaryPlayers(match){
 }
 export function createRoundEndCard(doc,model){
   const h=builder(doc);
-  const players=h('div',{cls:'m33-players'},...model.names.map((name,i)=>{
-    const stats=h('dl',{cls:'m33-stats'},...model.rows.flatMap(row=>[h('dt',{text:row.label==='En iyi seri'?'En iyi kombo':row.label==='Hasar'?'Verilen hasar':row.label}),h('dd',{text:row.values[i]})]));
+  // Tek bant (docs/EKRAN-KONTROL-KURALLARI.md): etiket → iki sütunlu hasar düellosu → ilerleme şeridi → sıradaki/ipucu → (bant ızgarasında beceriler) → geri sayım.
+  const rowVal=(label,i)=>model.rows?.find(r=>r.label===label)?.values?.[i];
+  const duel=model.duel||model.names.map((name,i)=>({seat:i+1,me:false,label:`${name} vurdu`,damage:String(rowVal('Verilen hasar',i)??rowVal('Hasar',i)??'0'),capped:false,
+    detail:`${rowVal('Doğru',i)??0} doğru · ${rowVal('Yanlış',i)??0} yanlış · seri ${rowVal('En iyi seri',i)??0}`,color:model.colors?.[i],winner:model.winnerSeat===i+1}));
+  const players=h('div',{cls:'m33-players'},...duel.map(d=>{
+    const i=d.seat-1; // portre maçtaki karakterin kendi görseli (kural 4)
     const portrait=model.players?.[i]?portraitImg(doc,model.players[i],'m33-portrait'):null;
-    return h('article',{cls:`m33-player${model.winnerSeat===i+1?' is-winner':''}${portrait?' has-portrait':''}`,attrs:{style:`--m33-player:${model.colors[i]}`}},portrait,h('h3',{text:name}),stats);
+    return h('article',{cls:`m33-player${d.winner?' is-winner':''}${d.me?' is-me':''}${portrait?' has-portrait':''}`,attrs:{style:`--m33-player:${d.color||'#e4dcff'}`,'data-seat':String(d.seat)}},portrait,
+      h('div',{cls:'m33-body'},
+        h('span',{cls:'m33-who',text:d.label}),
+        h('div',{cls:'m33-dmgrow'},h('strong',{cls:'m33-dmg',text:d.damage,attrs:{'data-round-damage':''}}),d.capped?h('span',{cls:'m33-cap',text:'tavan'}):null),
+        h('small',{cls:'m33-detail',text:d.detail})));
   }));
-  // Raund ilerleme noktaları (7 nokta, oynanan dolu) — artık raund galibiyeti değil.
-  const d=model.pips[0];
-  const pips=h('div',{cls:'m33-pips',attrs:{'aria-label':`Raund ilerlemesi ${d.filled}/${d.total}`}},h('div',{cls:'m33-pip-side'},
-    ...Array.from({length:d.total},(_,j)=>h('span',{cls:`m33-pip${j<d.filled?' is-won':''}`,text:j<d.filled?'●':'○',attrs:{'aria-hidden':'true'}}))));
-  const svg=doc.createElementNS(SVG_NS,'svg');
-  svg.setAttribute('viewBox','0 0 64 64');svg.setAttribute('aria-hidden','true');
-  const track=doc.createElementNS(SVG_NS,'circle'),fill=doc.createElementNS(SVG_NS,'circle');
-  for(const c of [track,fill])for(const [k,v] of Object.entries({cx:32,cy:32,r:RING_R,fill:'none'}))c.setAttribute(k,String(v));
-  track.setAttribute('class','m33-count-track');fill.setAttribute('class','m33-count-fill');
-  fill.setAttribute('stroke-dasharray',RING_C.toFixed(2));svg.append(track,fill);
+  const d=model.progress||model.pips[0];
+  const pips=h('div',{cls:'m33-pips',attrs:{'aria-label':`Raund ilerlemesi ${d.filled}/${d.total}`}},
+    ...Array.from({length:d.total},(_,j)=>h('span',{cls:`m33-pip${j<d.filled?' is-won':''}`,attrs:{'aria-hidden':'true'}})));
   const seconds=h('strong',{text:'0'});
-  const countdown=h('div',{cls:'m33-countdown',attrs:{role:'timer','aria-label':'Sonraki tura kalan süre'}},svg,seconds,h('small',{text:'sn'}));
+  const countdown=h('div',{cls:'m33-countdown',attrs:{role:'timer','aria-label':'Sonraki tura kalan süre'}},h('span',{cls:'m33-count-label',text:model.countText||'Sonraki raund başlıyor'}),seconds);
   const tone=model.tone||'draw';
   const winColor=model.winnerSeat?model.colors[model.winnerSeat-1]:'#e4dcff';
-  const node=h('div',{cls:'m33-result',attrs:{'data-tone':tone,'data-ko':model.ko?'1':'0',style:`--rui-win:${winColor}`}},
-    h('i',{cls:'rui-sweep',attrs:{'aria-hidden':'true'}}),
-    h('header',{},h('h2',{cls:'m33-title',text:model.title}),model.ko?h('span',{cls:'rui-ko',text:'NAKAVT'}):null),
-    h('div',{cls:'m33-winner',text:model.headline||model.winnerText,attrs:{style:`--m33-winner:${winColor}`,'data-round-damage':''}}),
-    model.hpLine?h('div',{cls:'m33-hpline',text:model.ko?`${model.damageLine} · ${model.hpLine}`:model.hpLine,attrs:{'data-round-hp':''}}):null,players,
-    h('footer',{cls:'m33-footer'},pips,h('span',{cls:'m33-next',text:model.nextText}),countdown));
-  return {node,update(deadline,at,duration){
+  const node=h('div',{cls:'m33-result m33-band',attrs:{'data-tone':tone,'data-ko':model.ko?'1':'0',style:`--rui-win:${winColor}`}},
+    h('header',{cls:'m33-head'},h('h2',{cls:'m33-title',text:model.title}),model.ko?h('span',{cls:'rui-ko',text:'NAKAVT'}):null),
+    players,pips,
+    h('footer',{cls:'m33-foot'},h('span',{cls:'m33-next',text:model.nextText}),h('span',{cls:'m33-hint',text:'Süre becerisi seç · 1–3 · Enter kilitler'})),
+    countdown);
+  return {node,update(deadline,at){
     const remaining=Number.isFinite(deadline)?Math.max(0,deadline-at):0;
     setHidden(countdown,!Number.isFinite(deadline));setText(seconds,Math.ceil(remaining/1000));
-    fill.setAttribute('stroke-dashoffset',(RING_C*(1-clamp01(remaining/duration))).toFixed(2));
   }};
 }
 
@@ -478,7 +485,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
   const live=h('span',{cls:'rui-sr',attrs:{'aria-live':'polite','aria-atomic':'true'}});
   // Tur arası: sonuç + süre becerisi TEK panelde, boştaki yazma panelinin (.tt) yerine oturur;
   // beceri kartlarının, arenanın ya da HP çubuklarının üstüne binmez (docs/EKRAN-KONTROL-KURALLARI.md, H3).
-  const inter=h('div',{cls:'rui-inter',rui:'inter',hidden:true},summary,picker);
+  const inter=h('div',{cls:'rui-inter rui-band',rui:'inter',hidden:true},summary,picker);
   el.append(bar,strip,clash,flash,banner,intro,inter,reveal,live);
   root.append(el);
 
@@ -558,12 +565,12 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
       const c=model.cards[i];
       button.setAttribute('aria-pressed',String(state.selected===c.id));
       button.setAttribute('aria-label',`${i+1}. ${c.name}, ${c.effect}, ${c.left}/2 hak`);
-      setText(uses,`${c.left}/2`);
+      setText(uses,`${c.left} hak`);
       uses.setAttribute('aria-label',`${c.left}/2 hak`);
       setFlag(button,'is-empty',c.left===0);
       button.disabled=model.locked||state.pending||c.left===0;
     });
-    setText(pickerStatus,model.locked?`Onaylandı: ${model.pick?ROUND_SKILL_CARDS.find(c=>c.id===model.pick)?.name:'Seçme'} · Rakibin seçimi gizli`:state.pending?'Onay bekleniyor…':'1–3 seç · Enter kilitle · Rakibin seçimi gizli');
+    setText(pickerStatus,model.locked?`Onaylandı: ${model.pick?ROUND_SKILL_CARDS.find(c=>c.id===model.pick)?.name:'Seçme'} · Rakibin seçimi gizli`:state.pending?'Onay bekleniyor…':'');
     pickerLock.disabled=model.locked||state.pending;
     pickerSkip.disabled=model.locked||state.pending;
   }
@@ -684,7 +691,19 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     const r=ref?.getBoundingClientRect?.();
     const vh=Number(globalThis.innerHeight)||0;
     const bottom=r&&r.height>0&&vh?Math.min(Math.max(8,Math.round(vh-r.top+8)),Math.round(vh*.2)):72;
-    if(inter.dataset.dock!==String(bottom)){inter.dataset.dock=String(bottom);inter.style.setProperty?.('--rui-dock-bottom',`${bottom}px`);}
+    // Yetenek rayları (alt köşeler): bant iki rayın arasına sığar; sığmazsa (dar ekran) rayların üstüne çıkar.
+    const vw=Number(globalThis.innerWidth)||0;
+    const rails=[...(pvp?.querySelectorAll?.('[data-fhud-rail]')||[])].map(n=>n.getBoundingClientRect?.()).filter(b=>b&&b.width>0&&b.height>0);
+    let bandW=960,lift=0;
+    if(rails.length&&vw){
+      const leftEdge=Math.max(0,...rails.filter(b=>b.left+b.width/2<vw/2).map(b=>b.right));
+      const rightEdge=Math.min(vw,...rails.filter(b=>b.left+b.width/2>=vw/2).map(b=>b.left));
+      bandW=Math.max(0,Math.floor(2*Math.min(vw/2-leftEdge,rightEdge-vw/2)-16)); // bant ortalı: iki rayın iç kenarlarından en yakınına göre simetrik
+      if(bandW<620){lift=Math.round(vh-Math.min(...rails.map(b=>b.top))+6);bandW=960;}
+    }
+    const dock=lift?Math.max(bottom,lift):bottom;
+    const key=`${dock}:${bandW}`;
+    if(inter.dataset.dock!==key){inter.dataset.dock=key;inter.style.setProperty?.('--rui-dock-bottom',`${dock}px`);inter.style.setProperty?.('--rui-band-w',`${bandW}px`);}
   }
   function hideOverlays(){state.panelOpen=false;setHidden(banner,true);setHidden(summary,true);setHidden(intro,true);setHidden(flash,true);setHidden(picker,true);setHidden(reveal,true);setFlag(inter,'is-count',false);syncInter();}
   function render(){
