@@ -285,10 +285,10 @@ test('rounds HUD: urgent in the last 5 s and frozen while paused',()=>{
   const a=roundsViewModel(paused,'me',22_000),b=roundsViewModel(paused,'me',38_000);
   assert.equal(a.timer.seconds,20);assert.equal(b.timer.seconds,20);assert.equal(a.timer.frozen,true);
 });
-test('rounds HUD: last call badge and finished player',()=>{
+test('rounds HUD: son çağrı rozeti kalktı (KESINYAP 19); sayaç rengi ve biten oyuncu durur',()=>{
   const m=roundMatch({round:{endsAt:31_000},players:roundMatch().players.map(p=>p.seat===2?{...p,roundWordIndex:10,roundDone:true,finishedAt:26_000}:p)});
   const vm=roundsViewModel(m,'me',27_000);
-  assert.equal(vm.lastCall.active,true);assert.equal(vm.lastCall.text,'SON ÇAĞRI · 4 sn');assert.equal(vm.timer.urgent,true);
+  assert.equal(vm.lastCall.active,false);assert.equal(vm.lastCall.text,'');assert.equal(vm.timer.urgent,true);
   assert.equal(vm.sides[1].done,true);assert.equal(vm.sides[1].doneText,'Tamamlandı ✓');assert.equal(vm.sides[0].done,false);
   assert.equal(roundsViewModel(roundMatch(),'me',27_000).lastCall.active,false);
 });
@@ -387,11 +387,11 @@ test('rounds DOM: hidden for classic, renders round text, escapes names via text
   ui.update(classicMatch,'me');assert.equal(el.hidden,true);
   ui.destroy();
 });
-test('rounds DOM: last call, clash callout, summary overlay and unknown packets',()=>{
+test('rounds DOM: son çağrı yazısı çıkmaz (KESINYAP 19), clash callout, summary overlay and unknown packets',()=>{
   const {el,ui,setNow}=mount(27_000);
   const m=roundMatch();ui.update(m,'me');
   ui.handle({type:'ROUND_LAST_CALL',payload:{round:2,finishedSeat:2,endsAt:31_000,match:m}});
-  assert.ok(el.textContent.includes('SON ÇAĞRI'));
+  assert.ok(!el.textContent.includes('SON ÇAĞRI'));
   ui.handle({type:'WORD_CLASH',payload:{type:'WORD_CLASH',clashId:'k',seats:[1,2],roundWordIndex:2,word:'rün',blockerSeat:null,blockKind:null}});
   assert.ok(el.textContent.includes('İKİSİ DE VURDU'));
   assert.doesNotThrow(()=>ui.handle({type:'TOTALLY_UNKNOWN',payload:null}));

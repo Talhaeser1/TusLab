@@ -366,6 +366,8 @@ function typeTopRender(id,{live,own,serverPlayer,target,typed,result,markup,disa
   const bar=(sel,frac)=>{const el=top.querySelector(sel);if(el){const s=`scaleX(${Math.max(0,Math.min(1,frac||0)).toFixed(3)})`;if(el.style.transform!==s)el.style.transform=s;}};
   bar('[data-tt-bar-me]',meProg?meProg.frac:result.percent);bar('[data-tt-bar-opp]',oppProg?oppProg.frac:0);
   top.classList.toggle('is-locked',Boolean(live&&locked));
+  // İpucu ("Kelimeyi yaz, Space ile gönder") ilk 2 kelimeden sonra CSS'te kaybolur.
+  {const wc=live&&me?(Number(me.roundWordIndex)||Number(me.correctWords)||0):0,v=wc>=2?'1':'0';if(top.dataset.ttSeasoned!==v)top.dataset.ttSeasoned=v;}
 }
 /** RAUND SONRASI: panel arenanın altına taşınır (yerleşim), geçiş FLIP ile transform:translateY olarak oynar. */
 function typeTopMove(apply){
@@ -1031,7 +1033,7 @@ root?.addEventListener('tuslab:pvp-round',event=>{
   if(detail.type==='ROUND_START')arena3d.instance?.clear();
   if(detail.type==='ROUND_END')arena3d.instance?.visualQueue?.drain(12000); // İş 1, 3. tur: bekleyenler sıralı ve animasyonlu; gerekirse raund arası kartının arkasında sürer
   if(detail.type==='ROUND_START'){pvpAudio.play('round-start',{character:'center',gain:.6});roundVoice();}
-  if(detail.type==='ROUND_END'&&detail.payload?.reason==='TIME')pvpAudio.announce?.('spiker-sure',{priority:2,ttlMs:1800});
+  // "Süre doluyor" anonsu kapalı (KESINYAP 19): ses dosyası duruyor, tetikleme yok.
   if(detail.type==='ROUND_SKILL_ACK'){
     pvpAudio.play('skill-lock',{character:'center',gain:.45});
     const cue={timethief:'time-thief',freeze:'time-freeze',blindclock:'blind-clock'}[detail.payload?.skill];

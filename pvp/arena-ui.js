@@ -529,11 +529,7 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
     else {value='—';label='';}
     if(r.phase!=='round'){setFlag(medal,'is-urgent',false);setFlag(medal,'is-frozen',false);setFlag(medal,'is-blind',false);}
     setText(secs,value);setText(unit,label);
-    // Ekran okuyucu: son 10/5 sn
-    if(r.phase==='round'&&!blindMe()){
-      const s=Number(value);const a=`${roundKey(m)}:${s}`;
-      if([10,5].includes(s)&&state.announced!==a){state.announced=a;announce(`${s} saniye kaldı`);}
-    }
+    // Saniye uyarısı (ekran okuyucu dahil) kalktı (KESINYAP 19); sayaç yalnız görünür.
   }
   function renderStrip(m){
     const words=Array.isArray(m.round.words)?m.round.words:[];

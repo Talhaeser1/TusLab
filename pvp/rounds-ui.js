@@ -207,13 +207,14 @@ export function roundsViewModel(match,myId,serverNow,marks,{lastCallRound=null}=
   // Üst bilgi: 'ZAMANA KARŞI · RAUND 2/7' ya da 'KELİME RAUNDU · RAUND 2/7 · 7 kelime'.
   const headline=`${styleTitle} · ${suddenDeath?'ANİ ÖLÜM':`RAUND ${index}/${total}`}${timed?'':` · ${wordTotal} kelime`}`;
   // KELİME RAUNDU: geri sayım yok; medalda ilerleme 'x/7' ve 'Sen 4/7 · Rakip 5/7'. Gizli 120 sn sınırı yalnız son 10 sn'de uyarır.
-  let timerOut=timer,lastCall={active:lastCallActive&&!timer.hidden,text:lastCallActive&&!timer.hidden?`SON ÇAĞRI · ${timer.seconds} sn`:''},progressText='',unit='sn';
+  // 13 Kas 2026 (KESINYAP 19): "süre doluyor" / "SON ÇAĞRI" / "Raund kapanıyor" uyarısı kalktı; lastCall hep kapalı (süre kuralları değişmedi).
+  void lastCallActive;
+  let timerOut=timer,lastCall={active:false,text:''},progressText='',unit='sn';
   if(countedRound&&round.phase==='round'){
     const mine=sides[mySeat-1],rival=sides[mySeat===1?1:0];
     progressText=`Sen ${mine.progressValue}/${wordTotal} · Rakip ${rival.progressValue}/${wordTotal}`;
-    const warn=timer.remaining>0&&timer.remaining<=ROUND_CAP_WARN_MS&&!timer.frozen;
     timerOut={...timer,text:`${mine.progressValue}/${wordTotal}`,seconds:-1,fraction:clamp01(mine.progressValue/Math.max(1,wordTotal)),hidden:false,urgent:false};
-    lastCall={active:warn,text:warn?'Raund kapanıyor':''};unit='';
+    unit='';
     if(match.status!=='paused')medalTitle=progressText; // başlık yuvasında 'Sen 4/7 · Rakip 5/7'
   }
   return {visible:true,index,total,title,medalTitle,headline,style:timed?'timed':'counted',dots,unit,suddenDeath,phase:round.phase,phaseLabel,
@@ -642,10 +643,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     sideEls.forEach((side,i)=>setText(side.clock,vm.sides[i].clock));
     ringFill.setAttribute('stroke-dashoffset',(RING_C*(1-tm.fraction)).toFixed(2));
     setFlag(medal,'is-urgent',tm.urgent);setFlag(medal,'is-frozen',tm.frozen);
-    setText(lastCall,vm.lastCall.text);setHidden(lastCall,!vm.lastCall.active);    if(vm.phase==='round'&&!tm.frozen){
-      const a=`${vm.index}:${tm.seconds}`;
-      if([10,5,0].includes(tm.seconds)&&state.announced!==a){state.announced=a;announce(tm.seconds?`${tm.seconds} saniye kaldı`:'Süre doldu');}
-    }
+    setText(lastCall,vm.lastCall.text);setHidden(lastCall,!vm.lastCall.active);    // Saniye anonsu (ekran okuyucu dahil) kalktı (KESINYAP 19).
     // Katmanlar
     const round=match.round;
     const src=round.phase==='round'?null:currentSummarySource(match);

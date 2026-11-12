@@ -90,10 +90,10 @@ test('kelime raundu arayüzü: görünür geri sayım yok; "Sen 4/7 · Rakip 5/7
   assert.equal(vm.timer.seconds,-1);assert.equal(vm.lastCall.active,false);assert.ok(vm.sides.every(s=>s.clock===''));
   assert.equal(vm.sides[0].progress,'Kelime 4/7');assert.equal(vm.sides[1].progress,'Kelime 5/7');
   assert.equal(roundsViewModel(view(4,5),'op',30_000).medalTitle,'Sen 5/7 · Rakip 4/7');
-  // Yalnız son 10 sn'de küçük uyarı.
+  // 13 Kas 2026: gizli sınırın son 10 sn'inde bile "Raund kapanıyor" uyarısı yok (kullanıcı: "süre doluyor uyarısı kalksın").
   assert.equal(roundsViewModel(view(1,1),'me',110_999).lastCall.active,false);
   const warn=roundsViewModel(view(1,1),'me',111_000);
-  assert.equal(warn.lastCall.active,true);assert.equal(warn.lastCall.text,'Raund kapanıyor');
+  assert.equal(warn.lastCall.active,false);assert.equal(warn.lastCall.text,'');
   // Zamana karşı: sayaç aynen.
   const tv=view(1,1);tv.players.forEach(p=>{p.roundEndsAt=31_000;});
   const timed=roundsViewModel({...tv,round:{...tv.round,style:'timed',endsAt:31_000}},'me',21_000);

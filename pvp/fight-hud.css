@@ -167,7 +167,7 @@
 #pvp-root .tt-combo-2{filter:drop-shadow(0 0 5px #ffd45a88)}
 #pvp-root .tt-combo-3{filter:drop-shadow(0 0 8px #ffd45aaa)}
 #pvp-root .tt-combo-4{filter:drop-shadow(0 0 12px #ffd45acc)}
-#pvp-root .tt-clock-urgent{color:#ff6b81;animation:tt-clock-urgent 1000ms ease-in-out infinite}
+#pvp-root .tt-clock-urgent{color:#ff6b81} /* KESINYAP 19: yanip sonme yok, yalniz renk */
 @keyframes tt-letter-hit{0%{filter:brightness(1.7);transform:translateY(-2px)}100%{filter:brightness(1);transform:none}}
 @keyframes tt-word-pop{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(24px)}}
 @keyframes tt-word-miss{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
@@ -316,3 +316,128 @@
 #pvp-root.fhud-on[data-layout="fullscreen"] .rui-medal .rui-title,
 #pvp-root.fhud-on[data-layout="fullscreen"] .aui-medal .aui-title{font:900 italic 15px/1.2 system-ui,sans-serif;letter-spacing:.06em;color:#fff;text-shadow:0 2px 6px #000,0 0 2px #000;white-space:nowrap}
 #pvp-root.fhud-on[data-layout="fullscreen"] .pvp-topbar-clock{color:#fff;text-shadow:0 2px 6px #000}
+
+/* ===== HUD v3 (13 Kas 2026 · orkestrator tasarimi) — "sahne isigi" =====
+   Kutu yok, kontur yok, doku yok. Koyu yari saydam zemin + karakter renginde TEK isik hatti + sicak altin vurgu.
+   Renk: --fhud-a1 / --fhud-a2 (hud-v2.js, kok dugumde); benim tarafim data-fhud-me ile secilir. Yalniz transform/opacity. */
+#pvp-root{--v3-gold:#f6c460;--v3-ink:#0a0716;--v3-mute:#bdb4d8;--v3-me:var(--fhud-a1,#ff8a4c);--v3-opp:var(--fhud-a2,#5ccbff)}
+#pvp-root[data-fhud-me="2"]{--v3-me:var(--fhud-a2,#5ccbff);--v3-opp:var(--fhud-a1,#ff8a4c)}
+
+/* Eski iki yarim panelin cerceve/ayrac izleri sahneyi bolmesin. */
+#pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-side,#pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-stage{border:0!important;box-shadow:none!important;outline:0!important}
+#pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-vs{display:none!important}
+
+.fhud2::before{height:190px;background:linear-gradient(180deg,rgba(8,5,18,.86),rgba(8,5,18,.5) 55%,transparent)}
+
+/* Portre: tek kosesi kesik kare; koyu ic hat + karakter renginde dis hat */
+.fhud2 .fhud2-medal{width:68px;height:68px;border:0;border-radius:16px 16px 16px 4px;background:var(--v3-ink);
+  box-shadow:0 0 0 2px var(--v3-ink),0 0 0 4px var(--fhud-a),0 10px 22px rgba(0,0,0,.55)}
+.fhud2-seat-2 .fhud2-medal{border-radius:16px 16px 4px 16px}
+.fhud2 .fhud2-medal img{border-radius:inherit}
+.fhud2-side.is-low .fhud2-medal{box-shadow:0 0 0 2px var(--v3-ink),0 0 0 4px #ff4d63,0 10px 22px rgba(0,0,0,.55)}
+
+.fhud2 .fhud2-name{font:900 italic 21px/1.15 system-ui,sans-serif;letter-spacing:.03em;text-shadow:0 2px 8px rgba(0,0,0,.9)}
+.fhud2 .fhud2-char{font:700 12px/1.2 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--v3-mute)}
+.fhud2-sen-slot .mi-sen{border-radius:3px;transform:none;padding:2px 8px;background:var(--v3-gold);color:#1c1204}
+
+/* Can bari: ince, uzun, egik; dolgu karakter renginde ve ucu parlak; altinda ayni renkte soluk isik hatti */
+.fhud2 .fhud2-bar{height:24px}
+.fhud2 .fhud2-bar::after{content:"";position:absolute;left:4px;right:26px;bottom:-6px;height:3px;transform:skewX(-34deg);
+  background:linear-gradient(90deg,var(--fhud-a),color-mix(in srgb,var(--fhud-a) 30%,transparent) 60%,transparent)}
+.fhud2-seat-2 .fhud2-bar::after{left:26px;right:4px;transform:skewX(34deg);background:linear-gradient(270deg,var(--fhud-a),color-mix(in srgb,var(--fhud-a) 30%,transparent) 60%,transparent)}
+.fhud2 .fhud2-clip{background:rgba(10,7,22,.82);clip-path:polygon(14px 0,100% 0,calc(100% - 14px) 100%,0 100%)}
+.fhud2-seat-2 .fhud2-clip{clip-path:polygon(0 0,calc(100% - 14px) 0,100% 100%,14px 100%)}
+.fhud2 .fhud2-clip::after{box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
+.fhud2 .fhud2-fill{background:
+  linear-gradient(180deg,rgba(255,255,255,.34) 0,rgba(255,255,255,.06) 42%,rgba(0,0,0,.28) 100%),
+  linear-gradient(90deg,color-mix(in srgb,var(--fhud-a) 62%,#12091c),var(--fhud-a) 78%,color-mix(in srgb,var(--fhud-a) 55%,#fff))}
+.fhud2-seat-2 .fhud2-fill{background:
+  linear-gradient(180deg,rgba(255,255,255,.34) 0,rgba(255,255,255,.06) 42%,rgba(0,0,0,.28) 100%),
+  linear-gradient(270deg,color-mix(in srgb,var(--fhud-a) 62%,#12091c),var(--fhud-a) 78%,color-mix(in srgb,var(--fhud-a) 55%,#fff))}
+.fhud2 .fhud2-ghost{background:#fff6cf}
+.fhud2 .fhud2-notch{background:repeating-linear-gradient(90deg,transparent 0,transparent calc(var(--fhud-notch,25%) - 1px),rgba(8,5,18,.7) calc(var(--fhud-notch,25%) - 1px),rgba(8,5,18,.7) var(--fhud-notch,25%))}
+.fhud2 .fhud2-hp{padding:0 22px;font:900 italic 15px/1 system-ui,sans-serif;letter-spacing:.04em;text-shadow:0 1px 2px #000,0 0 6px rgba(0,0,0,.9)}
+.fhud2-side.is-low .fhud2-fill{background:linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,.04) 42%,rgba(0,0,0,.28)),linear-gradient(90deg,#7a0d20,#ff4d63)}
+.fhud2-bar.is-hit .fhud2-clip::after{box-shadow:inset 0 0 0 2px rgba(255,246,207,.95)}
+
+/* Seri: bara bitisik parcali gosterge; sayi buyuk, etiket kucuk */
+.fhud2 .fhud2-series{height:24px;margin-top:9px;gap:10px}
+.fhud2 .fhud2-ser-n{font:900 italic 24px/1 system-ui,sans-serif;color:rgba(255,255,255,.55)}
+.fhud2 .fhud2-ser-n small{font:800 12px/1 system-ui,sans-serif;letter-spacing:.16em;color:var(--v3-mute)}
+.fhud2-side.has-series .fhud2-ser-n{color:#fff}
+.fhud2 .fhud2-pips{gap:2px}
+.fhud2 .fhud2-pip{width:19px;height:6px;background:rgba(255,255,255,.2);transform:skewX(-34deg)}
+.fhud2-seat-2 .fhud2-pip{transform:skewX(34deg)}
+.fhud2 .fhud2-pip.is-mark{height:12px;box-shadow:none;background:rgba(246,196,96,.34)}
+.fhud2 .fhud2-pip.is-on{background:var(--fhud-a)}
+.fhud2 .fhud2-pip.is-on.is-mark{background:var(--v3-gold)}
+.fhud2 .fhud2-ser-x{font:900 italic 18px/1 system-ui,sans-serif;color:var(--v3-gold)}
+.fhud2 .fhud2-ser-next{font:800 12px/1 system-ui,sans-serif;letter-spacing:.08em;color:var(--v3-mute)}
+
+/* Yazilan kelimeler: cercevesiz, sade satir (bosken hicbir sey gorunmez) */
+#pvp-root.fhud-on .mi-strip{background:none;border:0;box-shadow:none;padding:0 2px;gap:10px}
+#pvp-root.fhud-on .mi-strip.is-me{border:0;box-shadow:none}
+#pvp-root.fhud-on .mi-w,#pvp-root.fhud-on .mi-w.is-new{padding:0;border-radius:0;background:none;color:rgba(255,255,255,.62);font-weight:600;text-shadow:0 1px 3px #000}
+#pvp-root.fhud-on .mi-w.is-new{color:#fff;font-weight:800}
+#pvp-root.fhud-on .mi-live{padding:0;border-radius:0;background:none;color:var(--v3-gold);text-shadow:0 1px 3px #000}
+
+/* Orta ust: raund basligi kutusuz; raund kelime listesi yazma panelinde zaten var, sahnenin ortasini kapatmasin */
+#pvp-root.fhud-on[data-layout="fullscreen"] .rui-medal .rui-title,#pvp-root.fhud-on[data-layout="fullscreen"] .aui-medal .aui-title{
+  padding:0;border:0;background:none;border-radius:0;font:800 12px/1.2 system-ui,sans-serif;font-style:normal;letter-spacing:.2em;color:var(--v3-gold)}
+#pvp-root.fhud-on[data-layout="fullscreen"][data-pvp-mode="rounds"] .rui-words{display:none}
+
+/* Yetenek rayi: ayni dil (koyu zemin, ince hat) */
+.fhud2-hex .hx-bg{fill:rgba(10,7,22,.86)}
+.fhud2-hex .hx-ring{stroke:rgba(255,255,255,.22);stroke-width:2}
+.fhud2-hex .hx-prog{stroke-width:4}
+.fhud2 .fhud2-key{font:900 12px/1 system-ui,sans-serif;color:var(--v3-gold)}
+.fhud2 .fhud2-skname{font-weight:700;letter-spacing:.02em}
+.fhud2 .fhud2-sksub,.fhud2 .fhud2-rail-note{color:var(--v3-mute)}
+
+/* ---- Yazma paneli: tek koyu levha; ustte iki rengin bulustugu isik hatti; kelime sahnenin yildizi ---- */
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt{width:min(660px,94vw);padding:14px 26px 14px;gap:6px;border:0;border-radius:18px;
+  background:linear-gradient(180deg,rgba(18,12,36,.93),rgba(8,6,18,.97));box-shadow:0 22px 48px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.07)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt.is-input-focused{border:0;box-shadow:0 22px 48px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.07)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt::before{content:"";position:absolute;left:26px;right:26px;top:0;height:2px;border-radius:2px;pointer-events:none;
+  background:linear-gradient(90deg,transparent,var(--v3-me) 22%,var(--v3-gold) 50%,var(--v3-opp) 78%,transparent)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-head{min-height:22px;justify-content:center}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-mode{padding:0;border:0;border-radius:0;background:none;color:var(--v3-gold);font:800 12px/1.2 system-ui,sans-serif;letter-spacing:.2em}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-label-text{display:none}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-word{column-gap:20px;align-items:baseline}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-target{font:800 clamp(38px,3.3vw,58px)/1.15 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.05em;color:rgba(255,255,255,.5);text-shadow:0 3px 14px rgba(0,0,0,.6)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-target.is-sentence{font:600 clamp(17px,1.3vw,22px)/1.5 system-ui,sans-serif;letter-spacing:.01em;color:rgba(255,255,255,.62)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-target .pvp2-char-good{color:color-mix(in srgb,var(--v3-me) 62%,#fff)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-target .pvp2-char-next{color:#fff;background:none;border-radius:0;box-shadow:inset 0 -4px 0 var(--v3-gold)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-target .pvp2-char-bad{color:#ff7186;background:none;border-radius:0;text-decoration:none;box-shadow:inset 0 -4px 0 #ff4d63}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-next{gap:14px;font:600 16px/1.2 system-ui,sans-serif;letter-spacing:.02em}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-next span{color:rgba(255,255,255,.5)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-next span+span{color:rgba(255,255,255,.36)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-next span+span+span{color:rgba(255,255,255,.26)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-input{min-height:44px;padding:4px 8px;border:0;border-bottom:2px solid rgba(255,255,255,.2);border-radius:0;background:none;box-shadow:none;
+  text-align:center;color:#fff;caret-color:var(--v3-gold);font:700 clamp(20px,1.4vw,26px)/1.2 system-ui,sans-serif;letter-spacing:.06em}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-input:focus{border-bottom-color:var(--v3-gold);box-shadow:none;outline:0}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-input:focus-visible{outline:0;border-bottom-color:var(--v3-gold)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-input::placeholder{color:rgba(255,255,255,.34);font-size:14px}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-status{min-height:1.3em;padding:0;border:0;text-align:center;font:500 12px/1.3 system-ui,sans-serif;color:rgba(255,255,255,.5)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-status[data-kind="lock"],html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-status[data-kind="chaos"]{color:var(--v3-gold)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-meta{gap:28px;font:600 12px/1.3 system-ui,sans-serif;letter-spacing:.02em}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-who-line{color:var(--v3-mute)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-who-line b{color:#fff}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-bar{height:3px;border-radius:2px;background:rgba(255,255,255,.12)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-bar i{border-radius:2px}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-bar-me i{background:var(--v3-me)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-bar-opp i{background:var(--v3-opp)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-reset{border-radius:6px;border:1px solid rgba(255,255,255,.2);background:none;color:var(--v3-mute)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-xchg{border:0;background:none;color:var(--v3-gold)}
+
+@media (max-width:760px){
+  .fhud2 .fhud2-medal{width:44px;height:44px;border-radius:10px 10px 10px 3px}
+  .fhud2-seat-2 .fhud2-medal{border-radius:10px 10px 3px 10px}
+  .fhud2 .fhud2-name{font-size:15px}
+  .fhud2 .fhud2-bar{height:20px}
+  .fhud2 .fhud2-hp{font-size:12px;padding:0 12px}
+  .fhud2 .fhud2-ser-n{font-size:17px}.fhud2 .fhud2-ser-n small{display:none}
+  .fhud2 .fhud2-pip{width:9px}
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt{padding:10px 14px;border-radius:14px}
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-target{font-size:clamp(30px,8.6vw,42px)}
+}

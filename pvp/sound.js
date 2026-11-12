@@ -229,6 +229,7 @@ export function createPvPAudio({storage=globalThis.localStorage, AudioContextCla
  /** Spiker / seri anonsu — replikle aynı tek kanalı paylaşır (üst üste binmez); aynı anons cooldownMs içinde tekrarlanmaz. */
  function announce(name,{priority=2,gain=.8,ttlMs,cooldownMs=name.startsWith('seri-')?1500:4000,noStale=false}={}){
    if(!ANNOUNCE_SET.has(name)||disposed||muted||volume<=0)return false;
+   if(name==='spiker-sure')return false; // "süre doluyor" anonsu kapalı (KESINYAP 19); dosya duruyor
    return voiceQueue.push({key:`anons/${name}`,priority,gain,ttlMs,cooldownMs,noStale});
  }
  // ---- KESINYAP iş 4: doğru kelime serisi — WebAudio ile üretilmiş kısa çınlama (dosya yok → ön yükleme/gecikme yok).

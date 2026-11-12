@@ -108,7 +108,7 @@ export function createHudV2({root, doc = root?.ownerDocument || globalThis.docum
     setText(s.char, `${f.name} · ${f.title}`);
     setHidden(s.shield, !shieldOn);
     const pt = portraitFor({fighter: p.fighter, character: p.character});
-    if (s.portrait !== pt.url) { s.portrait = pt.url; s.img.src = pt.url; s.img.dataset.portrait = pt.id; setVar(s.side, '--fhud-a', f.palette.accent); setVar(el, `--fhud-a${seat}`, f.palette.accent); }
+    if (s.portrait !== pt.url) { s.portrait = pt.url; s.img.src = pt.url; s.img.dataset.portrait = pt.id; setVar(s.side, '--fhud-a', f.palette.accent); setVar(el, `--fhud-a${seat}`, f.palette.accent); if (root.style) setVar(root, `--fhud-a${seat}`, f.palette.accent); }
   }
 
   function paintSeries(seat, m) {
@@ -189,6 +189,7 @@ export function createHudV2({root, doc = root?.ownerDocument || globalThis.docum
     if (el.dataset.mode !== mode) el.dataset.mode = mode;
     const now = Date.now();
     const mineSeat = (match.players || []).find(p => p && myId != null && p.playerId === myId)?.seat ?? null;
+    const meTag = String(mineSeat ?? 1); if (root.dataset && root.dataset.fhudMe !== meTag) root.dataset.fhudMe = meTag; // HUD v3: yazma paneli kendi rengimi bilir
     for (const seat of [1, 2]) {
       const p = seatOf(match, seat), s = S[seat];
       setHidden(s.side, !p);
