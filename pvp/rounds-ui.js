@@ -22,7 +22,7 @@ export const PRACTICE_ROUND_STYLE_KEY='tuslab-pvp-practice-round-style';
 export const ROUND_STYLE_LABELS=Object.freeze({timed:'Zamana karşı',counted:'Kelime raundu'});
 export const ROUND_STYLE_TITLES=Object.freeze({timed:'ZAMANA KARŞI',counted:'KELİME RAUNDU'});
 /** Tek satırlık hasar kuralı ipucu (lobi MAÇ AYARLARI). */
-export const DAMAGE_RULE_HINT=`Seri 3 → Q · 5 → E · 7 → R · sonra her doğru kelime vurur · 7. seriden sonra hasar çarpanı artar · yanlış kelime seriyi sıfırlar · raund başına en çok ${ROUND_DAMAGE_CAP} hasar`;
+export const DAMAGE_RULE_HINT=`Seri 3 → Q · 5 → E · 7 → R · sonra her doğru kelime vurur · 7. seriden sonra hasar çarpanı artar · yanlış kelime serinin yarısını götürür · raund başına en çok ${ROUND_DAMAGE_CAP} hasar`;
 export {DEFAULT_ROUND_STYLE,normalizeRoundStyle,ROUND_HP,ROUND_DAMAGE_CAP};
 const START_FLASH_MS=900;
 /** Raund arası: "RAUND X" yazısı önce tek başına bu kadar görünür; sonra kompakt özet/seçim paneli açılır. */
@@ -506,19 +506,19 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     const mySeat=mySeatOf(match,state.myId)||1;
     for(const side of sideEls){
       const p=playerBySeat(match,side.seat);if(!p)continue;
-      const cur={key,correct:Number(p.roundCorrect)||0,wrong:Number(p.roundWrong)||0,idx:Number(p.roundWordIndex)||0,mult:Number(p.multiplier)||streakMultiplier(streakOf(p))};
+      const cur={key,correct:Number(p.roundCorrect)||0,wrong:Number(p.roundWrong)||0,idx:Number(p.roundWordIndex)||0,streak:streakOf(p),mult:Number(p.multiplier)||streakMultiplier(streakOf(p))};
       const prev=side.prev;side.prev=cur;
       if(!prev||prev.key!==key)continue;
       if(side.seat===mySeat&&cur.idx>prev.idx){
         if(cur.wrong>prev.wrong)state.marks.set(cur.idx-1,'bad');
         else if(cur.correct>prev.correct)state.marks.set(cur.idx-1,'good');
       }
-      if(cur.wrong>prev.wrong)streakBreak(side);
+      if(cur.wrong>prev.wrong)streakBreak(side,prev.streak,cur.streak);
       if(cur.mult>prev.mult&&cur.mult>1)pulse(side);
     }
   }
-  function streakBreak(side){
-    setFlag(side.meter,'is-broken',true);side.meterLabel.textContent='SERİ BOZULDU';
+  function streakBreak(side,from,to){
+    setFlag(side.meter,'is-broken',true);side.meterLabel.textContent=from>to?`SERİ ${from} → ${to}`:'SERİ BOZULDU';
     if(side.breakTimer!==null)timers.clearTimeout(side.breakTimer);
     side.breakTimer=later(()=>{side.breakTimer=null;setFlag(side.meter,'is-broken',false);render();},BREAK_MS);
   }

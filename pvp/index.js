@@ -938,7 +938,7 @@ root?.addEventListener('tuslab:pvp-word-result',event=>{
   // KESINYAP iş 4: yalnız YEREL oyuncunun doğru kelimesi seri sesi çalar (perde yükselir); yanlışta seri sıfırlanır.
   if(result.accepted){
     if(result.correct){if(!pvpAudio.streakHit?.())pvpAudio.play('word-correct',{character:'center',gain:.22});}
-    else{pvpAudio.streakReset?.();pvpAudio.play('word-wrong',{character:'center',gain:.22});}
+    else{pvpAudio.streakReset?.(Number.isFinite(result.streak)?result.streak:0);pvpAudio.play('word-wrong',{character:'center',gain:.22});}
   }
   if(!result.accepted){
     const ownId=network.seat===2?'rune':'fire',own=players[ownId];

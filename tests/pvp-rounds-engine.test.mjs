@@ -132,12 +132,12 @@ test('rounds: publicMatch never leaks the seed or future words',()=>{
   assert.equal(view.players[0].nextSkill,null);assert.equal(view.players[0].multiplier,1);
 });
 
-test('rounds: a wrong word consumes the attempt and resets the streak',()=>{
+test('rounds: a wrong word consumes the attempt and halves the streak (KESINYAP 13)',()=>{
   let m=make();
   m=type(m,1,T0+1000).match;m=type(m,1,T0+2000).match;
   const out=type(m,1,T0+3000,{wrong:true});m=out.match;
   const p=seatOf(m,1);
-  assert.equal(out.result.correct,false);assert.equal(p.combo,0);assert.equal(out.result.streak,0);
+  assert.equal(out.result.correct,false);assert.equal(p.combo,1);assert.equal(out.result.streak,1);assert.equal(out.result.streakBefore,2);// 2 → 1 (eskiden 0)
   assert.equal(p.roundWordIndex,3);assert.equal(p.roundWrong,1);assert.equal(p.roundCorrect,2);assert.equal(p.roundBestStreak,2);
   assert.equal(p.currentWord,m.round.words[3]);
   assert.equal(out.result.roundWordIndex,3);assert.equal(out.result.nextSkill,null);

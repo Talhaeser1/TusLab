@@ -23,6 +23,8 @@ test('iş 4: yanlışta seri sıfırlanır, perde başa döner; eşikler 5/10/15
   for (let i = 0; i < 6; i++) seen.push(t.hit());
   assert.deepEqual(seen.map(s => s.threshold), [null, null, null, null, 5, null]);
   assert.ok(seen[5].hz > seen[0].hz);
+  t.reset(3); // iş 13: rounds'ta yanlış → yeni seri basamağından devam
+  assert.equal(t.count, 3); assert.equal(t.hit().step, 4);
   t.reset();
   assert.equal(t.count, 0);
   const first = t.hit();

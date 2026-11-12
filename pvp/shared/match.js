@@ -508,6 +508,8 @@ function scheduleAlternating(match,at){
   else if(match.round)match.round.resolveUntil=until;
   return ordered.length;
 }
+/** Rounds yanlış kelime: seri yarıya iner (aşağı yuvarlanır). */
+export const wrongStreak=streak=>Math.floor(Math.max(0,Number(streak)||0)/2);
 /** Round mode: every attempt consumes the word; absolute streak thresholds cast Q/E/R (no Q/E/R cooldowns). */
 function submitRoundWord(match,playerId,wordIndex,attempt,at){
   const next=structuredClone(match);const round=next.round;
@@ -519,7 +521,9 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
   mine.correctChars+=score.correct;mine.submittedChars+=score.total;
   mine.correctWords+=Number(correct);mine.wrongWords+=Number(!correct);
   mine.roundCorrect+=Number(correct);mine.roundWrong+=Number(!correct);
-  mine.combo=correct?mine.combo+1:0;if(mine.rune!=='none')mine.runeEnergy=correct?Math.min(5,(mine.runeEnergy||0)+1):0;
+  // İş 13: rounds'ta yanlış kelime seriyi sıfırlamaz, YARIYA indirir (aşağı yuvarlanır: 8→4, 7→3, 5→2, 3→1, 1→0).
+  const streakBefore=mine.combo;
+  mine.combo=correct?mine.combo+1:wrongStreak(mine.combo);if(mine.rune!=='none')mine.runeEnergy=correct?Math.min(5,(mine.runeEnergy||0)+1):0;
   mine.maxCombo=Math.max(mine.maxCombo||0,mine.combo);mine.roundBestStreak=Math.max(mine.roundBestStreak||0,mine.combo);
   mine.skillCharge.q=Math.min(3,mine.combo);mine.skillCharge.e=Math.min(5,mine.combo);mine.skillCharge.r=Math.min(7,mine.combo);
   mine.accuracy=Math.round(mine.correctChars/Math.max(1,mine.submittedChars)*100);
@@ -583,7 +587,7 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
     accuracy:mine.accuracy,wpm:mine.wpm,nextIndex:mine.wordIndex,
     nextWord:mine.currentWord,skillCharge:{...mine.skillCharge},cast,
     ...(next.assistEnabled?{assistCast,assist:publicAssist(mine)}:{}),
-    round:round.index,streak:mine.combo,multiplier:streakMultiplier(mine.combo),nextSkill:nextSkillOf(mine),
+    round:round.index,streak:mine.combo,streakBefore,multiplier:streakMultiplier(mine.combo),nextSkill:nextSkillOf(mine),
     roundWordIndex:mine.roundWordIndex,roundDone:mine.roundDone,roundEvents}};
 }
 /** Resolve server-authorized combat, including reactive blocks and queued counters.

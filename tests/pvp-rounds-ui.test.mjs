@@ -412,7 +412,7 @@ test('rounds DOM: streak break flag on wrong word and destroy clears every timer
   const m=roundMatch();ui.update(m,'me');
   const broken=roundMatch({sequence:6,players:m.players.map(p=>p.seat===1?{...p,streak:0,combo:0,roundWrong:2,roundWordIndex:7,nextSkill:'q'}:p)});
   ui.update(broken,'me');
-  assert.ok(el.textContent.includes('SERİ BOZULDU'));
+  assert.match(el.textContent,/SERİ \d+ → 0/); // KESINYAP 13: düşüş gösterilir (serisiz yanlışta 'SERİ BOZULDU')
   assert.ok(byRole(el,'meter')[0].classList.contains('is-broken'));
   assert.ok(timers.live.size>0);
   ui.destroy();

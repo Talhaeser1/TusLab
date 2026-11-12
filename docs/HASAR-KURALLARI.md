@@ -14,7 +14,7 @@ Rün bonusları (`computeSkillBonus`, rünsüz oyuncuda 0): Alev Mührü Q +8, S
 ## 2. Raund (`mode=rounds`) — KESINYAP 11
 - 7 raund, her oyuncu **4000 can** ile başlar; can raundlar arasında **taşınır** (sıfırlanmaz).
 - Biçim: **Zamana karşı** her raund 30 sn, kelime tükenmez · **Kelime raundu** 5-7-9-10-10-10-15 kelime: **süre yok, ilk bitiren raundu bitirir** (rakibin o ana kadar yazdıkları sayılır, kalanı yazamaz; arayüzde sayaç yerine "Sen 4/7 · Rakip 5/7"). Kimse bitirmezse gizli 120 sn üst sınırı (yalnız son 10 sn'de küçük "Raund kapanıyor" uyarısı). Süre becerileri (Zaman Hırsızı, Donmuş An, Karanlık Saat) kelime raundunda yoktur; yalnız zamana karşıda çalışır.
-- Seri → beceri (`streakSkill`): 3 → Q, 5 → E, 7 → R, 8 ve sonrası her doğru kelime → Q. Yanlış kelime seriyi 0'lar.
+- Seri → beceri (`streakSkill`): 3 → Q, 5 → E, 7 → R, 8 ve sonrası her doğru kelime → Q. Yanlış kelime seriyi sıfırlamaz, **yarıya indirir** (aşağı yuvarlanır: 8→4, 7→3, 5→2, 3→1, 1→0; `wrongStreak`). Çarpan yeni seriye göre hesaplanır; seri bir eşiğin (3/5/7) altına inerse o eşik yeniden geçilince beceri yeniden atılır. Yalnız rounds; classic ve arena aynen sıfırlar. Ekranda "SERİ 8 → 4".
 - Çarpan (`streakMultiplier`): seri < 7 → ×1; 7'den itibaren ×1,5 ve her doğru kelimede ×1,2 artar, en çok ×2,5 (7:1,5 · 8:1,8 · 9:2,16 · 10+:2,5).
 - **Rastgelelik yok**: rounds'ta kalkan/parry/çarpışma zarı atılmaz, her vuruş tam iner.
 - **Raund tavanı 1300** (`ROUND_DAMAGE_CAP`): bir oyuncu tek raundda en çok 1300 verir, fazlası düşer → 3 × 1300 = 3900 < 4000, nakavt en erken 4. raundda.

@@ -20,7 +20,7 @@ export function createStreakTracker() {
     /** Doğru kelime: {n, step, hz, threshold} */
     hit() { n += 1; return {n, step: streakStep(n), hz: streakFrequency(n), threshold: STREAK_THRESHOLDS.includes(n) ? n : null}; },
     /** Yanlış kelime / yeni maç: seri sıfırlanır. */
-    reset() { n = 0; },
+    reset(to = 0) { n = Math.max(0, Math.floor(Number(to) || 0)); },
     get count() { return n; }
   };
 }

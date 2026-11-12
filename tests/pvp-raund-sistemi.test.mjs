@@ -200,6 +200,6 @@ test('arayüz: üst etiket, raund arası kartı ve lobi kural ipucu', () => {
   const html=roundStylePickerHTML('practice');
   assert.match(html,/Zamana karşı/);assert.match(html,/Kelime raundu/);assert.doesNotMatch(html,/data-round-words/);
   assert.ok(html.includes(DAMAGE_RULE_HINT));
-  assert.match(DAMAGE_RULE_HINT,/Seri 3 → Q · 5 → E · 7 → R · sonra her doğru kelime vurur · 7\. seriden sonra hasar çarpanı artar · yanlış kelime seriyi sıfırlar · raund başına en çok 1300 hasar/);
+  assert.match(DAMAGE_RULE_HINT,/Seri 3 → Q · 5 → E · 7 → R · sonra her doğru kelime vurur · 7\. seriden sonra hasar çarpanı artar · yanlış kelime serinin yarısını götürür · raund başına en çok 1300 hasar/);
   assert.equal(roundsPickerHTML('practice'),'');
 });

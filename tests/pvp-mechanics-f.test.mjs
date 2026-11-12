@@ -235,15 +235,15 @@ test('F3: Q/E/R seri eşikleri 3/5/7 sunucuda tetiklenir ve skillbar eşikleriyl
   assert.equal(SKILLBAR_THRESHOLDS,SKILL_THRESHOLDS,'skillbar.js eşikleri match.js ile aynı nesne');
   for(const [n,k] of Object.entries(STREAK_SKILLS).slice(0,3))assert.equal(SKILL_THRESHOLDS.rounds[k.toUpperCase()]<=Number(n),true);
 });
-test('F3: skillbar "Hazır" durumu eşikte tamamlanır; yanlış kelime seriyi sıfırlar',()=>{
+test('F3: skillbar "Hazır" durumu eşikte tamamlanır; yanlış kelime seriyi yarıya indirir',()=>{
   let m=make();
   for(let i=0;i<3;i++)m=type(m,1,T0+300+i*120).match;
   const pl=publicMatch(m,1).players[0];
   const st=readSkillState(pl,'Q',{rounds:true,now:T0+1000});
   assert.equal(st.energy,st.threshold);
   m=type(m,1,T0+900,{wrong:true}).match;
-  assert.equal(publicMatch(m,1).players[0].streak,0);
-  assert.equal(readSkillState(publicMatch(m,1).players[0],'Q',{rounds:true,now:T0+1000}).energy,0);
+  assert.equal(publicMatch(m,1).players[0].streak,1);// 3 → 1 (KESINYAP 13)
+  assert.ok(readSkillState(publicMatch(m,1).players[0],'Q',{rounds:true,now:T0+1000}).energy<st.threshold);
 });
 test('F3: can/hasar akışı — saldırılar raund sonunda çözülür, HP azalır, destek barı public snapshot\'ta görünür',()=>{
   let m=make({assist:true});

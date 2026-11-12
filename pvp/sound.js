@@ -256,7 +256,7 @@ export function createPvPAudio({storage=globalThis.localStorage, AudioContextCla
    return s;
  }
  /** Yanlış kelime / yeni maç: seri sıfırlanır, perde başa döner. */
- function streakReset(){streak.reset();}
+ function streakReset(to=0){streak.reset(to);}
  /** Silah / blok / kritik / düşme / seyirci / jingle efekti. */
  function playExtra(name,{gain=.4}={}){
    if(!EXTRA_SET.has(name))return false;
