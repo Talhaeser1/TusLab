@@ -1897,14 +1897,14 @@ export async function createArena3D({
     if (entry && !chain && (rig.anim.state.kind === 'hit' || rig.anim.state.kind === 'block')) rig.play('idle');
     if (!chain) rig.play(skill, plan ? {compress, skipReturn} : undefined);
     const hitMs = chain ? chain.contacts[0].ms : plan ? plan.hitMs : skill === 'r' && rig.ultimatePeakMs ? rig.ultimatePeakMs : spec.hitMs || 0;
-    fighter.lastCast = {at: now(), hitMs,
+    fighter.lastCast = {at: now(), hitMs, skill,
       clock: fighter.modelClock, arrived: false,
       ranged: (spec.fx || []).some(x => ['spear','dagger','rune','meteor','column','bread'].includes(x.kind))};
     const cast = fighter.lastCast;
     if (entry) entry.cast = cast;
     if (entry && chain) {
       for (let i = 0; i < entry.strikes.length && i < chain.contacts.length; i++) {
-        entry.strikes[i].cast = {at: now(), hitMs: chain.contacts[i].ms, clock: fighter.modelClock,
+        entry.strikes[i].cast = {at: now(), hitMs: chain.contacts[i].ms, skill: entry.strikes[i].skill, clock: fighter.modelClock,
           arrived: false, ranged: fighter.lastCast.ranged};
       }
     }
@@ -1919,6 +1919,9 @@ export async function createArena3D({
       ? Math.max(skillDuration(spec), rig.ultimateDurationMs || rig.ultimatePeakMs)
       : rig.sceneDuration?.(skill) || skillDuration(spec);
     const spinOk = !reduced();
+    // İş 15: telegraf (hazırlık) imza efekti — zemin deseni, elde toplanan enerji, silah izi pencereleri.
+    if (fx && !reduced()) sigFx({stage: 'cast', seat, def: otherSeat(seat), skill, fighterId: rig.fighterId, hitMs,
+      contacts: chain ? chain.contacts.map(c => c.ms) : [hitMs], durationMs: dur});
     const carry0 = Math.min(fighter.carry || 0, contactDistance);
     const from = contactDistance > 0.001 ? carry0 / contactDistance : 0;
     const track = addTrack(fighter, dur, (p, o, m) => {
@@ -1993,9 +1996,14 @@ export async function createArena3D({
       spawnFloorWave(def, seat, 0.4 + 0.6 * power);
       if (power >= 0.8) { pulseFog(color, 0.5 * power); cheer(0.4 * power); }
     };
+    // İş 15: karaktere özgü imza efekti (havuzlu, arena3d-fx). Üstlenirse eski skillFx gövdesi çizilmez;
+    // varış geri çağrısı (impact → temas) aynı benzetim saatinde kalır.
+    const sig = extra => !quiet && sigFx({stage: 'launch', seat, def, skill: item.skill ?? cast?.skill, fighterId: rig.fighterId, kind: item.kind,
+      flight: item.flight, ms: item.ms, power: item.power, ...extra});
     if (item.kind === 'slam') {
       impact(item.power ?? 0.7);
       if (!quiet && skillFx) safeCall(() => skillFx.burst(rig.fighterId, api.seatAnchor(def), 0.8 + 0.4 * (item.power ?? 0.7)));
+      if (!quiet) sigFx({stage: 'slam', seat, def, skill: item.skill ?? cast?.skill, fighterId: rig.fighterId, power: item.power});
       return;
     }
     if (quiet || !skillFx) {
@@ -2007,21 +2015,26 @@ export async function createArena3D({
     const ground = api.seatGround(def);
     if (item.kind === 'spear' || item.kind === 'dagger' || item.kind === 'rune' || item.kind === 'bread') {
       const from = rig.boneWorld(item.from || 'handslot.r');
-      skillFx.spawn({kind: item.kind, from, to: anchor, color, accent, flight: item.flight || 260, scale: s, profile: rig.fighterId,
-        onArrive: () => impact(item.kind === 'spear' ? 0.45 : item.kind === 'bread' ? 0.4 : 0.3)});
+      const onArrive = () => impact(item.kind === 'spear' ? 0.45 : item.kind === 'bread' ? 0.4 : 0.3);
+      if (!sig({from, onArrive})) skillFx.spawn({kind: item.kind, from, to: anchor, color, accent, flight: item.flight || 260, scale: s, profile: rig.fighterId, onArrive});
     } else if (item.kind === 'meteor') {
-      skillFx.spawn({kind: 'meteor', from: api.seatAnchor(seat), to: ground, color, accent, flight: item.flight || 500, scale: s * 1.2, profile: rig.fighterId,
-        onArrive: () => impact(1.2)});
+      const onArrive = () => impact(1.2);
+      if (!sig({from: api.seatAnchor(seat), flight: item.flight || 500, onArrive})) {
+        skillFx.spawn({kind: 'meteor', from: api.seatAnchor(seat), to: ground, color, accent, flight: item.flight || 500, scale: s * 1.2, profile: rig.fighterId, onArrive});
+      }
     } else if (item.kind === 'column') {
-      skillFx.spawn({kind: 'column', to: ground, color, accent, ms: item.ms || 900, scale: s, profile: rig.fighterId, onArrive: () => impact(0.6)});
+      const onArrive = () => impact(0.6);
+      if (!sig({onArrive})) skillFx.spawn({kind: 'column', to: ground, color, accent, ms: item.ms || 900, scale: s, profile: rig.fighterId, onArrive});
     } else if (item.kind === 'shockring') {
-      // Ney Feryadı: kullanıcının ayağından yayılan ses halkası + ekran dalgası (zemin halkası, sis nabzı, flaş).
-      skillFx.spawn({kind: 'shockring', to: api.seatGround(seat), color, accent, ms: item.ms || 900, scale: s, profile: rig.fighterId,
-        onArrive: () => { impact(1); api.flash(color, 0.1, 220); }});
+      // Ney Feryadı: neyin ucundan rakibe giden ses dalgası halkaları + nota parçacıkları (imza); yedekte zemin halkası.
+      const onArrive = () => { impact(1); api.flash(color, 0.1, 220); };
+      if (!sig({onArrive})) skillFx.spawn({kind: 'shockring', to: api.seatGround(seat), color, accent, ms: item.ms || 900, scale: s, profile: rig.fighterId, onArrive});
     } else if (item.kind === 'shards') {
       shatterBubble(def);
-      skillFx.spawn({kind: 'shards', to: anchor, color: fighters.get(def)?.palette.shield ?? 0xffffff, accent, ms: 650, scale: s});
+      if (!sig({})) skillFx.spawn({kind: 'shards', to: anchor, color: fighters.get(def)?.palette.shield ?? 0xffffff, accent, ms: 650, scale: s});
       impact(0.7);
+    } else if (item.kind === 'swirl' && sig({})) {
+      /* imza girdabı (kasırga / sema) çizildi */
     } else if (item.kind === 'swirl') {
       skillFx.spawn({kind: 'swirl', to: api.seatGround(seat), color, accent, ms: item.ms || 700, scale: s, profile: rig.fighterId,
         follow: out => {
@@ -2032,6 +2045,15 @@ export async function createArena3D({
   }
 
   function fighterCast(seat) { return fighters.get(seat)?.lastCast; }
+
+  /** İş 15: imza efekt eklentisine (arena3d-fx.signature) ilet; üstlenen olursa true. */
+  function sigFx(args) {
+    for (const plugin of plugins) {
+      if (typeof plugin?.signature !== 'function') continue;
+      try { if (plugin.signature(args)) return true; } catch (error) { reportPluginError(plugin, error); }
+    }
+    return false;
+  }
 
   /**
    * Görev 4 / madde 11 — KRİTİK yazısı karakterlerin ARKASINDA: sahnede iki dövüşçünün gerisinde
@@ -2109,7 +2131,8 @@ export async function createArena3D({
    * Şerit H — ulti sinematiği: 250–400 ms yavaş çekim (yalnız görsel; api.slowMo 0,42), kamera
    * önce saldırana yaklaşır (ultimatePhase 2'de temas noktasına geçer). Reduced-motion'da yok.
    */
-  const ULTI_INTRO = Object.freeze({slowScale: 0.42, slowMs: 340, dollyMs: 1100});
+  // İş 15: R kamera hareketi kısa — yavaş yaklaşma + ≤ 600 ms içinde genel plana dönüş (iki dövüşçü kadrajda).
+  const ULTI_INTRO = Object.freeze({slowScale: 0.42, slowMs: 340, dollyMs: 600});
   function ultimateIntro(seat) {
     if (reduced()) return;
     api.slowMo(ULTI_INTRO.slowScale, ULTI_INTRO.slowMs);
@@ -2184,6 +2207,19 @@ export async function createArena3D({
         if (!entry.strikes[i].cast) entry.strikes[i].cast = {at: now(), hitMs: plan.contacts[i].ms,
           clock: fighter.modelClock, arrived: false, ranged: false};
       }
+    }
+    // İş 15: zincire SONRADAN katılan vuruşun yetenek efektleri (önceden hiç kuyruğa girmiyordu) + silah izi penceresi.
+    if (!reduced() && entry.cast && Number.isFinite(entry.cast.clock)) {
+      const def = otherSeat(entry.seat);
+      for (const item of plan.fx || []) {
+        if ((item.index ?? 0) < prevContacts) continue;
+        const strikeCast = entry.strikes[item.index]?.cast || entry.cast;
+        fighter.fxQueue.push({at: entry.cast.clock + (item.at || 0), fn: () => spawnSkillFx(entry.seat, def, item, strikeCast)});
+      }
+      if (fighter.fxQueue.length > 12) fighter.fxQueue.splice(0, fighter.fxQueue.length - 12);
+      const elapsed = fighter.modelClock - entry.cast.clock;
+      const later = plan.contacts.slice(prevContacts).map(c => Math.max(0, c.ms - elapsed));
+      if (later.length) sigFx({stage: 'cast', seat: entry.seat, def, skill, fighterId: rig.fighterId, contacts: later});
     }
     if (entry.scenePlan) {
       entry.scenePlan.contacts = plan.contacts.map(c => c.ms);
@@ -2828,7 +2864,7 @@ export async function createArena3D({
     if (ult.queue.length && tNow >= ult.nextAt) {
       const n = ult.queue.shift();
       runPhase(n);
-      if (n === 2 && !reduced() && fighters.get(ult.atk)?.model) dollyTo(ult.def, 900, false); // temas noktasına odak
+      if (n === 2 && !reduced() && fighters.get(ult.atk)?.model) dollyTo(ult.def, 600, false); // temas noktasına odak (İş 15: ≤ 600 ms)
       ult.shown = n;
       ult.nextAt = tNow + (fighters.get(ult.atk)?.model && n < 3
         ? (n === 1 ? ULTIMATE_TIMING.pullMs : ULTIMATE_TIMING.strikeMs) : ULTIMATE_TIMING.minGapMs);
@@ -4114,6 +4150,21 @@ export async function createArena3D({
           {type: 'SHIELD_BROKEN', seat, warm: true},
         ];
         for (const plugin of fxPlugins) for (const ev of events) safeCall(() => plugin.handle(ev));
+        // İş 15: imza efektlerinin her aşaması bir kez (görünmez) — kod yolları ve havuzlar ısınır.
+        const fighterId = fighters.get(seat)?.fighterId;
+        for (const plugin of fxPlugins) {
+          if (typeof plugin.signature !== 'function' || !fighterId) continue;
+          for (const skill of ['q', 'e', 'r']) {
+            safeCall(() => plugin.signature({stage: 'cast', seat, def: to, skill, fighterId, hitMs: 400, contacts: [400], warm: true}));
+            safeCall(() => plugin.signature({stage: 'slam', seat, def: to, skill, fighterId, warm: true}));
+            for (const phase of skill === 'r' ? [1, 2, 3] : [0]) {
+              safeCall(() => plugin.signature({stage: 'contact', event: {type: 'DAMAGE_APPLIED', fromSeat: seat, toSeat: to, skill, phase, amount: 100, impactContact: true, warm: true}}));
+            }
+          }
+          for (const kind of ['bread', 'spear', 'dagger', 'rune', 'meteor', 'column', 'shockring', 'swirl', 'shards']) {
+            safeCall(() => plugin.signature({stage: 'launch', seat, def: to, skill: 'q', fighterId, kind, from: at.clone(), flight: 100, ms: 200, onArrive: () => {}, warm: true}));
+          }
+        }
       }
       for (let i = 0; i < 3; i++) {
         if (skillFx) safeCall(() => skillFx.update(0.05));

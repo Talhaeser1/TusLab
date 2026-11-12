@@ -97,6 +97,37 @@ const PALETTE_HEX = Object.freeze({
   }
 });
 
+/**
+ * İş 15 — karaktere özgü ("imza") efekt paletleri. hot/cool parçacık renkleri, ring halka/iz rengi,
+ * flash ekran kenarı darbesi rengi.
+ */
+const SIG_PALETTE_HEX = Object.freeze({
+  vargr: {hot: [0xfff0dc, 0xffd08a, 0xffb347], cool: [0xff7a1a, 0xe8361e, 0xb3200f], core: 0xfff6e0, glow: 0xff6a1f, ring: 0xff8a3d, light: 0xff7a1a, flash: 0xff4a1a},
+  blood: {hot: [0xffd0c4, 0xff6a5a, 0xff3a4a], cool: [0xc0001e, 0x7a0010, 0xe0102a], core: 0xffe0e0, glow: 0xd0102a, ring: 0xff2a3a, light: 0xff2a2a, flash: 0xd0102a},
+  sira: {hot: [0xf3e6ff, 0xe8d0ff, 0xc58cff], cool: [0xa14dff, 0x6b21c8, 0x3b0a6b], core: 0xf7efff, glow: 0xa14dff, ring: 0xb06bff, light: 0x9b4dff, flash: 0xa14dff},
+  doran: {hot: [0xfffbe6, 0xfff3c4, 0xffe08a], cool: [0xffc93c, 0xd99a1c, 0xa8741a], core: 0xfffbe6, glow: 0xffc93c, ring: 0xffd35a, light: 0xffd35a, flash: 0xffc93c},
+  nyx: {hot: [0xf0fdff, 0xa5f3fc, 0xe0d0ff], cool: [0x22d6e8, 0xa56bff, 0x6b3cf0], core: 0xf0fdff, glow: 0x22d6e8, ring: 0x5ee3f5, light: 0x7c6cff, flash: 0x7c6cff},
+  konyali: {hot: [0xfff3d6, 0xffe0a0, 0xf2c46a], cool: [0xe0a93a, 0xb8512f, 0x8a3a1c], core: 0xfff6e0, glow: 0xe0a93a, ring: 0xf2b84a, light: 0xffb84a, flash: 0xe8a53a},
+  flour: {hot: [0xffffff, 0xfffaf0, 0xf5efe4], cool: [0xd8d0c4, 0xc9bfae, 0xe8e0d0], core: 0xffffff, glow: 0xfff6e8, ring: 0xfff6e8, light: 0xfff1d6, flash: 0xfff1d6},
+  crumb: {hot: [0xd9a441, 0xc58a3a, 0xe8b84a], cool: [0x8a4a1c, 0x6b3a18, 0x9c5a24], core: 0xf2c46a, glow: 0xc58a3a, ring: 0xd9a441, light: 0xffb84a, flash: 0xd9a441},
+});
+
+/**
+ * İş 15 — karakter başına imza yapılandırması: pal (ana), ultPal (R), castDecal (telegraf zemini),
+ * decal (temas izi), blade (silah izi: kemik, uzunluk U, hangi yetenekler).
+ */
+const SIG_CONFIG = Object.freeze({
+  vargr: {pal: 'vargr', ultPal: 'blood', castDecal: 'ember', decal: 'crack', blade: {bone: 'handslot.r', len: 1.05, skills: ['q', 'e', 'r']}},
+  sira: {pal: 'sira', castDecal: 'shadow', decal: 'shadow', blade: {bone: 'handslot.r', len: 0.55, skills: ['e']}},
+  doran: {pal: 'doran', castDecal: 'rune', decal: 'crack', blade: {bone: 'handslot.r', len: 0.85, skills: ['q', 'r']}},
+  nyx: {pal: 'nyx', castDecal: 'rune', decal: 'rune', blade: null},
+  konyali: {pal: 'konyali', castDecal: 'seljuk', decal: 'flour', blade: null},
+});
+export const SIG_FIGHTERS = Object.freeze(Object.keys(SIG_CONFIG));
+
+/** İş 15 havuz boyutları (maç başında bir kez kurulur; dövüşte yeni GPU nesnesi yok). */
+export const SIG_POOLS = Object.freeze({decals: 8, waves: 12, glyphs: 96, chunks: 32, ghosts: 8, projectiles: 4, ribbons: 2, emitters: 6});
+
 /** Ultimate enerji zinciri: savunanı tutup çekerken en fazla bu kadar yaşar (sn). */
 const TETHER_MAX_S = 1.8;
 
@@ -187,6 +218,263 @@ void main() {
   gl_FragColor = vec4(col, (0.35 + 0.65 * links) * (0.4 + 0.6 * edge) * uAlpha);
 }`;
 
+/** İş 15: kameraya dönük atlas glifleri (nota, rün, Selçuklu yıldızı, kesik, kıvılcım, kırıntı). */
+const GLYPH_VERT = /* glsl */`
+attribute float aCell;
+attribute float aAlpha;
+attribute float aRot;
+attribute vec3 aColor;
+uniform vec2 uGrid;
+varying vec2 vUv;
+varying float vAlpha;
+varying vec3 vColor;
+void main() {
+  vec4 c = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+  float s = length(instanceMatrix[0].xyz);
+  float cs = cos(aRot), sn = sin(aRot);
+  c.xy += vec2(position.x * cs - position.y * sn, position.x * sn + position.y * cs) * s;
+  gl_Position = projectionMatrix * c;
+  float col = mod(aCell, uGrid.x);
+  float row = floor(aCell / uGrid.x);
+  vUv = (vec2(col, uGrid.y - 1.0 - row) + uv) / uGrid;
+  vAlpha = aAlpha;
+  vColor = aColor;
+}`;
+const GLYPH_FRAG = /* glsl */`
+uniform sampler2D uMap;
+uniform bool uHasMap;
+varying vec2 vUv;
+varying float vAlpha;
+varying vec3 vColor;
+void main() {
+  float a;
+  if (uHasMap) a = texture2D(uMap, vUv).a;
+  else { vec2 p = fract(vUv * vec2(4.0, 2.0)) * 2.0 - 1.0; a = max(0.0, 1.0 - dot(p, p)); }
+  gl_FragColor = vec4(vColor * (0.7 + a * 0.9), a * vAlpha);
+}`;
+
+/** İş 15: silah izi şeridi — kuyruğa doğru sönen, uca doğru beyazlaşan katman. */
+const RIBBON_VERT = /* glsl */`
+attribute float aFade;
+attribute float aSide;
+varying float vFade;
+varying float vSide;
+void main() {
+  vFade = aFade;
+  vSide = aSide;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`;
+const RIBBON_FRAG = /* glsl */`
+uniform vec3 uColor;
+uniform float uOpacity;
+varying float vFade;
+varying float vSide;
+void main() {
+  vec3 col = mix(uColor, vec3(1.0), vSide * vSide * 0.65);
+  gl_FragColor = vec4(col, uOpacity * vFade * vFade * (0.25 + 0.75 * vSide));
+}`;
+
+/** İş 15: ekran kenarı renk darbesi (kamera önü tam ekran dörtgen; merkez saydam). */
+const EDGE_VERT = /* glsl */`
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}`;
+const EDGE_FRAG = /* glsl */`
+uniform vec3 uColor;
+uniform float uOpacity;
+varying vec2 vUv;
+void main() {
+  vec2 q = abs(vUv - 0.5) * 2.0;
+  float d = max(q.x, q.y * 1.08);
+  float e = smoothstep(0.62, 1.0, d) + 0.35 * smoothstep(0.82, 1.0, length(q) * 0.75);
+  gl_FragColor = vec4(uColor * e * uOpacity, e * uOpacity);
+}`;
+
+// ---------------------------------------------------------------------------
+// İş 15 — prosedürel dokular (yalnız maç başında, canvas 2D ile; beyaz çizilir, malzeme rengiyle boyanır)
+// ---------------------------------------------------------------------------
+
+function lcg(seed) {
+  let s = seed >>> 0 || 1;
+  return () => ((s = (s * 16807) % 2147483647) / 2147483647);
+}
+
+function softGlow(ctx, x, y, r, a) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, `rgba(255,255,255,${a})`);
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+}
+
+const DECAL_DRAW = {
+  /** Akkor zemin çatlağı: merkezden kırık çizgiler + dallar. */
+  crack(ctx, w, h, r) {
+    const cx = w / 2, cy = h / 2;
+    softGlow(ctx, cx, cy, w * 0.24, 0.8);
+    ctx.strokeStyle = '#fff'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.shadowColor = '#fff'; ctx.shadowBlur = 8;
+    for (let i = 0; i < 10; i++) {
+      let a = (i / 10) * Math.PI * 2 + r() * 0.5, x = cx, y = cy;
+      const len = w * (0.3 + r() * 0.17);
+      ctx.lineWidth = 3 + r() * 3;
+      ctx.beginPath(); ctx.moveTo(x, y);
+      for (let s = 0; s < 6; s++) {
+        a += (r() - 0.5) * 0.8; x += Math.cos(a) * len / 6; y += Math.sin(a) * len / 6; ctx.lineTo(x, y);
+        if (s === 2 && r() < 0.7) {
+          const ba = a + (r() < 0.5 ? -0.9 : 0.9);
+          ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(ba) * len * 0.25, y + Math.sin(ba) * len * 0.25); ctx.moveTo(x, y);
+        }
+      }
+      ctx.stroke();
+    }
+  },
+  /** Kor serpintisi: dağınık parlak noktalar. */
+  ember(ctx, w, h, r) {
+    softGlow(ctx, w / 2, h / 2, w * 0.3, 0.45);
+    ctx.shadowColor = '#fff'; ctx.shadowBlur = 6;
+    for (let i = 0; i < 70; i++) {
+      const a = r() * Math.PI * 2, d = Math.sqrt(r()) * w * 0.44;
+      ctx.fillStyle = `rgba(255,255,255,${0.35 + r() * 0.65})`;
+      ctx.beginPath(); ctx.arc(w / 2 + Math.cos(a) * d, h / 2 + Math.sin(a) * d, 1.5 + r() * 4, 0, Math.PI * 2); ctx.fill();
+    }
+  },
+  /** Rün halkası: iç içe çemberler, çentikler, altı rün çizgisi, heksagram. */
+  rune(ctx, w, h, r) {
+    const cx = w / 2, cy = h / 2;
+    ctx.strokeStyle = '#fff'; ctx.shadowColor = '#fff'; ctx.shadowBlur = 6;
+    ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(cx, cy, w * 0.46, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(cx, cy, w * 0.37, 0, Math.PI * 2); ctx.stroke();
+    for (let i = 0; i < 36; i++) {
+      const a = (i / 36) * Math.PI * 2;
+      ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * w * 0.37, cy + Math.sin(a) * w * 0.37);
+      ctx.lineTo(cx + Math.cos(a) * w * (i % 3 ? 0.4 : 0.44), cy + Math.sin(a) * w * (i % 3 ? 0.4 : 0.44)); ctx.stroke();
+    }
+    ctx.lineWidth = 3;
+    for (let t = 0; t < 2; t++) {
+      ctx.beginPath();
+      for (let k = 0; k <= 3; k++) {
+        const a = (k / 3) * Math.PI * 2 + t * Math.PI / 3 - Math.PI / 2;
+        const x = cx + Math.cos(a) * w * 0.3, y = cy + Math.sin(a) * w * 0.3;
+        if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+    }
+    void r;
+  },
+  /** Un tozu: yumuşak, düzensiz beyaz bulut lekeleri. */
+  flour(ctx, w, h, r) {
+    for (let i = 0; i < 150; i++) {
+      const a = r() * Math.PI * 2, d = (r() + r()) * 0.5 * w * 0.42;
+      softGlow(ctx, w / 2 + Math.cos(a) * d, h / 2 + Math.sin(a) * d, 6 + r() * 16, 0.1 + r() * 0.22);
+    }
+  },
+  /** Selçuklu yıldızı: iç içe geçmiş iki kare (8 köşe), iç/dış çember, köşe noktaları. */
+  seljuk(ctx, w, h) {
+    const cx = w / 2, cy = h / 2;
+    ctx.strokeStyle = '#fff'; ctx.shadowColor = '#fff'; ctx.shadowBlur = 7;
+    ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, w * 0.46, 0, Math.PI * 2); ctx.stroke();
+    for (const R of [0.4, 0.22]) {
+      for (let t = 0; t < 2; t++) {
+        ctx.lineWidth = R > 0.3 ? 4 : 3;
+        ctx.beginPath();
+        for (let k = 0; k <= 4; k++) {
+          const a = (k / 4) * Math.PI * 2 + t * Math.PI / 4;
+          const x = cx + Math.cos(a) * w * R, y = cy + Math.sin(a) * w * R;
+          if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+        }
+        ctx.stroke();
+      }
+    }
+    ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, w * 0.29, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#fff';
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 + Math.PI / 8;
+      ctx.beginPath(); ctx.arc(cx + Math.cos(a) * w * 0.43, cy + Math.sin(a) * w * 0.43, 4, 0, Math.PI * 2); ctx.fill();
+    }
+  },
+  /** Gölge izi: çapraz, sivri uçlu kesik çizgileri. */
+  shadow(ctx, w, h, r) {
+    softGlow(ctx, w / 2, h / 2, w * 0.2, 0.35);
+    ctx.fillStyle = '#fff'; ctx.shadowColor = '#fff'; ctx.shadowBlur = 8;
+    for (let i = 0; i < 5; i++) {
+      ctx.save();
+      ctx.translate(w / 2 + (r() - 0.5) * w * 0.3, h / 2 + (r() - 0.5) * h * 0.3);
+      ctx.rotate(-0.7 + (r() - 0.5) * 0.5);
+      ctx.beginPath(); ctx.ellipse(0, 0, w * (0.28 + r() * 0.14), 3 + r() * 4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+  },
+};
+export const SIG_DECAL_TYPES = Object.freeze(Object.keys(DECAL_DRAW));
+
+/** Glif atlası hücreleri (4×2). */
+export const GLYPH = Object.freeze({note: 0, notes: 1, runeA: 2, runeB: 3, star: 4, slash: 5, sparkle: 6, crumb: 7});
+
+function drawGlyphAtlas(ctx) {
+  const C = 128;
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#fff'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.shadowColor = '#fff'; ctx.shadowBlur = 10;
+  const cell = (i, fn) => { ctx.save(); ctx.translate((i % 4) * C, Math.floor(i / 4) * C); fn(); ctx.restore(); };
+  cell(GLYPH.note, () => {
+    ctx.beginPath(); ctx.ellipse(48, 94, 19, 13, -0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(64, 90); ctx.lineTo(64, 22); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(64, 22); ctx.bezierCurveTo(84, 34, 96, 46, 84, 70); ctx.stroke();
+  });
+  cell(GLYPH.notes, () => {
+    ctx.beginPath(); ctx.ellipse(34, 98, 16, 11, -0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(88, 86, 16, 11, -0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(48, 94); ctx.lineTo(48, 32); ctx.moveTo(102, 82); ctx.lineTo(102, 20); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(46, 26); ctx.lineTo(104, 14); ctx.lineTo(104, 30); ctx.lineTo(46, 42); ctx.closePath(); ctx.fill();
+  });
+  cell(GLYPH.runeA, () => {
+    ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(52, 112); ctx.lineTo(52, 16);
+    ctx.moveTo(52, 30); ctx.lineTo(92, 50); ctx.moveTo(52, 58); ctx.lineTo(92, 78); ctx.stroke();
+  });
+  cell(GLYPH.runeB, () => {
+    ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(64, 14); ctx.lineTo(96, 50); ctx.lineTo(64, 86); ctx.lineTo(32, 50); ctx.closePath();
+    ctx.moveTo(42, 74); ctx.lineTo(24, 114); ctx.moveTo(86, 74); ctx.lineTo(104, 114); ctx.stroke();
+  });
+  cell(GLYPH.star, () => {
+    ctx.beginPath();
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2, R = k % 2 ? 26 : 50;
+      const x = 64 + Math.cos(a) * R, y = 64 + Math.sin(a) * R;
+      if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    }
+    ctx.closePath(); ctx.fill();
+  });
+  cell(GLYPH.slash, () => {
+    ctx.translate(64, 64); ctx.rotate(-0.75);
+    ctx.beginPath(); ctx.ellipse(0, 0, 60, 7, 0, 0, Math.PI * 2); ctx.fill();
+  });
+  cell(GLYPH.sparkle, () => {
+    ctx.beginPath(); ctx.moveTo(64, 6); ctx.quadraticCurveTo(70, 58, 122, 64); ctx.quadraticCurveTo(70, 70, 64, 122);
+    ctx.quadraticCurveTo(58, 70, 6, 64); ctx.quadraticCurveTo(58, 58, 64, 6); ctx.fill();
+  });
+  cell(GLYPH.crumb, () => { ctx.shadowBlur = 0; softGlow(ctx, 64, 64, 54, 1); });
+}
+
+/** Etli ekmek dokusu: üstte kızarmış hamur, ortada koyu kabuk kenarı, kıyma benekleri, maydanoz/biber. */
+function drawBreadTexture(ctx, w, h, r) {
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, '#f0c070'); g.addColorStop(0.3, '#e2a24e'); g.addColorStop(0.5, '#9c5824');
+  g.addColorStop(0.7, '#d99a48'); g.addColorStop(1, '#eab868');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 220; i++) {
+    const top = r() < 0.8;
+    const y = top ? (0.06 + r() * 0.36) * h : (0.6 + r() * 0.3) * h;
+    ctx.fillStyle = r() < 0.75 ? (r() < 0.5 ? '#6b2a14' : '#8a3a1c') : (r() < 0.6 ? '#c0482a' : '#5a7a2a');
+    ctx.beginPath(); ctx.ellipse(r() * w, y, 1.5 + r() * 4, 1.2 + r() * 2.5, r() * 3, 0, Math.PI * 2); ctx.fill();
+  }
+  for (let i = 0; i < 40; i++) {
+    ctx.fillStyle = `rgba(60,24,8,${0.15 + r() * 0.25})`;
+    ctx.beginPath(); ctx.arc(r() * w, (0.42 + r() * 0.16) * h, 2 + r() * 6, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Yardımcılar
 // ---------------------------------------------------------------------------
@@ -235,7 +523,7 @@ export function createArena3DFx(api) {
 
   // Paletleri bir kez THREE.Color nesnelerine çevir.
   const PAL = {};
-  for (const [name, p] of Object.entries(PALETTE_HEX)) {
+  for (const [name, p] of [...Object.entries(PALETTE_HEX), ...Object.entries(SIG_PALETTE_HEX)]) {
     PAL[name] = {
       hot: p.hot.map((h) => new THREE.Color(h)),
       cool: p.cool.map((h) => new THREE.Color(h)),
@@ -837,8 +1125,11 @@ export function createArena3DFx(api) {
   // Performans: birer halka ve sütun baştan (gizli) oluşturulur; çekirdeğin
   // shader ön-derlemesi (renderer.compile) programlarını da ısıtır. Aksi halde
   // ilk şok dalgası/ultimate karesinde program bağlama savaş ortasında takılıyordu.
-  acquireRing();
-  acquirePillar();
+  // İş 15: havuzların TAMAMI baştan kurulur (dövüş sırasında yeni malzeme yok).
+  for (let k = 0; k < FX3D_CAPS.high.rings; k++) { const r = acquireRing(); if (r) r.active = true; }
+  for (const r of rings) r.active = false;
+  for (let k = 0; k < FX3D_CAPS.high.pillars; k++) { const p = acquirePillar(); if (p) p.active = true; }
+  for (const p of pillars) p.active = false;
 
   function spawnPillar(x, y, z, radius, height, life, palName, spin) {
     const rec = acquirePillar();
@@ -1157,6 +1448,973 @@ export function createArena3DFx(api) {
   }
 
   // =========================================================================
+  // 9b) İş 15 — karaktere özgü yetenek efektleri ("imza"):
+  //     telegraf → ana efekt (mermi/girdap/dalga) → temas patlaması → zemin izi.
+  //     Geometri/malzeme/doku burada BİR KEZ kurulur ve havuzlanır.
+  // =========================================================================
+  const AXIS_X = new THREE.Vector3(1, 0, 0);
+  const SV = {a: new THREE.Vector3(), b: new THREE.Vector3(), c: new THREE.Vector3(), d: new THREE.Vector3(),
+    hand: new THREE.Vector3(), chest: new THREE.Vector3(), q: new THREE.Quaternion()};
+  const easeOut3 = t => 1 - (1 - t) * (1 - t) * (1 - t);
+  const perfNow = () => (globalThis.performance?.now ? globalThis.performance.now() : Date.now());
+  const fighterOf = seat => { try { return typeof api.fighterModel === 'function' ? api.fighterModel(seat) || null : null; } catch { return null; } };
+  const sigCapScale = () => (qualityKey() === 'low' ? 0.5 : 1);
+  const sigDoc = api.renderer?.domElement?.ownerDocument || globalThis.document;
+  function canvasTex(w, h, draw, seed, srgb = false) {
+    try {
+      const c = sigDoc?.createElement?.('canvas');
+      const ctx = c?.getContext?.('2d');
+      if (!ctx) return null;
+      c.width = w; c.height = h;
+      draw(ctx, w, h, lcg(seed));
+      const t = new THREE.CanvasTexture(c);
+      if (srgb && THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    } catch { return null; }
+  }
+  const TEX = {};
+  SIG_DECAL_TYPES.forEach((name, i) => { TEX[name] = canvasTex(256, 256, DECAL_DRAW[name], 11 + i * 97); });
+  const glyphTex = canvasTex(512, 256, drawGlyphAtlas, 3);
+  const breadTex = canvasTex(256, 128, drawBreadTexture, 29, true);
+
+  const SG = {
+    decal: geo(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2)),
+    wave: geo(new THREE.TorusGeometry(1, 0.075, 8, 56)),
+    bread: geo(new THREE.SphereGeometry(1, 24, 12)),
+    shaft: geo(new THREE.CylinderGeometry(0.022, 0.03, 1.25, 6).rotateZ(Math.PI / 2)),
+    tip: geo(new THREE.ConeGeometry(0.075, 0.3, 6).rotateZ(-Math.PI / 2).translate(0.75, 0, 0)),
+    blade: geo(new THREE.ConeGeometry(0.05, 0.5, 4).rotateZ(-Math.PI / 2)),
+    ghost: geo(new THREE.CylinderGeometry(0.03, 0.05, 1.1, 5).rotateZ(Math.PI / 2)),
+    chunk: geo(new THREE.BoxGeometry(1, 1, 1)),
+  };
+  const sigBasic = (hex, opacity = 1) => mat(new THREE.MeshBasicMaterial({color: hex, transparent: true, opacity,
+    depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false}));
+  const SM = {
+    bread: mat(new THREE.MeshBasicMaterial({color: 0xffffff, map: breadTex})),
+    siraEnergy: sigBasic(0xb06bff, 0.95), siraCore: sigBasic(0xf3e6ff, 1),
+    nyxCore: sigBasic(0xe0fbff, 1), nyxRing: sigBasic(0x5ee3f5, 0.9),
+    meteorCore: sigBasic(0xfff3e0, 1),
+    konyaliGlow: glowMaterial('konyali'), siraGlow: glowMaterial('sira'), nyxGlow: glowMaterial('nyx'),
+  };
+
+  // --- (a) zemin izleri: 8 düzlem, her biri kalıcı malzemeli; doku havuzdaki desenler arasında değişir
+  const decalTexList = SIG_DECAL_TYPES.map(n => TEX[n]);
+  const decals = [];
+  for (let k = 0; k < SIG_POOLS.decals; k++) {
+    const m = mat(new THREE.MeshBasicMaterial({color: 0xffffff, map: decalTexList[k % decalTexList.length] || null,
+      transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2}));
+    const mesh = new THREE.Mesh(SG.decal, m);
+    mesh.name = 'arena3d-fx-sig-decal'; mesh.visible = false; mesh.renderOrder = 8; mesh.frustumCulled = false;
+    root.add(mesh);
+    decals.push({mesh, m, active: false, age: 0, life: 1, s0: 1, s1: 1, a0: 1, spin: 0, seat: 0, name: ''});
+  }
+  function sigDecal(x, y, z, type, color, s0, s1, life, {a0 = 0.95, spin = 0, normal = false, seat = 0} = {}) {
+    let rec = null;
+    for (const d of decals) { if (!d.active) { rec = d; break; } if (!rec || d.age / d.life > rec.age / rec.life) rec = d; }
+    const tex = TEX[type] || null;
+    if (rec.m.map !== tex) { rec.m.map = tex; }
+    rec.m.blending = normal ? THREE.NormalBlending : THREE.AdditiveBlending;
+    rec.m.color.copy(color);
+    Object.assign(rec, {active: true, age: 0, life, s0, s1, a0, spin, seat, name: type});
+    rec.mesh.position.set(x, y, z);
+    rec.mesh.rotation.set(0, Math.random() * TAU, 0);
+    rec.mesh.scale.setScalar(s0);
+    rec.mesh.visible = true;
+    return rec;
+  }
+  function updateDecals(dt) {
+    for (const d of decals) {
+      if (!d.active) continue;
+      d.age += dt;
+      const p = d.age / d.life;
+      if (p >= 1) { d.active = false; d.mesh.visible = false; d.m.opacity = 0; continue; }
+      d.mesh.scale.setScalar(d.s0 + (d.s1 - d.s0) * easeOut3(Math.min(1, p * 3.5)));
+      if (d.spin) d.mesh.rotation.y += d.spin * dt;
+      if (d.seat) { const g = api.seatGround?.(d.seat); if (g) { d.mesh.position.x = g.x; d.mesh.position.z = g.z; } }
+      const fadeIn = Math.min(1, d.age / 0.06);
+      d.m.opacity = d.a0 * fadeIn * (p < 0.6 ? 1 : 1 - (p - 0.6) / 0.4);
+    }
+  }
+
+  // --- (b) kalın dalga halkaları (ses dalgası, sema halkası, şok halkası): 12 torus
+  const waves = [];
+  for (let k = 0; k < SIG_POOLS.waves; k++) {
+    const m = sigBasic(0xffffff, 0);
+    const mesh = new THREE.Mesh(SG.wave, m);
+    mesh.name = 'arena3d-fx-sig-wave'; mesh.visible = false; mesh.renderOrder = 10; mesh.frustumCulled = false;
+    root.add(mesh);
+    waves.push({mesh, m, active: false, age: 0, life: 0.5, s0: 0.1, s1: 1, a0: 1, from: new THREE.Vector3(), to: new THREE.Vector3(), moving: false, thick: 1});
+  }
+  /** Dalga halkası: (dx,dy,dz) halkanın ekseni; to verilirse halka from→to ilerler (koni). */
+  function sigWave(from, dx, dy, dz, color, s0, s1, life, {a0 = 0.95, to = null, thick = 1} = {}) {
+    let rec = null;
+    for (const w of waves) { if (!w.active) { rec = w; break; } if (!rec || w.age / w.life > rec.age / rec.life) rec = w; }
+    rec.from.copy(from); rec.moving = Boolean(to);
+    if (to) rec.to.copy(to);
+    Object.assign(rec, {active: true, age: 0, life, s0, s1, a0, thick});
+    tmpC.set(dx, dy, dz);
+    if (tmpC.lengthSq() < 1e-8) tmpC.set(0, 1, 0);
+    rec.mesh.quaternion.setFromUnitVectors(AXIS_Z, tmpC.normalize());
+    rec.mesh.position.copy(from);
+    rec.mesh.scale.set(s0, s0, s0 * thick);
+    rec.m.color.copy(color);
+    rec.m.opacity = a0;
+    rec.mesh.visible = true;
+    return rec;
+  }
+  function updateWaves(dt) {
+    for (const w of waves) {
+      if (!w.active) continue;
+      w.age += dt;
+      const p = w.age / w.life;
+      if (p >= 1) { w.active = false; w.mesh.visible = false; continue; }
+      const e = easeOut3(p);
+      const s = w.s0 + (w.s1 - w.s0) * e;
+      w.mesh.scale.set(s, s, Math.max(0.3, s * w.thick));
+      if (w.moving) w.mesh.position.lerpVectors(w.from, w.to, e);
+      w.m.opacity = w.a0 * (p < 0.1 ? p / 0.1 : (1 - p) * (1 - p * 0.4));
+    }
+  }
+
+  // --- (c) atlas glifleri (nota, rün, yıldız, kesik): tek InstancedMesh, kameraya dönük
+  const GMAX = SIG_POOLS.glyphs;
+  const GL = {count: 0, pos: new Float32Array(GMAX * 3), vel: new Float32Array(GMAX * 3), age: new Float32Array(GMAX),
+    life: new Float32Array(GMAX), size: new Float32Array(GMAX), spin: new Float32Array(GMAX), grav: new Float32Array(GMAX),
+    drag: new Float32Array(GMAX), wob: new Float32Array(GMAX), a0: new Float32Array(GMAX)};
+  const gCell = new THREE.InstancedBufferAttribute(new Float32Array(GMAX), 1).setUsage(THREE.DynamicDrawUsage);
+  const gAlpha = new THREE.InstancedBufferAttribute(new Float32Array(GMAX), 1).setUsage(THREE.DynamicDrawUsage);
+  const gRot = new THREE.InstancedBufferAttribute(new Float32Array(GMAX), 1).setUsage(THREE.DynamicDrawUsage);
+  const gColor = new THREE.InstancedBufferAttribute(new Float32Array(GMAX * 3), 3).setUsage(THREE.DynamicDrawUsage);
+  const glyphGeo = geo(new THREE.PlaneGeometry(1, 1));
+  glyphGeo.setAttribute('aCell', gCell); glyphGeo.setAttribute('aAlpha', gAlpha);
+  glyphGeo.setAttribute('aRot', gRot); glyphGeo.setAttribute('aColor', gColor);
+  const glyphMat = mat(new THREE.ShaderMaterial({
+    uniforms: {uMap: {value: glyphTex}, uHasMap: {value: Boolean(glyphTex)}, uGrid: {value: new THREE.Vector2(4, 2)}},
+    vertexShader: GLYPH_VERT, fragmentShader: GLYPH_FRAG,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  }));
+  const glyphMesh = new THREE.InstancedMesh(glyphGeo, glyphMat, GMAX);
+  glyphMesh.name = 'arena3d-fx-sig-glyphs'; glyphMesh.frustumCulled = false; glyphMesh.count = 0; glyphMesh.renderOrder = 11;
+  glyphMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  root.add(glyphMesh);
+  function sigGlyph(x, y, z, vx, vy, vz, cell, color, size, life, {grav = 0, drag = 1, spin = 0, wob = 0, a0 = 1} = {}) {
+    if (GL.count >= Math.round(GMAX * sigCapScale())) { totals.dropped++; return false; }
+    const i = GL.count++, i3 = i * 3;
+    GL.pos[i3] = x; GL.pos[i3 + 1] = y; GL.pos[i3 + 2] = z;
+    GL.vel[i3] = vx; GL.vel[i3 + 1] = vy; GL.vel[i3 + 2] = vz;
+    GL.age[i] = 0; GL.life[i] = life; GL.size[i] = size; GL.spin[i] = spin; GL.grav[i] = grav; GL.drag[i] = drag; GL.wob[i] = wob; GL.a0[i] = a0;
+    gCell.array[i] = cell; gRot.array[i] = Math.random() * 0.6 - 0.3;
+    gColor.array[i3] = color.r; gColor.array[i3 + 1] = color.g; gColor.array[i3 + 2] = color.b;
+    totals.spawned++;
+    return true;
+  }
+  function killGlyph(i) {
+    const last = --GL.count;
+    if (i === last) return;
+    const i3 = i * 3, l3 = last * 3;
+    for (let k = 0; k < 3; k++) { GL.pos[i3 + k] = GL.pos[l3 + k]; GL.vel[i3 + k] = GL.vel[l3 + k]; gColor.array[i3 + k] = gColor.array[l3 + k]; }
+    for (const key of ['age', 'life', 'size', 'spin', 'grav', 'drag', 'wob', 'a0']) GL[key][i] = GL[key][last];
+    gCell.array[i] = gCell.array[last]; gRot.array[i] = gRot.array[last];
+  }
+  function updateGlyphs(dt) {
+    let i = 0;
+    while (i < GL.count) {
+      const age = GL.age[i] + dt;
+      if (age >= GL.life[i]) { killGlyph(i); continue; }
+      GL.age[i] = age;
+      const i3 = i * 3, damp = Math.exp(-GL.drag[i] * dt);
+      GL.vel[i3] *= damp; GL.vel[i3 + 1] = (GL.vel[i3 + 1] - GL.grav[i] * dt) * damp; GL.vel[i3 + 2] *= damp;
+      GL.pos[i3] += GL.vel[i3] * dt;
+      GL.pos[i3 + 1] += GL.vel[i3 + 1] * dt + Math.cos(age * 11) * GL.wob[i] * dt;
+      GL.pos[i3 + 2] += GL.vel[i3 + 2] * dt;
+      gRot.array[i] += GL.spin[i] * dt;
+      const p = age / GL.life[i];
+      gAlpha.array[i] = GL.a0[i] * Math.min(1, p / 0.12) * (1 - p * p);
+      const s = GL.size[i] * (0.7 + 0.3 * Math.min(1, p * 5));
+      tmpA.set(GL.pos[i3], GL.pos[i3 + 1], GL.pos[i3 + 2]);
+      tmpS.set(s, s, s);
+      glyphMesh.setMatrixAt(i, tmpM.compose(tmpA, tmpQ.identity(), tmpS));
+      i++;
+    }
+    glyphMesh.count = GL.count;
+    glyphMesh.instanceMatrix.needsUpdate = true;
+    gCell.needsUpdate = true; gAlpha.needsUpdate = true; gRot.needsUpdate = true; gColor.needsUpdate = true;
+  }
+
+  // --- (d) parçalar (ekmek parçası, sur taşı): tek InstancedMesh + örnek rengi
+  const CMAX = SIG_POOLS.chunks;
+  const CH = {count: 0, pos: new Float32Array(CMAX * 3), vel: new Float32Array(CMAX * 3), rot: new Float32Array(CMAX * 3),
+    spin: new Float32Array(CMAX * 3), size: new Float32Array(CMAX * 3), age: new Float32Array(CMAX), life: new Float32Array(CMAX),
+    floor: new Float32Array(CMAX), unit: new Float32Array(CMAX), col: new Float32Array(CMAX * 3)};
+  const chunkMat = mat(new THREE.MeshStandardMaterial({color: 0xffffff, roughness: 0.85, metalness: 0.05, flatShading: true}));
+  const chunkMesh = new THREE.InstancedMesh(SG.chunk, chunkMat, CMAX);
+  chunkMesh.name = 'arena3d-fx-sig-chunks'; chunkMesh.frustumCulled = false;
+  chunkMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  const chunkTint = new THREE.Color(0xffffff);
+  for (let k = 0; k < CMAX; k++) chunkMesh.setColorAt(k, chunkTint); // örnek rengi özniteliği baştan var → program değişmez
+  chunkMesh.count = 0;
+  root.add(chunkMesh);
+  function sigChunk(x, y, z, vx, vy, vz, sx, sy, sz, color, life, floorY, U) {
+    if (CH.count >= Math.round(CMAX * sigCapScale())) { totals.dropped++; return false; }
+    const i = CH.count++, i3 = i * 3;
+    CH.pos[i3] = x; CH.pos[i3 + 1] = y; CH.pos[i3 + 2] = z;
+    CH.vel[i3] = vx; CH.vel[i3 + 1] = vy; CH.vel[i3 + 2] = vz;
+    CH.rot[i3] = Math.random() * TAU; CH.rot[i3 + 1] = Math.random() * TAU; CH.rot[i3 + 2] = Math.random() * TAU;
+    CH.spin[i3] = rand(-9, 9); CH.spin[i3 + 1] = rand(-9, 9); CH.spin[i3 + 2] = rand(-9, 9);
+    CH.size[i3] = sx; CH.size[i3 + 1] = sy; CH.size[i3 + 2] = sz;
+    CH.col[i3] = color.r; CH.col[i3 + 1] = color.g; CH.col[i3 + 2] = color.b;
+    CH.age[i] = 0; CH.life[i] = life; CH.floor[i] = floorY; CH.unit[i] = U;
+    totals.spawned++;
+    return true;
+  }
+  function killChunk(i) {
+    const last = --CH.count;
+    if (i === last) return;
+    const i3 = i * 3, l3 = last * 3;
+    for (const key of ['pos', 'vel', 'rot', 'spin', 'size', 'col']) for (let k = 0; k < 3; k++) CH[key][i3 + k] = CH[key][l3 + k];
+    CH.age[i] = CH.age[last]; CH.life[i] = CH.life[last]; CH.floor[i] = CH.floor[last]; CH.unit[i] = CH.unit[last];
+  }
+  function updateChunks(dt) {
+    let i = 0;
+    while (i < CH.count) {
+      const age = CH.age[i] + dt;
+      if (age >= CH.life[i]) { killChunk(i); continue; }
+      CH.age[i] = age;
+      const i3 = i * 3, U = CH.unit[i];
+      CH.vel[i3 + 1] -= 9.8 * U * dt;
+      CH.pos[i3] += CH.vel[i3] * dt; CH.pos[i3 + 1] += CH.vel[i3 + 1] * dt; CH.pos[i3 + 2] += CH.vel[i3 + 2] * dt;
+      const half = CH.size[i3 + 1] * 0.5;
+      if (CH.pos[i3 + 1] <= CH.floor[i] + half) {
+        CH.pos[i3 + 1] = CH.floor[i] + half;
+        CH.vel[i3 + 1] = Math.abs(CH.vel[i3 + 1]) * 0.22;
+        CH.vel[i3] *= 0.55; CH.vel[i3 + 2] *= 0.55;
+        CH.spin[i3] *= 0.4; CH.spin[i3 + 1] *= 0.4; CH.spin[i3 + 2] *= 0.4;
+      }
+      CH.rot[i3] += CH.spin[i3] * dt; CH.rot[i3 + 1] += CH.spin[i3 + 1] * dt; CH.rot[i3 + 2] += CH.spin[i3 + 2] * dt;
+      const remain = CH.life[i] - age, k = remain < 0.3 ? remain / 0.3 : 1;
+      tmpA.set(CH.pos[i3], CH.pos[i3 + 1], CH.pos[i3 + 2]);
+      tmpQ.setFromEuler(tmpE.set(CH.rot[i3], CH.rot[i3 + 1], CH.rot[i3 + 2]));
+      tmpS.set(CH.size[i3] * k, CH.size[i3 + 1] * k, CH.size[i3 + 2] * k);
+      chunkMesh.setMatrixAt(i, tmpM.compose(tmpA, tmpQ, tmpS));
+      chunkMesh.setColorAt(i, chunkTint.setRGB(CH.col[i3], CH.col[i3 + 1], CH.col[i3 + 2]));
+      i++;
+    }
+    chunkMesh.count = CH.count;
+    chunkMesh.instanceMatrix.needsUpdate = true;
+    if (chunkMesh.instanceColor) chunkMesh.instanceColor.needsUpdate = true;
+  }
+
+  // --- (e) gölge izleri (Sira'nın mızrak/hançer art görüntüleri): 8 kalıcı mesh
+  const ghosts = [];
+  for (let k = 0; k < SIG_POOLS.ghosts; k++) {
+    const m = sigBasic(0xa14dff, 0);
+    const mesh = new THREE.Mesh(SG.ghost, m);
+    mesh.name = 'arena3d-fx-sig-ghost'; mesh.visible = false; mesh.frustumCulled = false; mesh.renderOrder = 9;
+    root.add(mesh);
+    ghosts.push({mesh, m, active: false, age: 0, life: 0.2});
+  }
+  function sigGhost(pos, quat, scale, color, life) {
+    let rec = null;
+    for (const g of ghosts) { if (!g.active) { rec = g; break; } if (!rec || g.age > rec.age) rec = g; }
+    Object.assign(rec, {active: true, age: 0, life});
+    rec.mesh.position.copy(pos); rec.mesh.quaternion.copy(quat); rec.mesh.scale.setScalar(scale);
+    rec.m.color.copy(color); rec.m.opacity = 0.55; rec.mesh.visible = true;
+  }
+  function updateGhosts(dt) {
+    for (const g of ghosts) {
+      if (!g.active) continue;
+      g.age += dt;
+      const p = g.age / g.life;
+      if (p >= 1) { g.active = false; g.mesh.visible = false; continue; }
+      g.m.opacity = 0.55 * (1 - p);
+      g.mesh.scale.y = g.mesh.scale.z = g.mesh.scale.x * (1 + p * 1.5);
+    }
+  }
+
+  // --- (f) silah izi şeritleri: kemik (el) + uç tahmini, 14 örnekli üçgen şeridi
+  const RN = 14;
+  const ribbons = [];
+  for (let k = 0; k < SIG_POOLS.ribbons; k++) {
+    const g = geo(new THREE.BufferGeometry());
+    const pos = new Float32Array(RN * 2 * 3), fade = new Float32Array(RN * 2), side = new Float32Array(RN * 2), index = [];
+    for (let i = 0; i < RN; i++) {
+      fade[i * 2] = fade[i * 2 + 1] = 1 - i / (RN - 1);
+      side[i * 2] = 0; side[i * 2 + 1] = 1;
+      if (i < RN - 1) { const a = i * 2; index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    }
+    const posAttr2 = new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage);
+    g.setAttribute('position', posAttr2);
+    g.setAttribute('aFade', new THREE.BufferAttribute(fade, 1));
+    g.setAttribute('aSide', new THREE.BufferAttribute(side, 1));
+    g.setIndex(index);
+    const m = mat(new THREE.ShaderMaterial({uniforms: {uColor: {value: new THREE.Color()}, uOpacity: {value: 0}},
+      vertexShader: RIBBON_VERT, fragmentShader: RIBBON_FRAG, transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending, side: THREE.DoubleSide}));
+    const mesh = new THREE.Mesh(g, m);
+    mesh.name = 'arena3d-fx-sig-ribbon'; mesh.visible = false; mesh.frustumCulled = false; mesh.renderOrder = 10;
+    root.add(mesh);
+    ribbons.push({mesh, m, pos, attr: posAttr2, active: false, seat: 0, bone: 'handslot.r', len: 1, start: 0, end: 0, primed: false});
+  }
+  let sigClock = 0; // imza benzetim saati (sn; ağır çekim/hit-stop ile yavaşlar)
+  function sigRibbon(seat, bone, len, color, startIn, dur) {
+    let rec = ribbons.find(r => !r.active) || ribbons.reduce((a, b) => (a.end < b.end ? a : b));
+    Object.assign(rec, {active: true, seat, bone, len, start: sigClock + startIn, end: sigClock + startIn + dur, primed: false});
+    rec.m.uniforms.uColor.value.copy(color);
+    rec.m.uniforms.uOpacity.value = 0;
+    return rec;
+  }
+  function ribbonSample(rec, U) {
+    const rig = fighterOf(rec.seat)?.rig;
+    if (!rig?.boneWorld) return false;
+    rig.boneWorld(rec.bone, SV.hand);
+    rig.boneWorld('chest', SV.chest);
+    tmpC.subVectors(SV.hand, SV.chest);
+    if (tmpC.lengthSq() < 1e-8) tmpC.set(facing(rec.seat), 0.3, 0);
+    tmpC.normalize();
+    SV.a.copy(SV.hand).addScaledVector(tmpC, 0.08 * U);
+    SV.b.copy(SV.hand).addScaledVector(tmpC, rec.len * U);
+    return true;
+  }
+  function updateRibbons() {
+    const U = unitScale();
+    for (const r of ribbons) {
+      if (!r.active) continue;
+      if (sigClock < r.start) continue;
+      const tail = sigClock - r.end;
+      if (tail > 0.14) { r.active = false; r.mesh.visible = false; continue; }
+      if (!ribbonSample(r, U)) { r.active = false; r.mesh.visible = false; continue; }
+      if (!r.primed) {
+        for (let i = 0; i < RN; i++) { SV.a.toArray(r.pos, i * 6); SV.b.toArray(r.pos, i * 6 + 3); }
+        r.primed = true;
+      } else {
+        r.pos.copyWithin(6, 0, (RN - 1) * 6);
+        SV.a.toArray(r.pos, 0); SV.b.toArray(r.pos, 3);
+      }
+      r.attr.needsUpdate = true;
+      r.m.uniforms.uOpacity.value = 0.9 * (tail > 0 ? 1 - tail / 0.14 : Math.min(1, (sigClock - r.start) / 0.06));
+      r.mesh.visible = true;
+    }
+  }
+
+  // --- (g) ekran kenarı renk darbesi (kameraya bağlı tek dörtgen)
+  const edgeMat = mat(new THREE.ShaderMaterial({uniforms: {uColor: {value: new THREE.Color()}, uOpacity: {value: 0}},
+    vertexShader: EDGE_VERT, fragmentShader: EDGE_FRAG, transparent: true, depthTest: false, depthWrite: false,
+    blending: THREE.AdditiveBlending}));
+  const edgeQuad = new THREE.Mesh(geo(new THREE.PlaneGeometry(2, 2)), edgeMat);
+  edgeQuad.name = 'arena3d-fx-sig-edge'; edgeQuad.frustumCulled = false; edgeQuad.renderOrder = 998; edgeQuad.visible = false;
+  if (camera?.add) camera.add(edgeQuad); else root.add(edgeQuad);
+  const edge = {age: 0, life: 0, peak: 0, count: 0};
+  function edgePulse(hex, strength, ms) {
+    edgeMat.uniforms.uColor.value.setHex(hex);
+    Object.assign(edge, {age: 0, life: Math.max(0.05, ms / 1000), peak: clamp(strength, 0, 1)});
+    edge.count++;
+  }
+  function updateEdge(dt) {
+    if (edge.life <= 0) { edgeQuad.visible = false; return; }
+    edge.age += dt;
+    const p = edge.age / edge.life;
+    if (p >= 1) { edge.life = 0; edgeQuad.visible = false; edgeMat.uniforms.uOpacity.value = 0; return; }
+    // iki atımlı titreşim: hızlı açılış, kısa sönüm, ikinci küçük atım
+    const pulse = p < 0.12 ? p / 0.12 : (1 - p) * (0.75 + 0.25 * Math.cos((p - 0.12) * 18));
+    edgeMat.uniforms.uOpacity.value = edge.peak * pulse;
+    edgeQuad.visible = true;
+  }
+
+  // --- (h) imza mermileri: 4 kayıt; her kayıtta tüm türlerin gövdesi (görünürlükle seçilir)
+  const sigProjectiles = [];
+  for (let k = 0; k < SIG_POOLS.projectiles; k++) {
+    const group = new THREE.Group();
+    group.name = 'arena3d-fx-sig-projectile'; group.visible = false;
+    const body = new THREE.Group();
+    group.add(body);
+    const parts = {bread: new THREE.Group(), spear: new THREE.Group(), dagger: new THREE.Group(), rune: new THREE.Group(), meteor: new THREE.Group()};
+    const bread = new THREE.Mesh(SG.bread, SM.bread); bread.scale.set(0.46, 0.06, 0.17); parts.bread.add(bread);
+    parts.spear.add(new THREE.Mesh(SG.shaft, SM.siraEnergy), new THREE.Mesh(SG.tip, SM.siraCore));
+    parts.dagger.add(new THREE.Mesh(SG.blade, SM.siraCore));
+    const shard = new THREE.Mesh(G.octa, SM.nyxCore); shard.scale.set(0.1, 0.2, 0.1);
+    const hex = new THREE.Mesh(G.ringHex, SM.nyxRing); hex.scale.setScalar(0.28); hex.rotation.y = Math.PI / 2;
+    parts.rune.add(shard, hex);
+    const met = new THREE.Mesh(G.sphere, SM.meteorCore); met.scale.setScalar(0.3); parts.meteor.add(met);
+    for (const p of Object.values(parts)) { p.visible = false; body.add(p); }
+    const glows = {konyali: new THREE.Mesh(G.plane, SM.konyaliGlow), sira: new THREE.Mesh(G.plane, SM.siraGlow), nyx: new THREE.Mesh(G.plane, SM.nyxGlow)};
+    for (const gm of Object.values(glows)) { gm.visible = false; group.add(gm); }
+    group.traverse(o => { o.frustumCulled = false; });
+    root.add(group);
+    sigProjectiles.push({group, body, parts, glows, active: false, kind: 'bread', id: '', age: 0, flight: 0.3, arc: 0,
+      from: new THREE.Vector3(), to: new THREE.Vector3(), prev: new THREE.Vector3(), onArrive: null, unit: 1,
+      acc: 0, ghostAcc: 0, spin: 0, glow: null, toSeat: 2});
+  }
+  function releaseSigProjectile(rec, arrive) {
+    if (!rec.active) return;
+    rec.active = false;
+    rec.group.visible = false;
+    if (arrive) { const fn = rec.onArrive; rec.onArrive = null; try { fn?.(); } catch { /* kozmetik */ } }
+    rec.onArrive = null;
+  }
+  function sigProjectile(kind, id, from, to, flightS, U, onArrive, toSeat) {
+    let rec = sigProjectiles.find(r => !r.active);
+    if (!rec) { rec = sigProjectiles.reduce((a, b) => (a.age / a.flight > b.age / b.flight ? a : b)); releaseSigProjectile(rec, true); }
+    Object.assign(rec, {active: true, kind, id, age: 0, flight: Math.max(0.05, flightS), unit: U, onArrive, acc: 0, ghostAcc: 0, spin: 0, toSeat, log: currentLog,
+      arc: (kind === 'bread' ? 0.6 : kind === 'rune' ? 0.25 : kind === 'meteor' ? 0 : 0.15) * U});
+    rec.from.copy(from); rec.to.copy(to);
+    if (kind === 'meteor') rec.from.set(to.x - (to.x - from.x) * 0.35, to.y + 6.5 * U, to.z - 1.6 * U);
+    rec.prev.copy(rec.from);
+    for (const [k, p] of Object.entries(rec.parts)) p.visible = k === kind;
+    const glowKey = kind === 'bread' ? 'konyali' : kind === 'spear' || kind === 'dagger' ? 'sira' : 'nyx';
+    for (const [k, gm] of Object.entries(rec.glows)) gm.visible = k === glowKey;
+    rec.glow = rec.glows[glowKey];
+    rec.glow.scale.setScalar(kind === 'meteor' ? 2.2 : kind === 'bread' ? 0.9 : 0.7);
+    rec.group.scale.setScalar(U * (kind === 'meteor' ? 1.6 : 1));
+    rec.group.position.copy(rec.from);
+    rec.body.quaternion.identity();
+    rec.group.visible = true;
+    return rec;
+  }
+  function updateSigProjectiles(dt) {
+    const scale = countScale();
+    for (const rec of sigProjectiles) {
+      if (!rec.active) continue;
+      const spawned0 = totals.spawned;
+      rec.age += dt;
+      const U = rec.unit, p = Math.min(1, rec.age / rec.flight);
+      rec.prev.copy(rec.group.position);
+      const pos = rec.group.position;
+      if (rec.kind === 'meteor') pos.lerpVectors(rec.from, rec.to, p * p);
+      else { pos.lerpVectors(rec.from, rec.to, easeOut3(p) * 0.15 + p * 0.85); pos.y += Math.sin(Math.PI * p) * rec.arc; }
+      rec.glow.quaternion.copy(camQ);
+      tmpC.subVectors(pos, rec.prev);
+      const moved = tmpC.length();
+      const vx = tmpC.x / Math.max(dt, 1e-4), vy = tmpC.y / Math.max(dt, 1e-4), vz = tmpC.z / Math.max(dt, 1e-4);
+      if (rec.kind === 'bread') {
+        // Havada dönerek (kendi düşey ekseninde hızlı, hafif yalpa) yay çizer.
+        rec.spin += dt * 17;
+        rec.body.rotation.set(0.35 + Math.sin(rec.age * 9) * 0.15, rec.spin, Math.sin(rec.age * 6) * 0.2);
+      } else if (rec.kind === 'spear' || rec.kind === 'dagger') {
+        if (moved > 1e-5) rec.body.quaternion.setFromUnitVectors(AXIS_X, tmpC.multiplyScalar(1 / moved));
+        if (rec.kind === 'dagger') { rec.spin += dt * 30; rec.parts.dagger.rotation.x = rec.spin; }
+        rec.ghostAcc += dt;
+        if (rec.ghostAcc >= 0.03) { rec.ghostAcc = 0; rec.body.getWorldQuaternion(SV.q); sigGhost(pos, SV.q, U, PAL.sira.cool[0], 0.22); }
+      } else {
+        rec.spin += dt * (rec.kind === 'meteor' ? 5 : 14);
+        rec.body.rotation.set(rec.spin * 0.5, rec.spin, 0.3);
+      }
+      // Uçuş izi
+      rec.acc += (rec.kind === 'meteor' ? 260 : rec.kind === 'bread' ? 150 : 120) * scale * dt;
+      while (rec.acc >= 1) {
+        rec.acc -= 1;
+        const f = Math.random();
+        const px = rec.prev.x + (pos.x - rec.prev.x) * f, py = rec.prev.y + (pos.y - rec.prev.y) * f, pz = rec.prev.z + (pos.z - rec.prev.z) * f;
+        if (rec.kind === 'bread') {
+          if (Math.random() < 0.62) {
+            // un tozu izi: beyaz, yavaş, havada asılı kalır
+            spawn(px + rand(-0.06, 0.06) * U, py, pz + rand(-0.06, 0.06) * U, -vx * 0.05 + rand(-0.3, 0.3) * U, rand(-0.2, 0.3) * U, rand(-0.3, 0.3) * U,
+              rand(0.45, 0.85), rand(0.07, 0.13) * U, rand(0.18, 0.3) * U, 0.45, pick(PAL.flour.hot), pick(PAL.flour.cool), 0.4 * U, 3.2);
+          } else {
+            // buhar: yükselip genişleyen sönük bulut
+            spawn(px, py + 0.04 * U, pz, rand(-0.15, 0.15) * U, rand(0.6, 1.1) * U, rand(-0.15, 0.15) * U,
+              rand(0.5, 0.8), rand(0.06, 0.1) * U, rand(0.25, 0.4) * U, 0.28, PAL.flour.hot[1], PAL.flour.cool[2], -0.5 * U, 2.2);
+          }
+        } else if (rec.kind === 'meteor') {
+          spawn(px, py, pz, -vx * 0.1 + rand(-0.6, 0.6) * U, rand(-0.2, 0.8) * U, rand(-0.6, 0.6) * U,
+            rand(0.3, 0.6), rand(0.12, 0.24) * U, 0.04 * U, 0.95, pick(PAL.nyx.hot), pick(PAL.fire.cool), -0.6 * U, 2);
+        } else if (rec.kind === 'rune') {
+          spawn(px, py, pz, rand(-0.4, 0.4) * U, rand(-0.4, 0.4) * U, rand(-0.4, 0.4) * U,
+            rand(0.2, 0.42), rand(0.06, 0.12) * U, 0.01 * U, 0.9, pick(PAL.nyx.hot), pick(PAL.nyx.cool), 0, 3);
+        } else {
+          spawn(px, py, pz, -vx * 0.04, -vy * 0.04 + rand(-0.15, 0.15) * U, -vz * 0.04,
+            rand(0.18, 0.3), rand(0.05, 0.09) * U, 0.01 * U, 0.9, pick(PAL.sira.hot), pick(PAL.sira.cool), 0, 4);
+        }
+      }
+      if (rec.kind === 'rune' && Math.random() < dt * 14) {
+        sigGlyph(pos.x, pos.y, pos.z, rand(-0.3, 0.3) * U, rand(0.1, 0.5) * U, rand(-0.2, 0.2) * U,
+          Math.random() < 0.5 ? GLYPH.runeA : GLYPH.runeB, PAL.nyx.ring, 0.16 * U, 0.4, {drag: 2, spin: rand(-3, 3)});
+      }
+      if (p >= 1) projectileArrival(rec);
+      if (rec.log) rec.log.particles += totals.spawned - spawned0;
+      if (p >= 1) releaseSigProjectile(rec, true);
+    }
+  }
+  /** Mermiye özgü varış: ekmek parçalanır (un bulutu + kırıntı + ekmek parçaları); rün/mızrak kıvılcımı. */
+  function projectileArrival(rec) {
+    const p = rec.group.position, U = rec.unit;
+    const d = seatInfo(rec.toSeat);
+    const gy = d ? d.ground.y : p.y - 1.2 * U;
+    if (rec.kind === 'bread') {
+      burst(p.x, p.y, p.z, {n: 30, speed: [0.8 * U, 2.6 * U], life: [0.6, 1.0], size: [0.16 * U, 0.3 * U], end: 2.2,
+        grav: -0.2 * U, drag: 3.2, alpha: 0.42, pal: PAL.flour});
+      burst(p.x, p.y, p.z, {n: 22, speed: [1.5 * U, 4.2 * U], life: [0.45, 0.8], size: [0.04 * U, 0.08 * U], end: 0.6,
+        grav: 9 * U, drag: 1.2, up: 1.2 * U, pal: PAL.crumb});
+      const n = Math.round(7 * countScale()) + 1;
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * TAU + rand(-0.3, 0.3);
+        sigChunk(p.x, p.y, p.z, Math.cos(a) * rand(1, 2.6) * U, rand(1, 3) * U, Math.sin(a) * rand(0.6, 1.6) * U,
+          rand(0.08, 0.16) * U, 0.035 * U, rand(0.06, 0.1) * U, pick(PAL.crumb.hot), rand(0.8, 1.1), gy, U);
+      }
+    } else if (rec.kind === 'spear' || rec.kind === 'dagger') {
+      const f = d ? -d.facing : 1;
+      for (let k = 0; k < Math.round(14 * countScale()); k++) {
+        spawn(p.x, p.y, p.z, f * rand(3, 8) * U, rand(-1, 1.5) * U, rand(-1.2, 1.2) * U,
+          rand(0.15, 0.3), rand(0.05, 0.1) * U, 0.01 * U, 1, pick(PAL.sira.hot), pick(PAL.sira.cool), 2 * U, 3);
+      }
+    } else if (rec.kind === 'rune') {
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * TAU;
+        sigGlyph(p.x, p.y, p.z, Math.cos(a) * 1.4 * U, Math.sin(a) * 1.4 * U, 0, k % 2 ? GLYPH.runeA : GLYPH.runeB,
+          PAL.nyx.ring, 0.2 * U, 0.5, {drag: 3, spin: rand(-4, 4)});
+      }
+    } else if (rec.kind === 'meteor') {
+      bigExplosion('nyx', p.x, p.y + 0.2 * U, p.z, rec.toSeat, U, 0.8);
+    }
+  }
+
+  // --- (i) imza yayıcıları: girdap (kasırga/sema), ney dalgası, toplanma, yıldız yağmuru, rün yükselişi
+  const sigEmitters = [];
+  for (let k = 0; k < SIG_POOLS.emitters; k++) sigEmitters.push({active: false, type: '', seat: 1, toSeat: 2, age: 0, life: 0, acc: 0, acc2: 0, rate: 0, pal: PAL.fire, U: 1, id: '', log: null});
+  function sigEmitter(type, seat, toSeat, life, rate, pal, U, id) {
+    let slot = null;
+    for (const e of sigEmitters) { if (!e.active) { slot = e; break; } if (!slot || e.age / e.life > slot.age / slot.life) slot = e; }
+    Object.assign(slot, {active: true, type, seat, toSeat, age: 0, life, acc: 0, acc2: 0, rate, pal, U, id, log: currentLog});
+    return slot;
+  }
+  function neyTip(seat, U, out) {
+    const rig = fighterOf(seat)?.rig;
+    if (rig?.boneWorld) rig.boneWorld('head', out);
+    else { const a = api.seatAnchor?.(seat); if (a) out.copy(a).setY(a.y + 0.45 * U); }
+    out.x += facing(seat) * 0.45 * U; out.y -= 0.06 * U;
+    return out;
+  }
+  function updateSigEmitters(dt) {
+    const scale = countScale();
+    for (const e of sigEmitters) {
+      if (!e.active) continue;
+      e.age += dt;
+      if (e.age >= e.life) { e.active = false; continue; }
+      const U = e.U, k = e.age / e.life;
+      const anchor = api.seatAnchor?.(e.seat);
+      if (!anchor) { e.active = false; continue; }
+      const before = totals.spawned;
+      e.acc += e.rate * scale * dt;
+      e.acc2 += dt;
+      if (e.type === 'vortex' || e.type === 'sema') {
+        const g = api.seatGround?.(e.seat);
+        const waist = anchor.y - (e.type === 'sema' ? 0.55 : 0.3) * U;
+        while (e.acc >= 1) {
+          e.acc -= 1;
+          const a = Math.random() * TAU, R = rand(0.5, 0.85) * U;
+          const tang = (e.type === 'sema' ? 6.5 : 5) * U;
+          spawn(anchor.x + Math.cos(a) * R, waist + rand(-0.35, 0.45) * U, anchor.z + Math.sin(a) * R * 0.8,
+            -Math.sin(a) * tang, rand(0.3, 1.2) * U, Math.cos(a) * tang * 0.8,
+            e.type === 'sema' ? rand(0.25, 0.45) : rand(0.3, 0.55), (e.type === 'sema' ? rand(0.04, 0.08) : rand(0.08, 0.15)) * U, 0.01 * U,
+            0.95, pick(e.pal.hot), pick(e.pal.cool), e.type === 'sema' ? 0 : -0.6 * U, e.type === 'sema' ? 0.6 : 1.6);
+        }
+        const every = e.type === 'sema' ? 0.12 : 0.16;
+        if (e.acc2 >= every && g) {
+          e.acc2 = 0;
+          // genişleyen sıcak girdap halkası (sema: etek hizasında; kasırga: yerden göğse yükselen)
+          const y = e.type === 'sema' ? anchor.y - 0.85 * U : g.y + rand(0.1, 0.9) * U;
+          SV.a.set(anchor.x, y, anchor.z);
+          SV.b.set(anchor.x, y + 0.25 * U, anchor.z);
+          sigWave(SV.a, 0, 1, 0, Math.random() < 0.5 ? e.pal.ring : e.pal.cool[1], 0.45 * U, (e.type === 'sema' ? 1.9 : 1.4) * U, 0.5,
+            {to: SV.b, thick: 1.4, a0: 0.85});
+        }
+      } else if (e.type === 'ney') {
+        const tip = neyTip(e.seat, U, SV.c);
+        const to = api.seatAnchor?.(e.toSeat);
+        if (!to) continue;
+        const dir = SV.d.subVectors(to, tip);
+        if (e.acc2 >= 0.1) {
+          e.acc2 = 0;
+          // SES DALGASI: neyin ucundan çıkıp rakibe giderken genişleyen kalın halka (koni)
+          sigWave(tip, dir.x, dir.y, dir.z, Math.random() < 0.6 ? e.pal.ring : e.pal.hot[1], 0.12 * U, 0.95 * U, 0.42,
+            {to, thick: 2.2, a0: 1});
+        }
+        while (e.acc >= 1) {
+          e.acc -= 1;
+          const cell = Math.random() < 0.45 ? GLYPH.note : Math.random() < 0.7 ? GLYPH.notes : GLYPH.sparkle;
+          sigGlyph(tip.x, tip.y + rand(-0.1, 0.1) * U, tip.z + rand(-0.15, 0.15) * U,
+            dir.x * rand(1.4, 2.2), dir.y * 1.6 + rand(0.2, 0.8) * U, dir.z * 1.6 + rand(-0.4, 0.4) * U,
+            cell, Math.random() < 0.5 ? e.pal.ring : e.pal.core, rand(0.14, 0.22) * U, rand(0.45, 0.7), {drag: 1.2, wob: 1.6 * U, spin: rand(-2, 2)});
+          spawn(tip.x, tip.y, tip.z, dir.x * rand(1.5, 2.5), dir.y * 2 + rand(-0.3, 0.3) * U, dir.z * 2 + rand(-0.4, 0.4) * U,
+            rand(0.3, 0.5), rand(0.05, 0.09) * U, 0.01 * U, 0.85, pick(e.pal.hot), pick(e.pal.cool), 0, 1.5);
+        }
+      } else if (e.type === 'gather') {
+        const rig = fighterOf(e.seat)?.rig;
+        if (rig?.boneWorld) rig.boneWorld('handslot.r', SV.d); else SV.d.copy(anchor);
+        while (e.acc >= 1) {
+          e.acc -= 1;
+          const u = Math.random() * 2 - 1, th = Math.random() * TAU, r = Math.sqrt(1 - u * u), R = rand(0.6, 1.0) * U;
+          const x = SV.d.x + r * Math.cos(th) * R, y = SV.d.y + u * R, z = SV.d.z + r * Math.sin(th) * R;
+          spawn(x, y, z, (SV.d.x - x) * 3.6, (SV.d.y - y) * 3.6, (SV.d.z - z) * 3.6,
+            0.26, rand(0.05, 0.1) * U, 0.12 * U, 0.95, pick(e.pal.hot), pick(e.pal.cool), 0, 0);
+        }
+      } else if (e.type === 'starfall') {
+        const g = api.seatGround?.(e.toSeat);
+        if (!g) continue;
+        while (e.acc >= 1) {
+          e.acc -= 1;
+          spawn(g.x + rand(-1.5, 1.5) * U, g.y + rand(3, 4.5) * U, g.z + rand(-0.8, 0.8) * U,
+            rand(-0.5, 0.5) * U, -rand(6, 9) * U, 0, rand(0.35, 0.55), rand(0.06, 0.12) * U, 0.02 * U, 1,
+            pick(e.pal.hot), pick(e.pal.cool), 0, 0);
+        }
+        if (e.acc2 >= 0.09) {
+          e.acc2 = 0;
+          sigGlyph(g.x + rand(-1.3, 1.3) * U, g.y + rand(2.5, 3.5) * U, g.z, 0, -rand(4, 6) * U, 0, GLYPH.sparkle,
+            e.pal.core, rand(0.18, 0.3) * U, 0.55, {spin: rand(-4, 4)});
+        }
+      } else if (e.type === 'rise') {
+        const g = api.seatGround?.(e.toSeat);
+        if (!g) continue;
+        if (e.acc2 >= 0.06) {
+          e.acc2 = 0;
+          const a = Math.random() * TAU;
+          sigGlyph(g.x + Math.cos(a) * 0.65 * U, g.y + rand(0.1, 0.6) * U, g.z + Math.sin(a) * 0.65 * U, 0, rand(1.6, 2.6) * U, 0,
+            Math.random() < 0.5 ? GLYPH.runeA : GLYPH.runeB, e.pal.ring, rand(0.18, 0.26) * U, 0.7, {drag: 0.5, spin: rand(-1, 1)});
+        }
+        while (e.acc >= 1) {
+          e.acc -= 1;
+          const a = Math.random() * TAU;
+          spawn(g.x + Math.cos(a) * 0.5 * U, g.y + 0.1 * U, g.z + Math.sin(a) * 0.5 * U, 0, rand(3, 5) * U, 0,
+            rand(0.4, 0.7), rand(0.05, 0.1) * U, 0.01 * U, 0.9, pick(e.pal.hot), pick(e.pal.cool), 0, 0.5);
+        }
+      }
+      void k;
+      if (e.log) e.log.particles += totals.spawned - before;
+    }
+  }
+
+  // --- (j) imza zamanlayıcıları (benzetim saatinde; şerit pencereleri, gecikmeli halkalar)
+  const sigTimers = [];
+  function sigAfter(sec, fn) { if (sigTimers.length < 24) sigTimers.push({at: sigClock + sec, fn}); }
+  function updateSigTimers() {
+    for (let i = sigTimers.length - 1; i >= 0; i--) {
+      if (sigTimers[i].at <= sigClock) { const [t] = sigTimers.splice(i, 1); try { t.fn(); } catch { /* kozmetik */ } }
+    }
+  }
+
+  // --- (k) hata ayıklama sayaçları: efekt adı, parçacık sayısı, yürütme süresi (ms)
+  const sigLog = [];
+  const sigCounts = {};
+  let currentLog = null;
+  function logSig(name) {
+    const row = {name, particles: 0, ms: 0, t: Math.round(perfNow())};
+    sigLog.push(row);
+    if (sigLog.length > 96) sigLog.shift();
+    sigCounts[name] = (sigCounts[name] || 0) + 1;
+    return row;
+  }
+
+  // --- (l) aşamalar ------------------------------------------------------------
+  function palFor(cfg, skill) { return PAL[(skill === 'r' && cfg.ultPal) || cfg.pal]; }
+
+  /** Telegraf (hazırlık, ~350 ms): zeminde karakter deseni + elde toplanan enerji + silah izi pencereleri. */
+  function sigCast(id, cfg, a) {
+    const from = seatInfo(a.seat), to = seatInfo(a.def);
+    if (!from || !to) return;
+    const U = unitScale(), R = a.skill === 'r', pal = palFor(cfg, a.skill);
+    const g = from.ground;
+    sigDecal(g.x, g.y + 0.012 * U, g.z, cfg.castDecal, pal.ring, 0.5 * U, (R ? 2.6 : 1.6) * U, R ? 1.0 : 0.75,
+      {spin: cfg.castDecal === 'seljuk' || cfg.castDecal === 'rune' ? (R ? 1.6 : 1.1) : 0, a0: R ? 1 : 0.85, seat: a.seat});
+    sigEmitter('gather', a.seat, a.def, R ? 0.6 : 0.35, R ? 300 : 170, pal, U, id);
+    tmpA.copy(from.anchor);
+    flashLight(tmpA.x + from.facing * 0.3 * U, tmpA.y, tmpA.z, pal.light, R ? 0.9 : 0.45, R ? 0.5 : 0.32, U);
+    if (R) {
+      edgePulse(pal.flashHex, 0.22, 420);
+      spawnRing(g.x, g.y + 0.02 * U, g.z, 'floor', 'thin', pal.ring, 2.4 * U, 0.4 * U, 0.55, 0.9);
+    }
+    if (id === 'nyx' && (a.skill === 'e' || R)) {
+      // hedef telegrafı: rakibin altında açılan rün halkası
+      sigDecal(to.ground.x, to.ground.y + 0.014 * U, to.ground.z, 'rune', pal.ring, 0.3 * U, (R ? 2.6 : 1.5) * U, R ? 1.4 : 1.0, {spin: -1.4, seat: a.def});
+    }
+    if (id === 'konyali' && a.skill === 'q') {
+      const rig = fighterOf(a.seat)?.rig;
+      if (rig?.boneWorld) rig.boneWorld('handslot.r', SV.d); else SV.d.copy(from.anchor);
+      burst(SV.d.x, SV.d.y, SV.d.z, {n: 14, speed: [0.3 * U, 1 * U], life: [0.5, 0.8], size: [0.08 * U, 0.14 * U], end: 2.2,
+        grav: -0.6 * U, drag: 2.5, alpha: 0.35, pal: PAL.flour});
+    }
+    if (id === 'konyali' && R) {
+      neyTip(a.seat, U, SV.c);
+      for (let k = 0; k < 5; k++) {
+        sigGlyph(SV.c.x + rand(-0.5, 0.5) * U, SV.c.y + rand(0, 0.6) * U, SV.c.z, rand(-0.3, 0.3) * U, rand(0.4, 0.9) * U, 0,
+          k % 2 ? GLYPH.note : GLYPH.notes, pal.ring, 0.2 * U, 0.8, {drag: 1, wob: 1.2 * U});
+      }
+    }
+    if (id === 'vargr' && R) spawnPillar(g.x, g.y, g.z, 0.6 * U, 3.2 * U, 0.9, 'blood', 6);
+    // Silah izi pencereleri: her temasın ~380 ms öncesinden 170 ms sonrasına.
+    if (cfg.blade && cfg.blade.skills.includes(a.skill)) {
+      const contacts = Array.isArray(a.contacts) && a.contacts.length ? a.contacts.slice(0, 3) : [Number(a.hitMs) || 500];
+      if (id === 'vargr' && a.skill === 'e') sigRibbon(a.seat, cfg.blade.bone, cfg.blade.len, pal.ring, 0.1, Math.max(0.6, (contacts[contacts.length - 1] + 200) / 1000 - 0.1));
+      else for (const c of contacts) {
+        const ms = Math.max(0, Number(c) || 0);
+        sigRibbon(a.seat, cfg.blade.bone, cfg.blade.len, pal.ring, Math.max(0, ms - 380) / 1000, (Math.min(ms, 380) + 170) / 1000);
+      }
+    }
+  }
+
+  /** Ana efekt: koreografi öğesi (mermi, girdap, sütun, ses dalgası, kalkan şoku). true → çekirdek kendi mermisini çizmez. */
+  function sigLaunch(id, cfg, a) {
+    const from = seatInfo(a.seat), to = seatInfo(a.def);
+    if (!from || !to) return false;
+    const U = unitScale(), pal = palFor(cfg, a.skill);
+    const kind = a.kind;
+    const flight = (Number(a.flight) || (kind === 'meteor' ? 500 : 260)) / 1000;
+    if (kind === 'bread' || kind === 'spear' || kind === 'dagger' || kind === 'rune' || kind === 'meteor') {
+      const start = a.from?.isVector3 ? a.from : from.anchor;
+      const target = kind === 'meteor' ? to.ground : to.anchor;
+      sigProjectile(kind, id, start, target, flight, U, a.onArrive || null, a.def);
+      if (kind === 'meteor') {
+        sigEmitter('starfall', a.seat, a.def, flight + 0.25, 70, PAL.nyx, U, id);
+        sigDecal(to.ground.x, to.ground.y + 0.014 * U, to.ground.z, 'rune', PAL.nyx.ring, 1.2 * U, 2.8 * U, flight + 0.5, {spin: 2, seat: a.def});
+      }
+      return true;
+    }
+    if (kind === 'column') {
+      const ms = Number(a.ms) || 900;
+      spawnPillar(to.ground.x, to.ground.y, to.ground.z, 0.75 * U, 4.2 * U, ms / 1000, 'nyx', 5);
+      sigEmitter('rise', a.seat, a.def, ms / 1000 * 0.8, 90, PAL.nyx, U, id);
+      sigDecal(to.ground.x, to.ground.y + 0.014 * U, to.ground.z, 'rune', PAL.nyx.ring, 1.0 * U, 1.9 * U, ms / 1000, {spin: 2.2, seat: a.def});
+      const cb = a.onArrive;
+      sigAfter(0.22, () => { cb?.(); });
+      return true;
+    }
+    if (kind === 'shockring') {
+      sigEmitter('ney', a.seat, a.def, Math.min(0.5, (Number(a.ms) || 900) / 1000 * 0.5), 34, pal, U, id);
+      spawnRing(from.ground.x, from.ground.y + 0.02 * U, from.ground.z, 'floor', 'circle', pal.ring, 0.4 * U, 2.6 * U, 0.6, 0.8);
+      const cb = a.onArrive;
+      sigAfter(0.08, () => { cb?.(); });
+      return true;
+    }
+    if (kind === 'swirl') {
+      const life = (Number(a.ms) || 700) / 1000;
+      const sema = id === 'konyali';
+      sigEmitter(sema ? 'sema' : 'vortex', a.seat, a.def, life, sema ? 150 : 170, pal, U, id);
+      if (sema) sigDecal(from.ground.x, from.ground.y + 0.012 * U, from.ground.z, 'seljuk', pal.ring, 0.8 * U, 2.2 * U, life + 0.3, {spin: 4.5, seat: a.seat});
+      else sigDecal(from.ground.x, from.ground.y + 0.012 * U, from.ground.z, 'ember', pal.ring, 0.8 * U, 2 * U, life + 0.2, {spin: 3, seat: a.seat});
+      return true;
+    }
+    if (kind === 'shards') {
+      // Kalkan Ezici: kalkandan rakibe ilerleyen üç kalın şok halkası + altın altıgen.
+      tmpA.copy(from.anchor); tmpA.x += from.facing * 0.5 * U;
+      tmpB.copy(to.anchor);
+      for (let k = 0; k < 3; k++) {
+        tmpC.subVectors(tmpB, tmpA);
+        sigWave(tmpA, tmpC.x, tmpC.y, tmpC.z, k === 1 ? pal.core : pal.ring, (0.25 + k * 0.1) * U, (0.9 + k * 0.25) * U, 0.3 + k * 0.06, {to: tmpB, thick: 2});
+      }
+      spawnRing(to.anchor.x, to.anchor.y, to.anchor.z, 'face', 'hex', pal.ring, 0.5 * U, 1.6 * U, 0.4, 1, 3);
+      return true;
+    }
+    return false;
+  }
+
+  /** Koreografinin yer darbesi (slam) karesi: karaktere özgü zemin/çarpma eki. */
+  function sigSlam(id, cfg, a) {
+    const to = seatInfo(a.def), from = seatInfo(a.seat);
+    if (!to || !from) return;
+    const U = unitScale(), pal = palFor(cfg, a.skill), g = to.ground;
+    if (id === 'vargr') {
+      burst(g.x, g.y + 0.1 * U, g.z, {n: 26, speed: [2 * U, 6 * U], life: [0.3, 0.6], size: [0.05 * U, 0.1 * U], end: 0.2,
+        grav: 9 * U, drag: 1.5, up: 3 * U, pal});
+      if (a.skill === 'r') {
+        sigDecal(g.x, g.y + 0.015 * U, g.z, 'crack', pal.ring, 0.6 * U, 3.2 * U, 1.0, {a0: 1});
+        sigWave(SV.a.set(g.x, g.y + 0.08 * U, g.z), 0, 1, 0, pal.ring, 0.4 * U, 4 * U, 0.6, {thick: 1.6});
+      }
+    } else if (id === 'sira') {
+      for (const r of [-0.75, 0.75]) {
+        const before = GL.count;
+        sigGlyph(to.anchor.x, to.anchor.y, to.anchor.z + 0.05 * U, 0, 0, 0, GLYPH.slash, PAL.sira.core, 1.1 * U, 0.36, {});
+        if (GL.count > before) gRot.array[GL.count - 1] = r;
+      }
+    } else if (id === 'doran') {
+      if (a.skill === 'r') {
+        // Sur çöküşü: rakibin üstüne düşen taş bloklar
+        const n = Math.round(9 * countScale()) + 2;
+        for (let k = 0; k < n; k++) {
+          const s = rand(0.16, 0.3) * U;
+          sigChunk(g.x + rand(-0.9, 0.9) * U, g.y + rand(1.6, 3.2) * U, g.z + rand(-0.6, 0.6) * U,
+            rand(-0.6, 0.6) * U, -rand(2, 4) * U, rand(-0.4, 0.4) * U, s, s * rand(0.6, 0.9), s * rand(0.7, 1.1),
+            pick([PAL.dust.hot[0], PAL.dust.hot[1], PAL.doran.cool[2]]), rand(1.1, 1.5), g.y, U);
+        }
+        sigDecal(g.x, g.y + 0.015 * U, g.z, 'crack', pal.ring, 0.6 * U, 3 * U, 1.0, {a0: 1});
+        sigWave(SV.a.set(g.x, g.y + 0.08 * U, g.z), 0, 1, 0, pal.ring, 0.4 * U, 3.6 * U, 0.6, {thick: 1.6});
+      } else {
+        burst(g.x, g.y + 0.1 * U, g.z, {n: 18, speed: [1.5 * U, 5 * U], life: [0.3, 0.55], size: [0.05 * U, 0.09 * U], end: 0.2,
+          grav: 9 * U, drag: 1.5, up: 2.5 * U, pal});
+      }
+    } else if (id === 'konyali') {
+      if (a.skill === 'e') {
+        // Sema halkası rakibe ulaşır ve temasta çakar.
+        SV.a.set(from.anchor.x, from.anchor.y - 0.55 * U, from.anchor.z);
+        SV.b.set(to.anchor.x, to.anchor.y - 0.4 * U, to.anchor.z);
+        sigWave(SV.a, 0, 1, 0, pal.ring, 0.8 * U, 1.6 * U, 0.22, {to: SV.b, thick: 1.6});
+        spawnRing(to.anchor.x, to.anchor.y, to.anchor.z, 'face', 'thin', pal.core, 0.3 * U, 2 * U, 0.35, 1);
+      } else if (a.skill === 'r') {
+        groundWave(g, pal, U, 1);
+      }
+    }
+  }
+
+  /** Zemin dalgası: geniş kalın halka + toz + çatlak (R son darbe). */
+  function groundWave(g, pal, U, power) {
+    SV.a.set(g.x, g.y + 0.08 * U, g.z);
+    sigWave(SV.a, 0, 1, 0, pal.ring, 0.4 * U, 4.6 * U * power, 0.7, {thick: 1.8});
+    spawnRing(g.x, g.y + 0.03 * U, g.z, 'floor', 'circle', pal.core, 0.3 * U, 3.6 * U * power, 0.6, 0.9);
+    const n = Math.round(30 * countScale());
+    for (let k = 0; k < n; k++) {
+      const a = Math.random() * TAU, sp = rand(1.5, 3.6) * U;
+      if (!spawn(g.x + Math.cos(a) * 0.3 * U, g.y + rand(0.05, 0.25) * U, g.z + Math.sin(a) * 0.3 * U,
+        Math.cos(a) * sp, rand(0.3, 1.2) * U, Math.sin(a) * sp * 0.6,
+        rand(0.6, 1.0), rand(0.2, 0.36) * U, 0.6 * U, 0.38, pick(PAL.dust.hot), pick(PAL.dust.cool), 2.5 * U, 2.6)) break;
+    }
+  }
+
+  /** Temas karesi (DAMAGE_APPLIED impactContact): karakter renginde patlama + zemin izi; R'de kenar darbesi + şok halkası. */
+  function sigContact(id, cfg, ev) {
+    const toSeat = ev.toSeat, fromSeat = ev.fromSeat ?? (toSeat === 1 ? 2 : 1);
+    const amount = Number(ev.amount) || 0;
+    if (ev.blocked || amount <= 0) return false;
+    const d = seatInfo(toSeat);
+    if (!d) return false;
+    const U = unitScale(), skill = ev.skill, R = skill === 'r', pal = palFor(cfg, skill);
+    const k = R ? 1.4 : skill === 'e' ? 1.15 : 1;
+    const c = d.anchor, g = d.ground, f = -d.facing; // f: darbe yönü (saldırandan savunana)
+    // beyaz-sıcak çekirdek + karakter kıvılcımları + yavaş közler
+    spawn(c.x, c.y, c.z, 0, 0, 0, 0.16, 1.2 * U * Math.sqrt(k), 0.2 * U, 1, pal.core, pal.cool[0], 0, 0);
+    burst(c.x, c.y, c.z, {n: 34 * k, speed: [2.5 * U, 7.5 * U], life: [0.3, 0.6], size: [0.06 * U, 0.12 * U], end: 0.15,
+      grav: 8 * U, drag: 2.2, up: 1.2 * U, pal});
+    burst(c.x, c.y, c.z, {n: 12 * k, speed: [0.4 * U, 1.4 * U], life: [0.6, 1.0], size: [0.1 * U, 0.2 * U], end: 0.3,
+      grav: -0.8 * U, drag: 1.5, alpha: 0.7, pal});
+    spawnRing(g.x, g.y + 0.02 * U, g.z, 'floor', 'circle', pal.ring, 0.3 * U, (1.5 + 0.5 * k) * U, 0.5);
+    flashLight(c.x, c.y, c.z, pal.light, 0.7 + 0.4 * k, 0.24, U);
+    const decalLife = R ? 1.0 : 0.75;
+    if (id === 'vargr') {
+      for (let n = 0; n < Math.round(16 * countScale()); n++) {
+        spawn(c.x, c.y, c.z, f * rand(2, 6) * U, rand(1, 4) * U, rand(-2, 2) * U, rand(0.3, 0.55), rand(0.04, 0.07) * U, 0.01 * U, 1,
+          PAL.vargr.hot[0], pick(pal.cool), 9 * U, 1.2);
+      }
+      sigDecal(g.x, g.y + 0.015 * U, g.z, skill === 'e' ? 'ember' : 'crack', pal.ring, 0.5 * U, (R ? 2.6 : 1.7) * U, decalLife);
+    } else if (id === 'sira') {
+      for (let n = 0; n < Math.round(18 * countScale()); n++) {
+        spawn(c.x, c.y + rand(-0.2, 0.2) * U, c.z, f * rand(4, 9) * U, rand(-0.8, 0.8) * U, rand(-1, 1) * U, rand(0.15, 0.28),
+          rand(0.04, 0.08) * U, 0.01 * U, 1, pick(PAL.sira.hot), pick(PAL.sira.cool), 0, 4);
+      }
+      const before = GL.count;
+      sigGlyph(c.x, c.y, c.z + 0.05 * U, 0, 0, 0, GLYPH.slash, pal.core, (R ? 1.3 : 0.9) * U, 0.3, {});
+      if (GL.count > before) gRot.array[GL.count - 1] = rand(-1, 1);
+      sigDecal(g.x, g.y + 0.015 * U, g.z, 'shadow', pal.ring, 0.6 * U, 1.8 * U, decalLife);
+    } else if (id === 'doran') {
+      spawnRing(c.x, c.y, c.z, 'face', 'hex', pal.ring, 0.4 * U, 1.5 * U, 0.35, 1, 3);
+      sigDecal(g.x, g.y + 0.015 * U, g.z, skill === 'e' ? 'rune' : 'crack', pal.ring, 0.5 * U, (R ? 2.6 : 1.7) * U, decalLife);
+    } else if (id === 'nyx') {
+      for (let n = 0; n < 6; n++) {
+        const a = (n / 6) * TAU;
+        sigGlyph(c.x, c.y, c.z, Math.cos(a) * 1.6 * U, Math.sin(a) * 1.6 * U, 0, n % 2 ? GLYPH.runeA : GLYPH.runeB,
+          pal.ring, 0.22 * U, 0.55, {drag: 3, spin: rand(-4, 4)});
+      }
+      sigDecal(g.x, g.y + 0.015 * U, g.z, 'rune', pal.ring, 0.5 * U, (R ? 2.6 : 1.7) * U, decalLife, {spin: 1.5});
+    } else if (id === 'konyali') {
+      if (skill === 'q') {
+        // Un bulutu patlaması + kırıntılar (ekmek parçaları varışta saçıldı)
+        burst(c.x, c.y, c.z, {n: 26, speed: [0.8 * U, 2.8 * U], life: [0.7, 1.1], size: [0.2 * U, 0.36 * U], end: 2,
+          grav: -0.3 * U, drag: 3, alpha: 0.4, pal: PAL.flour});
+        burst(c.x, c.y, c.z, {n: 16, speed: [1.5 * U, 4 * U], life: [0.4, 0.7], size: [0.04 * U, 0.07 * U], end: 0.5,
+          grav: 9 * U, drag: 1.2, up: 1.4 * U, pal: PAL.crumb});
+        sigDecal(g.x, g.y + 0.015 * U, g.z, 'flour', PAL.flour.core, 0.6 * U, 2 * U, 1.0, {a0: 0.75, normal: true});
+      } else if (skill === 'e') {
+        spawnRing(c.x, c.y, c.z, 'face', 'thin', pal.core, 0.35 * U, 2.1 * U, 0.35, 1);
+        SV.a.set(c.x, c.y - 0.3 * U, c.z);
+        sigWave(SV.a, 0, 1, 0, pal.ring, 0.5 * U, 1.8 * U, 0.4, {thick: 1.5});
+        sigDecal(g.x, g.y + 0.015 * U, g.z, 'seljuk', pal.ring, 0.6 * U, 1.9 * U, decalLife, {spin: -3});
+      } else {
+        for (let n = 0; n < 6; n++) {
+          const a = (n / 6) * TAU;
+          sigGlyph(c.x, c.y, c.z, Math.cos(a) * 1.8 * U, Math.sin(a) * 1.8 * U + 0.4 * U, 0, n % 2 ? GLYPH.note : GLYPH.notes,
+            pal.ring, 0.24 * U, 0.6, {drag: 2.5, wob: U});
+        }
+      }
+    }
+    if (R) {
+      const phase = Number(ev.phase) || 0;
+      edgePulse(pal.flashHex, phase === 2 ? 0.62 : 0.46, 380);
+      // rakibin çevresinde şok halkası
+      SV.a.set(c.x, c.y - 0.1 * U, c.z);
+      sigWave(SV.a, 0, 1, 0, pal.ring, 0.3 * U, 2.3 * U, 0.45, {thick: 1.8});
+      if (id === 'konyali') sigWave(SV.a, 1, 0, 0, pal.core, 0.25 * U, 1.7 * U, 0.4, {thick: 2.2});
+      if (phase === 3 || phase === 0) {
+        groundWave(g, pal, U, 1);
+        sigDecal(g.x, g.y + 0.016 * U, g.z, cfg.decal === 'flour' ? 'crack' : cfg.decal, pal.ring, 0.8 * U, 3.2 * U, 1.0, {a0: 1});
+      }
+    }
+    return true;
+  }
+
+  /**
+   * İş 15 — dış giriş: {stage:'cast'|'launch'|'slam'|'contact', seat, def, skill, fighterId?, kind?, flight?, ms?,
+   * from?, onArrive?, contacts?, event?}. Model yoksa ya da azaltılmış harekette false (çekirdek eski yolu kullanır).
+   */
+  function signature(a) {
+    if (dead || !a || reduced() || pluginApi.sigOff) return false; // sigOff: yalnız A/B ölçümü (vfxprobe)
+    const ev = a.event || null;
+    const seat = ev ? (ev.fromSeat ?? (ev.toSeat === 1 ? 2 : 1)) : a.seat;
+    const id = a.fighterId || fighterOf(seat)?.fighterId;
+    const cfg = SIG_CONFIG[id];
+    if (!cfg) return false;
+    const skill = ev ? ev.skill : a.skill;
+    const name = `${id}.${skill || '-'}.${a.stage}${a.kind ? `.${a.kind}` : ''}${ev?.phase ? `.p${ev.phase}` : ''}`;
+    // ön ısıtma (maç başı provası) sayaçlara girmez
+    const row = a.warm || ev?.warm ? {name, particles: 0, ms: 0, t: 0} : logSig(name);
+    const t0 = perfNow(), p0 = totals.spawned;
+    const prev = currentLog;
+    currentLog = row;
+    let handled = false;
+    try {
+      if (a.stage === 'cast') { sigCast(id, cfg, {...a, seat}); handled = true; }
+      else if (a.stage === 'launch') handled = sigLaunch(id, cfg, {...a, seat});
+      else if (a.stage === 'slam') { sigSlam(id, cfg, {...a, seat}); handled = true; }
+      else if (a.stage === 'contact' && ev) handled = sigContact(id, cfg, ev);
+    } finally {
+      currentLog = prev;
+      row.particles += totals.spawned - p0;
+      row.ms = Math.round((perfNow() - t0) * 1000) / 1000;
+    }
+    totals.signature = (totals.signature || 0) + 1;
+    return handled;
+  }
+
+  function updateSignature(dt) {
+    sigClock += dt;
+    updateSigTimers();
+    updateSigProjectiles(dt);
+    updateSigEmitters(dt);
+    updateDecals(dt);
+    updateWaves(dt);
+    updateGlyphs(dt);
+    updateChunks(dt);
+    updateGhosts(dt);
+    updateRibbons();
+    updateEdge(dt);
+  }
+
+  function clearSignature() {
+    sigTimers.length = 0;
+    for (const r of sigProjectiles) releaseSigProjectile(r, false);
+    for (const e of sigEmitters) e.active = false;
+    for (const d of decals) { d.active = false; d.mesh.visible = false; }
+    for (const w of waves) { w.active = false; w.mesh.visible = false; }
+    for (const g of ghosts) { g.active = false; g.mesh.visible = false; }
+    for (const r of ribbons) { r.active = false; r.mesh.visible = false; }
+    GL.count = 0; glyphMesh.count = 0;
+    CH.count = 0; chunkMesh.count = 0;
+    edge.life = 0; edgeQuad.visible = false; edgeMat.uniforms.uOpacity.value = 0;
+  }
+
+  function signatureStats() {
+    const n = arr => arr.reduce((s, x) => s + (x.active ? 1 : 0), 0);
+    return {projectiles: n(sigProjectiles), emitters: n(sigEmitters), decals: n(decals), waves: n(waves), ghosts: n(ghosts),
+      ribbons: n(ribbons), glyphs: GL.count, chunks: CH.count, edge: edge.life > 0 ? 1 : 0, edgePulses: edge.count,
+      counts: {...sigCounts}, log: sigLog.slice(-24)};
+  }
+
+  // =========================================================================
   // 10) Olay yöneticileri
   // =========================================================================
 
@@ -1368,6 +2626,9 @@ export function createArena3DFx(api) {
         const toSeat = event.toSeat;
         const fromSeat = event.fromSeat ?? (toSeat === 1 ? 2 : 1);
         const amount = Number(event.amount) || 0;
+        // İş 15: model varsa temas karesi karaktere özgü (aynı kare: impactContact = ses/hasar sayısı karesi).
+        if (!event.blocked && amount > 0 && event.impactContact && hasCharacterModel(fromSeat)
+          && signature({stage: 'contact', event})) return;
         if (event.blocked) deflect(toSeat, fromSeat);
         else if (amount > 0) impact(toSeat, fromSeat, characterOf(fromSeat, event.character), amount, Boolean(event.counter));
   }
@@ -1378,6 +2639,8 @@ export function createArena3DFx(api) {
     let step = Number(dt);
     if (!Number.isFinite(step) || step <= 0) return;
     if (step > 2) step /= 1000;
+    // İş 15: imza mermileri çekirdeğin eski efekt saatiyle aynı (≤ 0,1 sn × zaman ölçeği) → varış = temas karesi.
+    const sigStep = Math.min(step, 0.1) * simScale();
     step = Math.min(step, MAX_STEP_S);
     for (let i = resolveBeats.length - 1; i >= 0; i--) {
       const beat = resolveBeats[i];
@@ -1400,6 +2663,7 @@ export function createArena3DFx(api) {
     // Ağır çekim (paket 29): benzetim adımı çekirdeğin zaman ölçeğiyle yavaşlar;
     // yukarıdaki resolveBeats sunucu ritmine bağlı olduğu için gerçek zamanda kalır.
     const sim = step * simScale();
+    if (sigStep > 0) updateSignature(sigStep);
     if (sim <= 0) return;
     updateProjectiles(sim);
     updateTether(sim);
@@ -1431,12 +2695,19 @@ export function createArena3DFx(api) {
     shardMesh.count = 0;
     tether.active = false;
     tetherMesh.visible = false;
+    clearSignature();
   }
 
   function dispose() {
     if (dead) return;
     clear();
     dead = true;
+    if (edgeQuad.parent) edgeQuad.parent.remove(edgeQuad);
+    ownedGeometries.add(edgeQuad.geometry);
+    ownedMaterials.add(edgeMat);
+    for (const t of [...Object.values(TEX), glyphTex, breadTex]) t?.dispose?.();
+    glyphMesh.dispose?.();
+    chunkMesh.dispose?.();
     // Ağaçta bulunan her geometri/malzemeyi de topla (havuzdan sonradan eklenenler dahil).
     root.traverse((o) => {
       if (o.geometry) ownedGeometries.add(o.geometry);
@@ -1467,9 +2738,14 @@ export function createArena3DFx(api) {
       particles: P.count, projectiles: proj, rings: ringCount, shards: S.count,
       lights: lightCount, emitters: emitterCount, pillars: pillarCount, tethers: tether.active ? 1 : 0,
       quality: qualityKey(), reduced: reduced(), disposed: dead,
-      caps: {...caps()}, totals: {...totals}
+      caps: {...caps()}, totals: {...totals}, signature: signatureStats()
     };
   }
 
-  return {handle, update, clear, dispose, stats, root};
+  const pluginApi = {handle, update, clear, dispose, stats, root, signature, sigOff: false};
+  // Ölçüm kancası (varsayılan KAPALI; ?vfxprobe=1): imza efekt sayaçları.
+  try {
+    if (/(?:^|[?&])vfxprobe=1(?=&|$)/.test(String(globalThis.location?.search || ''))) globalThis.__tuslabVfx = pluginApi;
+  } catch { /* yok */ }
+  return pluginApi;
 }
