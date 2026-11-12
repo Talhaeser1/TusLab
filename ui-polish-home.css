@@ -136,12 +136,7 @@ html body #app .global-nav .global-link[aria-current="page"]{box-shadow:inset 0 
 /* Ekran klavyesi tuşları dokunmatik/fare yardımıdır (tabindex=-1); Tab doğrudan menülere ve eylemlere gider. Yazma alanı odağı görünür. */
 html body #app #typing-stage:focus-visible{outline:2px solid #9feeff;outline-offset:2px}
 
-/* J1 — Ana ekran: 3D boss yuvası + sade Komuta/Performans panelleri (tek vurgu #75eaff, 8 px ızgara, parıltı/cam yok). */
-#panel-arena .arena-backdrop .home-boss3d-canvas{position:absolute;left:50%;bottom:0;width:min(100%,520px);height:100%;transform:translateX(-50%);z-index:1;pointer-events:none;opacity:0;transition:opacity .4s ease}
-#panel-arena .arena-backdrop.home-boss3d-ready .home-boss3d-canvas{opacity:1}
-#panel-arena .arena-backdrop.home-boss3d-ready>img{opacity:0;transition:opacity .4s ease}
-@media(prefers-reduced-motion:reduce){#panel-arena .arena-backdrop .home-boss3d-canvas,#panel-arena .arena-backdrop.home-boss3d-ready>img{transition:none}}
-html.reduced-motion #panel-arena .arena-backdrop .home-boss3d-canvas,html.reduced-motion #panel-arena .arena-backdrop.home-boss3d-ready>img{transition:none}
+/* J1 — Ana ekran: sade Komuta/Performans panelleri (tek vurgu #75eaff, 8 px ızgara, parıltı/cam yok). 3B boss yuvası kaldırıldı (KESINYAP iş 9): ana ekranda eski arena-king.webp arka planı görünür. */
 html body #app :is(#panel-home,#panel-analytics) :is(.player-card,.commander-tabs,.phase4-quest-box,.analysis-card,.metric,.mini-shop-item,.quest-line){background:#12172f!important;border:1px solid #2a3358!important;border-radius:8px!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;text-shadow:none!important}
 html body #app :is(#panel-home,#panel-analytics) :is(.window-content){gap:8px}
 html body #app #panel-home :is(.commander-tabs) button{border-radius:8px!important;box-shadow:none!important;border:1px solid transparent!important;background:transparent!important;color:#c3cbe8!important}

@@ -5,6 +5,7 @@ import {normalizeTyping} from './shared/typing-rules.js';
 import {createCharacterController,rigMarkup,MOTION_NAMES} from './characters.js';
 import {createCombatFxDirector} from './combat-fx.js';
 import {createPvPAudio,soundForCue,weaponSfx} from './sound.js';
+import {endVoicePlan} from './end-voice.js';
 import {FIGHTERS,isFighterId,normalizeFighter} from './shared/fighters.js';
 import {createComboCounter} from './combo-counter.js';
 import {createAttackCallout,createDisplayedHp} from './attack-callout.js';
@@ -805,8 +806,10 @@ root?.addEventListener('tuslab:pvp-match',()=>{
     playFighterSfx(m.winnerSeat===1?2:1,'ko',.9); // paket 32: kaybedenin KO sesi
     // Görev S: düşme + zafer repliği + spiker + tezahürat (tek replik kanalı; üst üste binmez)
     pvpAudio.playExtra?.('dusme',{gain:.5});pvpAudio.cheer?.(.4);
-    speakSeat(m.winnerSeat,'zafer',{priority:4,ttlMs:4000});
-    pvpAudio.announce?.(m.winnerSeat===network.seat?'spiker-zafer':'spiker-yenilgi',{priority:3,ttlMs:4000});
+    // KESINYAP iş 6: zafer repliğini YALNIZ kazanan yerel oyuncunun karakteri söyler (teslim/yenilgi/berabere: söylemez).
+    const voicePlan=endVoicePlan({winnerSeat:m.winnerSeat,mySeat:network.seat});
+    if(voicePlan.zaferSeat)speakSeat(voicePlan.zaferSeat,'zafer',{priority:4,ttlMs:2500});
+    if(voicePlan.announce)pvpAudio.announce?.(voicePlan.announce,{priority:3,ttlMs:2500});
   }
 });
 // Paket 29: dövüş HUD'u (fx24Clear yapan dinleyiciden SONRA kayıtlı olmalı). Maç başı girişi (yeni matchId,
@@ -815,7 +818,7 @@ let hudStartedId=null,hudEndedId=null;
 root?.addEventListener('tuslab:pvp-match',()=>{
   const m=network.match,hud=fx24.hud;if(!m||!hud)return;
   if(m.status==='running'&&m.matchId!==hudStartedId){
-    hudStartedId=m.matchId;
+    hudStartedId=m.matchId;pvpAudio.streakReset?.();
     const fresh=!(Number(m.startedAt)>0)||network.serverNow()-Number(m.startedAt)<4000; // yeniden bağlanmada giriş oynamaz
     if(fresh){
       pvpAudio.playExtra?.('seyirci-baslangic',{gain:.35});
@@ -914,7 +917,11 @@ root?.addEventListener('tuslab:pvp-recovered',()=>{
 });
 root?.addEventListener('tuslab:pvp-word-result',event=>{
   const result=event.detail||{};
-  if(result.accepted)pvpAudio.play(result.correct?'word-correct':'word-wrong',{character:'center',gain:.22});
+  // KESINYAP iş 4: yalnız YEREL oyuncunun doğru kelimesi seri sesi çalar (perde yükselir); yanlışta seri sıfırlanır.
+  if(result.accepted){
+    if(result.correct){if(!pvpAudio.streakHit?.())pvpAudio.play('word-correct',{character:'center',gain:.22});}
+    else{pvpAudio.streakReset?.();pvpAudio.play('word-wrong',{character:'center',gain:.22});}
+  }
   if(!result.accepted){
     const ownId=network.seat===2?'rune':'fire',own=players[ownId];
     // Paket 33: reddedilen kelime kutuda kalmaz (sonraki kelimeyle birleşip yanlış sayılıyordu);

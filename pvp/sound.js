@@ -7,7 +7,8 @@
  * archetype sound (fire-q / rune-e / hit / defeat …).
  */
 import {FIGHTER_IDS,isFighterId,fighterSide} from './shared/fighters.js';
-import {createVoiceQueue} from './voice-queue.js';
+import {createVoiceQueue,VOICE_QUEUE} from './voice-queue.js';
+import {createStreakTracker,STREAK_ANNOUNCE} from './streak-sound.js';
 export const SFX_NAMES=Object.freeze([
  'fire-q','fire-e','fire-r','rune-q','rune-e','rune-r','shield','block','hit','critical','victory','defeat','key','perfect','parry','counter','shatter',
  'prep','skill-lock','round-start','scramble','time-thief','time-freeze','blind-clock','clash','attack-turn','word-correct','word-wrong'
@@ -191,20 +192,46 @@ export function createPvPAudio({storage=globalThis.localStorage, AudioContextCla
      return true;
    }});
  /** Karakterin kendi repliği (q/e/r/savunma/zafer/soz). Dosya yoksa sessiz. */
- function speak(fighterId,key,{priority=3,gain=.9,ttlMs}={}){
+ function speak(fighterId,key,{priority=3,gain=.9,ttlMs,cooldownMs=1500}={}){
    const k=voiceKey(fighterId,key);if(!k||disposed||muted||volume<=0)return false;
    if(!assets.has(k)&&ctx&&!failedAssets.has(k)){ // henüz inmediyse: inince (süresi geçmediyse) sıraya gir
-     const t=typeof performance!=='undefined'?performance.now():Date.now(),life=ttlMs>0?ttlMs:1600;
-     void loadAsset(k).then(b=>{const now=typeof performance!=='undefined'?performance.now():Date.now();if(b&&now-t<life&&!muted&&!disposed)voiceQueue.push({key:k,priority,gain,ttlMs:life-(now-t)});});
+     const t=typeof performance!=='undefined'?performance.now():Date.now(),life=Math.min(ttlMs>0?ttlMs:VOICE_QUEUE.ttlMs,VOICE_QUEUE.staleMs);
+     void loadAsset(k).then(b=>{const now=typeof performance!=='undefined'?performance.now():Date.now();if(b&&now-t<life&&!muted&&!disposed)voiceQueue.push({key:k,priority,gain,cooldownMs,ttlMs:life-(now-t)});});
      return true;
    }
-   return voiceQueue.push({key:k,priority,gain,ttlMs});
+   return voiceQueue.push({key:k,priority,gain,ttlMs,cooldownMs});
  }
- /** Spiker / seri anonsu — replikle aynı tek kanalı paylaşır (üst üste binmez). */
- function announce(name,{priority=2,gain=.8,ttlMs}={}){
+ /** Spiker / seri anonsu — replikle aynı tek kanalı paylaşır (üst üste binmez); aynı anons cooldownMs içinde tekrarlanmaz. */
+ function announce(name,{priority=2,gain=.8,ttlMs,cooldownMs=name.startsWith('seri-')?1500:4000}={}){
    if(!ANNOUNCE_SET.has(name)||disposed||muted||volume<=0)return false;
-   return voiceQueue.push({key:`anons/${name}`,priority,gain,ttlMs});
+   return voiceQueue.push({key:`anons/${name}`,priority,gain,ttlMs,cooldownMs});
  }
+ // ---- KESINYAP iş 4: doğru kelime serisi — WebAudio ile üretilmiş kısa çınlama (dosya yok → ön yükleme/gecikme yok).
+ // Perde basamağı yükseldikçe incelir; konuşma kuyruğundan bağımsızdır (kısa efekt, konuşmayı kesmez).
+ const streak=createStreakTracker();let lastStreakPing=null;
+ function streakPing(hz,{gain=.2}={}){
+   if(disposed||muted||volume<=0||!ctx||ctx.state!=='running'||typeof ctx.createOscillator!=='function')return false;
+   const t0=ctx.currentTime+.005;
+   for(const [mul,type,peak,len] of [[1,'sine',1,.22],[2,'triangle',.32,.14],[3,'sine',.12,.09]]){
+     const osc=ctx.createOscillator(),level=ctx.createGain();
+     osc.type=type;osc.frequency.setValueAtTime(hz*mul,t0);
+     level.gain.setValueAtTime(0.0001,t0);
+     level.gain.exponentialRampToValueAtTime(Math.max(.0002,peak*gain),t0+.012);
+     level.gain.exponentialRampToValueAtTime(.0001,t0+len);
+     osc.connect(level);level.connect(master);
+     osc.start(t0);osc.stop(t0+len+.02);
+     osc.onended=()=>{try{osc.disconnect();level.disconnect();}catch{}};
+   }
+   lastStreakPing={hz,at:t0};return true;
+ }
+ /** Yerel oyuncunun DOĞRU kelimesi: seri +1, perde yükselir; eşiklerde (5/10/15) seyirci + mevcut anons. Rakip için çağrılmaz. */
+ function streakHit(){
+   const s=streak.hit();streakPing(s.hz);
+   if(s.threshold){cheer(.34,{force:true});const a=STREAK_ANNOUNCE[s.threshold];if(a)announce(a,{priority:2,ttlMs:900});}
+   return s;
+ }
+ /** Yanlış kelime / yeni maç: seri sıfırlanır, perde başa döner. */
+ function streakReset(){streak.reset();}
  /** Silah / blok / kritik / düşme / seyirci / jingle efekti. */
  function playExtra(name,{gain=.4}={}){
    if(!EXTRA_SET.has(name))return false;
@@ -221,9 +248,9 @@ export function createPvPAudio({storage=globalThis.localStorage, AudioContextCla
    if(crowdEntry){const e=crowdEntry;crowdEntry=null;try{e.source.stop();}catch{}}
  }
  /** Tezahürat (kısa soğuma ile). */
- function cheer(gain=.3){
+ function cheer(gain=.3,{force=false}={}){
    const t=typeof performance!=='undefined'?performance.now():Date.now();
-   if(t-lastCheer<3500)return false;
+   if(!force&&t-lastCheer<3500)return false;
    const ok=playExtra('seyirci-tezahurat',{gain});if(ok)lastCheer=t;return ok;
  }
  function silenceAssets(){
@@ -277,6 +304,6 @@ export function createPvPAudio({storage=globalThis.localStorage, AudioContextCla
  /** keepCrowd: sessize alma / ses 0 → seyirci isteği hatırlanır, ses açılınca geri gelir. */
  function stop(keepCrowd=false){for(const source of voices){try{source.stop();}catch{}}voices.clear();silenceAssets();if(keepCrowd!==true)crowdWanted=false;}
  async function dispose(){if(disposed)return;disposed=true;stop();if(ctx){try{await ctx.close();}catch{}}ctx=null;}
- return {preload,preloadFighters,preloadVoices,speak,announce,playExtra,startCrowd,stopCrowd,cheer,unlock,play,playFighter,playCue,combat,keyClick,heartbeat,setMuted,setVolume,setOnPlay,stop,dispose,
-   getState:()=>({muted,volume,voices:voices.size,assets:assets.size,speaking:voiceQueue.state(),crowd:Boolean(crowdEntry),loaded:decoded.size,raw:raw.size,fighters:[...fighterLoads.keys()],unlocked:ctx?.state==='running',supported:Boolean(AudioContextClass),disposed})};
+ return {preload,preloadFighters,preloadVoices,speak,announce,streakHit,streakReset,playExtra,startCrowd,stopCrowd,cheer,unlock,play,playFighter,playCue,combat,keyClick,heartbeat,setMuted,setVolume,setOnPlay,stop,dispose,
+   getState:()=>({muted,volume,voices:voices.size,assets:assets.size,speaking:voiceQueue.state(),streak:streak.count,lastStreakHz:lastStreakPing?.hz??null,crowd:Boolean(crowdEntry),loaded:decoded.size,raw:raw.size,fighters:[...fighterLoads.keys()],unlocked:ctx?.state==='running',supported:Boolean(AudioContextClass),disposed})};
 }

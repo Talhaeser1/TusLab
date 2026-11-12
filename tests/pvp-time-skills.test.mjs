@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMatch,pickRoundSkill,advanceMatch,submitWord,publicMatch,roundStartPayload,nextDeadline,
-  ROUND_DURATION_MS,ROUND_LAST_CALL_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS} from '../pvp/shared/match.js';
+  roundDurationMs,ROUND_LAST_CALL_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS} from '../pvp/shared/match.js';
+// KESINYAP mekanik: sayılı raund süresi kelime sayısına bağlı; testlerde "varsayılan raund süresi" = varsayılan sayılı raund (10 kelime → 60 sn).
+const ROUND_DURATION_MS=roundDurationMs({roundStyle:'counted',roundWords:5}); // 5 kelime → 40 sn (eski zaman çizelgesi)
 import {ARENA_TIME_THIEF_MS,ARENA_FREEZE_MS} from '../pvp/shared/arena-skills.js';
 import {PvPRoom} from '../cloudflare/src/room.js';
 import {createPracticeSession,HUMAN_ID,BOT_ID} from '../pvp/practice.js';
@@ -9,7 +11,7 @@ import {MessageType,makeEnvelope} from '../pvp/contracts.js';
 
 const T=1_700_000_000_000;
 const players=[{seat:1,playerId:'one',character:'fire'},{seat:2,playerId:'two',character:'rune'}];
-const create=()=>createMatch(players,T,'time-skills',{rounds:5,seed:42,roundStyle:'counted'});
+const create=()=>createMatch(players,T,'time-skills',{rounds:5,seed:42,roundStyle:'counted',roundWords:5});
 const intermission=m=>advanceMatch(m,m.round.endsAt+1).match;
 const next=m=>advanceMatch(m,m.round.nextRoundAt).match;
 const pick=(m,seat,skill)=>pickRoundSkill(m,{playerId:players[seat-1].playerId,skill},m.round.endedAt+1);

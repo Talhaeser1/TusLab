@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createMatch,submitWord,advanceMatch,nextDeadline,publicMatch,MATCH_HP,ROUND_HP,ROUND_DURATION_MS} from '../pvp/shared/match.js';
+import {createMatch,submitWord,advanceMatch,nextDeadline,publicMatch,MATCH_HP,ROUND_HP,roundDurationMs,} from '../pvp/shared/match.js';
+// KESINYAP mekanik: sayılı raund süresi kelime sayısına bağlı; testlerde "varsayılan raund süresi" = varsayılan sayılı raund (10 kelime → 60 sn).
+const ROUND_DURATION_MS=roundDurationMs({});
 
 const players=[{playerId:'a',seat:1,character:'fire'},{playerId:'b',seat:2,character:'rune'}];
 function write(m,seat,at){

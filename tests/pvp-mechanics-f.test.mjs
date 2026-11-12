@@ -3,9 +3,11 @@ import test,{beforeEach,afterEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createMatch,publicMatch,submitWord,advanceMatch,nextDeadline,resolveStepMs,
-  ROUND_WORDS,ROUND_WORDS_MIN,ROUND_WORDS_MAX,ROUND_VIEW_AHEAD,ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,
+  ROUND_WORDS,ROUND_WORDS_MIN,ROUND_WORDS_MAX,ROUND_VIEW_AHEAD,roundDurationMs,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,
   RESOLVE_STEP_MS,RESOLVE_MIN_STEP_MS,RESOLVE_BUDGET_MS,SKILL_THRESHOLDS,STREAK_SKILLS,normalizeRoundStyle,normalizeRoundWords,
   roundSkillMs,DEFAULT_ROUND_STYLE} from '../pvp/shared/match.js';
+// KESINYAP mekanik: sayılı raund süresi kelime sayısına bağlı; testlerde "varsayılan raund süresi" = varsayılan sayılı raund (10 kelime → 60 sn).
+const ROUND_DURATION_MS=roundDurationMs({});
 import {roundsViewModel,phaseOverdueMs,PHASE_STALL_MS} from '../pvp/rounds-ui.js';
 import {SKILL_THRESHOLDS as SKILLBAR_THRESHOLDS,readSkillState} from '../pvp/skillbar.js';
 import {createPracticeSession,HUMAN_ID} from '../pvp/practice.js';
@@ -167,11 +169,11 @@ test('F2: sayaç her fazda doğru — round: kalan süre, settling/resolve/inter
   assert.notEqual(i.timer.text,'0');
 });
 test('F2: halka toplamı Donmuş An / Zaman Hırsızı sonrası doğru başlar ve 1\'i aşmaz',()=>{
-  const base=viewOf('round',{},{skills:{1:'freeze',2:null},personalEndsAt:{1:44_000,2:41_000}});
+  const base=viewOf('round',{},{style:'timed',skills:{1:'freeze',2:null},personalEndsAt:{1:44_000,2:41_000}});
   base.players[0].roundEndsAt=44_000;
   const f=roundsViewModel(base,'me',1000);
   assert.equal(f.timer.fraction,1);assert.equal(f.timer.seconds,43);
-  const t=viewOf('round',{},{skills:{1:null,2:'timethief'},personalEndsAt:{1:36_000,2:41_000}});
+  const t=viewOf('round',{},{style:'timed',skills:{1:null,2:'timethief'},personalEndsAt:{1:36_000,2:41_000}});
   t.players[0].roundEndsAt=36_000;
   const g=roundsViewModel(t,'me',1000);
   assert.ok(Math.abs(g.timer.fraction-1)<1e-9,'−5 sn sonrası halka dolu başlar: '+g.timer.fraction);

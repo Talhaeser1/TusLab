@@ -15,5 +15,12 @@ test('ana ekran boss modülü: yerel three.js + GLB, görsel yedek, reduced-moti
   assert.match(mod, /\.\/vendor\/GLTFLoader\.js/);
   assert.match(mod, /document\.hidden/);
   assert.match(mod, /reduced-motion/);
-  assert.match(app, /import\('\.\/pvp\/home-boss3d\.js'\)/);
+});
+
+test('KESINYAP iş 9: ana ekran 3B boss bağlanmaz, eski görsel (arena-king.webp) kalır; modül dosyası durur', () => {
+  const css = readFileSync(new URL('../ui-polish-home.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(app, /mountHomeBoss3d|home-boss3d\.js|mountHomeBoss/);
+  assert.doesNotMatch(css, /home-boss3d/);
+  assert.match(app, /arena-king\.webp/);
+  assert.ok(existsSync(new URL('../pvp/home-boss3d.js', import.meta.url)));
 });

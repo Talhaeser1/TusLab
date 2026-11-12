@@ -2,9 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMatch,publicMatch,submitWord,advanceMatch,nextDeadline,roundScore,streakMultiplier,roundStartPayload,
   pauseMatch,resumeMatch,surrenderMatch,matchResult,finishMatch,
-  ROUND_OPTIONS,ROUND_WORDS,ROUND_DURATION_MS,ROUND_LAST_CALL_MS,ROUND_SETTLE_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,
+  ROUND_OPTIONS,ROUND_WORDS,roundDurationMs,ROUND_LAST_CALL_MS,ROUND_SETTLE_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,
   ROUND_HP,SUDDEN_DEATH_MAX,STREAK_SKILLS,MULTIPLIER_START,MULTIPLIER_STEP,MULTIPLIER_CAP,ROUND_SCORE,
   RUNE_IDS,MATCH_DURATION_MS,MATCH_HP,SERVER_ONLY_EVENTS} from '../pvp/shared/match.js';
+// KESINYAP mekanik: sayılı raund süresi kelime sayısına bağlı; testlerde "varsayılan raund süresi" = varsayılan sayılı raund (10 kelime → 60 sn).
+const ROUND_DURATION_MS=roundDurationMs({roundStyle:'counted',roundWords:10}); // sayılı raund, 10 kelime → 60 sn
 
 const T0=10_000;
 const R=ROUND_DURATION_MS;                     // tur yazma süresi
@@ -46,7 +48,7 @@ function perfectRound(character,rune,qOffset=0){
 
 test('rounds: constants match the specification',()=>{
   assert.deepEqual([...ROUND_OPTIONS],[5,7,10]);
-  assert.equal(ROUND_WORDS,10);assert.equal(ROUND_DURATION_MS,40_000);assert.equal(ROUND_LAST_CALL_MS,5_000);
+  assert.equal(ROUND_WORDS,10);assert.equal(roundDurationMs({roundStyle:'timed'}),40_000);assert.equal(roundDurationMs({roundStyle:'counted',roundWords:10}),60_000);assert.equal(roundDurationMs({roundStyle:'counted',roundWords:5}),40_000);assert.equal(roundDurationMs({roundStyle:'counted',roundWords:15}),90_000);assert.equal(ROUND_LAST_CALL_MS,5_000);
   assert.equal(ROUND_SETTLE_MS,1_000);assert.equal(ROUND_SUMMARY_MS,6_000);assert.equal(ROUND_INTRO_MS,3_000);
   assert.equal(ROUND_HP,1200);assert.equal(SUDDEN_DEATH_MAX,3);
   assert.deepEqual({...STREAK_SKILLS},{3:'q',5:'e',7:'r',8:'q',9:'q',10:'q'});
@@ -363,11 +365,11 @@ test('rounds: submissions during intermission are rejected; ROUND_MISMATCH guard
 });
 
 test('rounds: a new round resets HP, streak, shield and runes but keeps match totals',()=>{
-  let m=createMatch(players('fire','rune','ember','laststand'),T0,'reset',{rounds:5,seed:5});
+  let m=createMatch(players('fire','rune','ember','laststand'),T0,'reset',{rounds:5,seed:5});const RT=roundDurationMs(m); // varsayılan timed → 40 sn
   for(let i=1;i<=4;i++){m=type(m,1,T0+i*1000).match;m=advanceMatch(m,T0+i*1000+900,NO_BLOCK).match;}
   Object.assign(seatOf(m,1),{shieldUntil:T0+9000,staggerUntil:T0+9000,parryCharge:true});seatOf(m,2).lastStandUsed=true;
   seatOf(m,1).cooldownUntil.s=T0+9000;
-  const start=advanceMatch(m,T0+R+INTER,NO_BLOCK);m=start.match;
+  const start=advanceMatch(m,T0+RT+INTER,NO_BLOCK);m=start.match;
   assert.equal(m.round.index,2);
   const a=seatOf(m,1),b=seatOf(m,2);
   assert.deepEqual([a.hp,b.hp,a.maxHp],[ROUND_HP,ROUND_HP,ROUND_HP]);
@@ -379,7 +381,7 @@ test('rounds: a new round resets HP, streak, shield and runes but keeps match to
   assert.equal(a.currentWord,m.round.words[0]);
   const rs=start.roundEvents.find(e=>e.type==='ROUND_START').payload;
   assert.deepEqual(rs,roundStartPayload(m));
-  assert.deepEqual(rs,{round:2,totalRounds:5,suddenDeath:false,words:m.round.words,startedAt:T0+R+INTER,endsAt:T0+2*R+INTER,roundHp:ROUND_HP,skills:{1:null,2:null}});
+  assert.deepEqual(rs,{round:2,totalRounds:5,suddenDeath:false,words:m.round.words,startedAt:T0+RT+INTER,endsAt:T0+2*RT+INTER,roundHp:ROUND_HP,skills:{1:null,2:null}});
 });
 
 test('rounds: a late alarm replays every overdue transition in order',()=>{

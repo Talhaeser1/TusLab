@@ -101,6 +101,10 @@ export const normalizeRoundStyle=v=>ROUND_STYLES.includes(v)?v:DEFAULT_ROUND_STY
 export const validRoundWords=v=>Number.isInteger(v)&&v>=ROUND_WORDS_MIN&&v<=ROUND_WORDS_MAX;
 export const normalizeRoundWords=v=>validRoundWords(v)?v:ROUND_WORDS;
 export const ROUND_DURATION_MS=40_000;   // paket 30: 30 → 40 sn
+export const ROUND_WORD_BUDGET_MS=6_000; // KESINYAP mekanik: sayılı raundda kelime başına süre bütçesi (~21 WPM yazar için)
+/** Raund yazma süresi: timed → ROUND_DURATION_MS (40 sn); counted → max(40 sn, kelime sayısı × 6 sn) (5→40, 10→60, 15→90). Arena etkilenmez. */
+export const roundDurationMs=m=>normalizeRoundStyle(m?.roundStyle)==='timed'?ROUND_DURATION_MS
+  :Math.max(ROUND_DURATION_MS,normalizeRoundWords(m?.roundWords)*ROUND_WORD_BUDGET_MS);
 export const ROUND_LAST_CALL_MS=5_000;
 export const ROUND_SETTLE_MS=1_000;
 export const ROUND_SUMMARY_MS=6_000;     // paket 30: tur arası özeti 3 → 6 sn
@@ -213,7 +217,7 @@ function startRound(match,at){
     words=[...c.words];extra={hints:[...c.hints],contentStart};
   }else words=[...(match.roundPlan[index-1]||match.roundPlan.at(-1))];
   match.round={index,total:match.totalRounds,suddenDeath:index>match.totalRounds,phase:'round',words,...extra,
-    startedAt:at,endsAt:at+ROUND_DURATION_MS,settleUntil:null,nextRoundAt:null,
+    startedAt:at,endsAt:at+roundDurationMs(match),settleUntil:null,nextRoundAt:null,
     koSeat:null,koAt:null,allDone:false,lastResolvedAt:null,endedAt:null};
   match.usedWords.push(...words);
   ensureRoundWords(match,ROUND_VIEW_AHEAD+1);
@@ -221,7 +225,7 @@ function startRound(match,at){
   for(const p of match.participants){
     resetForRound(p,words);
     p.roundSkill=match.roundSkillPicks?.[p.seat]??null;
-    p.roundEndsAt=at+ROUND_DURATION_MS+(p.roundSkill==='freeze'?timeSkillMs('freeze'):0);
+    p.roundEndsAt=at+roundDurationMs(match)+(p.roundSkill==='freeze'?timeSkillMs('freeze'):0);
   }
   for(const p of match.participants){
     const rival=roundPlayer(match,p.seat===1?2:1);

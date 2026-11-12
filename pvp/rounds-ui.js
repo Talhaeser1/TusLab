@@ -7,7 +7,7 @@
  */
 
 import {FIGHTERS,normalizeFighter} from './shared/fighters.js';
-import {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,RESOLVE_BUDGET_MS,roundSkillMs,
+import {ROUND_DURATION_MS,roundDurationMs,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,RESOLVE_BUDGET_MS,roundSkillMs,
   ROUND_STYLES,DEFAULT_ROUND_STYLE,normalizeRoundStyle,normalizeRoundWords,validRoundWords} from './shared/match.js';
 export {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS};
 // Spec §1 sabitleri. Motor henüz yüklenmemiş olabileceği için burada aynalanır (yalnız sunum).
@@ -131,7 +131,8 @@ function timerOf(match,serverNow,seat){
   const seconds=Math.ceil(remaining/1000);
   // Halka toplamı: temel süre + Donmuş An (+) − rakibin Zaman Hırsızı'sı; böylece hızlı/yavaş başlangıçta halka dolu başlar.
   const mine=round.skills?.[seat],rival=round.skills?.[seat===1?2:1];
-  const total=active?Math.max(1000,ROUND_DURATION_MS+(mine==='freeze'?roundSkillMs('freeze'):0)-(rival==='timethief'?roundSkillMs('timethief'):0))
+  const baseMs=roundDurationMs({roundStyle:round.style,roundWords:Array.isArray(round.words)?round.words.length:undefined});
+  const total=active?Math.max(1000,baseMs+(mine==='freeze'?roundSkillMs('freeze'):0)-(rival==='timethief'?roundSkillMs('timethief'):0))
     :(PHASE_TOTAL_MS[round.phase]||ROUND_DURATION_MS);
   return {remaining,seconds,text:hidden?'🌑 —':String(seconds),fraction:hidden?0:clamp01(remaining/total),
     hidden,urgent:active&&!hidden&&remaining<=ROUND_LAST_CALL_MS,frozen};

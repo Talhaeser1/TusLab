@@ -2,7 +2,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMatch,submitWord,advanceMatch,pickRoundSkill,publicMatch,matchResult,
-  ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_WORDS,ROUND_HP} from '../pvp/shared/match.js';
+  roundDurationMs,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_WORDS,ROUND_HP} from '../pvp/shared/match.js';
+// KESINYAP mekanik: sayılı raund süresi kelime sayısına bağlı; testlerde "varsayılan raund süresi" = varsayılan sayılı raund (10 kelime → 60 sn).
+const ROUND_DURATION_MS=roundDurationMs({roundStyle:'counted',roundWords:10}); // sayılı raund, 10 kelime → 60 sn
 import {createArenaMatch,submitArenaPick,submitArenaWord,advanceArenaMatch,nextArenaDeadline,arenaMatchResult,
   ARENA_ROUND_DURATION_MS} from '../pvp/shared/arena.js';
 import {arenaSummaryModel} from '../pvp/arena-ui.js';
@@ -116,8 +118,9 @@ test('I3 timed: süre bitene kadar kelime gelmeye devam eder; liste bitince oyun
   }
   assert.ok(m.round.words.length>ROUND_WORDS);
   // Rakip hiç yazmadı: raund yine de süre dolunca biter (erken bitmez).
-  const early=advanceMatch(m,T0+R-1,NO_BLOCK).match;assert.equal(early.round.phase,'round');
-  const end=advanceMatch(m,T0+R,NO_BLOCK).match;assert.notEqual(end.round.phase,'round');
+  const RT=roundDurationMs(m); // timed: 40 sn
+  const early=advanceMatch(m,T0+RT-1,NO_BLOCK).match;assert.equal(early.round.phase,'round');
+  const end=advanceMatch(m,T0+RT,NO_BLOCK).match;assert.notEqual(end.round.phase,'round');
 });
 
 test('I3 counted: raund başına 10 kelime; 10. kelimede oyuncu tamamlar',()=>{

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createMatch,advanceMatch,submitWord,pickRoundSkill,publicMatch,surrenderMatch,nextDeadline} from '../pvp/shared/match.js';
+import {createMatch,advanceMatch,submitWord,pickRoundSkill,publicMatch,surrenderMatch,nextDeadline,roundDurationMs} from '../pvp/shared/match.js';
 import {createArenaMatch,advanceArenaMatch,submitArenaPick,submitArenaWord,arenaPublicMatch,surrenderArenaMatch,nextArenaDeadline} from '../pvp/shared/arena.js';
 import {roundInputLock,roundsViewModel} from '../pvp/rounds-ui.js';
 import {arenaInputLock} from '../pvp/arena-ui.js';
@@ -9,8 +9,8 @@ import {createPracticeSession} from '../pvp/practice.js';
 const players=[{playerId:'a',seat:1,name:'Sira',fighter:'sira',character:'fire'},{playerId:'b',seat:2,name:'Nyx',fighter:'nyx',character:'rune'}];
 const fresh=(options={})=>createMatch(players,1000,'modes33',{rounds:5,seed:33,roundStyle:'counted',...options});
 function secondRound(skillA,skillB){
-  let m=fresh({resolveAtEnd:true});m=advanceMatch(m,41000).match;
-  for(const [playerId,skill] of [['a',skillA],['b',skillB]])if(skill)m=pickRoundSkill(m,{playerId,skill},41001).match;
+  let m=fresh({resolveAtEnd:true});m=advanceMatch(m,R+1000).match;
+  for(const [playerId,skill] of [['a',skillA],['b',skillB]])if(skill)m=pickRoundSkill(m,{playerId,skill},R+1001).match;
   return advanceMatch(m,m.round.nextRoundAt).match;
 }
 function arena(skillA=null,skillB=null){
@@ -18,14 +18,15 @@ function arena(skillA=null,skillB=null){
   for(const [playerId,skill] of [['a',skillA],['b',skillB]])m=submitArenaPick(m,{playerId,skill},1100).match;
   return advanceArenaMatch(m,1200).match;
 }
+const R=roundDurationMs({roundStyle:'counted',roundWords:10}); // sayılı raund (varsayılan 10 kelime) → 60 sn
 const submit=(m,p,at,text=p.currentWord)=>submitWord(m,{playerId:p.playerId,matchId:m.id,wordIndex:p.wordIndex,round:m.round.index,text},at);
 
 test('modes33: rounds time thief and freeze combine, reject expired words and keep source immutable',()=>{
   const m=secondRound('timethief','freeze'),start=m.round.startedAt;
-  assert.equal(m.participants[0].roundEndsAt,start+40000);
-  assert.equal(m.participants[1].roundEndsAt,start+38000);
-  assert.equal(submit(m,m.participants[1],start+38000).error,'ROUND_NOT_ACTIVE');
-  const before=structuredClone(m);assert.equal(submit(m,m.participants[0],start+37000).result.accepted,true);assert.deepEqual(m,before);
+  assert.equal(m.participants[0].roundEndsAt,start+R);
+  assert.equal(m.participants[1].roundEndsAt,start+R-2000);
+  assert.equal(submit(m,m.participants[1],start+R-2000).error,'ROUND_NOT_ACTIVE');
+  const before=structuredClone(m);assert.equal(submit(m,m.participants[0],start+R-3000).result.accepted,true);assert.deepEqual(m,before);
 });
 test('modes33: blind clock conceals deadlines from the victim only in both engines',()=>{
   for(const [m,pub] of [[secondRound('blindclock',null),publicMatch],[arena('blindclock',null),arenaPublicMatch]]){
@@ -46,10 +47,10 @@ test('modes33: arena freeze adds three seconds and time thief subtracts five wit
 test('modes33: last call gives unfinished rounds player five seconds and never extends a stolen deadline',()=>{
   for(const late of [false,true]){
     let m=secondRound('timethief',null);const start=m.round.startedAt;
-    const began=start+(late?34000:1000);let packet;
+    const began=start+(late?R-6000:1000);let packet;
     for(let i=0;i<10;i++){packet=submit(m,m.participants[0],began+i*60,'yanlis');m=packet.match;}
     assert.equal(packet.result.roundEvents[0].type,'ROUND_LAST_CALL');
-    assert.equal(m.participants[1].roundEndsAt,late?start+35000:start+6540);
+    assert.equal(m.participants[1].roundEndsAt,late?start+R-5000:start+6540);
     assert.equal(advanceMatch(m,m.round.endsAt).match.round.phase,'intermission');
   }
 });
@@ -95,10 +96,16 @@ test('modes33: all locked arena phases and personal expiry explicitly clear inpu
   m.round.phase='round';assert.equal(arenaInputLock(m,'a',42000,41000).clearInput,true);
   assert.equal(arenaInputLock(m,'a',2000).locked,false);
 });
-test('modes33: a fresh forty-second round starts with a full UI clock',()=>{
-  const vm=roundsViewModel(publicMatch(fresh(),1),'a',1000);
+test('modes33: a fresh forty-second timed round starts with a full UI clock',()=>{
+  const timed=()=>fresh({roundStyle:'timed'});
+  const vm=roundsViewModel(publicMatch(timed(),1),'a',1000);
   assert.equal(vm.timer.seconds,40);assert.equal(vm.timer.fraction,1);
-  assert.equal(roundsViewModel(publicMatch(fresh(),1),'a',21000).timer.fraction,0.5);
+  assert.equal(roundsViewModel(publicMatch(timed(),1),'a',21000).timer.fraction,0.5);
+});
+test('modes33: a fresh counted round (10 words) starts with a full 60 s UI clock',()=>{
+  const vm=roundsViewModel(publicMatch(fresh(),1),'a',1000);
+  assert.equal(vm.timer.seconds,60);assert.equal(vm.timer.fraction,1);
+  assert.equal(roundsViewModel(publicMatch(fresh(),1),'a',31000).timer.fraction,0.5);
 });
 test('modes33: practice rematch retains stage, typing and assist preferences in every mode',()=>{
   for(const mode of ['classic','rounds','arena'])for(const assist of [true,false]){

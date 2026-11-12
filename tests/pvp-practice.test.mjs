@@ -11,7 +11,7 @@ const ORIGINAL_EXPORTS=['COOLDOWNS','CYCLE_DAMAGE','DAMAGE','DEFENSE_RULES','MAT
   'ULTIMATE_PHASES','computeSkillBonus','createMatch','endDisconnectedMatch','finishMatch','matchResult','pauseMatch',
   'publicMatch','resolveDueAttacks','resumeMatch','submitWord','surrenderMatch','validateRune',
   // Round mode (docs/TUR-SISTEMI.md §7.4) — re-exported as well.
-  'MULTIPLIER_CAP','MULTIPLIER_START','MULTIPLIER_STEP','ROUND_DURATION_MS','ROUND_HP','ROUND_INTRO_MS','ROUND_LAST_CALL_MS',
+  'MULTIPLIER_CAP','MULTIPLIER_START','MULTIPLIER_STEP','ROUND_DURATION_MS','ROUND_WORD_BUDGET_MS','roundDurationMs','ROUND_HP','ROUND_INTRO_MS','ROUND_LAST_CALL_MS',
   'ROUND_OPTIONS','ROUND_SCORE','ROUND_SETTLE_MS','ROUND_SUMMARY_MS','ROUND_WORDS','STREAK_SKILLS','SUDDEN_DEATH_MAX',
   'ULTIMATE_RETURN_MS','advanceMatch','nextDeadline','normalizeRounds','roundScore','roundStartPayload','streakMultiplier'];
 
