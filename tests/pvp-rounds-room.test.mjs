@@ -116,17 +116,18 @@ test('room rounds: intermission → next round broadcast; late word is rejected 
  assert.notEqual(starts[0].eventId,starts[1].eventId);
 });
 
-test('room rounds: two finishers end the round at once (ALL_DONE) inside the word handler',async()=>{
+test('room rounds: the first finisher ends the round at once (ALL_DONE) inside the word handler; the rival cannot type the rest',async()=>{
  const f=await start(await lobby());
  let m=await f.ctx.storage.get('match');
  const last=m.round.words.length-1; // KESINYAP 11: 1. kelime raundu 5 kelime → son indeks 4
  for(const p of m.participants){p.roundWordIndex=last;p.wordIndex=last;p.currentWord=m.round.words[last];}
  await f.ctx.storage.put('match',m);
  await request(f.room,f.a,'WORD_SUBMIT',{matchId:m.id,wordIndex:last,text:m.round.words[last]});
- assert.equal(received(f.b,'ROUND_LAST_CALL').length,1);assert.equal(received(f.b,'ROUND_LAST_CALL')[0].payload.finishedSeat,1);
+ assert.equal(received(f.b,'ROUND_LAST_CALL').length,0,'son çağrı yok: ilk bitiren raundu kapatır');
+ const end=received(f.a,'ROUND_END');assert.equal(end.length,1);assert.equal(end[0].payload.reason,'ALL_DONE');
  await new Promise(r=>setTimeout(r,60));
  await request(f.room,f.b,'WORD_SUBMIT',{matchId:m.id,wordIndex:last,text:'yanlis'});
- const end=received(f.a,'ROUND_END');assert.equal(end.length,1);assert.equal(end[0].payload.reason,'ALL_DONE');
+ assert.equal(received(f.a,'ROUND_END').length,1,'rakibin geç kelimesi ikinci bitiş üretmez');
 });
 
 test('room rounds: rematch keeps the round count and deals new words with full ROUND_HP',async()=>{

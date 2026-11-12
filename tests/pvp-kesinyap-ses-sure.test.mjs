@@ -89,10 +89,10 @@ test('iş 6: berabere / iptal / izleyici durumunda kimse zafer demez', () => {
 });
 
 // ── MEKANİK: sayılı raund süresi ──
-test('mekanik: kelime raundu süresi = kelime × 6 sn (5→30, 7→42, 9→54, 10→60, 15→90); zamana karşı 30 sn', () => {
-  // KESINYAP 11: alt sınır 40 sn kalktı; zamana karşı 40 → 30 sn.
+test('mekanik: kelime raundunda kelime başına süre YOK (yalnız gizli 120 sn üst sınır); zamana karşı 30 sn', () => {
+  // Kural düzeltmesi: "kelime × 6 sn" kalktı; kelime sayısından bağımsız tek gizli güvenlik sınırı.
   const c = n => roundDurationMs({roundStyle: 'counted', roundWords: n});
-  assert.equal(c(5), 30_000); assert.equal(c(7), 42_000); assert.equal(c(9), 54_000); assert.equal(c(10), 60_000); assert.equal(c(15), 90_000);
+  for (const n of [5, 7, 9, 10, 15]) assert.equal(c(n), 120_000, `${n} kelime`);
   assert.equal(roundDurationMs({roundStyle: 'timed', roundWords: 15}), 30_000);
   assert.equal(roundDurationMs({}), 30_000); // varsayılan stil timed
   assert.equal(ROUND_DURATION_MS, 30_000);
@@ -100,14 +100,18 @@ test('mekanik: kelime raundu süresi = kelime × 6 sn (5→30, 7→42, 9→54, 1
 });
 test('mekanik: motor raund bitişini ve kişisel bitişi yardımcıdan alır; arayüz sayacı aynı toplamı kullanır', () => {
   const players = [{playerId: 'a', seat: 1, name: 'A', fighter: 'sira', character: 'fire'}, {playerId: 'b', seat: 2, name: 'B', fighter: 'nyx', character: 'rune'}];
-  // KESINYAP 11: kelime sayısı seçeneği yok; 1. kelime raundu 5 kelime → 30 sn, zamana karşı 30 sn (roundWords yok sayılır).
-  for (const [style, words, expected] of [['counted', 5, 30_000], ['counted', 10, 30_000], ['counted', 15, 30_000], ['timed', 15, 30_000]]) {
+  // Kelime raundu: gizli 120 sn üst sınır; zamana karşı 30 sn (roundWords yok sayılır).
+  for (const [style, words, expected] of [['counted', 5, 120_000], ['counted', 10, 120_000], ['counted', 15, 120_000], ['timed', 15, 30_000]]) {
     const m = createMatch(players, 1000, 'dur', {rounds: 5, seed: 9, roundStyle: style, roundWords: words});
     assert.equal(m.round.endsAt - m.round.startedAt, expected, `${style}/${words}`);
     assert.ok(m.participants.every(p => p.roundEndsAt === m.round.endsAt));
     const vm = roundsViewModel(publicMatch(m, 1), 'a', m.round.startedAt);
-    assert.equal(vm.timer.fraction, 1); assert.equal(vm.timer.seconds, expected / 1000);
-    assert.equal(roundsViewModel(publicMatch(m, 1), 'a', m.round.startedAt + expected / 2).timer.fraction, 0.5);
+    if (style === 'timed') {
+      assert.equal(vm.timer.fraction, 1); assert.equal(vm.timer.seconds, expected / 1000);
+      assert.equal(roundsViewModel(publicMatch(m, 1), 'a', m.round.startedAt + expected / 2).timer.fraction, 0.5);
+    } else { // kelime raundu: görünen geri sayım yok; halka ilerlemeyi gösterir (0/5)
+      assert.equal(vm.timer.seconds, -1); assert.equal(vm.timer.fraction, 0); assert.match(vm.timer.text, /^0\/\d+$/);
+    }
     assert.equal(advanceMatch(m, m.round.endsAt - 1).match.round.phase, 'round');
   }
 });

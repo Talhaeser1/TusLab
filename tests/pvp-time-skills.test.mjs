@@ -4,7 +4,7 @@ import {createMatch,pickRoundSkill,advanceMatch,submitWord,publicMatch,roundStar
   roundDurationMs,ROUND_LAST_CALL_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS} from '../pvp/shared/match.js';
 // KESINYAP mekanik: sayılı raund süresi kelime sayısına bağlı; testlerde "varsayılan raund süresi" = varsayılan sayılı raund (10 kelime → 60 sn).
 // KESINYAP 11: beceriler 2. raundda uygulanır; 2. kelime raundu 7 kelime × 6 sn = 42 sn.
-const ROUND_DURATION_MS=roundDurationMs({roundStyle:'counted',roundWords:7});
+const ROUND_DURATION_MS=roundDurationMs({roundStyle:'timed'}); // süre becerileri yalnız ZAMANA KARŞI (30 sn); kelime raundunda etkisiz
 import {ARENA_TIME_THIEF_MS,ARENA_FREEZE_MS} from '../pvp/shared/arena-skills.js';
 import {PvPRoom} from '../cloudflare/src/room.js';
 import {createPracticeSession,HUMAN_ID,BOT_ID} from '../pvp/practice.js';
@@ -12,7 +12,7 @@ import {MessageType,makeEnvelope} from '../pvp/contracts.js';
 
 const T=1_700_000_000_000;
 const players=[{seat:1,playerId:'one',character:'fire'},{seat:2,playerId:'two',character:'rune'}];
-const create=()=>createMatch(players,T,'time-skills',{rounds:5,seed:42,roundStyle:'counted',roundWords:5});
+const create=()=>createMatch(players,T,'time-skills',{rounds:5,seed:42,roundStyle:'timed'});
 const intermission=m=>advanceMatch(m,m.round.endsAt+1).match;
 const next=m=>advanceMatch(m,m.round.nextRoundAt).match;
 const pick=(m,seat,skill)=>pickRoundSkill(m,{playerId:players[seat-1].playerId,skill},m.round.endedAt+1);
@@ -75,26 +75,20 @@ test('personal deadlines, combined picks, submission cutoff and round close',()=
   }
 });
 
-test('last call shortens only the unfinished player and respects an earlier stolen deadline',()=>{
-  const stolen=ROUND_DURATION_MS-ARENA_TIME_THIEF_MS; // hırsız kurbanının kişisel bitişi
-  let m=intermission(create());m=pick(m,1,'timethief').match;m=next(m);
-  const start=m.round.startedAt;
-  const one=m.participants[0];
-  one.roundWordIndex=9;one.wordIndex=9;one.currentWord=m.round.words[9];
-  const finishAt=start+stolen-6_000;
-  const shortened=Math.min(start+stolen,finishAt+ROUND_LAST_CALL_MS);
-  const outcome=submitWord(m,{playerId:one.playerId,matchId:m.id,wordIndex:9,text:'yanlis',round:m.round.index},finishAt);
-  assert.equal(outcome.result.roundEvents[0].type,'ROUND_LAST_CALL');
-  assert.equal(outcome.match.participants[1].roundEndsAt,shortened);
-  assert.equal(outcome.match.round.endsAt,shortened);
-  assert.equal(outcome.result.roundEvents[0].payload.endsAt,shortened);
-  // An already shortened deadline is never extended by last call.
-  m=intermission(create());m=pick(m,1,'timethief').match;m=next(m);
-  const p=m.participants[0];p.roundWordIndex=9;p.wordIndex=9;p.currentWord=m.round.words[9];
-  const lateAt=m.round.startedAt+stolen-1_000;
-  const late=submitWord(m,{playerId:p.playerId,matchId:m.id,wordIndex:9,text:'yanlis',round:m.round.index},lateAt);
-  assert.equal(late.match.participants[1].roundEndsAt,m.round.startedAt+stolen);
-  assert.equal(late.match.round.endsAt,m.round.startedAt+stolen);
+test('kelime raundunda süre becerisi seçilemez ve etkisizdir (son çağrı da yok); zamana karşı aynen çalışır',()=>{
+  // Eski "last call" testi kaldırıldı: son çağrı yok (ilk bitiren raundu bitirir), zamana karşıda kelime bitmez.
+  let c=createMatch(players,T,'ts-counted',{rounds:5,seed:42,roundStyle:'counted'});
+  c=advanceMatch(c,c.round.endsAt+1).match; // 1. raund 120 sn gizli sınırla kapanır
+  assert.equal(c.round.phase,'intermission');
+  assert.equal(pick(c,1,'freeze').error,'ROUND_SKILL_NOT_TIMED');
+  assert.equal(publicMatch(c,1).round.phase,'intermission');
+  c=next(c);
+  assert.deepEqual(c.participants.map(p=>p.roundSkill),[null,null]);
+  assert.equal(c.round.endsAt-c.round.startedAt,120_000);
+  assert.ok(c.participants.every(p=>p.roundEndsAt===c.round.endsAt));
+  // timed: beceri hâlâ uygulanır.
+  let t=intermission(create());t=pick(t,1,'freeze').match;t=next(t);
+  assert.equal(t.participants[0].roundEndsAt,t.round.startedAt+ROUND_DURATION_MS+ARENA_FREEZE_MS);
 });
 
 test('blindclock hides both deadlines only for the victim during the active round',()=>{

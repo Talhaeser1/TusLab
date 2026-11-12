@@ -106,7 +106,7 @@ export function makeTypo(word,rng=Math.random){
  * @param {(result:object)=>void} [o.onWordResult] WORD_RESULT for the human's submissions
  * @param {'kolay'|'orta'|'zor'} [o.difficulty='orta']
  * @param {number} [o.rounds] ignored: rounds matches are always 7 rounds with 4000 carried HP (KESINYAP 11)
- * @param {'counted'|'timed'} [o.roundStyle='timed'] counted = word plan 5-7-9-10-10-10-15; timed = 30 s, words flow until the clock ends
+ * @param {'counted'|'timed'} [o.roundStyle='timed'] counted = word plan 5-7-9-10-10-10-15, no time limit, first to finish ends the round (hidden 120 s cap); timed = 30 s, words flow until the clock ends
  * @param {'fire'|'rune'} [o.character='fire'] human fighter; fire = seat 1 (left), rune = seat 2 (right)
  * @param {string} [o.rune='none'] human rune; the bot always plays classic
  * @param {boolean} [o.assist=true] partner support (paket 31); classic + rounds only, never in arena

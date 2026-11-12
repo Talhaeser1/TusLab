@@ -102,10 +102,10 @@ export const ROUND_VIEW_BEHIND=2;  // timed: tamamlanan son 2 kelime (HUD işare
 const ROUND_EXTEND_CHUNK=8;
 export const normalizeRoundStyle=v=>ROUND_STYLES.includes(v)?v:DEFAULT_ROUND_STYLE;
 export const ROUND_DURATION_MS=30_000;   // zamana karşı raund: 30 sn
-export const ROUND_WORD_BUDGET_MS=6_000; // kelime raundu: kelime başına 6 sn (5→30, 7→42, 9→54, 10→60, 15→90)
-/** Raund yazma süresi: timed → 30 sn; counted → kelime sayısı × 6 sn. `m.roundWords` (sayı) yoksa `m.round.index` planından. Arena etkilenmez. */
-export const roundDurationMs=m=>normalizeRoundStyle(m?.roundStyle)==='timed'?ROUND_DURATION_MS
-  :(Number.isInteger(m?.roundWords)&&m.roundWords>0?m.roundWords:roundWordsFor(m?.round?.index??m?.index??1))*ROUND_WORD_BUDGET_MS;
+export const ROUND_COUNTED_CAP_MS=120_000; // kelime raundu: süre sınırı YOK; yalnız GİZLİ güvenlik üst sınırı (kimse bitirmezse)
+export const ROUND_CAP_WARN_MS=10_000;     // kelime raundu: yalnız son 10 sn'de küçük 'raund kapanıyor' uyarısı
+/** Raund yazma süresi: timed → 30 sn; counted → gizli 120 sn üst sınırı (kelime başına süre yok; ilk bitiren raundu bitirir). Arena etkilenmez. */
+export const roundDurationMs=m=>normalizeRoundStyle(m?.roundStyle)==='timed'?ROUND_DURATION_MS:ROUND_COUNTED_CAP_MS;
 export const ROUND_LAST_CALL_MS=5_000;
 export const ROUND_SETTLE_MS=1_000;
 export const ROUND_SUMMARY_MS=6_000;     // paket 30: tur arası özeti 3 → 6 sn
@@ -233,7 +233,7 @@ function startRound(match,at){
   match.endsAt=match.round.endsAt;match.pendingAttacks=[];
   for(const p of match.participants){
     resetForRound(p,words,index===1);
-    p.roundSkill=match.roundSkillPicks?.[p.seat]??null;
+    p.roundSkill=match.roundStyle==='timed'?match.roundSkillPicks?.[p.seat]??null:null; // süre becerileri kelime raundunda etkisiz
     p.roundEndsAt=at+durationMs+(p.roundSkill==='freeze'?timeSkillMs('freeze'):0);
   }
   for(const p of match.participants){
@@ -307,6 +307,7 @@ export function pickRoundSkill(match,{playerId,skill},at=Date.now()){
   if(!match||match.mode!=='rounds'||match.status!=='running')return {error:'MATCH_NOT_ACTIVE'};
   const p=match.participants.find(x=>x.playerId===playerId);
   if(!p)return {error:'NOT_MATCH_PARTICIPANT'};
+  if(match.roundStyle!=='timed')return {error:'ROUND_SKILL_NOT_TIMED'}; // kelime raundunda süre becerisi yok
   if(match.round.phase!=='intermission'||at>=match.round.nextRoundAt)return {error:'ROUND_SKILL_NOT_INTERMISSION'};
   if(skill!==null&&!ROUND_TIME_SKILLS.includes(skill))return {error:'INVALID_ROUND_SKILL'};
   if(match.roundSkillPickLocked?.[p.seat])return {error:'ROUND_SKILL_LOCKED'};
@@ -564,12 +565,9 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
   const roundEvents=[];
   if(next.roundStyle!=='timed'&&mine.roundWordIndex>=round.words.length){
     mine.roundDone=true;mine.finishedAt=at;
-    if(target.roundDone){round.allDone=true;}
-    else{
-      target.roundEndsAt=Math.min(target.roundEndsAt,at+ROUND_LAST_CALL_MS);
-      syncRoundEnds(next);
-      roundEvents.push({type:'ROUND_LAST_CALL',payload:{round:round.index,finishedSeat:mine.seat,endsAt:round.endsAt},sequence:next.sequence});
-    }
+    // KELİME RAUNDU: ilk bitiren raundu bitirir; rakibin o ana kadar yazdıkları sayılır, kalanı yazamaz (roundEndsAt=at → ROUND_NOT_ACTIVE).
+    round.allDone=true;
+    target.roundEndsAt=Math.min(target.roundEndsAt,at);
     syncRoundEnds(next);
   }
   return {match:next,result:{accepted:true,correct,seat:mine.seat,wordIndex,submitted:attempt,

@@ -156,7 +156,7 @@ test('I3 zorlaşma: raund ilerledikçe kelime uzunluğu aralığı yükselir (ti
 
 // ─────────── skill → etki → hasar → can → raund sonu → sonraki raund → maç sonu ───────────
 test('I3 uçtan uca: Donmuş An seçilir, süre +3 sn uygulanır, Q hasarı canı düşürür, KO raundu bitirir, maç biter',()=>{
-  let m=make();
+  let m=make({roundStyle:'timed'}); // süre becerileri yalnız ZAMANA KARŞI'da geçerli (kelime raundunda etkisiz)
   // Raund 1: Ada üç doğru kelime → Q; Bora'nın canı düşer; süre dolar, Ada kazanır.
   m=qHit(m,1,T0+300);
   const dmg=ROUND_HP-seatOf(m,2).hp;
@@ -164,7 +164,7 @@ test('I3 uçtan uca: Donmuş An seçilir, süre +3 sn uygulanır, Q hasarı can�
   assert.equal(seatOf(m,1).hp,ROUND_HP);
   m=advanceMatch(m,m.round.endsAt,NO_BLOCK).match;
   assert.equal(m.round.phase,'intermission');assert.equal(m.roundHistory.at(-1).winnerSeat,1); // KESINYAP 11: bilgi amaçlı (daha çok hasar)
-  const R=roundDurationMs({roundStyle:'counted',roundWords:7}); // 2. kelime raundu 7 kelime → 42 sn
+  const R=roundDurationMs({roundStyle:'timed'}); // 30 sn
   // Ara: Bora Donmuş An seçer.
   const pick=pickRoundSkill(m,{playerId:'b',skill:'freeze'},m.round.endedAt+100);
   assert.ok(pick.match,pick.error);m=pick.match;

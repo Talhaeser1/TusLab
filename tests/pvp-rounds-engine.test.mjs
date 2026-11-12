@@ -50,7 +50,7 @@ function perfectRound(character,rune,qOffset=0){
 test('rounds: constants match the specification',()=>{
   // KESINYAP 11: tek seçenek 7 raund; timed 30 sn; counted kelime × 6 sn (5→30); can 4000 taşınır; raund tavanı 1300.
   assert.deepEqual([...ROUND_OPTIONS],[7]);assert.deepEqual([...ROUND_WORD_PLAN],[5,7,9,10,10,10,15]);
-  assert.equal(ROUND_WORDS,10);assert.equal(roundDurationMs({roundStyle:'timed'}),30_000);assert.equal(roundDurationMs({roundStyle:'counted',roundWords:10}),60_000);assert.equal(roundDurationMs({roundStyle:'counted',roundWords:5}),30_000);assert.equal(roundDurationMs({roundStyle:'counted',roundWords:15}),90_000);assert.equal(ROUND_LAST_CALL_MS,5_000);
+  assert.equal(ROUND_WORDS,10);assert.equal(roundDurationMs({roundStyle:'timed'}),30_000);for(const n of [5,10,15])assert.equal(roundDurationMs({roundStyle:'counted',roundWords:n}),120_000,'kelime raundu: kelime başına süre yok, yalnız gizli 120 sn sınır');assert.equal(ROUND_LAST_CALL_MS,5_000);
   assert.equal(ROUND_SETTLE_MS,1_000);assert.equal(ROUND_SUMMARY_MS,6_000);assert.equal(ROUND_INTRO_MS,3_000);
   assert.equal(ROUND_HP,4000);assert.equal(ROUND_DAMAGE_CAP,1300);assert.equal(SUDDEN_DEATH_MAX,3);
   assert.deepEqual({...STREAK_SKILLS},{3:'q',5:'e',7:'r',8:'q',9:'q',10:'q'});
@@ -185,25 +185,28 @@ test('rounds: ULTIMATE_PHASE carries motion, multiplier and returnAt',()=>{
   assert.deepEqual(phases.map(p=>p.amount),[98,150,210]);
 });
 
-test('rounds: the last planned attempt (5 in round 1) locks input, emits ROUND_LAST_CALL and clamps endsAt',()=>{
-  // KESINYAP 11: 1. kelime raundu 5 kelime.
+test('rounds: the first player to finish the last planned word closes the round at once (no last call, no time limit)',()=>{
+  // Kelime raundu: ilk bitiren raundu bitirir; rakibin o ana kadar yazdıkları sayılır, kalanı yazamaz.
   let m=make();let last;
+  m=type(m,2,T0+300).match;m=type(m,2,T0+400).match; // rakip 2 kelime yazdı
   for(let i=1;i<=W1;i++){last=type(m,1,T0+i*600,{wrong:i%2===0});m=last.match;}
   const p=seatOf(m,1);assert.equal(p.roundDone,true);assert.equal(p.finishedAt,T0+3000);
   assert.equal(last.result.roundDone,true);
-  assert.deepEqual(last.result.roundEvents.map(({type,payload})=>({type,payload})),[{type:'ROUND_LAST_CALL',payload:{round:1,finishedSeat:1,endsAt:T0+3000+ROUND_LAST_CALL_MS}}]);
-  assert.equal(last.result.roundEvents[0].sequence,m.sequence);
-  assert.equal(m.round.endsAt,T0+3000+ROUND_LAST_CALL_MS);assert.equal(m.endsAt,m.round.endsAt);
-  const again=submitWord(m,{playerId:'a',matchId:m.id,wordIndex:p.wordIndex,text:'x'},T0+4000);
-  assert.equal(again.error,'ROUND_COMPLETE');
-  // A late finisher never extends the deadline.
-  let late=make();for(let i=1;i<=W1;i++)late=type(late,1,T0+R-2_000+i*100).match;
-  assert.equal(late.round.endsAt,T0+ROUND_DURATION_MS);
+  assert.deepEqual(last.result.roundEvents,[],'ROUND_LAST_CALL yok');
+  assert.equal(m.round.allDone,true);assert.equal(m.round.endsAt,T0+3000);assert.equal(m.endsAt,m.round.endsAt);
+  assert.equal(seatOf(m,2).roundEndsAt,T0+3000);assert.equal(seatOf(m,2).roundWordIndex,2,'rakibin 2 kelimesi sayılır');
+  assert.equal(submitWord(m,{playerId:'a',matchId:m.id,wordIndex:p.wordIndex,text:'x'},T0+4000).error,'ROUND_COMPLETE');
+  assert.equal(submitWord(m,{playerId:'b',matchId:m.id,wordIndex:seatOf(m,2).wordIndex,text:'x'},T0+3001).error,'ROUND_NOT_ACTIVE');
+  // Kimse bitirmezse gizli 120 sn sınırı: o ana kadar yazılan sayılır.
+  let slow=make();slow=type(slow,1,T0+500).match;
+  assert.equal(slow.round.endsAt,T0+120_000);
+  assert.equal(advanceMatch(slow,T0+120_000-1,NO_BLOCK).match.round.phase,'round');
+  assert.notEqual(advanceMatch(slow,T0+120_000,NO_BLOCK).match.round.phase,'round');
 });
 
-test('rounds: both players finishing ends the round with ALL_DONE',()=>{
+test('rounds: counted — the rival finishing first ends the round too (reason ALL_DONE)',()=>{
   let m=make();
-  for(let i=1;i<=W1;i++){m=type(m,1,T0+i*600,{wrong:true}).match;m=type(m,2,T0+i*600+10,{wrong:i!==W1}).match;} // KESINYAP 11: 5 kelime
+  for(let i=1;i<=W1;i++){m=type(m,2,T0+i*600+10,{wrong:true}).match;if(i<W1)m=type(m,1,T0+i*600,{wrong:true}).match;}
   assert.equal(m.round.endsAt,T0+3010);
   const adv=advanceMatch(m,T0+3010,NO_BLOCK);
   const end=adv.roundEvents.find(e=>e.type==='ROUND_END');
@@ -214,6 +217,7 @@ test('rounds: both players finishing ends the round with ALL_DONE',()=>{
 });
 
 test('rounds: time → settling → an in-flight ultimate completes → round end',()=>{
+  const R=roundDurationMs({roundStyle:'timed'}); // zamana karşı: 30 sn
   let m=make({roundStyle:'timed'}); // KESINYAP 11: 7 kelime için zamana karşı
   for(let i=1;i<=6;i++){m=type(m,1,T0+i*1000).match;m=advanceMatch(m,T0+i*1000+900,NO_BLOCK).match;}
   m=type(m,1,T0+R-100).match;

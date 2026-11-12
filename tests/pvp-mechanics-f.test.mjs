@@ -162,7 +162,7 @@ test('F2: çok sayıda birikmiş saldırı ≈ 6 sn içinde oynatılır ("ÇÖZ�
 });
 function viewOf(phase,extra={},roundExtra={}){
   return {mode:'rounds',status:'running',matchId:'x',totalRounds:5,roundsWon:{1:0,2:0},blindClock:false,
-    round:{index:2,total:5,suddenDeath:false,phase,words:['a','b'],startedAt:1000,endsAt:41_000,settleUntil:null,nextRoundAt:null,style:'counted',...roundExtra},
+    round:{index:2,total:5,suddenDeath:false,phase,words:['a','b'],startedAt:1000,endsAt:41_000,settleUntil:null,nextRoundAt:null,style:'timed',...roundExtra},
     players:[{seat:1,playerId:'me',name:'A',roundWordIndex:0,roundEndsAt:41_000},{seat:2,playerId:'op',name:'B',roundWordIndex:0,roundEndsAt:41_000}],...extra};
 }
 test('F2: sayaç her fazda doğru — round: kalan süre, settling/resolve/intermission: sonraki faza kalan süre',()=>{

@@ -26,7 +26,7 @@ function finishRound(m,rng=()=>0.99){
   return m;
 }
 
-test('kelime raundu planı [5,7,9,10,10,10,15]; iki oyuncuya aynı kelimeler; süre kelime × 6 sn', () => {
+test('kelime raundu planı [5,7,9,10,10,10,15]; iki oyuncuya aynı kelimeler; kelime başına süre yok (gizli 120 sn sınır)', () => {
   assert.deepEqual([...ROUND_WORD_PLAN],[5,7,9,10,10,10,15]);
   assert.equal(ROUND_TOTAL,7);
   let m=make({roundStyle:'counted'});
@@ -34,7 +34,7 @@ test('kelime raundu planı [5,7,9,10,10,10,15]; iki oyuncuya aynı kelimeler; s�
   for(let r=1;r<=7;r++){
     assert.equal(m.round.index,r);
     assert.equal(m.round.words.length,ROUND_WORD_PLAN[r-1],`raund ${r}`);
-    assert.equal(m.round.endsAt-m.round.startedAt,ROUND_WORD_PLAN[r-1]*6000);
+    assert.equal(m.round.endsAt-m.round.startedAt,120_000,'kelime × 6 sn yok: yalnız gizli 120 sn üst sınır');
     assert.deepEqual(publicMatch(m,1).round.words,publicMatch(m,2).round.words);
     assert.equal(publicMatch(m,1).round.wordCount,ROUND_WORD_PLAN[r-1]);
     m=finishRound(m);

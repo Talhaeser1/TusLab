@@ -8,7 +8,7 @@
 
 import {FIGHTERS,normalizeFighter} from './shared/fighters.js';
 import {portraitImg} from './portraits.js';
-import {ROUND_DURATION_MS,roundDurationMs,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,RESOLVE_BUDGET_MS,roundSkillMs,
+import {ROUND_DURATION_MS,ROUND_CAP_WARN_MS,roundDurationMs,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,RESOLVE_BUDGET_MS,roundSkillMs,
   ROUND_STYLES,DEFAULT_ROUND_STYLE,normalizeRoundStyle,ROUND_TOTAL,ROUND_HP,ROUND_DAMAGE_CAP,roundWordsFor,streakSkill,STREAK_SKILLS} from './shared/match.js';
 export {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,STREAK_SKILLS};
 // KESINYAP 11: maç uzunluğu ve kelime sayısı seçeneği yok; her rounds maçı 7 raund, 4000 taşınan can.
@@ -113,7 +113,7 @@ export const ROUND_SKILL_CARDS=Object.freeze([
 export function roundSkillPickerModel(match,myId){
   if(!isRoundMatch(match)||match.status!=='running'||match.round.phase!=='intermission')return {visible:false};
   const seat=mySeatOf(match,myId);
-  if(!seat)return {visible:false};
+  if(!seat||match.round.style==='counted')return {visible:false}; // süre becerileri kelime raundunda yok
   const left=match.roundSkillUsesLeft||{};
   return {visible:true,locked:!!match.roundSkillPickLocked,pick:match.roundSkillPick??null,
     cards:ROUND_SKILL_CARDS.map(c=>({...c,left:Math.max(0,Number(left[c.id]??2))}))};
@@ -168,7 +168,8 @@ export function roundsViewModel(match,myId,serverNow,marks,{lastCallRound=null}=
   const timer=timerOf(match,serverNow,mySeat);
   const players=[1,2].map(seat=>playerBySeat(match,seat));
   const anyDone=players.some(p=>p?.roundDone),allDone=players.every(p=>p?.roundDone);
-  const lastCallActive=round.phase==='round'&&!allDone&&(anyDone||(lastCallRound!==null&&Number(lastCallRound)===Number(round.index)));
+  const countedRound=round.style==='counted';
+  const lastCallActive=!countedRound&&round.phase==='round'&&!allDone&&(anyDone||(lastCallRound!==null&&Number(lastCallRound)===Number(round.index)));
   const dots=roundDots(index,total,round.phase);
   const me=playerBySeat(match,mySeat),opp=playerBySeat(match,mySeat===1?2:1);
   const myIdx=Number(me?.roundWordIndex)||0;
@@ -192,7 +193,7 @@ export function roundsViewModel(match,myId,serverNow,marks,{lastCallRound=null}=
     const clock=timerOf(match,serverNow,seat);
     const skill=round.phase==='round'?round.skills?.[seat]??null:null;
     const badge=[skill==='freeze'?'❄ +3 sn':null,round.phase==='round'&&round.skills?.[seat===1?2:1]==='timethief'?'−5 sn':null].filter(Boolean).join(' · ');
-    return {seat,name:nameOf(match,seat),isMe:Boolean(p&&p.playerId===myId),clock:clock.text,badge,
+    return {seat,name:nameOf(match,seat),isMe:Boolean(p&&p.playerId===myId),clock:countedRound&&round.phase==='round'?'':clock.text,badge,
       progress:timed?`Kelime ${idx}`:`Kelime ${idx}/${wordTotal}`,progressValue:idx,done:Boolean(p?.roundDone),doneText:p?.roundDone?'Tamamlandı ✓':'',
       streak:streakModel(streakOf(p),p?.nextSkill),pips:dots,
       hp,maxHp,hpText:`Can ${num(hp)}/${num(maxHp)}`,damage,capped:damage>=ROUND_DAMAGE_CAP,damageText:`Raund hasarı ${roundDamageText(damage)}`};
@@ -201,11 +202,21 @@ export function roundsViewModel(match,myId,serverNow,marks,{lastCallRound=null}=
   const phaseLabel=['settling','resolve'].includes(round.phase)?'ÇÖZÜLÜYOR':round.phase==='intermission'?'TUR ARASI':match.status==='paused'?'DURAKLADI':'SANİYE';
   // Madalyon: faz birimi her zaman kısa "sn"; başlık alanında yalnız TEK yazı (raund adı YA DA faz adı) görünür.
   const title=suddenDeath?'ANİ ÖLÜM':`RAUND ${index} / ${total}`;
-  const medalTitle=match.status==='paused'?'DURAKLADI':round.phase==='round'?title:phaseLabel;
+  let medalTitle=match.status==='paused'?'DURAKLADI':round.phase==='round'?title:phaseLabel;
   // Üst bilgi: 'ZAMANA KARŞI · RAUND 2/7' ya da 'KELİME RAUNDU · RAUND 2/7 · 7 kelime'.
   const headline=`${styleTitle} · ${suddenDeath?'ANİ ÖLÜM':`RAUND ${index}/${total}`}${timed?'':` · ${wordTotal} kelime`}`;
-  return {visible:true,index,total,title,medalTitle,headline,style:timed?'timed':'counted',dots,unit:'sn',suddenDeath,phase:round.phase,phaseLabel,
-    timer,lastCall:{active:lastCallActive&&!timer.hidden,text:lastCallActive&&!timer.hidden?`SON ÇAĞRI · ${timer.seconds} sn`:''},sides,words,mySeat};
+  // KELİME RAUNDU: geri sayım yok; medalda ilerleme 'x/7' ve 'Sen 4/7 · Rakip 5/7'. Gizli 120 sn sınırı yalnız son 10 sn'de uyarır.
+  let timerOut=timer,lastCall={active:lastCallActive&&!timer.hidden,text:lastCallActive&&!timer.hidden?`SON ÇAĞRI · ${timer.seconds} sn`:''},progressText='',unit='sn';
+  if(countedRound&&round.phase==='round'){
+    const mine=sides[mySeat-1],rival=sides[mySeat===1?1:0];
+    progressText=`Sen ${mine.progressValue}/${wordTotal} · Rakip ${rival.progressValue}/${wordTotal}`;
+    const warn=timer.remaining>0&&timer.remaining<=ROUND_CAP_WARN_MS&&!timer.frozen;
+    timerOut={...timer,text:`${mine.progressValue}/${wordTotal}`,seconds:-1,fraction:clamp01(mine.progressValue/Math.max(1,wordTotal)),hidden:false,urgent:false};
+    lastCall={active:warn,text:warn?'Raund kapanıyor':''};unit='';
+    if(match.status!=='paused')medalTitle=progressText; // başlık yuvasında 'Sen 4/7 · Rakip 5/7'
+  }
+  return {visible:true,index,total,title,medalTitle,headline,style:timed?'timed':'counted',dots,unit,suddenDeath,phase:round.phase,phaseLabel,
+    timer:timerOut,progressText,lastCall,sides,words,mySeat};
 }
 
 /** Tur sonu kilidi: sunucu saatiyle `serverNow ≥ endsAt` olunca da kilitlenir (§8). */
@@ -217,9 +228,10 @@ export function roundInputLock(match,myId,serverNow){
   if(round.phase==='intermission')return {locked:true,clearInput:true,reason:'Tur arası · sonraki raund bekleniyor'};
   if(round.phase==='settling')return {locked:true,clearInput:true,reason:'Süre doldu · saldırılar çözülüyor'};
   const me=match.players?.find(p=>p.playerId===myId);
-  if(me?.roundDone)return {locked:true,clearInput:true,reason:'Tamamlandı ✓ · rakip bekleniyor'};
+  const counted=round.style==='counted';
+  if(me?.roundDone)return {locked:true,clearInput:true,reason:counted?'Tamamlandı ✓ · raund kapanıyor':'Tamamlandı ✓ · rakip bekleniyor'};
   const deadline=round.personalEndsAt?.[me?.seat]??me?.roundEndsAt??(match.blindClock?null:round.endsAt);
-  if(Number.isFinite(deadline)&&serverNow>=deadline)return {locked:true,clearInput:true,reason:'Süre doldu · tur kapanıyor'};
+  if(Number.isFinite(deadline)&&serverNow>=deadline)return {locked:true,clearInput:true,reason:counted?'Rakip bitirdi · raund kapanıyor':'Süre doldu · tur kapanıyor'};
   return {locked:false,reason:null};
 }
 
@@ -283,7 +295,7 @@ export function roundStylePickDecision({scope,kind='style',value,isHost,phase,cu
   return {type:'MATCH_CONFIG',payload:{roundStyle:value}};
 }
 const STYLE_TITLES=Object.freeze({timed:'Her raund 30 sn; süre bitene kadar kelime akar, kim çok doğru yazarsa o kadar vurur',
-  counted:'Raund başına 5-7-9-10-10-10-15 kelime (kelime başına 6 sn); iki oyuncuya aynı kelimeler'});
+  counted:'Raund başına 5-7-9-10-10-10-15 kelime · süre yok, ilk bitiren raundu bitirir; iki oyuncuya aynı kelimeler'});
 export function roundStylePickerHTML(scope){
   const s=scope==='practice'?'practice':'room';
   return `<div class="rui-picker" data-style-picker="${s}"><span class="rui-picker-label" id="rui-style-${s}">Raund biçimi</span>`
@@ -622,8 +634,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     sideEls.forEach((side,i)=>setText(side.clock,vm.sides[i].clock));
     ringFill.setAttribute('stroke-dashoffset',(RING_C*(1-tm.fraction)).toFixed(2));
     setFlag(medal,'is-urgent',tm.urgent);setFlag(medal,'is-frozen',tm.frozen);
-    setText(lastCall,vm.lastCall.text);setHidden(lastCall,!vm.lastCall.active);
-    if(vm.phase==='round'&&!tm.frozen){
+    setText(lastCall,vm.lastCall.text);setHidden(lastCall,!vm.lastCall.active);    if(vm.phase==='round'&&!tm.frozen){
       const a=`${vm.index}:${tm.seconds}`;
       if([10,5,0].includes(tm.seconds)&&state.announced!==a){state.announced=a;announce(tm.seconds?`${tm.seconds} saniye kaldı`:'Süre doldu');}
     }
