@@ -945,25 +945,8 @@ export async function createArena3D({
       if (def.hq) hq.push(pillar);
     }
 
-    const crystalGeo = geo(new THREE.OctahedronGeometry(0.2, 0));
-    const crystalDefs = [
-      {x: -4.6, y: 2.3, z: -2.6, color: PALETTE.fire.main},
-      {x: -2.4, y: 3.1, z: -4.8, color: PALETTE.fire.accent},
-      {x: -0.6, y: 2.7, z: -6.2, color: 0xff4d6d},
-      {x: 1.2, y: 3.3, z: -5.6, color: PALETTE.rune.main},
-      {x: 2.9, y: 2.4, z: -3.9, color: PALETTE.rune.accent},
-      {x: 4.8, y: 2.9, z: -2.4, color: PALETTE.rune.main},
-    ];
-    for (const [i, def] of crystalDefs.entries()) {
-      const crystal = new THREE.Mesh(crystalGeo, mat(new THREE.MeshStandardMaterial({
-        color: def.color, emissive: def.color, emissiveIntensity: 1.6, roughness: 0.2, metalness: 0.1, flatShading: true,
-      })));
-      crystal.scale.set(1, 1.7, 1);
-      crystal.position.set(def.x, def.y, def.z);
-      group.add(crystal);
-      floaters.push({object: crystal, baseY: def.y, amp: 0.18, speed: 0.7 + i * 0.11, phase: i * 2.1, spin: 0.6 + i * 0.07});
-      if (i % 2) hq.push(crystal);
-    }
+    // Yüzen arka plan kristalleri (6 oktahedron) KALDIRILDI: ölçümde (1366×768) hepsi ya can çubuğu/oyuncu satırının
+    // altında ya da dövüşçü kafasının yanında (ör. ekran 998,152 ≈ Nyx'in 40 px yanı) duruyordu; anlamsız "turkuaz kristal".
 
     // --- Lights ---------------------------------------------------------------------
     const hemi = new THREE.HemisphereLight(0x8a74ff, 0x1a0710, 0.75);
@@ -4278,6 +4261,20 @@ export async function createArena3D({
         return {visible: b.mesh.visible, opacity: b.mesh.material.opacity, seat: b.seat, behind: zMin - b.mesh.position.z, renderOrder: b.mesh.renderOrder, depthTest: b.mesh.material.depthTest};
       },
       showCrit: seat => showCritBackdrop(seat),
+      /** Ölçüm: yüzen nesnelerin ve dövüşçülerin ekran (CSS px) konumu. */
+      screen: () => {
+        if (!renderer || !env3d) return null;
+        const r = renderer.domElement.getBoundingClientRect();
+        camera.updateMatrixWorld();
+        const proj = (v, dy = 0) => {
+          const p = v.clone(); p.y += dy; p.project(camera);
+          return {x: Math.round(r.left + (p.x + 1) / 2 * r.width), y: Math.round(r.top + (1 - p.y) / 2 * r.height)};
+        };
+        return {
+          floaters: env3d.floaters.map(f => ({...proj(f.object.position), world: [f.object.position.x, f.object.position.y, f.object.position.z].map(n => Math.round(n * 10) / 10)})),
+          fighters: [...fighters.entries()].map(([seat, f]) => ({seat, head: proj(f.root.position, 2.2), feet: proj(f.root.position, 0)})),
+        };
+      },
       environment: () => {
         const c = env3d?.colosseum;
         if (!c) return {stage: stageId, crowd: 0, braziers: 0, banners: 0, spotlights: 0, lights: 0, embers: 0, excite: 0};

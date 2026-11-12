@@ -105,7 +105,12 @@
   max-width:calc(100vw - 32px);white-space:nowrap;overflow:hidden;text-align:center;font-weight:900;letter-spacing:.04em;text-transform:uppercase;
   -webkit-text-stroke:1px rgba(8,4,20,.9);paint-order:stroke fill;contain:layout paint}
 #pvp-root .pvp-attack-callout[hidden],#pvp-root .pvp-combo-counter[hidden]{display:none}
-#pvp-root .pvp-attack-callout{top:64px;height:34px;line-height:34px;padding:0 14px;border-radius:999px;background:rgba(10,6,24,.55);
+/* Yerleşim (ölçüm turu): HUD (can çubuğu/oyuncu satırı ≈ üst 48–204 px) bandına binmesin diye
+   yazılar "SALDIRI SIRASI" başlığının (cinematic.css: top:clamp(262px,36vh,300px), ≈41 px; kelime şeridi ≈ 154–235 px'te biter) hemen altına dizilir:
+   başlık → saldırı yazısı (+50) → kombo (+96). */
+#pvp-root{--rsv-top:clamp(262px,36vh,300px)}
+@media (max-width:760px){#pvp-root{--rsv-top:clamp(332px,41vh,360px)}} /* dar düzende kelime şeridi ≈ 240–320 px */
+#pvp-root .pvp-attack-callout{top:calc(var(--rsv-top) + 50px);height:34px;line-height:34px;padding:0 14px;border-radius:999px;background:rgba(10,6,24,.55);
   border:1px solid var(--co,#ffb066);color:var(--co,#ffb066);text-shadow:0 0 10px var(--co,#ffb066);
   font-size:clamp(12px,3.4vw,16px)}
 #pvp-root .pvp-attack-callout.is-fire{--co:#ff8a3d}
@@ -116,11 +121,23 @@
 #pvp-root .pvp-attack-callout.is-blocked{--co:#9fc6ff}
 #pvp-root .pvp-attack-callout.is-in{animation:pvp-callout-in .22s cubic-bezier(.16,1,.3,1) both}
 @keyframes pvp-callout-in{from{opacity:0;transform:translateX(-50%) translateY(-8px) scale(.94)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
-#pvp-root .pvp-combo-counter{top:108px;font:italic 900 clamp(26px,7vw,48px)/1.1 system-ui,"Segoe UI",sans-serif;
+#pvp-root .pvp-combo-counter{top:calc(var(--rsv-top) + 96px);font:italic 900 clamp(26px,7vw,48px)/1.1 system-ui,"Segoe UI",sans-serif;
   color:#ff8a3d;text-shadow:0 0 16px currentColor,0 3px 0 #000}
 #pvp-root .pvp-combo-counter[data-side="rune"]{color:#5fe8ff}
 #pvp-root .pvp-combo-counter.is-pop{animation:pvp-combo-pop .22s cubic-bezier(.16,1,.3,1) both}
 @keyframes pvp-combo-pop{from{transform:translateX(-50%) scale(1.45)}to{transform:translateX(-50%) scale(1)}}
+/* Dar ekran: yazı kesilmesin (ölçüm: 375 px'te 366>341). Alt sınır 12 px korunur. */
+@media (max-width:480px){
+  #pvp-root .pvp-attack-callout{padding:0 10px;letter-spacing:.01em;font-size:12px}
+  #pvp-root .pvp-attack-callout--e{font-size:12px}
+  #pvp-root .pvp-attack-callout--r{font-size:13px}
+}
+/* Raund arası / özet / sonuç kartı açıkken maç yazıları kartın üstünde kalmasın. */
+#pvp-root:is(.rui-inter-open,.aui-summary-open,.pvp15-results-open) :is(.pvp-attack-callout,.pvp-combo-counter){display:none}
+/* Raund Arena: yazma şeridi (≈ y 491–519) dövüşçü altındaki rol rozetlerinin (y 496–521) üstüne biniyordu → arenada rozetler gizli. */
+#pvp-root:has(.aui-hud:not([hidden])) .pvp2-role{display:none}
+/* Sonuç kartı kendi içinde kayıyor (arena: içerik 887 > kart 742 px); Rövanş/Lobi düğmeleri hep görünsün. */
+#pvp-root .pvp15-card .pvp15-buttons{position:sticky;bottom:0;z-index:3;padding:8px 0 2px;background:linear-gradient(180deg,#0c122600,#0c1226f2 38%)}
 #pvp-root .pvp-status-badge{position:absolute;left:50%;top:6px;transform:translateX(-50%);z-index:8;pointer-events:none;padding:2px 10px;border-radius:999px;
   font:800 clamp(12px,3vw,14px)/1.4 system-ui,sans-serif;letter-spacing:.06em;color:#fff;background:rgba(10,6,24,.7);border:1px solid #9fc6ff;box-shadow:0 0 12px #9fc6ff;
   animation:pvp-callout-in .2s ease-out both}

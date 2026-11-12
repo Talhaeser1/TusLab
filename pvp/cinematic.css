@@ -21,6 +21,8 @@
   animation:cin-slam 300ms 60ms cubic-bezier(.2,1.4,.3,1) both}
 #pvp-root .cin-tone-ko .cin-title{color:#ffd1d9;text-shadow:0 0 26px #ff3b5ccc,0 4px 0 #4a0716}
 #pvp-root .cin-tone-time .cin-title{color:#dff7ff;text-shadow:0 0 24px #5ad8ffbb,0 4px 0 #062a44}
+/* Dar ekran: "RAUND 1 BİTTİ" 375 px'te 405 px genişliğindeydi (ölçüm) → ekrana sığacak kadar küçülür. */
+@media (max-width:520px){#pvp-root .cin-title{font-size:clamp(34px,10.5vw,56px);letter-spacing:.02em}}
 #pvp-root .cin-sub{position:relative;transform:skewY(4deg);font:850 clamp(22px,1.4vw,28px)/1.2 system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:.14em;color:#ffd98a;
   animation:cin-rise 260ms 220ms ease-out both}
 @keyframes cin-band-in{from{transform:translateY(-50%) skewY(-4deg) scaleX(0)}to{transform:translateY(-50%) skewY(-4deg) scaleX(1)}}
@@ -130,7 +132,7 @@
    (yoksa panel "yüzer" moda geçip ekranın soluna kayıyor, HP panellerinin üstüne biniyordu). stage-focus.js odağı FLIP ile kapatır. */
 #pvp-root.stage-focus.rui-inter-open .tt{display:grid}
 #pvp-root.stage-focus.rui-inter-open .pvp2-shell{grid-template-rows:auto auto auto minmax(0,1fr) auto}
-#pvp-root.stage-focus .pvp2-duel>.rsv-banner{top:clamp(150px,30%,230px);font-size:clamp(16px,1.1vw,20px);padding:9px 22px}
+#pvp-root.stage-focus .pvp2-duel>.rsv-banner{top:var(--rsv-top,clamp(262px,36vh,300px));font-size:clamp(16px,1.1vw,20px);padding:9px 22px}
 /* Tur arası: kelime şeridi gizlenir, panel ince şeride iner → arena büyür. */
 #pvp-root.rui-inter-open .rui-words{display:none}
 #pvp-root.rui-inter-open .tt{height:clamp(150px,20vh,190px);overflow:hidden}
