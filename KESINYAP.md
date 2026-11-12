@@ -30,5 +30,6 @@ Durum: ⬜ başlanmadı · 🟡 sürüyor · ✅ bitti (test + tarayıcıda öl�
 | 7 | VS ekranında oynayan karakterlerin kendi görselleri | ⬜ | |
 | 8 | Sonuç (ZAFER/YENİLGİ) ve raund arası ekranlarında karakter + Higgsfield görselleri | ⬜ | |
 | 9 | Ana ekran boss'u eski haline döner (uzak ve kötü duran 3B kaldırılır) | ✅ | 1366x768 ve 375x812: canvas 0, arena-king.webp yüklü/opaklık 1, yatay taşma yok, liderlik/başarım yok |
+| 10 | PvP lobi "sahne" tasarımı: kutusuz, aşağı kaydırmasız tek ekran; arka plan seçili arena, büyük karakter portresi, madalyon dock, arena yelpazesi, çevrimiçi oda çekmecede | ⬜ | kullanıcı: "aşağı kaydırılır kare olmasın" |
 
 Mekanik (sayılı raund süresi = max(40 sn, kelime×6 sn), timed 40, arena aynı): ✅ tarayıcıda 10 kelimelik sayılı raund sayacı 58 sn'den (≈60) başladı.

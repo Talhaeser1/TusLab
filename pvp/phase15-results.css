@@ -44,3 +44,12 @@
 @media(max-width:650px){#pvp-root .pvp15-card{max-height:calc(100dvh - 16px)}#pvp-root .pvp15-buttons{flex-wrap:wrap}#pvp-root .pvp15-figures{gap:3px}}
 @media (prefers-reduced-motion:reduce){#pvp-root .pvp15-backdrop:not([hidden]){animation:none!important}}
 #pvp-root.pvp4-reduced .pvp15-backdrop:not([hidden]){animation:none!important}
+
+/* İş 8a: oyuncu kartında maçtaki dövüşçünün portresi (kazananda vurgu çerçevesi). */
+#pvp-root .pvp15-head{display:flex;align-items:center;gap:12px;margin-bottom:10px;min-width:0}
+#pvp-root .pvp15-head .pvp15-player-name{margin-bottom:0;min-width:0;flex:1 1 auto}
+#pvp-root .pvp15-portrait{flex:0 0 auto;width:clamp(72px,7vw,96px);height:clamp(72px,7vw,96px);object-fit:cover;object-position:50% 20%;border-radius:12px;border:2px solid #ffffff55;background:#0a0f22}
+#pvp-root .pvp15-winner .pvp15-portrait{border-color:#ffd87a;box-shadow:0 0 0 2px #0a0f22,0 0 0 4px #ffd87a}
+#pvp-root .pvp15-player:not(.pvp15-winner) .pvp15-portrait{filter:saturate(.8)}
+@media(max-height:820px){#pvp-root .pvp15-head{gap:10px;margin-bottom:6px}#pvp-root .pvp15-portrait{width:72px;height:72px}}
+@media(max-width:650px){#pvp-root .pvp15-portrait{width:72px;height:72px}}

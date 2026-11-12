@@ -7,7 +7,7 @@
  * kişisel `endsAt` üst sınırdır). Sunucu her gönderimi yine kendi saatiyle doğrular.
  */
 import {WORD_BANK} from './shared/words.js';
-import {createRoundEndCard,summaryColors,summaryPresentation,ROUND_TITLE_MS,ROUND_HOLD_MAX_MS} from './rounds-ui.js';
+import {createRoundEndCard,summaryColors,summaryPlayers,summaryPresentation,ROUND_TITLE_MS,ROUND_HOLD_MAX_MS} from './rounds-ui.js';
 import {ARENA_ROUND_DURATION_MS,ARENA_SUMMARY_MS,ARENA_PREP_DURATION_MS} from './shared/arena.js';
 
 // Şartname §2 sabitleri (yalnız sunum için aynalanır; otorite motordadır).
@@ -203,7 +203,7 @@ export function arenaSummaryModel(roundEnd,match,myId,{damage=null,record=null}=
   const next=round+1;
   const wins={1:0,2:0};
   for(const r of match?.roundResults||[])if(r.winnerSeat)wins[r.winnerSeat]++;
-  return {round,title:`RAUND ${round} BİTTİ`,names,rows,winnerSeat,...summaryPresentation(winnerSeat,match,myId),ko:roundEnd?.reason==='KO',colors:summaryColors(match),
+  return {round,title:`RAUND ${round} BİTTİ`,names,rows,winnerSeat,...summaryPresentation(winnerSeat,match,myId),ko:roundEnd?.reason==='KO',colors:summaryColors(match),players:summaryPlayers(match),
     pips:[1,2].map(seat=>({filled:wins[seat],total})),
     winnerText:winnerSeat?`${nameOf(match,winnerSeat)} RAUNDU ALDI`:'BERABERE',
     nextText:round<total?`Sıradaki: RAUND ${next} · ${ARENA_UI_ROUND_WORDS[next-1]??'—'} kelime`:'Maç sonucu hazırlanıyor'};

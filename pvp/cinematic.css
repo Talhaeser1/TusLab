@@ -37,10 +37,12 @@
   background:linear-gradient(115deg,#3a0716 0%,#7a1424 45%,#e2482f 100%);animation:cin-from-left 340ms cubic-bezier(.15,.9,.25,1) both}
 #pvp-root .cin-half.cin-seat-2{right:0;justify-content:flex-end;clip-path:polygon(18% 0,100% 0,100% 100%,0 100%);
   background:linear-gradient(245deg,#061a3a 0%,#123f7a 45%,#2ea8e6 100%);animation:cin-from-right 340ms cubic-bezier(.15,.9,.25,1) both}
-#pvp-root .cin-fighter{position:absolute;bottom:-4%;height:96%;width:auto;max-width:none;opacity:.95;
+/* Dövüşçünün KENDİ portresi yarıyı doldurur (yüz üstte kalır); taraf rengi ince ton + iç çerçeve olarak kalır. */
+#pvp-root .cin-fighter{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;object-position:50% 18%;opacity:1;
   filter:none;animation:cin-fighter-in 520ms 120ms cubic-bezier(.2,.9,.3,1) both}
-#pvp-root .cin-seat-1 .cin-fighter{left:14%}
-#pvp-root .cin-seat-2 .cin-fighter{right:14%;transform:scaleX(-1)}
+#pvp-root .cin-half::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 3px var(--cin-accent,#fff);
+  background:linear-gradient(180deg,transparent 45%,#05020fb8 100%),linear-gradient(115deg,color-mix(in srgb,var(--cin-accent,#fff) 22%,transparent),transparent 55%)}
+#pvp-root .cin-seat-2::after{background:linear-gradient(180deg,transparent 45%,#05020fb8 100%),linear-gradient(245deg,color-mix(in srgb,var(--cin-accent,#fff) 22%,transparent),transparent 55%)}
 #pvp-root .cin-tag{position:relative;z-index:1;display:grid;gap:2px;margin:0 6% 9%;padding:10px 18px;border-radius:10px;background:#07031ad9;border:1px solid #ffffff2e}
 #pvp-root .cin-seat-1 .cin-tag{margin-left:6%;margin-right:auto;text-align:left;animation:cin-from-left 300ms 260ms ease-out both}
 #pvp-root .cin-seat-2 .cin-tag{margin-right:6%;margin-left:auto;text-align:right;animation:cin-from-right 300ms 260ms ease-out both}
@@ -108,7 +110,6 @@
 #pvp-root.pvp4-reduced .rui-inter,#pvp-root.pvp4-reduced .rui-flash *,#pvp-root.pvp4-reduced.cin-round-start .tt-type{animation:none!important}
 @media (max-width:767.98px){
   #pvp-root .cin-half{width:62%}
-  #pvp-root .cin-fighter{height:70%}
   #pvp-root .cin-tag{margin-bottom:18%}
   #pvp-root .cin-tag{max-width:65%;padding:8px;margin-inline:6%}
   #pvp-root .cin-name{font-size:clamp(22px,5vw,30px);overflow-wrap:anywhere}
@@ -116,7 +117,6 @@
 
 /* Kutulu VS (maç saati çalışırken): yalnız arena alanı; yazı alanına dokunmaz. */
 #pvp-root .cin.cin-boxed{inset:auto;border-radius:16px}
-#pvp-root .cin-boxed .cin-fighter{height:118%;bottom:-22%}
 #pvp-root .cin-boxed .cin-vs-text{top:50%;font-size:clamp(70px,8vw,130px)}
 #pvp-root .cin-boxed .cin-tag{margin-bottom:5%}
 

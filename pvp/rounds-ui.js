@@ -7,6 +7,7 @@
  */
 
 import {FIGHTERS,normalizeFighter} from './shared/fighters.js';
+import {portraitImg} from './portraits.js';
 import {ROUND_DURATION_MS,roundDurationMs,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,RESOLVE_BUDGET_MS,roundSkillMs,
   ROUND_STYLES,DEFAULT_ROUND_STYLE,normalizeRoundStyle,normalizeRoundWords,validRoundWords} from './shared/match.js';
 export {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS};
@@ -221,7 +222,7 @@ export function summaryModel(roundEnd,match,myId){
     ...summaryPresentation(winnerSeat,match,myId),
     ko:roundEnd?.reason==='KO',reasonText:REASON_LABELS[roundEnd?.reason]||'',names,
     rows:[row('Doğru','correct'),row('Yanlış','wrong'),row('En iyi seri','bestStreak'),row('Hasar','damageDealt'),row('RP','rp')],
-    colors:summaryColors(match),pips:[1,2].map(seat=>({filled:Number(wins[seat])||0,total:Math.max(total,Number(wins[seat])||0)})),
+    colors:summaryColors(match),players:summaryPlayers(match),pips:[1,2].map(seat=>({filled:Number(wins[seat])||0,total:Math.max(total,Number(wins[seat])||0)})),
     scoreline:`${Number(wins[1])||0} – ${Number(wins[2])||0}`,
     nextText:roundEnd?.nextRoundAt?`Sıradaki: ${roundLabel(next,total)}`:'Maç sonucu hazırlanıyor'};
 }
@@ -338,11 +339,16 @@ const SVG_NS='http://www.w3.org/2000/svg';
 export function summaryColors(match){
   return [1,2].map(seat=>{const p=playerBySeat(match,seat);return FIGHTERS[normalizeFighter(p?.fighter,p?.character)].palette.accent;});
 }
+/** Raund özeti portreleri için iki oyuncunun kaydı ({fighter, character}). */
+export function summaryPlayers(match){
+  return [1,2].map(seat=>{const p=playerBySeat(match,seat);return {fighter:p?.fighter,character:p?.character};});
+}
 export function createRoundEndCard(doc,model){
   const h=builder(doc);
   const players=h('div',{cls:'m33-players'},...model.names.map((name,i)=>{
     const stats=h('dl',{cls:'m33-stats'},...model.rows.flatMap(row=>[h('dt',{text:row.label==='En iyi seri'?'En iyi kombo':row.label==='Hasar'?'Verilen hasar':row.label}),h('dd',{text:row.values[i]})]));
-    return h('article',{cls:`m33-player${model.winnerSeat===i+1?' is-winner':''}`,attrs:{style:`--m33-player:${model.colors[i]}`}},h('h3',{text:name}),stats);
+    const portrait=model.players?.[i]?portraitImg(doc,model.players[i],'m33-portrait'):null;
+    return h('article',{cls:`m33-player${model.winnerSeat===i+1?' is-winner':''}${portrait?' has-portrait':''}`,attrs:{style:`--m33-player:${model.colors[i]}`}},portrait,h('h3',{text:name}),stats);
   }));
   const pips=h('div',{cls:'m33-pips',attrs:{'aria-label':'Tur galibiyetleri'}},...model.pips.map((p,i)=>h('div',{cls:'m33-pip-side',attrs:{'aria-label':`${model.names[i]}: ${p.filled} galibiyet`,style:`--m33-player:${model.colors[i]}`}},
     ...Array.from({length:p.total},(_,j)=>h('span',{cls:`m33-pip${j<p.filled?' is-won':''}`,text:j<p.filled?'●':'○',attrs:{'aria-hidden':'true'}})))));

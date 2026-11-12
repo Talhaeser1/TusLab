@@ -8,6 +8,7 @@
 
 import {getFighter} from './shared/fighters.js';
 import {getStage} from './shared/stages.js';
+import {portraitFor, PORTRAITS} from './portraits.js';
 
 export const CIN_TIMES = Object.freeze({vs: 2200, vsLite: 1500, banner: 900, bannerShort: 900, roundEndHold: 1250, roundStart: 650});
 
@@ -33,8 +34,9 @@ export function vsModel(match) {
     const p = players.find(x => x.seat === seat) || {};
     const id = p.character === 'rune' || (!p.character && seat === 2) ? 'rune' : 'fire';
     const fighter = getFighter(p.fighter, id);
-    return {seat, side: id, name: String(p.name || `Oyuncu ${seat}`), character: fighter.name,
-      title: fighter.title, accent: fighter.palette.accent, image: CHAR[id].image, arena: `ARENA: ${getStage(match?.stage).name}`};
+    const portrait = portraitFor({fighter: p.fighter, character: id});
+    return {seat, side: id, name: String(p.name || `Oyuncu ${seat}`), character: fighter.name, fighterId: portrait.id,
+      title: fighter.title, accent: fighter.palette.accent, image: portrait.url, fallback: CHAR[id].image, arena: `ARENA: ${getStage(match?.stage).name}`};
   });
 }
 
@@ -83,7 +85,7 @@ export function attachCinematic({root, isReduced = () => false, scheduler = glob
     const warm = () => {
       warmTimer = null; warmIdle = null;
       if (typeof globalThis.Image !== 'function') return;
-      try { for (const c of Object.values(CHAR)) { const im = new globalThis.Image(); im.decoding = 'async'; im.src = c.image; } } catch { /* yalnız iyileştirme */ }
+      try { for (const src of Object.values(PORTRAITS)) { const im = new globalThis.Image(); im.decoding = 'async'; im.src = src; } } catch { /* yalnız iyileştirme */ }
     };
     const idle = globalThis.requestIdleCallback;
     if (idle) warmIdle = idle(warm, {timeout: 4000});
@@ -133,7 +135,9 @@ export function attachCinematic({root, isReduced = () => false, scheduler = glob
     const half = m => {
       const box = el('div', `cin-half cin-${m.side} cin-seat-${m.seat}`);
       box.style?.setProperty?.('--cin-accent', m.accent);
-      const img = el('img', 'cin-fighter'); img.alt = ''; img.src = m.image; img.decoding = 'async';
+      const img = el('img', 'cin-fighter'); img.alt = ''; img.decoding = 'async'; img.setAttribute?.('data-portrait', m.fighterId);
+      img.addEventListener?.('error', () => { if (!img.src.endsWith(m.fallback.slice(1))) img.src = m.fallback; }, {once: true});
+      img.src = m.image;
       const tag = el('div', 'cin-tag');
       tag.append(el('small', 'cin-player', `OYUNCU ${m.seat}`), el('strong', 'cin-name', m.name),
         el('span', 'cin-char', m.character), el('span', 'cin-fighter-title', m.title));

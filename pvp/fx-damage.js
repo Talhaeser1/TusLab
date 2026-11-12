@@ -139,6 +139,21 @@ export function createDamageNumbers({
     return line;
   }
 
+  /** 375 px gibi dar ekranda yazı kenardan taşmasın: CSS `translate` (transform animasyonundan bağımsız) ile ekrana kıstır. */
+  function clampIntoView(el, pad = 14) {
+    try {
+      el.style.translate = '';
+      const vw = doc.documentElement?.clientWidth || globalThis.innerWidth || 0;
+      const r = el.getBoundingClientRect?.();
+      if (!vw || !r || !r.width) return;
+      const half = Math.max(r.width, el.scrollWidth || 0) / 2 * 1.12, c = r.left + r.width / 2;
+      let dx = 0;
+      if (c - half < pad) dx = pad - (c - half);
+      else if (c + half > vw - pad) dx = (vw - pad) - (c + half);
+      if (dx) el.style.translate = `${Math.round(dx)}px 0`;
+    } catch { /* yalnız yerleşim iyileştirmesi */ }
+  }
+
   /** Remove one live entry and cancel its timer. */
   function dropEntry(entry) {
     if (entry.timer != null) scheduler.clearTimeout(entry.timer);
@@ -187,6 +202,7 @@ export function createDamageNumbers({
     for (const line of spec.lines) body.appendChild(makeLine(line.text, line.palette, line.px, line.cls));
     el.appendChild(body);
     layer.appendChild(el);
+    clampIntoView(el);
 
     const entry = { el, timer: null, lane, x: slot.x + x, y: slot.y + y };
     entry.timer = scheduler.setTimeout(() => {
@@ -227,6 +243,7 @@ export function createDamageNumbers({
     while (combo.el.firstChild) combo.el.removeChild(combo.el.firstChild);
     combo.el.appendChild(makeLine(`${LABELS.combo} x${combo.count} · ${combo.total}`,
       PALETTES.combo, SIZE.combo, 'pxd-combo-line'));
+    clampIntoView(combo.el);
     if (combo.timer != null) scheduler.clearTimeout(combo.timer);
     combo.timer = scheduler.setTimeout(() => { combo.timer = null; hideCombo(seat); }, COMBO_WINDOW_MS);
   }

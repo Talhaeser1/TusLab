@@ -402,3 +402,11 @@
   #pvp-root .rui-inter.is-dock .m33-player{padding:4px 8px}
   #pvp-root .rui-inter.is-dock .m33-player h3{margin:0}
 }
+
+/* Is 8b: raund arasi kartinda oyuncu portresi (kucuk yuvarlatilmis kare, kazanan vurgulu); kart yuksekligi ayni kalsin diye h3+istatistik sutununun yaninda durur. */
+#pvp-root .m33-player.has-portrait{display:grid;grid-template-columns:48px minmax(0,1fr);column-gap:8px;align-items:start}
+#pvp-root .m33-player.has-portrait>.m33-portrait{grid-row:1/span 2;align-self:start;width:48px;height:48px;min-width:48px;min-height:48px;max-width:none;object-fit:cover;object-position:50% 20%;border-radius:10px;border:2px solid #ffffff40;background:#0a0f22}
+#pvp-root .m33-player.is-winner .m33-portrait{border-color:var(--m33-player);box-shadow:0 0 0 2px #0a0f22,0 0 0 4px var(--m33-player)}
+#pvp-root .m33-player:not(.is-winner) .m33-portrait{filter:saturate(.75)}
+#pvp-root .m33-player.has-portrait>h3,#pvp-root .m33-player.has-portrait>.m33-stats{grid-column:2}
+@media(max-width:900px){#pvp-root .m33-player.has-portrait>.m33-portrait{width:44px;height:44px;min-width:44px;min-height:44px;grid-row:1;align-self:center}#pvp-root .m33-player.has-portrait{grid-template-columns:44px minmax(0,1fr);align-items:center}}

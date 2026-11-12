@@ -4385,6 +4385,10 @@ export async function createArena3D({
         }];
       })),
       skillFx: () => (skillFx ? skillFx.stats() : {live: 0, kinds: []}),
+      /** Ölçüm (kasma tanısı): kalite kademesi + çizim yükü. */
+      perf: () => ({step: autoStep(), quality: effectiveQuality(), bloom: bloomActive(), ratio: safeCall(() => renderer.getPixelRatio?.()) ?? null,
+        w: layoutState.width, h: layoutState.height, calls: renderer.info?.render?.calls ?? null, tris: renderer.info?.render?.triangles ?? null,
+        programs: renderer.info?.programs?.length ?? null, textures: renderer.info?.memory?.textures ?? null, geometries: renderer.info?.memory?.geometries ?? null}),
       /** Zincir planı tanısı (oynatmaz): koltuğun rig'i bu becerilerden kombo kurabiliyor mu? */
       chainPlan: (seat, skills) => fighters.get(seat)?.model?.chainPlan?.(skills) || null,
       plugins: () => plugins.length,

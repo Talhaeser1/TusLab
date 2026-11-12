@@ -1,5 +1,6 @@
 /** Results are server-derived; client renders presentation only. */
 import {getFighter} from './shared/fighters.js';
+import {portraitFor} from './portraits.js';
 const BOT_ID='practice-bot';
 const escapeHTML=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=n=>Number(n||0).toLocaleString('tr-TR');
@@ -24,7 +25,8 @@ export function resultCardHTML(player,winnerSeat,mvpSeat){
   const winner=player.seat===winnerSeat;
   const d=player.defense||{};const cast=player.skillCasts||{};
   return `<article class="pvp15-player pvp15-${player.character==='rune'?'rune':'fire'} ${winner?'pvp15-winner':''}">
-    <div class="pvp15-player-name"><span>${winner?'👑 ':''}${escapeHTML(player.name)}</span><small>${fighterLabel(player)}${player.seat===mvpSeat?' · MVP':''}</small></div>
+    <div class="pvp15-head"><img class="pvp15-portrait" src="${escapeHTML(portraitFor(player).url)}" alt="" width="84" height="84" decoding="async" draggable="false" data-portrait="${escapeHTML(portraitFor(player).id)}" data-fallback="${escapeHTML(portraitFor(player).fallback)}">
+    <div class="pvp15-player-name"><span>${winner?'👑 ':''}${escapeHTML(player.name)}</span><small>${fighterLabel(player)}${player.seat===mvpSeat?' · MVP':''}</small></div></div>
     <div class="pvp15-figures"><div><strong>${num(player.wpm)}</strong><small>WPM</small></div><div><strong>%${num(player.accuracy)}</strong><small>DOĞRULUK</small></div><div><strong>${num(player.damageDealt)}</strong><small>HASAR</small></div></div>
     <div class="pvp15-detail"><span>🔥 Q / E / R: ${num(cast.q)} / ${num(cast.e)} / ${num(cast.r)}</span><span>🛡 ${num(d.normalBlocks)} blok · ${num(d.perfectBlocks)} kusursuz blok · ${num(d.parries)} savuşturma</span><span>⚔ ${num(d.counters)} karşı saldırı · ${num(d.shieldBreaks)} kalkan kırma</span><span>⌨ ${num(player.correctWords)} doğru / ${num(player.wrongWords)} yanlış · ${num(player.maxCombo)} en yüksek kombo</span></div>
   </article>`;
@@ -42,6 +44,7 @@ export function renderResult(root,match,network){
   overlay.dataset.outcome=title.dataset.outcome;
   overlay.querySelector('[data-pvp15-reason]').textContent=END_LABELS[result.endReason]||'MAÇ SONUCU';
   overlay.querySelector('[data-pvp15-scores]').innerHTML=result.players.map(p=>resultCardHTML(p,result.winnerSeat,result.mvpSeat)).join('');
+  for(const img of overlay.querySelectorAll('.pvp15-portrait'))img.addEventListener('error',()=>{const fb=img.dataset.fallback;if(fb&&!img.src.endsWith(fb.slice(1)))img.src=fb;},{once:true});
   const votes=network.rematchVotes||[],mine=votes.includes(network.myId);
   // Bot maçında "iki oyuncu/sunucu" dili yanıltıcıydı: bot hep hazırdır, sonuç bu cihazda hesaplanır.
   const vsBot=votes.includes(BOT_ID)||result.players.some(p=>p.playerId===BOT_ID);
