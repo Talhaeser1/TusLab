@@ -68,7 +68,7 @@ async (page) => {
     const L = window.__a3, F = L.F, ev = L.ev;
     // satır: t dt | s1: x z top w ts state rotY homeX rigTs | s2: ... | q
     const S = s => (s === 1 ? 2 : 11);
-    const IDLE = /Combat_Stance|Idle/i, MOVE = /Run|Charge|Walk|Forward/i;
+    const IDLE = /Combat_Stance|Idle/i, MOVE = /Run_Charge|Forward_Charge|Walk|Dodge_Forward/i;
     const get = (row, s) => { const o = S(s); return {x: row[o], z: row[o + 1], top: row[o + 2], w: row[o + 3], ts: row[o + 4], st: row[o + 5], rot: row[o + 6], home: row[o + 7]}; };
     let maxJump = 0, jumpAt = '', maxJump60 = 0, bothAtk = 0;
     const ATK = new Set(['q', 'e', 'r']);
@@ -86,26 +86,14 @@ async (page) => {
     }
     // Sahneler: koltuğun SALDIRI bölümleri (durum q/e/r ya da evden > 0,03 uzakta ve tepki klibinde değil),
     // aralar < 200 ms birleşir. Her bölümün başındaki cast olayı becerisini verir.
-    const casts = ev.filter(e => e[1] === 'cast');
+    // Sahne pencereleri: arena'nın kendi işaretleri (cast → aynı koltuğun end'i) — görsel kuyruğun gerçek sahnesi.
+    const PM = (window.__tuslabAnimProbe?.events || []).map(e => ({t: Math.round(e.t - L.t0), type: e.type, seat: e.seat, skill: e.skill, forced: e.forced}));
     const scenes = [];
-    const episodes = [];
-    for (const s of [1, 2]) {
-      let cur = null;
-      for (const r of F) {
-        const a = get(r, s);
-        const on = ATK.has(a.st) || (Math.abs(a.x - a.home) > 0.03 && !/hit|block|ko/.test(a.st));
-        if (on) { if (cur && r[0] - cur.b < 200) cur.b = r[0]; else { if (cur) episodes.push(cur); cur = {s, a: r[0], b: r[0]}; } }
-      }
-      if (cur) episodes.push(cur);
-    }
-    episodes.sort((x, y) => x.a - y.a);
-    for (const ep of episodes) {
-      if (ep.b - ep.a < 120) continue;
-      const s = ep.s;
-      const castEv = casts.filter(c => c[2] === s && c[0] <= ep.a + 50 && c[0] >= ep.a - 1500).slice(-1)[0];
-      const tc = castEv ? Math.min(castEv[0], ep.a) : ep.a;
-      const skill = castEv?.[3] || '?';
-      const rows = F.filter(r => r[0] >= tc && r[0] <= ep.b + 1200);
+    for (const c of PM.filter(e => e.type === 'cast')) {
+      const s = c.seat, tc = c.t, skill = c.skill;
+      const endM = PM.find(e => e.type === 'end' && e.seat === s && e.t >= tc);
+      const tEnd = endM ? endM.t : tc + 8000;
+      const rows = F.filter(r => r[0] >= tc && r[0] <= tEnd + 400);
       if (!rows.length) continue;
       const home = get(rows[0], s).home;
       const disp = rows.map(r => Math.abs(get(r, s).x - home));
@@ -138,11 +126,14 @@ async (page) => {
       // vuruş klibi: ilk saldırı klibi (hareket/idle değil)
       const atkRow = rows.find(r => { const a = get(r, s); return a.top && !IDLE.test(a.top) && !MOVE.test(a.top); });
       if (atkRow) { const a = get(atkRow, s); sc.atkClip = a.top; const tsList = rows.filter(r => get(r, s).top === a.top).map(r => get(r, s).ts); sc.atkTs = [Math.min(...tsList), Math.max(...tsList)].map(v => +v.toFixed(2)); sc.atkMs = rows.filter(r => get(r, s).top === a.top).length ? rows.filter(r => get(r, s).top === a.top).slice(-1)[0][0] - atkRow[0] : 0; }
-      const win = e => e[0] >= tc && e[0] < (sc.endT ?? tc + 6000) + 300;
+      sc.endT = tEnd; sc.forced = Boolean(endM?.forced);
+      const win = e => e[0] >= tc && e[0] < tEnd + 300;
       const strikes = ev.filter(e => e[1] === 'strike' && e[2] === s && win(e)).map(e => e[0] - tc);
       const impacts = ev.filter(e => e[1] === 'impact' && e[2] === s && win(e)).map(e => e[0] - tc);
       const floats = ev.filter(e => e[1] === 'float' && e[2] === (s === 1 ? 2 : 1) && win(e)).map(e => e[0] - tc);
       const hps = ev.filter(e => e[1] === 'hp' && e[2] === (s === 1 ? 2 : 1) && win(e)).map(e => e[0] - tc);
+      const first = Math.min(...strikes, ...impacts, Infinity);
+      sc.early = ev.filter(e => e[1] === 'float' && e[2] === (s === 1 ? 2 : 1) && win(e) && e[0] - tc < first - 100).map(e => (e[0] - tc) + ':' + e[3]);
       Object.assign(sc, {strike: strikes, impact: impacts, float: floats, hp: hps});
       scenes.push(sc);
     }
@@ -159,15 +150,17 @@ async (page) => {
     const probs = ev.filter(e => (e[1] === 'float' || e[1] === 'hp') && !inScene(e[0], e[2])).map(e => e[0]).slice(0, 4);
     const evlog = [];
     for (const t of probs) { evlog.push(`--- ${t}`); for (const e of all) if (e[0] >= t - 2500 && e[0] <= t + 200) evlog.push(e.join(' ')); }
+    const forcedEnds = PM.filter(e => e.type === 'end' && e.forced).length;
+    const silents = PM.filter(e => e.type === 'silent').map(e => e.t + ':' + e.skill);
     const fr = F.map(r => r[1]).slice(5);
     return {frames: F.length, avgDt: +(fr.reduce((a, b) => a + b, 0) / Math.max(1, fr.length)).toFixed(1), over250: fr.filter(x => x > 250).length, maxDt: Math.max(...fr),
       maxJump: +maxJump.toFixed(3), maxJump60: +maxJump60.toFixed(3), jumpAt, bothAtk, idleSlide, idleSlideAt,
-      evlog: evlog.slice(0, 90), switches, orphanHp: orphanHp.slice(0, 10), orphanFloat: orphanFloat.slice(0, 10), calloutFrames: L.calloutFrames, calloutText: L.calloutText,
+      forcedEnds, silents: silents.slice(0, 12), evlog: evlog.slice(0, 60), switches, orphanHp: orphanHp.slice(0, 10), orphanFloat: orphanFloat.slice(0, 10), calloutFrames: L.calloutFrames, calloutText: L.calloutText,
       scenes: scenes.slice(0, 40).map(sc => {
         const top = o => o ? Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k}×${v}`).join(',') : '';
         const near = (list, ref) => list.length && ref.length ? Math.max(...list.map(x => Math.min(...ref.map(y => Math.abs(x - y))))) : null;
         return `s${sc.seat}${sc.skill}@${sc.t} disp${sc.maxDisp}` + (sc.goMs !== undefined ? ` GO ${sc.goMs}ms[${top(sc.goClips)}] RET ${sc.retMs}ms[${top(sc.retClips)}] step${sc.retMaxStep} back${sc.retBackFacing}% idle+${sc.idleAfterRetMs}` : ` STAY[${top(sc.clips)}]`) +
-          ` ATK ${sc.atkClip || '-'} ts${(sc.atkTs || []).join('-')} ${sc.atkMs ?? ''}ms | strike ${sc.strike.join(',')} | float ${sc.float.join(',')} | hp ${sc.hp.join(',')} | dFloat${near(sc.float, sc.strike.concat(sc.impact))} dHp${near(sc.hp, sc.strike.concat(sc.impact))} end${sc.endT - sc.t}`;
+          ` ATK ${sc.atkClip || '-'} ts${(sc.atkTs || []).join('-')} ${sc.atkMs ?? ''}ms | strike ${sc.strike.join(',')} | float ${sc.float.join(',')} | hp ${sc.hp.join(',')} | dFloat${near(sc.float, sc.strike.concat(sc.impact))} early[${sc.early.join(',')}] dHp${near(sc.hp, sc.strike.concat(sc.impact))} end${sc.endT - sc.t}`;
       })};
   });
   r.diag = await page.evaluate(() => ({url: location.search.slice(0, 80), cls: document.querySelector('#pvp-root')?.className, hidden: document.querySelector('#pvp-root')?.hidden,

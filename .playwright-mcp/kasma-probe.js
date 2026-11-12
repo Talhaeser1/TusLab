@@ -5,13 +5,19 @@ async (page) => {
   P = Object.assign({mode: 'rounds', w: 1366, h: 768, f1: 'vargr', f2: 'nyx', maxMs: 100000, gap: 260}, P);
   await page.setViewportSize({width: P.w, height: P.h});
   const errs = []; page.on('pageerror', e => errs.push(String(e).slice(0, 200)));
+  // Başka işçinin yarım dosyaları: HEAD kopyası (anim3-probe ile aynı yalıtım).
+  {
+    const fs = await import('node:fs');
+    const list = fs.existsSync('.playwright-mcp/head/list.txt') ? fs.readFileSync('.playwright-mcp/head/list.txt', 'utf8').split(/\r?\n/).filter(Boolean) : [];
+    for (const f of list) await page.route(`**/${f}`, route => route.fulfill({status: 200, contentType: f.endsWith('.css') ? 'text/css' : 'text/javascript', body: fs.readFileSync(`.playwright-mcp/head/${f}`, 'utf8')}));
+  }
   await page.addInitScript(() => {
     const E = window.__kev = []; // [t, tür, ayrıntı, süre]
     const push = (k, d, ms = 0) => { if (E.length < 4000) E.push([performance.now(), k, String(d).slice(0, 60), Math.round(ms)]); };
     window.__kpush = push;
     try { new PerformanceObserver(l => { for (const e of l.getEntries()) push('res', e.name.split('/').pop().split('?')[0], e.duration); }).observe({type: 'resource', buffered: false}); } catch { /* yok */ }
     try { new PerformanceObserver(l => { for (const e of l.getEntries()) push('longtask', e.name, e.duration); }).observe({type: 'longtask'}); } catch { /* yok */ }
-    try { new PerformanceObserver(l => { for (const e of l.getEntries()) { const s = (e.scripts || []).sort((a, b) => b.duration - a.duration)[0]; push('loaf', `blk${Math.round(e.blockingDuration)} rnd${Math.round(e.duration - (e.renderStart - e.startTime))} sty${Math.round(e.styleAndLayoutStart ? e.startTime + e.duration - e.styleAndLayoutStart : 0)} ${s ? (s.sourceFunctionName || s.invoker || '') + '@' + String(s.sourceURL || '').split('/').pop() + ':' + Math.round(s.duration) : ''}`, e.duration); } }).observe({type: 'long-animation-frame'}); } catch { /* yok */ }
+    try { new PerformanceObserver(l => { for (const e of l.getEntries()) { const s = [...(e.scripts || [])].sort((a, b) => b.duration - a.duration)[0]; push('loaf', `blk${Math.round(e.blockingDuration)} rnd${Math.round(e.duration - (e.renderStart - e.startTime))} sty${Math.round(e.styleAndLayoutStart ? e.startTime + e.duration - e.styleAndLayoutStart : 0)} ${s ? (s.sourceFunctionName || s.invoker || '') + '@' + String(s.sourceURL || '').split('/').pop() + ':' + Math.round(s.duration) : ''}`, e.duration); } }).observe({type: 'long-animation-frame'}); } catch { /* yok */ }
     for (const C of [window.WebGL2RenderingContext, window.WebGLRenderingContext]) {
       if (!C) continue;
       for (const fn of ['texImage2D', 'texSubImage2D', 'compressedTexImage2D', 'texStorage2D', 'generateMipmap', 'linkProgram', 'bufferData', 'readPixels', 'finish']) {
@@ -104,7 +110,7 @@ async (page) => {
     const pct = p => srt[Math.min(srt.length - 1, Math.floor(srt.length * p))];
     // Her uzun kare: o karenin başladığı andan 400 ms öncesine dek başlayan olaylar
     const long = L.long.map(x => {
-      const near = E.filter(e => e[0] >= x.at - 400 && e[0] <= x.at + x.dt).map(e => `${Math.round(e[0] - x.at)}:${e[1]}:${e[2]}${e[3] ? '(' + e[3] + ')' : ''}`).slice(0, 14);
+      const near = E.filter(e => e[0] >= x.at - 400 && e[0] <= x.at + x.dt && !/^(dom\+|class|decode)$/.test(e[1])).map(e => `${Math.round(e[0] - x.at)}:${e[1]}:${e[2]}${e[3] ? '(' + e[3] + ')' : ''}`).slice(0, 14);
       return `${x.t}+${x.dt} [${x.st}] q${x.q} fx${x.fx} ${x.cls} ${x.pf ? `step${x.pf.step} r${x.pf.ratio} ${x.pf.w}x${x.pf.h} calls${x.pf.calls} prog${x.pf.programs} tex${x.pf.textures}` : ''} || ${near.join(' ; ')}`;
     });
     const pf = (() => { try { return window.__tuslabArena3d?._debug?.perf?.(); } catch { return null; } })();

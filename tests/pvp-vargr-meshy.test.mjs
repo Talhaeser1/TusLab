@@ -179,7 +179,7 @@ test('vargr meshy: q/e yolculuk+temas; ulti baştan sona doğal hızda', () => {
   const qPlan = rig.plan('q');
   const T = qPlan.timing;
   assert.equal(T.telegraphMs, 350);
-  assert.equal(qPlan.travelMs, 1350, 'telegraf + ~1000 ms koşu');
+  assert.equal(qPlan.travelMs, 350 + 1100, 'telegraf + ~1100 ms koşu');
   assert.equal(qPlan.speed, 1, 'vuruş klibi doğal hızda');
   assert.ok(Math.abs(qPlan.hitMs - (T.strikes[0].start + 750)) < 1, `q temas ${qPlan.hitMs}`);
   run('q', T.telegraphMs + 50);

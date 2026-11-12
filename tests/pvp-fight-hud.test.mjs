@@ -209,20 +209,36 @@ test('süper bar: classic r/5, dolunca SÜPER HAZIR, arenada gizli', () => {
   assert.equal(bar2.hidden, true);
 });
 
-test('süper bar: ULTİ anında dolu parlar; 3B arenada sunucu anında donma/ulti adı YOK (sahne sırası)', () => {
-  // İş 1, 3. tur (kullanıcı: "hasar verirken Sur Çöküşü vs. yazmasın"): 3B arenada ulti sahnesi sıraya girer ve kendi
-  // girişini (yavaş çekim + kamera) sahne başında yapar; SKILL_CAST anındaki superFreeze + "ULTİ ADI!" yazısı başka bir
-  // vuruşun üstüne biniyordu. Bar parlaması (HUD) kalır.
+test('süper bar: ULTİ anında dolu parlar ve superFreeze çağrılır', () => {
   const {stage, clock, hud, calls, root} = setup();
   hud.update({mode: 'classic', status: 'running', players: players.map(p => ({...p, skillCharge: {r: 0}}))}, 'me');
-  const before = calls.length;
   hud.handle({type: 'SKILL_CAST', skill: 'r', fromSeat: 1});
   const bar = stage[1].children.find(c => c.className.includes('fhud-super'));
   assert.match(bar.className, /fhud-ready/);
-  assert.equal(calls.slice(before).some(c => c[0] === 'superFreeze'), false);
-  assert.notEqual(callText(root), CALLS.ultimate);
+  assert.deepEqual(calls.at(-1), ['superFreeze', 1, HUD_TIMES.freeze]);
+  assert.equal(callText(root), CALLS.ultimate);
   clock.advance(HUD_TIMES.superFlash);
   assert.doesNotMatch(bar.className, /fhud-ready/);
+});
+
+test('3B modeller sahne oynatırken: sunucu anında ulti adı/donma ve PARRY/KONTRA/KALKAN/DESTEK anonsu YOK', () => {
+  // İş 1, 3. tur (kullanıcı: "hasar verirken Sur Çöküşü, süre vs. yazmasın"): saldırılar görsel sırada oynar;
+  // sunucu anındaki yazılar başka bir vuruşun üstüne biniyordu. Bar parlaması ve KO/KRİTİK kalır.
+  const dom = fakeRoot({});
+  const clock = fakeScheduler();
+  const calls = [];
+  const api = {superFreeze: (...a) => calls.push(['superFreeze', ...a]), slowMo: (...a) => calls.push(['slowMo', ...a]),
+    introSweep() {}, fighterModel: seat => (seat === 1 ? {rig: {}} : null)};
+  const hud = createFightHud({root: dom.root, scheduler: clock.scheduler, getArenaApi: () => api});
+  hud.update({mode: 'classic', status: 'running', players: players.map(p => ({...p, skillCharge: {r: 0}}))}, 'me');
+  hud.handle({type: 'SKILL_CAST', skill: 'r', fromSeat: 1});
+  const bar = dom.stage[1].children.find(c => c.className.includes('fhud-super'));
+  assert.match(bar.className, /fhud-ready/, 'HUD bar parlaması kalır');
+  assert.equal(calls.some(c => c[0] === 'superFreeze'), false);
+  for (const ev of [{type: 'PARRY_TRIGGERED', seat: 2}, {type: 'COUNTERATTACK_CAST', fromSeat: 2}, {type: 'SHIELD_BROKEN', seat: 1}, {type: 'ASSIST_CAST', fromSeat: 1}]) hud.handle(ev);
+  assert.equal(callText(dom.root), '', 'anons yok');
+  hud.handle({type: 'KNOCKOUT', seat: 2});
+  assert.equal(callText(dom.root), CALLS.knockout, 'KO anonsu kalır');
 });
 
 // ---- Anonslar --------------------------------------------------------------

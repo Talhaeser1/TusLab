@@ -684,7 +684,9 @@ function playCombat(action){
   if(action.type==='WORD_CLASH')soundAtScene('cast',null,'clash',{character:'center',gain:.78});
   // Paket 31: partner desteği girişi — yeni ses dosyası yok, mevcut 'counter' örneği kısık çalınır.
   if(action.type==='ASSIST_CAST')pvpAudio.play('counter',{character:action.fromSeat===2?'rune':'fire',gain:.62});
-  if(action.type!=='DAMAGE_APPLIED')fx24.damage?.handle(action);
+  // İş 1, 3. tur: 3B arenada vuruş sırasında yalnız hasar sayısı (+KRİTİK/KOMBO) — PARRY!/PERFECT!/KONTRA/DESTEK/
+  // KALKAN KIRIK! gibi etiketler sunucu anında, sahneden bağımsız beliriyordu (blok/kalkan tepkisi sahnede görünür).
+  if(action.type!=='DAMAGE_APPLIED'&&!(arena3d.instance&&!fx24Reduced()))fx24.damage?.handle(action);
   if(action.type==='DAMAGE_APPLIED'&&arena3d.instance)fx24.shownHp?.expect?.(action); // can çubuğu temas karesine kadar eski değerde
   if(action.type==='SHIELD_BROKEN'){try{root.dispatchEvent(new CustomEvent('tuslab:pvp-status',{detail:{seat:action.seat,text:'KALKAN KIRIK',tone:'break'}}));}catch{}}
   if(arena3d.instance)arena3d.instance.handle(action);
@@ -910,7 +912,8 @@ function focusTypingWhenReady(attempt=0){
 }
 root?.addEventListener('tuslab:pvp-recovered',()=>arena3d.instance?.clear());
 root?.addEventListener('tuslab:pvp-arena',event=>{
-  if(['ARENA_ROUND_START','ARENA_PREP_START'].includes(event.detail?.type))arena3d.instance?.clear();
+  // İş 1, 3. tur: hazırlık (PREP) kartlarının arkasında bekleyen sahneler animasyonla biter; temizlik yeni raund başında.
+  if(event.detail?.type==='ARENA_ROUND_START')arena3d.instance?.clear();
   if(event.detail?.type==='ARENA_ROUND_END')arena3d.instance?.visualQueue?.drain(12000); // İş 1, 3. tur: bekleyenler sıralı ve animasyonlu; gerekirse raund arası kartının arkasında sürer
 });
 root?.addEventListener('tuslab:pvp-round',event=>{

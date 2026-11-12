@@ -2248,6 +2248,9 @@ export async function createArena3D({
           api.flash(fighters.get(seat).palette.main, 0.14, 260);
           ultimateIntro(seat);
           const pending = fighter.pendingUltEvents ? fighter.pendingUltEvents.splice(0) : [];
+          // İş 1, 3. tur: faz olayları hasardan ÖNCE işlenir (aksi hâlde ulti henüz kurulmadan gelen hasar
+          // "bağsız" sayılıp sahnesiz teslim ediliyordu — raund sonu ölçümünde 3 sayı).
+          pending.sort((a, b) => (a.type === 'ULTIMATE_PHASE' ? 0 : 1) - (b.type === 'ULTIMATE_PHASE' ? 0 : 1));
           replayingUlt = true;
           try { for (const event of pending) handle(event); } finally { replayingUlt = false; }
           // Girdi süresi = ulti koreografisi (zirve → fırlatma). Klibin toparlanma kuyruğu beklenmez
@@ -2589,9 +2592,13 @@ export async function createArena3D({
     const fighter = fighters.get(seat);
     const a = clamp((Number(amount) || 0) / HEAVY_DAMAGE, 0.08, 1);
     modelPlay(seat, 'hit', {heavy: a > 0.6});
-    const dist = 0.25 + 0.95 * a;
-    addTrack(fighter, 420 + 260 * a, (p, o, m) => {
-      const env = p < .18 ? .18 + easeOutCubic(p / .18) * .94
+    // İş 1, 3. tur: 3B modelde geri itilme okunur ve sıçramasız (ilk karede %18 sıçrama + 110 ms'de 1,2 birim
+    // ışınlanma sınırını aşıyor, sonra model idle pozunda geri kayıyordu). Düz siluette eski sert zarf.
+    const soft = Boolean(fighter?.model);
+    const dist = soft ? 0.2 + 0.5 * a : 0.25 + 0.95 * a;
+    addTrack(fighter, soft ? 650 + 300 * a : 420 + 260 * a, (p, o, m) => {
+      const env = soft ? (p < .3 ? easeInOutSine(p / .3) : 1 - easeInOutSine((p - .3) / .7))
+        : p < .18 ? .18 + easeOutCubic(p / .18) * .94
         : Math.exp(-5 * (p - .18)) * Math.cos((p - .18) * 5.8) * (1 - p) / .82;
       o.fwd += -dist * env * m;
       o.tilt += (0.18 + 0.32 * a) * env * m;
@@ -3034,7 +3041,7 @@ export async function createArena3D({
       safeCall(() => rig.setLocoSpeed?.(fighter.speed));
       const moving = fighter.speed > (rig.isLocomoting?.() ? 0.35 : 0.8);
       safeCall(() => rig.autoLocomote?.(moving && !quiet));
-      const autoHome = rig.isLocomoting?.() && !fighter.tracks.length && fighter.awayFromFoe ? 1 : 0;
+      const autoHome = rig.isAutoLocomoting?.() && fighter.awayFromFoe ? 1 : 0;
       const target = quiet ? 0 : Math.max(clamp(o.turn, 0, 1), autoHome);
       const rate = dtPose / Math.max(1, SCENE.turnMs);
       fighter.turnK = (fighter.turnK || 0) + clamp(target - (fighter.turnK || 0), -rate, rate);

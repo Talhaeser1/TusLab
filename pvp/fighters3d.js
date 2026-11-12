@@ -388,7 +388,7 @@ export const COMBO = Object.freeze({
  * Hit-stop sahne saatini durdurur (rig/kuyruk/iz aynı saat) → burada ayrıca eklenmez.
  */
 export const SCENE = Object.freeze({
-  telegraphMs: 350, approachMs: 1000, windupMaxMs: 750, followMaxMs: 750, strikeLeadMs: 60, overlapMs: 120,
+  telegraphMs: 350, approachMs: 1100, windupMaxMs: 750, followMaxMs: 750, strikeLeadMs: 60, overlapMs: 120,
   holdMs: 200, turnMs: 200, returnMs: 1100, idleFadeMs: 300, projectileMs: 600, reactMs: 900,
   speedMax: 1.25, maxStrikes: 3,
   runRefSpeed: 5.2,          // koşu klibinin timeScale 1'deki yol hızı (gövde birimi/sn) — ayak kayması oranı
@@ -410,7 +410,8 @@ export function sceneTiming(strikes, {compress = false, fixed = null, notBefore 
   const k = compress ? SCENE.speedMax : 1;
   const ranged = list.every(s => s.ranged);
   const telegraphMs = SCENE.telegraphMs / k;
-  const arrive = ranged ? telegraphMs : telegraphMs + SCENE.approachMs / k;
+  // Gidiş/dönüş baskıda da hızlanmaz (okunur yürüyüş); yalnız telegraf, vuruş ve duruş ×k.
+  const arrive = ranged ? telegraphMs : telegraphMs + SCENE.approachMs;
   const out = [];
   for (let i = 0; i < list.length; i++) {
     const s = list[i];
@@ -433,10 +434,10 @@ export function sceneTiming(strikes, {compress = false, fixed = null, notBefore 
     const totalMs = Math.max(lastEnd + SCENE.idleFadeMs / k, lastContact + SCENE.reactMs / k);
     return {k, telegraphMs, arrive, strikes: out, contacts: out.map(o => o.contact), returnStart: lastEnd, moveStart: lastEnd, homeAt: lastEnd, totalMs, moveIn: 0};
   }
-  const turn = SCENE.turnMs / k;
+  const turn = SCENE.turnMs;
   const returnStart = lastEnd + SCENE.holdMs / k; // takipten sonra kısa duruş (zincire ekleme penceresi)
   const moveStart = returnStart + turn * 0.6; // yön çevirmenin sonuna doğru yürümeye başlar
-  const homeAt = moveStart + SCENE.returnMs / k;
+  const homeAt = moveStart + SCENE.returnMs;
   const totalMs = Math.max(homeAt + turn, lastContact + SCENE.reactMs / k);
   return {k, telegraphMs, arrive, strikes: out, contacts: out.map(o => o.contact), returnStart, moveStart, homeAt, totalMs, turnMs: turn, moveIn: 1};
 }
@@ -953,6 +954,7 @@ export function createFighterRig(THREE, asset, {
   function goIdle(fade) {
     state.name = 'idle';
     state.loco = false;
+    state.autoLoco = false;
     state.planTotal = 0;
     state.queue.length = 0;
     state.chain = [];
@@ -1038,6 +1040,7 @@ export function createFighterRig(THREE, asset, {
         offset: step.offset || 0, endMs: step.endMs || 0,
       });
       state.loco = Boolean(step.loco);
+      state.autoLoco = false;
     }
   }
 
@@ -1052,9 +1055,15 @@ export function createFighterRig(THREE, asset, {
    * kayıyorsa koşu klibine, durunca idle'a geçer (idle pozunda kayma yok).
    */
   function autoLocomote(moving) {
-    if (state.disposed || state.name !== 'idle' || !clipByName.has(stateRun)) return;
-    if (moving && !state.loco) { fadeTo(stateRun, {loop: true, speed: state.locoTs, fade: 160}); state.loco = true; }
-    else if (!moving && state.loco) { fadeTo(idleClip, {loop: true, fade: SCENE.idleFadeMs}); state.loco = false; }
+    if (state.disposed || !clipByName.has(stateRun)) return;
+    // Ulti: temas + toparlanma geçtikten sonra eve dönüş de koşu klibiyle (ulti klibinde geri geri kayma yok).
+    const ultReturn = state.name === 'r' && state.elapsed > (ultScene?.peakMs || 0) + 250;
+    if (state.name !== 'idle' && !ultReturn && !state.autoLoco) return;
+    if (moving && !state.loco) { fadeTo(stateRun, {loop: true, speed: state.locoTs, fade: 90}); state.loco = true; state.autoLoco = true; }
+    else if (!moving && state.loco && state.autoLoco) {
+      state.autoLoco = false;
+      if (state.name === 'r') { anim.finish(); goIdle(SCENE.idleFadeMs); } else { fadeTo(idleClip, {loop: true, fade: SCENE.idleFadeMs}); state.loco = false; }
+    }
   }
 
   /**
@@ -1128,7 +1137,7 @@ export function createFighterRig(THREE, asset, {
     // Tek seferlik klip bitti → Idle (ko/win hariç; adım kuyruğu bitmiş olmalı).
     // Varyant kliplerinde endMs: klibin yalnız o pencereyi oynatır (r'nin uzun kuyruğu).
     const cur = state.current;
-    if (cur && state.name !== 'idle' && state.name !== 'ko' && state.name !== 'win' && !state.queue.length) {
+    if (cur && !state.autoLoco && state.name !== 'idle' && state.name !== 'ko' && state.name !== 'win' && !state.queue.length) {
       const clip = cur.getClip?.();
       const endMs = state.endMs || (clip ? clip.duration * 1000 : 0);
       const reactionCap = anim.state.kind === 'hit' || anim.state.kind === 'block' ? 900 : Infinity;
@@ -1239,7 +1248,7 @@ export function createFighterRig(THREE, asset, {
     ultimatePeakMs: ultScene ? Math.round(ultScene.peakMs) : variantReady?.skills?.r?.peakMs || null,
     ultimateDurationMs: ultScene ? Math.round(ultScene.durationMs) : variantReady?.skills?.r ? clipMs(variantReady.skills.r.clip) : null,
     anim, play, plan, sceneDuration, update, setTimeScale, setPaused, setYaw, setTint, setOpacity, boneWorld, reset, dispose,
-    setLocoSpeed, autoLocomote, isLocomoting: () => state.loco,
+    setLocoSpeed, autoLocomote, isLocomoting: () => state.loco, isAutoLocomoting: () => Boolean(state.autoLoco),
     /** Görev 4: kombo zinciri — plan(skills,{compress}) / oynat / aktif zincire ekleme. */
     playChain, extendChain, chainPlan: (skills, opts) => chainPlan(skills, opts),
     skillDuration: skill => (choreo[skill] ? skillDuration(choreo[skill]) : 0),

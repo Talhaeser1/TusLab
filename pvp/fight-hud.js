@@ -77,8 +77,16 @@ export function callFor(event, fighterOf = () => null) {
   }
 }
 
+/** Sahne sırasıyla eşleşmeyen (sunucu anında gelen) anonslar: 3B modeller sahne oynatırken gösterilmez. */
+export const SCENE_TIMED_CALLS = Object.freeze(['SKILL_CAST', 'PARRY_TRIGGERED', 'COUNTERATTACK_CAST', 'SHIELD_BROKEN', 'ASSIST_CAST']);
+
 export function createFightHud({root, isReduced = () => false, scheduler = globalThis, getArenaApi = () => null} = {}) {
   const doc = root?.ownerDocument || globalThis.document || null;
+  // 3B karakter modelleri yüklü ve hareket azaltılmamış → saldırılar görsel sahne sırasıyla oynar.
+  const scenesQueued = () => {
+    if (isReduced()) return false;
+    try { const a = getArenaApi(); return Boolean(a?.fighterModel?.(1) || a?.fighterModel?.(2)); } catch { return false; }
+  };
   const noop = () => {};
   if (!root || !doc?.createElement) return {handle: noop, matchStart: noop, update: noop, matchEnd: noop, clear: noop, destroy: noop};
 
@@ -382,16 +390,18 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
           else { bumpCombo(from, amount); if (to) hideCombo(to); }
         }
       } else if (event.type === 'SKILL_CAST' && event.skill === 'r' && !event.arena) {
-        // İş 1, 3. tur: 3B arenada ulti sahnesi sıraya girer ve girişini (yavaş çekim + kamera) sahne başında
-        // kendisi yapar; sunucu anındaki süper donması ve "SUR ÇÖKÜŞÜ!" yazısı başka bir vuruşun üstüne biniyordu.
-        // superFreeze yalnız 3B api'si varken bir şey yapar → kaldırıldı; HUD bar parlaması kalır.
+        // İş 1, 3. tur: 3B modeller sahne oynatıyorsa ulti sahnesi sıraya girer ve girişini (yavaş çekim + kamera)
+        // sahne başında kendisi yapar; sunucu anındaki süper donması ve "SUR ÇÖKÜŞÜ!" yazısı başka bir vuruşun
+        // üstüne biniyordu. HUD bar parlaması kalır.
         const seat = seatOf(event.fromSeat);
-        if (seat) flashSuper(seat);
-        if (getArenaApi()) return true;
+        if (seat) { if (!scenesQueued()) callApi('superFreeze', seat, HUD_TIMES.freeze); flashSuper(seat); }
       } else if (event.type === 'KNOCKOUT') {
         callApi('slowMo', HUD_TIMES.slowRate, HUD_TIMES.slowMs);
       }
       const c = callFor(event, seat => players.get(seat)?.fighter || null);
+      // İş 1, 3. tur: sahneler sıradayken sunucu anındaki ulti adı / PARRY / KONTRA / KALKAN KIRIK / DESTEK anonsları
+      // sahnenin vuruşuyla eşleşmiyordu → vuruş sırasında yalnız hasar sayısı (+KRİTİK, KO) kalır.
+      if (c && SCENE_TIMED_CALLS.includes(event.type) && scenesQueued()) return true;
       if (c) enqueueCall(c.text, c.seat, PRIORITY.has(c.text) ? {ms: HUD_TIMES.final} : {});
       return true;
     } catch { return false; }

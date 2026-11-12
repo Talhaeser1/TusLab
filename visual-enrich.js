@@ -20,14 +20,19 @@
   window.__veImpactPick = pickImpact;
 
   // Efekt görsellerini önceden indir ki ilk vuruşta gecikmesin.
+  // İş 1, 3. tur (kasma): ilk vuruşta ~0,8 sn indirme + çözme donması ölçüldü → maç açılınca da ısıt, decode() ile
+  // önceden çöz ve referansı tut (çöp toplanıp yeniden çözülmesin).
   let warmed = false;
+  const warmImgs = [];
   function warm() {
     if (warmed) return; warmed = true;
     for (const side of ['ates', 'run']) for (const kind of ['vurus', 'kivilcim', 'ulti']) {
       const img = new Image(); img.decoding = 'async'; img.src = `${BASE}efekt-${side}-${kind}.webp`;
+      warmImgs.push(img); img.decode?.().catch(() => {});
     }
   }
   document.addEventListener('tuslab:pvp-enter', warm);
+  document.addEventListener('tuslab:pvp-match', warm, true);
 
   document.addEventListener('tuslab:pvp-impact', event => {
     const root = document.getElementById('pvp-root');
