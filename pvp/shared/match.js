@@ -9,7 +9,7 @@
  * Round mode (docs/TUR-SISTEMI.md): createMatch(players,at,id,{rounds,seed?,pickWords?}).
  * Without options the classic 90 s match is unchanged.
  */
-import {pickWords as bankPickWords,createSeed} from './words.js';
+import {pickWords as bankPickWords,pickSentence as bankSentence,createSeed} from './words.js';
 import {normalizeTyping,wordsMatch,charScore} from './typing-rules.js';
 import {normalizeContent,contentWords,DEFAULT_CONTENT} from './content-modes.js';
 import {ARENA_SKILLS,ARENA_MAX_USES} from './arena-skills.js';
@@ -182,13 +182,16 @@ function ensureRoundWords(match,needed){
   while(r.words.length<needed){
     const k=(r.extended||0)+1;r.extended=k;
     if(isContentMatch(match)){ // atasözü/şiir: kaldığı yerden sıra; Osmanlıca: aynı dilimden yeni kelimeler
-      const more=contentWords(match.content,{start:(r.contentStart||0)+r.words.length,seed:`${match.seed}:x${k}`,round:r.index,total:match.totalRounds,count:ROUND_EXTEND_CHUNK,exclude:r.words});
-      r.words.push(...more.words);r.hints.push(...more.hints);continue;
+      const more=contentWords(match.content,{start:(r.contentStart||0)+r.words.length,seed:match.seed,salt:`x${k}`,round:r.index,total:match.totalRounds,count:ROUND_EXTEND_CHUNK,exclude:[...(match.usedWords||[]),...r.words]});
+      r.words.push(...more.words);r.hints.push(...more.hints);match.usedWords.push(...more.words);continue;
     }
     const rule=wordRule(r.index,match.totalRounds);
-    let more=cleanWords(bankPickWords({seed:`${match.seed}:r${r.index}:x${k}`,count:ROUND_EXTEND_CHUNK,...rule,exclude:r.words.slice(-ROUND_EXTEND_CHUNK*2)}));
+    // Maçta kullanılmış ve sonraki raundlara ayrılmış kelimeler tekrar gelmez; havuz yetmezse yalnız son kelimeler hariç tutulur.
+    const reserved=[...(match.usedWords||[]),...r.words,...(match.roundPlan||[]).flat()];
+    let more=cleanWords(bankPickWords({seed:`${match.seed}:r${r.index}:x${k}`,count:ROUND_EXTEND_CHUNK,...rule,exclude:reserved}));
+    if(more.length<ROUND_EXTEND_CHUNK)more=cleanWords([...more,...bankPickWords({seed:`${match.seed}:r${r.index}:x${k}:f`,count:ROUND_EXTEND_CHUNK-more.length,...rule,exclude:[...r.words.slice(-ROUND_EXTEND_CHUNK*3),...more]})]);
     if(!more.length)more=r.words.slice(0,ROUND_EXTEND_CHUNK);
-    r.words.push(...(more.length?more:['tuşlab']));
+    r.words.push(...(more.length?more:['tuşlab']));match.usedWords.push(...more);
   }
 }
 function resetForRound(p,words){
@@ -275,6 +278,11 @@ export function createMatch(players,at=Date.now(),id=crypto.randomUUID(),options
   if(options?.exchangeMs>0&&options.rounds===undefined){
     const duration=Math.max(1,Math.trunc(options.exchangeMs));
     match.exchange={index:1,startedAt:at,endsAt:Math.min(at+duration,match.endsAt),phase:'typing',duration};
+    // Klasik: tohum verilirse her oyuncunun cümleleri tohumdan üretilir (her maç farklı, sunucu durumundan deterministik).
+    if(options.seed!==undefined&&options.seed!==null){
+      match.phraseSeed=typeof options.seed==='string'||Number.isFinite(options.seed)?options.seed:randomSeed();
+      for(const p of match.participants){p.phraseNo=0;setPhrase(match,p);}
+    }
     return match;
   }
   if(!options||typeof options!=='object'||options.rounds===undefined)return match;
@@ -348,8 +356,15 @@ export function publicMatch(match,viewerSeat){
         roundCorrect:p.roundCorrect,roundWrong:p.roundWrong,roundBestStreak:p.roundBestStreak,roundDamage:p.roundDamage,
         roundDone:p.roundDone,finishedAt:p.finishedAt,...(viewer?{roundEndsAt:victim?null:p.roundEndsAt}:{})}:{})}))};
 }
-function nextWord(p){
+/** Tohumlu klasik maç: oyuncunun sıradaki cümlesi (iki oyuncu farklı, hiçbir cümle tekrarlanmaz). */
+function setPhrase(match,p){
+  const no=p.phraseNo=(p.phraseNo||0)+1;
+  p.activeText=bankSentence({seed:`${match.phraseSeed}:c${p.seat}:${no}`,words:6+(no%3)});
+  p.phraseWordIndex=0;p.currentWord=wordsOf(p.activeText)[0];
+}
+function nextWord(p,match){
   const phrase=wordsOf(p.activeText);p.phraseWordIndex++;
+  if(match?.phraseSeed!==undefined&&p.phraseWordIndex>=phrase.length){setPhrase(match,p);return;}
   if(p.phraseWordIndex>=phrase.length){p.phraseIndex=(p.phraseIndex+1)%MATCH_WORDS.length;
     p.activeText=MATCH_WORDS[p.phraseIndex];p.phraseWordIndex=0;}
   p.currentWord=wordsOf(p.activeText)[p.phraseWordIndex];
@@ -413,7 +428,7 @@ export function submitWord(match,{playerId,matchId,wordIndex,text,round},at=Date
   const elapsedMinutes=Math.max((at-next.startedAt)/60_000,1/60);
   mine.wpm=Math.round(mine.correctChars/5/elapsedMinutes);
   mine.wordIndex++;mine.lastWordAt=correct?at:null;
-  nextWord(mine);
+  nextWord(mine,next);
   let cast=null;
   if(correct){
     const step=mine.combo%5;

@@ -39,24 +39,25 @@ test('Türkçe yazım: İ/ı büyük-küçük harf ve noktalama kuralı sabit',(
 });
 
 test('atasözü: SIRAYLA, kelime kelime; raund kaldığı yerden devam eder',()=>{
-  const flat=ATASOZLERI.flatMap(s=>s.split(/\s+/));
+  // Hangi atasözünün geleceği tohumla karışır (kural 1); her atasözü kendi içinde sıralı kalır.
+  const flat=contentWords('atasozu',{seed:'s',start:0,count:40,round:1,total:5}).words;
   const m=mk('atasozu');
   assert.deepEqual(m.round.words,flat.slice(0,10));
+  assert.ok(ATASOZLERI.some(s=>s.split(/\s+/).slice(0,3).join(' ')===flat.slice(0,3).join(' ')),'akış bir atasözünün başından başlar');
   assert.equal(publicMatch(m,1).content,'atasozu');
   assert.equal(roundStartPayload(m).content,'atasozu');
   assert.equal(publicMatch(m,1).round.hints,undefined,'atasözünde ipucu yok');
   // her iki oyuncu 10 kelimeyi de yazarsa 2. raund 11. kelimeden başlar
-  assert.deepEqual(contentWords('atasozu',{start:10,count:10,round:2,total:5}).words,flat.slice(10,20));
-  assert.deepEqual(contentWords('atasozu',{start:10,count:10,round:2,total:5}).words,flat.slice(10,20),'deterministik');
+  assert.deepEqual(contentWords('atasozu',{seed:'s',start:10,count:10,round:2,total:5}).words,flat.slice(10,20));
+  assert.deepEqual(contentWords('atasozu',{seed:'s',start:10,count:10,round:2,total:5}).words,flat.slice(10,20),'deterministik');
 });
 
 test('şiir: dizeler sırayla, her kelimede şair adı ipucu',()=>{
   const m=mk('siir');
-  const first=SIIR_DIZELERI[0];
-  assert.deepEqual(m.round.words,SIIR_DIZELERI.flatMap(d=>d.metin.split(/\s+/)).slice(0,10));
+  assert.deepEqual(m.round.words,contentWords('siir',{seed:'s',start:0,count:10,round:1,total:5}).words);
   const pub=publicMatch(m,1);
   assert.equal(pub.round.hints.length,pub.round.words.length);
-  assert.ok(pub.round.hints[0].startsWith(first.sair),pub.round.hints[0]);
+  assert.ok(SIIR_DIZELERI.some(d=>pub.round.hints[0].startsWith(d.sair)),pub.round.hints[0]);
   const bare=s=>s.normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();
   assert.ok(pub.round.hints.every(h=>OLD_POETS.some(p=>bare(h).startsWith(bare(p)))));
   assert.equal(ttHint(pub,{roundWordIndex:0}),pub.round.hints[0]);
@@ -84,9 +85,9 @@ test('içerik modu: motor kelimeleri kabul eder, bir sonraki raund devam eder (c
   }
   // timed: kuyruk uzatması sıralı akışı sürdürür
   let t=mk('siir',{roundStyle:'timed',seed:'q'});let at=2000;
-  const flat=SIIR_DIZELERI.flatMap(d=>d.metin.split(/\s+/));
   for(let i=0;i<9;i++){const w=t.round.words[i];t=submitWord(t,{matchId:'m1',wordIndex:i,round:1,text:w,playerId:'a'},at+=300).match;}
-  assert.deepEqual(t.round.words.slice(0,t.round.words.length),flat.slice(0,t.round.words.length));
+  const flat=contentWords('siir',{seed:'q',start:0,count:t.round.words.length,round:1,total:5}).words;
+  assert.deepEqual(t.round.words,flat);
 });
 
 test('eski modlar: içeriksiz maçta alan/ipucu yok (classic · rounds · arena davranışı aynı)',()=>{
@@ -166,7 +167,8 @@ test('sunucu: MATCH_CONFIG content yalnız izinli kimlikleri kabul eder; maç i�
   const l=await room.roster();l.startAt=Date.now()-5;await room.save(l);await room.alarm();
   const m=await ctx.storage.get('match');
   assert.equal(m.mode,'rounds');assert.equal(m.content,'atasozu');
-  assert.deepEqual(m.round.words,ATASOZLERI.flatMap(s=>s.split(/\s+/)).slice(0,m.round.words.length));
+  assert.ok(m.seed,'sunucu maç tohumu üretir');
+  assert.deepEqual(m.round.words,contentWords('atasozu',{seed:m.seed,start:0,count:m.round.words.length,round:1,total:5}).words);
   const ms=a.messages.filter(x=>x.type==='MATCH_START').at(-1).payload.match;
   assert.equal(ms.content,'atasozu');
   assert.ok(JSON.stringify(a.messages.at(-1)).length<4096*4,'snapshot şişmedi');

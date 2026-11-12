@@ -207,7 +207,7 @@ export function createPracticeSession(o={}){
     // Local seed comes from the injected RNG and fresh id, so tests can replay
     // a duel exactly while each rematch still receives different words.
     const stage=pickStage(stageChoice,rng);
-    match=classic?createMatch(players,at,id,{exchangeMs:10000,typing,assist,stage}):createMatch(players,at,id,{rounds,roundStyle,roundWords,content,seed:`${id}:${Math.floor(rng()*0x100000000)}`,resolveAtEnd:true,typing,assist,stage});
+    match=classic?createMatch(players,at,id,{exchangeMs:10000,seed:`${id}:${Math.floor(rng()*0x100000000)}`,typing,assist,stage}):createMatch(players,at,id,{rounds,roundStyle,roundWords,content,seed:`${id}:${Math.floor(rng()*0x100000000)}`,resolveAtEnd:true,typing,assist,stage});
     lastEmittedCombatId=0;rematchVotes=[];
     emit('MATCH_START',{match:snapshot(),serverTime:at,...(rematch?{rematch:true}:{})});
     if(!classic)broadcastRound([{type:'ROUND_START',payload:roundStartPayload(match)}],at);

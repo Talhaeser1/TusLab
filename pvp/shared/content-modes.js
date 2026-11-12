@@ -21,26 +21,46 @@ export const isContentMode = v => CONTENT_MODES.includes(v);
 export const normalizeContent = v => (isContentMode(v) ? v : DEFAULT_CONTENT);
 
 const tokens = list => list.split(/\s+/u).filter(Boolean);
-const build = (items, text, hint) => {
-  const words = [], hints = [];
-  for (const item of items) for (const w of tokens(text(item))) { words.push(w); hints.push(hint(item)); }
-  return {words: Object.freeze(words), hints: Object.freeze(hints)};
-};
 // Akışlar tembel kurulur (yalnız içerik modunda).
 let streams = null;
-function stream(content) {
+function stream(content) { // öğe = bir atasözü / bir şiir dizesi
   streams ??= {
-    atasozu: build(ATASOZLERI, s => s, () => ''),
-    siir: build(SIIR_DIZELERI, d => d.metin, d => (d.baslik ? `${d.sair} · ${d.baslik}` : d.sair))
+    atasozu: {list: ATASOZLERI, text: s => s, hint: () => ''},
+    siir: {list: SIIR_DIZELERI, text: d => d.metin, hint: d => (d.baslik ? `${d.sair} · ${d.baslik}` : d.sair)}
   };
   return streams[content] || null;
 }
 
-/** Sıralı içerikten `count` kelime (start'tan, sona gelince başa sarar). */
-function sequential(content, start, count) {
-  const s = stream(content), n = s.words.length, words = [], hints = [];
-  const from = ((Math.trunc(start) || 0) % n + n) % n;
-  for (let i = 0; i < count; i++) { words.push(s.words[(from + i) % n]); hints.push(s.hints[(from + i) % n]); }
+// Bir "tur" (epoch): öğelerin tohumdan karıştırılmış sırası, kelime kelime düzleştirilmiş. Her öğe kendi içinde SIRALI.
+const epochCache = new Map();
+function epochAt(content, seed, epoch) {
+  const key = `${content}|${seed}|${epoch}`;
+  const hit = epochCache.get(key);
+  if (hit) return hit;
+  const def = stream(content), n = def.list.length;
+  const order = Array.from({length: n}, (_, i) => i);
+  const rng = createRng(`${seed}:${content}:e${epoch}`);
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  // Havuz tükenip yeniden karıştırılınca son kullanılanla başlama.
+  if (epoch > 0 && n > 1 && order[0] === epochAt(content, seed, epoch - 1).last) [order[0], order[1]] = [order[1], order[0]];
+  const words = [], hints = [];
+  for (const i of order) { const it = def.list[i], h = def.hint(it); for (const w of tokens(def.text(it))) { words.push(w); hints.push(h); } }
+  const built = {words, hints, last: order[n - 1]};
+  if (epochCache.size > 24) epochCache.clear();
+  epochCache.set(key, built);
+  return built;
+}
+
+/** Sıralı içerikten `count` kelime. `start`, tohumla karıştırılmış akıştaki konumdur; tur bitince yeni karışım gelir. */
+function sequential(content, start, count, seed) {
+  const sd = String(seed ?? ''), words = [], hints = [];
+  let pos = Math.max(0, Math.trunc(start) || 0);
+  for (let i = 0; i < count; i++, pos++) {
+    let e = 0, ep = epochAt(content, sd, 0);
+    while (pos >= ep.words.length * (e + 1)) { e++; ep = epochAt(content, sd, e); }
+    const off = pos - ep.words.length * e;
+    words.push(ep.words[off]); hints.push(ep.hints[off]);
+  }
   return {words, hints};
 }
 
@@ -48,14 +68,14 @@ let sortedOsmanlica = null;
 const osmanlicaPool = () => (sortedOsmanlica ??= [...OSMANLICA].map((e, i) => [e, i]).sort((a, b) => a[0].kelime.length - b[0].kelime.length || a[1] - b[1]).map(x => x[0]));
 
 /** Osmanlıca: raund ilerledikçe havuzun daha uzun/zor dilimi; dilim içinden tohumlu, tekrarsız seçim. */
-function osmanlica({seed, round, total, count, exclude}) {
+function osmanlica({seed, round, total, count, exclude, salt}) {
   const pool = osmanlicaPool(), n = pool.length;
   const band = Math.min(n, Math.max(count * 4, 48));
   const progress = Math.min(1, Math.max(0, (round - 1) / Math.max(1, total - 1)));
   const lo = Math.round((n - band) * progress);
   const banned = new Set(exclude || []);
   const slice = pool.slice(lo, lo + band).filter(e => !banned.has(e.kelime));
-  const rng = createRng(`${seed}:osm:${round}`);
+  const rng = createRng(`${seed}:osm:${round}${salt ? ':' + salt : ''}`);
   for (let i = slice.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [slice[i], slice[j]] = [slice[j], slice[i]]; }
   let chosen = slice.slice(0, count);
   if (chosen.length < count) { // dilim tükendi: tüm havuzdan tamamla
@@ -73,9 +93,9 @@ function osmanlica({seed, round, total, count, exclude}) {
  */
 export function contentWords(content, o) {
   if (content === 'osmanlica') return osmanlica(o);
-  if (stream(content)) return sequential(content, o.start || 0, o.count);
+  if (stream(content)) return sequential(content, o.start || 0, o.count, o.seed);
   throw new RangeError(`Unknown content: ${content}`);
 }
 
 /** Her kelimeyi yazılacak hâliyle ve ipucuyla (testler/arayüz için). */
-export const contentStreamLength = content => stream(content)?.words.length ?? OSMANLICA.length;
+export const contentStreamLength = content => stream(content) ? epochAt(content, '', 0).words.length : OSMANLICA.length;

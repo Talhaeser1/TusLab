@@ -11,7 +11,9 @@ test('klasik bot orijinal createMatch akışını ve 120 saniyelik maçı kullan
   session.start();
   const m=session.snapshot();
   assert.equal(m.mode,'classic');assert.equal(m.round,null);assert.equal(m.endsAt-at,MATCH_DURATION_MS);
-  assert.equal(session.mode,'classic');assert.equal(session.match.participants[0].activeText,MATCH_WORDS[0]);
+  assert.equal(session.mode,'classic');assert.equal(session.match.participants[0].activeText.length>10,true);
+  // Kural 1: klasik cümleler tohumdan üretilir (sabit MATCH_WORDS listesi değil).
+  assert.equal(MATCH_WORDS.includes(session.match.participants[0].activeText),false);
   assert.deepEqual(packets.slice(0,2).map(p=>p.type),['MATCH_START','STATE_UPDATE']);
   assert.equal(packets.some(p=>p.type==='ROUND_START'),false);
   const me=m.players.find(p=>p.playerId===session.humanId);

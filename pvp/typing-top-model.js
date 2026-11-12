@@ -16,7 +16,7 @@ export function ttModeLabel(match){
   if(!live(match))return 'YEREL YAZMA TESTİ';
   const r=match.round;
   if(match.mode==='rounds'&&hasRound(match)){
-    const name=CONTENT_TITLES[match.content]||'ZAMANA KARŞI'; // atasözü/şiir/Osmanlıca modunda mod adı içerik adıdır
+    const name=CONTENT_TITLES[match.content]||(r.style==='counted'?'SAYILI':'ZAMANA KARŞI'); // atasözü/şiir/Osmanlıca modunda mod adı içerik adıdır
     if(r.suddenDeath)return `${name} · ALTIN RAUND`;
     return `${name} · RAUND ${r.index}${r.total?`/${r.total}`:''}`;
   }

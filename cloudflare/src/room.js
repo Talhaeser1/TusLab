@@ -409,7 +409,7 @@ export class PvPRoom {
     const assist=normalizeAssist(data.assist); // paket 31: yalnız klasik + tur modunda; arenada kapalı
     const stage=pickStage(normalizeStageChoice(data.stage)); // paket 33: 'random' her maç başında somut sahneye çözülür
     const match=roomMode(data)==='arena'?createArenaMatch(data.players,now,undefined,{typing,stage}):
-      createMatch(data.players,now,undefined,roomMode(data)==='classic'?{exchangeMs:10000,typing,assist,stage}:{rounds:roomRounds(data),roundStyle:roomRoundStyle(data),roundWords:roomRoundWords(data),content:roomContent(data),resolveAtEnd:true,typing,assist,stage});
+      createMatch(data.players,now,undefined,roomMode(data)==='classic'?{exchangeMs:10000,seed:crypto.randomUUID(),typing,assist,stage}:{rounds:roomRounds(data),roundStyle:roomRoundStyle(data),roundWords:roomRoundWords(data),content:roomContent(data),resolveAtEnd:true,typing,assist,stage});
     return {match,announce:()=>{
       this.broadcastMatch('MATCH_START',{serverTime:now,...extra},match);
       if(match.mode==='arena'){
