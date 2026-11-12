@@ -578,3 +578,36 @@ test('fx plugin: a character skill replaces the archetype ring/projectile; flat 
   assert.ok(st.rings >= 1);
   flat.instance.destroy();
 });
+
+// J2 — maça girişte eski/2B düzlem silüeti (ya da bir önceki model) parlamaz: model yüklenirken düzlem gizli, yalnız hatada yedek.
+test('J2: model yüklenirken 2B düzlem silüeti görünmez; yüklenince model, hata verirse yedek silüet', async () => {
+  let release;
+  const gate = new Promise(r => { release = r; });
+  const {instance} = await buildArena({loadModel: async () => { await gate; return fakeAsset(); }});
+  const job = instance.setFighters({1: 'sira', 2: 'doran'});
+  let m = instance._debug.models();
+  assert.deepEqual([m[1].loaded, m[2].loaded], [false, false], 'yükleme sürüyor');
+  assert.deepEqual([m[1].planeVisible, m[2].planeVisible], [false, false], 'yüklenirken eski 2B düzlem silüeti parlamaz');
+  release();
+  assert.equal(await job, true);
+  m = instance._debug.models();
+  assert.deepEqual([m[1].loaded, m[2].loaded, m[1].planeVisible], [true, true, false]);
+  // Karakter değişince önceki model → düzlem silüetine DÖNMEZ; yeni model gelene dek gizli kalır.
+  let release2;
+  const gate2 = new Promise(r => { release2 = r; });
+  const sw = await buildArena({loadModel: async (url, id) => { if (id === 'nyx') await gate2; return fakeAsset(); }});
+  await sw.instance.setFighters({1: 'sira', 2: 'doran'});
+  const swap = sw.instance.setFighters({1: 'nyx', 2: 'doran'});
+  assert.equal(sw.instance._debug.models()[1].planeVisible, false, 'değişim sırasında düzlem silüet yok');
+  assert.equal(sw.instance._debug.models()[1].loaded, false);
+  release2();
+  await swap;
+  assert.equal(sw.instance._debug.models()[1].loaded, true);
+  instance.destroy();
+  sw.instance.destroy();
+  // Hata: yedek düzlem silüeti görünür (bilinçli yedek).
+  const bad = await buildArena({loadModel: async () => { throw new Error('404'); }});
+  assert.equal(await bad.instance.setFighters({1: 'sira', 2: 'doran'}), false);
+  assert.deepEqual([bad.instance._debug.models()[1].failed, bad.instance._debug.models()[1].planeVisible], [true, true]);
+  bad.instance.destroy();
+});

@@ -37,6 +37,9 @@ const PRACTICE_URL_FLAG='__practice__';
 const practiceFromUrl=href=>{try{return ['practice','arena'].includes(new URL(href).searchParams.get('pvp'));}catch{return false;}};
 /** URL'den karakter: ?karakter=vargr|sira|doran|nyx|konyali (eski: ?fighter=). Geçersiz/yoksa null → kayıtlı tercih ya da varsayılan. */
 export const fighterFromUrl=href=>{try{const q=new URL(href).searchParams;const v=String(q.get('karakter')??q.get('fighter')??'').trim().toLowerCase();return isFighterId(v)?v:null;}catch{return null;}};
+/** Hata ayıklama/QA: ?fighter2=nyx → bot antrenmanında rakip (bot) karakteri. Geçersiz/yoksa null (bot karşı arketipten seçilir).
+ * Yalnız karşı arketipten karakter bot olabilir (motor `character` arketipe bağlı; practiceFighters aynı kuralı uygular). */
+export const botFighterFromUrl=href=>{try{const v=String(new URL(href).searchParams.get('fighter2')??'').trim().toLowerCase();return isFighterId(v)?v:null;}catch{return null;}};
 const ROOM_CODE=/^[A-Z2-9]{16}$/;
 const CHARACTERS={fire:'Alev Celladı',rune:'Rün Muhafızı'};
 // Paket 32 — karakter kadrosu: seçim localStorage'da tutulur; bot maçına ve odaya (FIGHTER_SELECT) gider.
@@ -46,16 +49,23 @@ const FX_ICON={'axe-chop':'🪓',spin:'🌀','blood-storm':'🩸','projectile-sp
   'sword-chop':'⚔','shield-bash':'🛡','wall-crash':'🏰','projectile-rune':'✴',pillar:'🔆',meteor:'☄','projectile-bread':'🥖','ney-shockwave':'🎶'};
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fighterStyle=f=>`--f-main:${f.palette.main};--f-accent:${f.palette.accent}`;
-/** Lobi vitrini: 4 karakterli seçim ızgarası (radyo grubu; ok tuşlarıyla gezilir). */
+/** Bilgi kartı içeriği (silah + Q/E/R adları ve kısa açıklamaları) — yalnız pvp/shared/fighters.js'ten okunur. */
+export function fighterInfoHTML(id){
+  const f=FIGHTERS[isFighterId(id)?id:defaultFighter('fire')];
+  const skills=['q','e','r'].map(k=>{const sk=f.skills[k];
+    return `<li class="j2-skill"><span class="lb3-f-key" aria-hidden="true"><i>${FX_ICON[sk.fx]||'✦'}</i>${k.toUpperCase()}</span><span class="lb3-f-skill-copy"><b>${esc(sk.name)}</b><small>${esc(sk.desc)}</small></span></li>`;}).join('');
+  return `<div class="j2-info-head"><b>${esc(f.name)}</b><span>${esc(f.title)}</span><em class="${f.archetype}">${SIDE_LABEL[f.archetype]}</em></div>`
+    +`<p class="j2-weapon"><span>Silah</span><b>${esc(f.weapon||f.skills.q.short)}</b></p><ul class="j2-skills">${skills}</ul>`;
+}
+/** Lobi vitrini: yalnız portre ikonları (radyo grubu; ok tuşlarıyla gezilir). Silah + Q/E/R bilgi kartı `<template>`'ten tek kutuya yazılır. */
 export function fighterRosterHTML(selected=defaultFighter('fire')){
   const cards=FIGHTER_IDS.map(id=>{const f=FIGHTERS[id],on=id===selected;
-    const skills=['q','e','r'].map(k=>{const sk=f.skills[k];
-      return `<span class="lb3-f-skill"><span class="lb3-f-key" aria-hidden="true"><i>${FX_ICON[sk.fx]||'✦'}</i>${k.toUpperCase()}</span><span class="lb3-f-skill-copy"><b>${esc(sk.name)}</b><small>${esc(sk.desc)}</small></span></span>`;}).join('');
     return `<button type="button" role="radio" aria-checked="${on}" tabindex="${on?0:-1}" class="lb3-fighter ${f.archetype}" data-lobby-action="fighter" data-fighter="${id}" data-side="${f.archetype}" style="${fighterStyle(f)}" aria-label="${esc(`${f.name} · ${f.title} · ${f.archetype==='fire'?'Ateş':'Rün'}`)}">`
-      +`<span class="lb3-f-top"><span class="lb3-f-art" data-fighter-portrait="${id}" aria-hidden="true"><span class="lb3-f-emblem">${esc(f.name[0])}</span></span>`
-      +`<span class="lb3-f-id"><b class="lb3-f-name">${esc(f.name)}</b><small class="lb3-f-title">${esc(f.title)}</small></span><span class="lb3-f-badge">${SIDE_LABEL[f.archetype]}</span></span>`
-      +`<span class="lb3-f-blurb">${esc(f.blurb)}</span><span class="lb3-f-skills">${skills}</span></button>`;}).join('');
-  return `<div class="lb3-fighters" role="radiogroup" aria-labelledby="lb3-hero-title" data-fighter-group="lobby">${cards}</div>`;
+      +`<span class="lb3-f-art" data-fighter-portrait="${id}" aria-hidden="true"><span class="lb3-f-emblem">${esc(f.name[0])}</span></span>`
+      +`<b class="lb3-f-name">${esc(f.name)}</b></button>`
+      +`<template data-fighter-card="${id}">${fighterInfoHTML(id)}</template>`;}).join('');
+  return `<div class="lb3-fighters j2-chars" role="radiogroup" aria-labelledby="lb3-hero-title" data-fighter-group="lobby">${cards}</div>`
+    +`<div class="j2-info" data-fighter-info aria-live="polite"></div>`;
 }
 /** Oda içi kısa seçim: 4 karakter, ad + arketip (radyo grubu). */
 function roomFighterChoicesHTML(selected=defaultFighter('fire')){
@@ -70,6 +80,13 @@ const safeStore=(storage,key,value)=>{try{if(value===undefined)return storage.ge
 // Paket 30: yazma kuralları (büyük/küçük harf, noktalama) — bot maçında tercih, odada oda sahibinin ayarı.
 const TYPING_KEY='tuslab-pvp-typing';
 function readTypingPref(){try{return normalizeTyping(JSON.parse(safeStore(localStorage,TYPING_KEY)||'{}'));}catch{return normalizeTyping();}}
+/** Bot zorluğu: segment düğmeler (MAÇ AYARLARI). */
+export function difficultyPickerHTML(selected='orta'){
+  return `<div class="rui-picker" data-difficulty-picker><span class="rui-picker-label" id="j2-diff-label">Bot zorluğu</span><div class="rui-seg" role="group" aria-labelledby="j2-diff-label">`
+    +Object.values(BOT_DIFFICULTIES).map(d=>`<button type="button" data-lobby-action="difficulty" data-difficulty="${d.id}" aria-pressed="${d.id===selected}" title="${d.label} bot · ~${d.wpm} WPM"><b>${d.label}</b> <small>~${d.wpm} WPM</small></button>`).join('')
+    +`</div></div>`;
+}
+/** (Arayüzden kaldırıldı — "Maç kuralları" paneli yok; yazma kuralları kayıtlı tercih/varsayılanla işler.) */
 export function typingPickerHTML(scope){
   return `<fieldset class="lb3-typing" data-typing-box="${scope}"><legend>Maç kuralları</legend>`
    +`<label class="lb3-switch"><input type="checkbox" role="switch" data-typing-key="caseSensitive" data-typing-scope="${scope}" checked><span><b>Büyük/küçük harf duyarlı</b><small>Açıkken “Güçlü” ile “güçlü” farklı sayılır</small></span></label>`
@@ -93,8 +110,11 @@ export function stagePickerHTML(scope,selected=DEFAULT_STAGE){
 }
 function syncStagePicker(panel,scope,{value,editable,note}){
   const v=normalizeStageChoice(value);
-  panel.querySelectorAll(`[data-stage-scope="${scope}"]`).forEach(b=>{const on=b.dataset.stagePick===v;
-    b.setAttribute('aria-checked',String(on));b.tabIndex=on?0:-1;b.disabled=!editable;});
+  const cards=[...panel.querySelectorAll(`[data-stage-scope="${scope}"]`)],sel=cards.findIndex(b=>b.dataset.stagePick===v);
+  cards.forEach((b,i)=>{const on=i===sel;
+    b.setAttribute('aria-checked',String(on));b.tabIndex=on?0:-1;b.disabled=!editable;
+    // Karusel (CSS 3B): seçiliye göre ofset; seçili öndeki büyük kart.
+    b.style?.setProperty?.('--o',String(i-sel));b.style?.setProperty?.('--a',String(Math.abs(i-sel)));});
   const st=STAGE_CHOICES.find(x=>x.id===v);const text=`${st.name} — ${st.blurb}${note?` ${note}`:''}`;
   const n=panel.querySelector(`[data-stage-blurb="${scope}"]`);if(n&&n.textContent!==text)n.textContent=text;
 }
@@ -185,8 +205,9 @@ export class PvPNetworkConsole {
       if(action==='leave')this.disconnect(true);
       if(action==='practice'){
         const panel=this.panel();
-        this.startPractice({difficulty:panel?.querySelector('[data-practice-difficulty]')?.value,character:panel?.querySelector('[data-practice-character]')?.value});
+        this.startPractice({character:panel?.querySelector('[data-practice-character]')?.value});
       }
+      if(action==='difficulty'){this.practiceDifficulty=normalizeDifficulty(b.dataset.difficulty);safeStore(localStorage,'tuslab-pvp-practice-difficulty',this.practiceDifficulty);this.render();}
       if(action==='practice-stop')this.disconnect(true);
       if(action==='rounds'){
         const scope=b.dataset.roundsScope==='practice'?'practice':'room';
@@ -231,13 +252,25 @@ export class PvPNetworkConsole {
       }
     });
     root.addEventListener('click',e=>{const b=e.target.closest?.('[data-stage-pick]');if(b&&!b.disabled)this.selectStage(b.dataset.stageScope,b.dataset.stagePick);});
-    root.addEventListener('keydown',e=>{this.fighterKey(e);this.stageKey(e);});
+    // Not: PvP açıkken index.js belge düzeyinde yakalama aşamasında keydown'ı durdurur (stopImmediatePropagation) → ok tuşları
+    // bu kökteki dinleyiciye hiç ulaşmaz; bu yüzden index.js merkezi yönlendiricisi `lobbyKey`'i çağırır.
+    root.addEventListener('keydown',e=>{this.lobbyKey(e);});
+    // Karakter bilgi kartı: üzerine gelince/odaklanınca o karakter; ayrılınca seçili karakter (dokunmatikte dokunma = seçim → kart seçiliyi gösterir).
+    const infoTarget=e=>e.target.closest?.('[data-fighter-group="lobby"] [data-fighter]');
+    root.addEventListener('pointerover',e=>{const b=infoTarget(e);if(b&&e.pointerType!=='touch')this.showFighterInfo(b.dataset.fighter);});
+    root.addEventListener('pointerout',e=>{if(infoTarget(e)&&!infoTarget({target:e.relatedTarget||{}}))this.showFighterInfo();});
+    root.addEventListener('focusin',e=>{const b=infoTarget(e);if(b)this.showFighterInfo(b.dataset.fighter);});
+    root.addEventListener('focusout',e=>{if(infoTarget(e))this.showFighterInfo();});
+    // Arena kaydırmalı karusel: yatay kaydırma (dokunmatik/fare) komşu sahneyi seçer.
+    let swipe=null;
+    root.addEventListener('pointerdown',e=>{const g=e.target.closest?.('[data-stage-group="practice"]');swipe=g?{x:e.clientX,y:e.clientY,id:e.pointerId}:null;});
+    root.addEventListener('pointerup',e=>{if(!swipe||swipe.id!==e.pointerId)return;const dx=e.clientX-swipe.x,dy=e.clientY-swipe.y;swipe=null;
+      if(Math.abs(dx)>=40&&Math.abs(dx)>Math.abs(dy)*1.5)this.stepStage('practice',dx<0?1:-1);});
     root.addEventListener('input',e=>{
       if(e.target.matches('[data-lobby-name]')){
         this.name=e.target.value.slice(0,20);safeStore(localStorage,'tuslab-pvp-name',this.name);
       }
       // Remember practice choices so a re-render does not reset the selects.
-      if(e.target.matches('[data-practice-difficulty]'))this.practiceDifficulty=normalizeDifficulty(e.target.value);
       if(e.target.matches('[data-practice-character]')&&['fire','rune'].includes(e.target.value)&&(!this.myId||this.practice)){this.character=e.target.value;this.render();}
     });
   }
@@ -252,7 +285,7 @@ export class PvPNetworkConsole {
         const urlContent=isContentMode(q.get('icerik'))?q.get('icerik'):isContentMode(q.get('mode'))?q.get('mode'):null;
         if(urlContent){this.practiceMode='rounds';this.practiceContent=urlContent;}
         else if(q.has('mode')||q.get('pvp')==='arena')this.practiceContent='kelime';
-        this.startPractice({difficulty:q.get('bot'),character:q.get('char'),fighter:fighterFromUrl(location.href),stage:q.get('stage')});}
+        this.startPractice({difficulty:q.get('bot'),character:q.get('char'),fighter:fighterFromUrl(location.href),botFighter:botFighterFromUrl(location.href),stage:q.get('stage')});}
       else void this.join(code);}
   }
   /** Start an offline match against the bot. Its packets go through receive(),
@@ -265,6 +298,13 @@ export class PvPNetworkConsole {
     this.fighter=id;this.character=FIGHTERS[id].archetype;safeStore(localStorage,FIGHTER_KEY,id);
     if(joined&&this.ws?.readyState===1)this.send('FIGHTER_SELECT',{fighter:id});
     this.render();
+  }
+  /** Lobi ok tuşları (karakter ikonları · arena karuseli · mod şeridi). İşlediyse true döner. */
+  lobbyKey(e){
+    if(e.defaultPrevented)return true;
+    this.fighterKey(e);if(e.defaultPrevented)return true;
+    this.stageKey(e);if(e.defaultPrevented)return true;
+    this.modeKey(e);return Boolean(e.defaultPrevented);
   }
   /** Radyo grubu: ok tuşları seçimi ve odağı birlikte taşır (Home/End uçlara gider). */
   fighterKey(e){
@@ -298,14 +338,40 @@ export class PvPNetworkConsole {
     this.selectStage(group.dataset.stageGroup,next.dataset.stagePick);
     group.querySelector(`[data-stage-pick="${next.dataset.stagePick}"]`)?.focus();
   }
-  startPractice({difficulty,character,fighter,stage}={}){
+  /** Arena karuselinde komşu sahneye geç (kaydırma); uçlarda durur. */
+  stepStage(scope,dir){
+    const ids=STAGE_CHOICES.map(s=>s.id),cur=ids.indexOf(normalizeStageChoice(scope==='practice'?this.practiceStage:this.roomStage));
+    const next=ids[Math.max(0,Math.min(ids.length-1,cur+dir))];
+    if(next&&next!==ids[cur])this.selectStage(scope,next);
+  }
+  /** Mod şeridi: ← → odağı komşu moda taşır; bot antrenmanında seçimi de değiştirir (şerit kaydırılır). Home/End uçlara gider. */
+  modeKey(e){
+    const strip=e.target.closest?.('[data-mode-picker]');if(!strip||!e.target.matches?.('[data-mode]'))return;
+    const keys={ArrowRight:1,ArrowLeft:-1,Home:'first',End:'last'};if(!(e.key in keys))return;
+    e.preventDefault();
+    const items=[...strip.querySelectorAll('[data-mode]')].filter(x=>!x.disabled);if(!items.length)return;
+    const i=items.indexOf(e.target),k=keys[e.key];
+    const next=k==='first'?items[0]:k==='last'?items.at(-1):items[Math.max(0,Math.min(items.length-1,i+k))];
+    next.focus();next.scrollIntoView?.({inline:'center',block:'nearest'});
+    if(strip.dataset.modePicker==='practice'&&next!==e.target)next.click();
+  }
+  /** Bilgi kartı: id verilmezse seçili karakter. Yalnız pvp/shared/fighters.js'ten üretilmiş <template> içeriğini taşır. */
+  showFighterInfo(id){
+    const panel=this.panel(),card=panel?.querySelector('[data-fighter-info]');if(!card)return;
+    const want=isFighterId(id)?id:this.fighter;
+    if(card.dataset.shown===want)return;
+    const tpl=panel.querySelector(`template[data-fighter-card="${want}"]`);if(!tpl)return;
+    card.replaceChildren(tpl.content.cloneNode(true));card.dataset.shown=want;
+    card.style.setProperty('--f-main',FIGHTERS[want].palette.main);card.style.setProperty('--f-accent',FIGHTERS[want].palette.accent);
+  }
+  startPractice({difficulty,character,fighter,botFighter,stage}={}){
     this.disconnect(false);                       // closes any socket, resets lobby state
     this.practiceDifficulty=normalizeDifficulty(difficulty||this.practiceDifficulty);
     safeStore(localStorage,'tuslab-pvp-practice-difficulty',this.practiceDifficulty);
     if(isFighterId(fighter)){this.fighter=fighter;this.character=FIGHTERS[fighter].archetype;}
     else if((character==='fire'||character==='rune')&&character!==this.character){this.character=character;this.fighter=normalizeFighter(this.fighter,character);}
     const session=createPracticeSession({
-      difficulty:this.practiceDifficulty,character:this.character,fighter:this.fighter,rune:this.rune,name:this.readName()||'Savaşçı',rounds:this.practiceRounds,roundStyle:this.practiceRoundStyle,roundWords:this.practiceRoundWords,mode:this.practiceMode,content:this.practiceMode==='rounds'?this.practiceContent:'kelime',typing:this.practiceTyping,assist:this.practiceAssist,stage:normalizeStageChoice(stage||this.practiceStage),
+      difficulty:this.practiceDifficulty,character:this.character,fighter:this.fighter,botFighter:isFighterId(botFighter)?botFighter:(botFighterFromUrl(typeof location!=='undefined'?location.href:'')||undefined),rune:this.rune,name:this.readName()||'Savaşçı',rounds:this.practiceRounds,roundStyle:this.practiceRoundStyle,roundWords:this.practiceRoundWords,mode:this.practiceMode,content:this.practiceMode==='rounds'?this.practiceContent:'kelime',typing:this.practiceTyping,assist:this.practiceAssist,stage:normalizeStageChoice(stage||this.practiceStage),
       // Deliver asynchronously (like a socket) and drop packets from a disposed session.
       onPacket:packet=>queueMicrotask(()=>{if(this.practice===session)this.receive(packet);})
     });
@@ -716,7 +782,7 @@ export class PvPNetworkConsole {
     const chip=this.root.querySelector('[data-practice-chip]');if(chip)chip.hidden=!this.practice;
     panel.querySelector('[data-lobby-action="practice-stop"]')?.toggleAttribute('hidden',!this.practice);
     put('[data-practice-main]',this.practice?'Yeniden savaş':'Savaşa gir');put('[data-practice-sub]',this.practice?'↻ Yeni bot maçı başlat':'🤖 Seçili modda bot maçını başlat');
-    const diffSelect=panel.querySelector('[data-practice-difficulty]');if(diffSelect&&document.activeElement!==diffSelect)diffSelect.value=this.practiceDifficulty;
+    panel.querySelectorAll('[data-difficulty]').forEach(b=>{const on=String(b.dataset.difficulty===this.practiceDifficulty);if(b.getAttribute('aria-pressed')!==on)b.setAttribute('aria-pressed',on);});
     const charSelect=panel.querySelector('[data-practice-character]');if(charSelect&&document.activeElement!==charSelect)charSelect.value=this.character;
     panel.dataset.hero=this.character;
     panel.dataset.fighter=this.fighter;
@@ -726,6 +792,7 @@ export class PvPNetworkConsole {
       const on=b.dataset.fighter===shownFighter;b.setAttribute('aria-checked',String(on));b.tabIndex=on?0:-1;
       if(b.closest('[data-fighter-group="room"]'))b.disabled=!(Boolean(this.myId)&&!this.practice)||this.phase!=='waiting';
     });
+    this.showFighterInfo(panel.querySelector('[data-fighter-group="lobby"] [data-fighter]:is(:hover,:focus-visible)')?.dataset.fighter||shownFighter);
     const host=joined&&this.hostPlayerId===this.myId;
     const roomEditable=host&&['waiting','countdown'].includes(this.phase);
     syncRoundsPicker(panel,'room',{value:this.roomRounds,editable:roomEditable,note:roomEditable?'Değiştirmek iki oyuncunun hazır durumunu sıfırlar.':host?'Maç başladı; rövanş aynı uzunlukta oynanır.':'Maç uzunluğunu oda sahibi belirler.'});
@@ -777,27 +844,25 @@ export function networkConsoleHTML(){
   return `<div class="pvp5-network-controls"><button type="button" class="pvp5-net-button ui-button-secondary" data-lobby-action="toggle" aria-controls="pvp-lobby-panel" title="Oda kur, katıl veya bot maçını başlat">⚔ Lobiyi aç</button><button type="button" class="pvp5-net-button pvp16-open ui-button-ghost" data-pvp16-action="toggle" title="Oyuncu profilini aç">🏆 Profil</button><button type="button" class="pvp5-net-button ui-button-ghost" data-social-action="toggle" title="Arkadaş listesini aç">👥 Arkadaşlar</button><span class="pvp5-connect-status" data-net-status data-online="false">Bağlı değil</span><span class="pvp24-chip" data-practice-chip hidden title="Bota karşı yerel maç; sunucu, profil ve puan kullanılmaz">🤖 ANTRENMAN · çevrimdışı</span></div>
     <section class="pvp6-panel lb3" id="pvp-lobby-panel" data-lobby-panel data-hero="fire" aria-label="PvP lobisi ve bot antrenmanı" role="region">
       <header class="pvp6-head lb3-head"><div class="lb3-head-copy"><span class="pvp6-eyebrow">1v1 · YAZARAK DÖVÜŞ</span><h2>RUH DÜELLOSU</h2><p data-lobby-state>Bağlı değil</p></div><span class="pvp6-label">PvP</span><button type="button" class="lb3-close" data-lobby-action="toggle" aria-label="Lobiyi kapat" title="Lobiyi kapat">Kapat <span aria-hidden="true">✕</span></button></header>
-      <div class="pvp6-before" data-lobby-before>
-        <section class="lb3-showcase lb3-roster" aria-labelledby="lb3-hero-title">
+      <div class="pvp6-before j2-before" data-lobby-before>
+        <section class="j2-modes" aria-label="Oyun modu">${modePickerHTML('practice')}</section>
+        <section class="lb3-showcase lb3-roster j2-pick" aria-labelledby="lb3-hero-title">
           <h3 class="lb3-kicker" id="lb3-hero-title">Savaşçını seç</h3>
           ${fighterRosterHTML()}
-          <p class="lb3-hero-note">Ok tuşlarıyla gez · seçtiğin karakter hem bot maçında hem odada kullanılır.</p>
         </section>
-        <section class="lb-card lb-practice pvp24-practice lb3-practice" data-practice-box aria-labelledby="lb-practice-title">
-          <header class="lb-card-head"><h3 id="lb-practice-title"><span class="lb3-step" aria-hidden="true">1</span>Modunu seç, bota karşı savaş</h3><span class="lb-tag">Çevrimdışı · hemen</span></header>
-          ${modePickerHTML('practice')}
-          ${stagePickerHTML('practice')}
-          <div class="pvp24-practice-row lb3-settings">
-            <label>Bot zorluğu<select data-practice-difficulty><option value="kolay">Kolay · ~25 WPM</option><option value="orta" selected>Orta · ~45 WPM</option><option value="zor">Zor · ~70 WPM</option></select></label>
-            ${roundsPickerHTML('practice')}
-          </div>
+        <section class="j2-settings" data-j2-settings data-practice-box aria-labelledby="j2-settings-title">
+          <h3 class="lb3-kicker" id="j2-settings-title">MAÇ AYARLARI</h3>
+          ${difficultyPickerHTML()}
+          ${roundsPickerHTML('practice')}
           ${roundStylePickerHTML('practice')}
-          ${typingPickerHTML('practice')}
+        </section>
+        <section class="j2-arena" aria-label="Arena seçimi">${stagePickerHTML('practice')}</section>
+        <div class="j2-go">
           <button type="button" class="pvp24-practice-start ui-button-primary lb3-fight" data-lobby-action="practice"><span class="lb3-fight-main" data-practice-main>Savaşa gir</span><span class="lb3-fight-sub" data-practice-sub>🤖 Seçili modda bot maçını başlat</span></button>
           <button type="button" class="pvp24-practice-stop ui-button-ghost" data-lobby-action="practice-stop" hidden>Bot maçını bitir</button>
-          <p class="pvp6-help">Maç tarayıcında çalışır; profil ve puan değişmez.</p>
-        </section>
-        <section class="lb-card lb-online lb3-online" aria-labelledby="lb-online-title">
+          <p class="pvp6-help">Çevrimdışı bot maçı · profil ve puan değişmez.</p>
+        </div>
+        <section class="lb-card lb-online lb3-online j2-online" aria-labelledby="lb-online-title">
           <header class="lb-card-head"><h3 id="lb-online-title"><span class="lb3-step" aria-hidden="true">2</span>Arkadaşınla düello</h3><span class="lb-tag">Çevrimiçi</span></header>
           <label for="pvp6-name">Oyuncu adın</label><input id="pvp6-name" data-lobby-name maxlength="20" value="Savaşçı" autocomplete="nickname" />
           <div class="pvp6-startrow"><button type="button" class="pvp6-primary ui-button-secondary" data-lobby-action="create">✦ Oda oluştur ve davet et</button></div>
@@ -826,7 +891,7 @@ export function networkConsoleHTML(){
           ${roomFighterChoicesHTML()}
           ${stagePickerHTML('room')}
           ${roundStylePickerHTML('room')}
-          <div class="pvp22-runes"><div class="pvp6-charlabel">⚡ RÜNÜNÜ SEÇ · HER OYUNCU 1 RÜN</div><div class="pvp22-rune-grid"><button type="button" data-lobby-action="rune" data-rune="none" aria-pressed="true" title="Bonus yok">⚔ Klasik</button><button type="button" data-lobby-action="rune" data-rune="ember" aria-pressed="false" title="Q hasarı +8">🔥 Alev Mührü</button><button type="button" data-lobby-action="rune" data-rune="crystal" aria-pressed="false" title="Savunma cooldown -200 ms">🛡 Kristal Kalkan</button><button type="button" data-lobby-action="rune" data-rune="rhythm" aria-pressed="false" title="E/R hasarı +6">♫ Savaş Ritimcisi</button><button type="button" data-lobby-action="rune" data-rune="laststand" aria-pressed="false" title="Düşük HP son çare">♥ Son Direniş</button><button type="button" data-lobby-action="rune" data-rune="reflex" aria-pressed="false" title="Perfect pencere +25 ms">✦ Keskin Refleks</button><button type="button" data-lobby-action="rune" data-rune="lightning" aria-pressed="false" title="Her üçüncü Q +18">⚡ Yıldırım Kesişi</button></div></div>${modePickerHTML('room')}${roundsPickerHTML('room')}${typingPickerHTML('room')}
+          <div class="pvp22-runes"><div class="pvp6-charlabel">⚡ RÜNÜNÜ SEÇ · HER OYUNCU 1 RÜN</div><div class="pvp22-rune-grid"><button type="button" data-lobby-action="rune" data-rune="none" aria-pressed="true" title="Bonus yok">⚔ Klasik</button><button type="button" data-lobby-action="rune" data-rune="ember" aria-pressed="false" title="Q hasarı +8">🔥 Alev Mührü</button><button type="button" data-lobby-action="rune" data-rune="crystal" aria-pressed="false" title="Savunma cooldown -200 ms">🛡 Kristal Kalkan</button><button type="button" data-lobby-action="rune" data-rune="rhythm" aria-pressed="false" title="E/R hasarı +6">♫ Savaş Ritimcisi</button><button type="button" data-lobby-action="rune" data-rune="laststand" aria-pressed="false" title="Düşük HP son çare">♥ Son Direniş</button><button type="button" data-lobby-action="rune" data-rune="reflex" aria-pressed="false" title="Perfect pencere +25 ms">✦ Keskin Refleks</button><button type="button" data-lobby-action="rune" data-rune="lightning" aria-pressed="false" title="Her üçüncü Q +18">⚡ Yıldırım Kesişi</button></div></div>${modePickerHTML('room')}${roundsPickerHTML('room')}
           <p class="pvp6-help">İkiniz de <b>Hazırım</b> dediğinizde 3-2-1 sayımı başlar. Bağlantı koparsa maç 20 saniye duraklar; geri gelince kaldığı yerden sürer.</p>
         </div>
       </div>

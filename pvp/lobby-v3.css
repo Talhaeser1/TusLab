@@ -603,3 +603,163 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
 @media (prefers-reduced-motion:reduce){#pvp-root .pvp6-panel.lb3 button.lb3-stage-card{transition:none}#pvp-root .pvp6-panel.lb3 button.lb3-stage-card:hover:not(:disabled){transform:none}}
 #pvp-root.pvp4-reduced .pvp6-panel.lb3 button.lb3-stage-card{transition:none}
 #pvp-root.pvp4-reduced .pvp6-panel.lb3 button.lb3-stage-card:hover:not(:disabled){transform:none}
+
+/* =====================================================================
+   J2 — PvP LOBİ (yatay mod şeridi · karakter ikonları + bilgi kartı · MAÇ AYARLARI · arena karuseli)
+   Yalnız .j2-* kapsamı (bot antrenmanı yüzeyi); oda içi yüzey ve eski kurallar bozulmaz.
+   Cam efekti / parıltı yok: düz yüzey, 1–2 px çerçeve, tek vurgu rengi (altın). Yazı ≥ 12 px.
+   ===================================================================== */
+#pvp-root .lb3 .j2-before{display:grid;gap:12px;min-width:0;grid-template-columns:minmax(0,1fr);
+  grid-template-areas:"modes" "pick" "settings" "arena" "go" "online"}
+#pvp-root .lb3 .j2-modes{grid-area:modes;min-width:0}
+#pvp-root .lb3 .j2-pick{grid-area:pick}
+#pvp-root .lb3 .j2-settings{grid-area:settings}
+#pvp-root .lb3 .j2-arena{grid-area:arena;min-width:0}
+#pvp-root .lb3 .j2-go{grid-area:go;display:grid;gap:8px;align-content:start;min-width:0}
+#pvp-root .lb3 .j2-online{grid-area:online}
+@media (min-width:1100px){
+  #pvp-root .lb3 .j2-before{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);align-items:start;
+    grid-template-areas:"modes modes" "pick arena" "settings online" "go online"}
+}
+
+/* 1) Mod şeridi: yatay kaydırmalı, scroll-snap; ← → ile gezilir (network.js modeKey) */
+#pvp-root .lb3 .j2-modes .rui-picker.aui-modes{display:grid;gap:6px;margin:0}
+#pvp-root .lb3 .j2-modes .aui-modes .rui-seg{display:flex!important;grid-template-columns:none;gap:8px;width:100%;padding:2px 2px 8px;border:0;background:none;
+  overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-padding-inline:2px;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:#5b4aa8 transparent;touch-action:pan-x pan-y}
+#pvp-root .pvp6-panel.lb3 .j2-modes .aui-modes .rui-seg button{flex:0 0 auto;scroll-snap-align:center;display:grid;align-content:center;justify-items:start;gap:1px;
+  width:176px;min-width:0;min-height:60px;padding:8px 34px 8px 42px;text-align:left;border-radius:12px}
+#pvp-root .pvp6-panel.lb3 .j2-modes .aui-modes .rui-seg button::before{top:50%;left:10px;transform:translateY(-50%)}
+#pvp-root .pvp6-panel.lb3 .j2-modes .aui-modes .rui-seg button[aria-pressed="true"]::after{top:50%;transform:translateY(-50%)}
+#pvp-root .lb3 .j2-modes .aui-modes button[data-mode="atasozu"]::before{content:'❝'}
+#pvp-root .lb3 .j2-modes .aui-modes button[data-mode="siir"]::before{content:'✎'}
+#pvp-root .lb3 .j2-modes .aui-modes button[data-mode="osmanlica"]::before{content:'❖'}
+#pvp-root .lb3 .j2-modes .aui-modes .rui-seg button b{font-size:15px;white-space:nowrap}
+#pvp-root .lb3 .j2-modes .aui-modes .rui-seg button small{font-size:12px;line-height:1.25;white-space:nowrap}
+@media (min-width:1100px){#pvp-root .pvp6-panel.lb3 .j2-modes .aui-modes .rui-seg button{width:calc((100% - 40px)/6);min-width:150px}}
+
+/* 2) Karakterler: yalnız portre ikonu + ad; tek satır (≥561 px), telefonda 3 sütun */
+#pvp-root .lb3 .j2-pick.lb3-showcase.lb3-roster{gap:10px;padding:12px;background:var(--lb3-panel);border:1px solid var(--lb3-line2);border-radius:14px}
+#pvp-root .lb3 .j2-chars{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-rows:auto;gap:10px;min-width:0}
+#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter{--f-cut:0px;position:relative;display:block;width:100%;aspect-ratio:1/1;min-height:0;height:auto;padding:0;overflow:hidden;
+  border:2px solid color-mix(in srgb,var(--f-main) 70%,#fff 8%);border-radius:12px;clip-path:none;background:#0b0820;isolation:isolate;transition:border-color 150ms,transform 150ms var(--lb3-ease)}
+#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter::before{content:none}
+#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter:hover:not(:disabled){filter:none;border-color:var(--f-accent);transform:translateY(-2px)}
+#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter:focus-visible{outline:3px solid var(--lb3-focus);outline-offset:2px;background:#0b0820;border-color:var(--lb3-focus)}
+#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter:focus-visible::before{content:none}
+#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter[aria-checked="true"]{transform:none;border-color:var(--f-accent);background:#0b0820;box-shadow:0 0 0 3px var(--f-accent)}
+#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter[aria-checked="true"]::before{content:none}
+#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter[aria-checked="true"]::after{content:'✓';top:6px;right:6px;display:grid;place-items:center;width:24px;height:24px;padding:0;border-radius:50%;
+  font-size:14px;letter-spacing:0;line-height:1;color:#14091f;background:var(--f-accent);box-shadow:none}
+#pvp-root .lb3 .j2-chars .lb3-f-art{position:absolute;inset:0;z-index:0;width:100%;height:100%;aspect-ratio:auto;background-position:50% 12%;background-size:cover;opacity:1;filter:none}
+#pvp-root .lb3 .j2-chars .lb3-f-name{position:absolute;left:0;right:0;bottom:0;z-index:1;display:block;padding:14px 6px 6px;text-align:center;font-size:14px;font-weight:900;line-height:1.2;color:#fff;
+  background:linear-gradient(180deg,transparent,#0b0820e6 70%)}
+
+/* Bilgi kartı: silah + Q/E/R (pvp/shared/fighters.js'ten) */
+#pvp-root .lb3 .j2-info{--f-main:#c2412d;--f-accent:#f2a541;display:grid;gap:8px;align-content:start;min-width:0;min-height:176px;padding:10px 12px;border-radius:12px;
+  border:1px solid color-mix(in srgb,var(--f-accent) 55%,transparent);border-left:4px solid var(--f-accent);background:#0e0a28}
+#pvp-root .lb3 .j2-info-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;min-width:0}
+#pvp-root .lb3 .j2-info-head b{font-size:18px;font-weight:900;color:#fff;line-height:1.2}
+#pvp-root .lb3 .j2-info-head span{font-size:13px;font-weight:700;color:color-mix(in srgb,var(--f-accent) 70%,#fff)}
+#pvp-root .lb3 .j2-info-head em{margin-left:auto;padding:2px 8px;border-radius:999px;font-size:12px;font-style:normal;font-weight:900;letter-spacing:.08em;color:#ffd8c2;background:#ff6a2b26;border:1px solid #ff6a2b80}
+#pvp-root .lb3 .j2-info-head em.rune{color:#cfeaff;background:#3d9dff26;border-color:#3d9dff80}
+#pvp-root .lb3 .j2-weapon{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;margin:0;font-size:13px;color:var(--lb3-muted)}
+#pvp-root .lb3 .j2-weapon span{font-size:12px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--lb3-gold)}
+#pvp-root .lb3 .j2-weapon b{font-size:14px;font-weight:800;color:#fff}
+#pvp-root .lb3 .j2-skills{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin:0;padding:0;list-style:none}
+#pvp-root .lb3 .j2-skill{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:8px;min-width:0}
+@media (min-width:1100px){#pvp-root .lb3 .j2-skills{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}#pvp-root .lb3 .j2-skill{grid-template-columns:minmax(0,1fr)}}
+
+/* 3) MAÇ AYARLARI: bot zorluğu · maç uzunluğu · raund biçimi (segment düğmeler) */
+#pvp-root .lb3 .j2-settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 12px;align-items:start;min-width:0;padding:12px;border-radius:14px;
+  border:1px solid var(--lb3-line2);background:var(--lb3-panel)}
+#pvp-root .lb3 .j2-settings .lb3-kicker{grid-column:1 / -1}
+#pvp-root .lb3 .j2-settings .rui-picker{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin:0;min-width:0}
+#pvp-root .lb3 .j2-settings .rui-picker-label{font-size:13px;font-weight:800;color:#d8d1f5}
+#pvp-root .lb3 .j2-settings .rui-seg,#pvp-root .lb3 .j2-settings [data-rounds-picker] .rui-seg{display:grid!important;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);grid-template-columns:none;gap:4px;width:100%;padding:3px;
+  border-radius:10px;background:#0d0a2a;border:1px solid #6b52aa}
+#pvp-root .pvp6-panel.lb3 .j2-settings .rui-seg button,#pvp-root .pvp6-panel.lb3 .j2-settings [data-rounds-picker] .rui-seg button{display:grid;place-content:center;gap:0;min-width:0;min-height:44px;padding:4px 6px;
+  border-radius:7px;text-align:center;line-height:1.2;white-space:normal;font-size:13px}
+#pvp-root .lb3 .j2-settings .rui-seg button b{font-size:14px}
+#pvp-root .lb3 .j2-settings .rui-seg button small{font-size:12px;color:inherit;opacity:.85}
+#pvp-root .pvp6-panel.lb3 .j2-settings .rui-seg button[aria-pressed="true"]{background:#4a2da8;color:#fff;box-shadow:inset 0 0 0 2px var(--lb3-gold)}
+#pvp-root .lb3 .j2-settings .rui-picker [data-words-group]:not([hidden]){margin-top:2px}
+/* Süre/sayı raundu yalnız "Zamana Karşı" ve içerik modlarında anlamlı (mod kartı data-mode="rounds"); Klasik/Arena'da gizlenir. */
+#pvp-root .lb3 .j2-before:has([data-mode-picker="practice"]:not([data-mode="rounds"])) .j2-settings :is([data-rounds-picker],[data-style-picker]){display:none}
+
+/* 4) Arena karuseli (CSS 3B coverflow): seçili öndeki büyük, komşular yana yatık; ← → / kaydırma / tıklama */
+#pvp-root .lb3 .j2-arena .lb3-stage{gap:8px;padding:10px 12px 12px;border-radius:14px;background:var(--lb3-panel);border:1px solid var(--lb3-line2)}
+#pvp-root .lb3 .j2-arena .lb3-stage legend{font-size:13px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--lb3-muted)}
+#pvp-root .lb3 .j2-arena .lb3-stage-strip{position:relative;display:block;height:clamp(190px,24vw,260px);perspective:900px;perspective-origin:50% 45%;overflow:hidden;touch-action:pan-y}
+#pvp-root .pvp6-panel.lb3 .j2-arena button.lb3-stage-card{position:absolute;left:50%;top:6px;width:min(58%,300px);height:auto;min-height:0;padding:5px 5px 8px;z-index:calc(10 - var(--a,0));
+  opacity:calc(1 - var(--a,0)*.3);transform:translateX(calc(-50% + var(--o,0)*44%)) translateZ(calc(var(--a,0)*-110px)) rotateY(calc(var(--o,0)*-34deg));
+  transition:transform 320ms var(--lb3-ease),opacity 320ms,border-color 150ms}
+#pvp-root .pvp6-panel.lb3 .j2-arena button.lb3-stage-card:hover:not(:disabled){transform:translateX(calc(-50% + var(--o,0)*44%)) translateZ(calc(var(--a,0)*-110px)) rotateY(calc(var(--o,0)*-34deg))}
+#pvp-root .pvp6-panel.lb3 .j2-arena button.lb3-stage-card[aria-checked="true"]{border-color:var(--st-accent);box-shadow:none}
+#pvp-root .lb3 .j2-arena .lb3-stage-art{aspect-ratio:16/10}
+#pvp-root .lb3 .j2-arena .lb3-stage-description{display:none}
+#pvp-root .lb3 .j2-arena .lb3-stage-name{font-size:14px;font-weight:800}
+#pvp-root .lb3 .j2-arena .lb3-stage-blurb{min-height:34px;font-size:12px}
+
+/* 5) Başlat + çevrimiçi kart: düz yüzey, parıltı yok */
+#pvp-root .pvp6-panel.lb3 .j2-go button.lb3-fight{box-shadow:none;text-shadow:none}
+#pvp-root .pvp6-panel.lb3 .j2-go button.lb3-fight::after{display:none}
+#pvp-root .pvp6-panel.lb3 .j2-go button.lb3-fight:hover:not(:disabled){transform:none}
+#pvp-root .lb3 .j2-go .pvp6-help{margin:0}
+#pvp-root .lb3 .j2-online{align-content:start}
+
+/* Geniş ekran: mod başlığı görsel olarak gizli (şerit kendini anlatır; etiket erişilebilirlik için kalır), çevrimiçi kart iki sütun */
+@media (min-width:1100px){
+  #pvp-root .lb3 .j2-modes .rui-picker-label{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  #pvp-root .lb3 .j2-modes .aui-modes .rui-seg{padding-bottom:6px}
+  #pvp-root .lb3 .j2-online{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:14px;row-gap:6px;align-content:start}
+  #pvp-root .lb3 .j2-online>.lb-card-head{grid-column:1 / -1}
+  #pvp-root .lb3 .j2-online>.lb-divider,#pvp-root .lb3 .j2-online>.pvp6-help{display:none}
+  #pvp-root .lb3 .j2-online>label[for="pvp6-name"],#pvp-root .lb3 .j2-online>#pvp6-name,#pvp-root .lb3 .j2-online>.pvp6-startrow{grid-column:1}
+  #pvp-root .lb3 .j2-online>label[for="lb3-join-code"],#pvp-root .lb3 .j2-online>.pvp6-join{grid-column:2}
+  #pvp-root .lb3 .j2-online>label[for="lb3-join-code"]{grid-row:2}
+  #pvp-root .lb3 .j2-online>.pvp6-join{grid-row:3;margin-top:0}
+}
+@media (min-width:1100px) and (max-height:820px){
+  #pvp-root .lb3 .j2-chars{gap:8px}
+  #pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter{aspect-ratio:6/5}
+  #pvp-root .lb3 .j2-pick.lb3-showcase.lb3-roster{padding:10px 12px;gap:8px}
+  #pvp-root .lb3 .j2-info{min-height:0;gap:6px;padding:8px 12px}
+  #pvp-root .lb3 .j2-settings{padding:8px 12px 10px;gap:6px 12px}
+  #pvp-root .pvp6-panel.lb3 .j2-settings .rui-seg button,#pvp-root .pvp6-panel.lb3 .j2-settings [data-rounds-picker] .rui-seg button{min-height:38px}
+  #pvp-root .lb3 .j2-arena .lb3-stage-strip{height:clamp(180px,22vw,210px)}
+  #pvp-root .pvp6-panel.lb3 .j2-modes .aui-modes .rui-seg button{min-height:52px;padding-block:5px}
+  #pvp-root .lb3 .j2-before{gap:10px}
+  #pvp-root .pvp6-panel.lb3 .j2-go button.lb3-fight{min-height:50px!important}
+  #pvp-root .pvp6-panel.lb3{padding:12px 18px 12px;gap:8px}
+  #pvp-root .lb3-head{padding-bottom:8px}
+  #pvp-root .lb3-head h2{font-size:21px;margin:0}
+  #pvp-root .lb3-head p{display:none}
+  #pvp-root .lb3 .j2-info{grid-template-columns:minmax(0,1fr) auto;align-items:baseline}
+  #pvp-root .lb3 .j2-info-head{grid-column:1}
+  #pvp-root .lb3 .j2-weapon{grid-column:2;grid-row:1;justify-content:flex-end}
+  #pvp-root .lb3 .j2-skills{grid-column:1 / -1}
+  #pvp-root .lb3 .j2-go .pvp6-help{display:none}
+}
+
+/* 6) Telefon (≤560): 5 karakter 3 sütunlu ızgara; mod şeridi bir sonraki kartı gösterir */
+@media (max-width:560px){
+  #pvp-root .lb3 .j2-chars{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  #pvp-root .lb3 .j2-settings{grid-template-columns:minmax(0,1fr)}
+  #pvp-root .pvp6-panel.lb3 .j2-modes .aui-modes .rui-seg button{width:156px}
+  #pvp-root .lb3 .j2-info{min-height:0}
+  #pvp-root .lb3 .j2-arena .lb3-stage-strip{height:210px}
+}
+/* ≥2200 px CSS (≈ %80 yakınlaştırma): yazılar ekranda ≥12 px kalsın */
+@media (min-width:2200px){
+  #pvp-root .lb3 .j2-info-head em,#pvp-root .lb3 .j2-weapon span,#pvp-root .lb3 .j2-settings .rui-seg button small,#pvp-root .lb3 .j2-modes .aui-modes .rui-seg button small,#pvp-root .lb3 .j2-arena .lb3-stage-blurb{font-size:15px}
+  #pvp-root .lb3 .j2-info-head span,#pvp-root .lb3 .j2-weapon,#pvp-root .lb3 .j2-settings .rui-picker-label,#pvp-root .lb3 .j2-arena .lb3-stage legend{font-size:16px}
+  #pvp-root .lb3 .j2-info-head b{font-size:22px}
+  #pvp-root .lb3 .j2-chars .lb3-f-name,#pvp-root .lb3 .j2-modes .aui-modes .rui-seg button b,#pvp-root .lb3 .j2-arena .lb3-stage-name{font-size:17px}
+}
+@media (prefers-reduced-motion:reduce){
+  #pvp-root .pvp6-panel.lb3 .j2-arena button.lb3-stage-card,#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter{transition:none}
+  #pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter:hover:not(:disabled){transform:none}
+  #pvp-root .lb3 .j2-modes .aui-modes .rui-seg{scroll-behavior:auto}
+}
+#pvp-root.pvp4-reduced .pvp6-panel.lb3 .j2-arena button.lb3-stage-card,#pvp-root.pvp4-reduced .pvp6-panel.lb3 .j2-chars button.lb3-fighter{transition:none}
+#pvp-root.pvp4-reduced .pvp6-panel.lb3 .j2-chars button.lb3-fighter:hover:not(:disabled){transform:none}

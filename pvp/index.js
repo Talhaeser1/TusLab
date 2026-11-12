@@ -5,7 +5,7 @@ import {normalizeTyping} from './shared/typing-rules.js';
 import {createCharacterController,rigMarkup,MOTION_NAMES} from './characters.js';
 import {createCombatFxDirector} from './combat-fx.js';
 import {createPvPAudio,soundForCue,weaponSfx} from './sound.js';
-import {isFighterId,normalizeFighter} from './shared/fighters.js';
+import {FIGHTERS,isFighterId,normalizeFighter} from './shared/fighters.js';
 import {createComboCounter} from './combo-counter.js';
 import {createAttackCallout,createDisplayedHp} from './attack-callout.js';
 import {createDynamicScore} from './music23.js';
@@ -132,6 +132,9 @@ async function arena3dCreate(){
   arena3dDestroy();
   const token=arena3d.token;
   if(!root||!arena3dWanted()){arena3dButtonSync();return;}
+  // Maça girişte eski/2B karakter parlaması olmasın: Meshy modelleri gelene dek 2B rig gizli, "yükleniyor" göstergesi açık
+  // (arena3d.css). 3B açılamazsa (catch) sınıf kalkar ve bugünkü CSS arena aynen görünür.
+  root.classList.add('pvp-models-pending');
   try{
     const [{createArena3D},{createArena3DFx},{createArena3DHpBars},{createArena3DAssist}]=await Promise.all([import('./arena3d.js'),import('./arena3d-fx.js'),import('./arena3d-hpbars.js'),import('./arena3d-assist.js')]);
     if(token!==arena3d.token||root.hidden)return;
@@ -151,16 +154,20 @@ async function arena3dCreate(){
     fx24.motion?.clear();fx24.particles?.clear();
   }catch(error){
     console.warn('3B arena başlatılamadı; CSS arena kullanılıyor.',error);
+    if(token===arena3d.token)root?.classList.remove('pvp-models-pending');
   }
+  if(!arena3d.instance)root?.classList.remove('pvp-models-pending'); // 3B yok → 2B arena (bilinçli yedek) görünür
   arena3dButtonSync();
 }
 // Paket 32: koltuk → karakter (match.players[].fighter; yoksa arketipin varsayılanı). Yalnız görsel/ses içindir.
 // Hata ayıklama: ?fighter1=sira&fighter2=nyx (yalnız bilinen kimlikler kabul edilir; oyun durumunu değiştirmez).
 function fighterOfSeat(seat){
-  const forced=new URLSearchParams(location.search).get(`fighter${seat}`);
-  if(isFighterId(forced))return forced;
   const p=(network.match?.players||[]).find(x=>x?.seat===seat);
   const side=p?.character==='fire'||p?.character==='rune'?p.character:(seat===2?'rune':'fire');
+  // URL zorlaması yalnız o koltuğun arketipiyle uyuşuyorsa geçerli: HUD/ses etiketi (match.players[].fighter) ile 3B model hep aynı karakter olur.
+  // (Bot antrenmanında fighter2 artık oturuma da verilir; bkz. network.js botFighterFromUrl.)
+  const forced=new URLSearchParams(location.search).get(`fighter${seat}`);
+  if(isFighterId(forced)&&(!p||FIGHTERS[forced].archetype===side))return forced;
   return normalizeFighter(p?.fighter,side);
 }
 let lastFighterKey='';
@@ -168,8 +175,14 @@ function arena3dSyncFighters(){
   const map={1:fighterOfSeat(1),2:fighterOfSeat(2)};
   const key=`${map[1]}|${map[2]}`;
   if(network.match&&key!==lastFighterKey){lastFighterKey=key;pvpAudio.preloadFighters?.([map[1],map[2]]);void pvpAudio.preloadVoices?.([map[1],map[2]]);}
-  if(arena3d.instance?.setFighters)void arena3d.instance.setFighters(map); // aynı seçim → yeniden yüklemez
+  if(!arena3d.instance?.setFighters)return;
+  const token=arena3d.token,job=arena3d.instance.setFighters(map); // aynı seçim → yeniden yüklemez
+  if(key===pendingKey)return;
+  // Model değişti: Meshy GLB gelene dek 2B rig/düzlem silueti görünmez (arena3d.css "yükleniyor" göstergesi); bitince (ya da hata verince yedek) kalkar.
+  pendingKey=key;root?.classList.add('pvp-models-pending');
+  Promise.resolve(job).catch(()=>false).then(()=>{if(token===arena3d.token&&pendingKey===key)root?.classList.remove('pvp-models-pending');});
 }
+let pendingKey='';
 function arena3dSyncStage(){
   const forced=/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?new URLSearchParams(location.search).get('stage'):null;
   arena3d.instance?.setStage?.(forced||network.match?.stage);
@@ -207,7 +220,7 @@ root?.addEventListener('tuslab:pvp-strike',event=>{
   if(n>=3)pvpAudio.cheer?.(.3);
 });
 function arena3dDestroy(){
-  arena3d.token++;
+  arena3d.token++;pendingKey='';root?.classList.remove('pvp-models-pending');
   arena3d.instance?.destroy();
   arena3d.instance=null;
 }
@@ -921,6 +934,7 @@ document.addEventListener('keydown',event=>{
   if(store.getState().view===PvPView.CLOSED)return;
   if(!pvpAudio.getState().muted&&event.key.length===1)void pvpAudio.unlock();
   event.stopImmediatePropagation();
+  if(network.lobbyKey?.(event))return; // lobi: karakter/arena/mod ok tuşları (kök dinleyicisi bu satırdan sonra hiç tetiklenmez)
   // Arena hazırlığı: 1–5 skill, 6–9 eşya, Enter kilitle, Esc seçmeden geç.
   if(arenaUi?.handleKey(event))return;
   if(roundsUi?.handleKey(event))return;

@@ -1672,7 +1672,9 @@ export async function createArena3D({
       layer.material.emissiveMap = texture;
       layer.material.needsUpdate = true;
     }
-    for (const fighter of fighters.values()) fighter.actor.visible = true;
+    // Maça girişte 2B düzlem siluetinin parlaması olmasın: modeli yüklenmekte olan savaşçı gizli kalır (model gelince attachModel açar);
+    // düzlem yalnız model yüklenemezse (modelFailed) ya da hiç model istenmediyse yedek olarak görünür.
+    for (const fighter of fighters.values()) fighter.actor.visible = !fighter.fighterId || Boolean(fighter.model) || fighter.modelFailed;
     readyState = 'ready';
     safeCall(() => root.classList?.add?.('pvp26-3d'));
     layout(true);
@@ -1765,6 +1767,7 @@ export async function createArena3D({
       fighter.modelFailed = false;
       const token = ++fighter.modelToken;
       detachModel(fighter);
+      setPlaneVisible(fighter, false); fighter.actor.visible = false; // yükleme sırasında eski 2B silüet/önceki model parlamaz
       const job = (async () => {
         try {
           const [asset, clone] = await Promise.all([fetchModel(id), getClone()]);
@@ -1773,7 +1776,11 @@ export async function createArena3D({
           attachModel(fighter, rig, asset);
           return true;
         } catch (error) {
-          if (token === fighter.modelToken) fighter.modelFailed = true;
+          if (token === fighter.modelToken) {
+            fighter.modelFailed = true;
+            setPlaneVisible(fighter, true); // yalnız hata: yedek düzlem silüet (doku hazırsa hemen, değilse doku yüklenince açılır)
+            if (readyState === 'ready') fighter.actor.visible = true;
+          }
           safeCall(() => env?.console?.warn?.(`[arena3d] ${id} Meshy modeli yüklenemedi; yükleme silueti gösteriliyor.`, error?.message || error));
           return false;
         } finally {
