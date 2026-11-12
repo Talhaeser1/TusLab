@@ -141,16 +141,32 @@ export function createDamageNumbers({
   }
 
   /** 375 px gibi dar ekranda yazı kenardan taşmasın: CSS `translate` (transform animasyonundan bağımsız) ile ekrana kıstır. */
+  function measureClamp(el, vw, pad) {
+    const r = el.getBoundingClientRect?.();
+    if (!vw || !r || !r.width) return 0;
+    const half = Math.max(r.width, el.scrollWidth || 0) / 2 * 1.12, c = r.left + r.width / 2;
+    if (c - half < pad) return pad - (c - half);
+    if (c + half > vw - pad) return (vw - pad) - (c + half);
+    return 0;
+  }
+  // İş 12: toplu temasta ~25 sayı aynı karede doğuyor; her biri yaz→oku (zorunlu yerleşim) yapınca kare 300 ms sürüyordu.
+  // rAF varsa ölçümler tek karede önce HEPSİ okunur, sonra yazılır (tek yerleşim).
+  const clampQueue = [];
+  function flushClamp() {
+    const vw = doc.documentElement?.clientWidth || globalThis.innerWidth || 0;
+    const items = clampQueue.splice(0).filter(el => el.isConnected !== false);
+    const dxs = items.map(el => { try { return measureClamp(el, vw, 14); } catch { return 0; } });
+    items.forEach((el, i) => { if (dxs[i]) el.style.translate = `${Math.round(dxs[i])}px 0`; });
+  }
   function clampIntoView(el, pad = 14) {
     try {
       el.style.translate = '';
-      const vw = doc.documentElement?.clientWidth || globalThis.innerWidth || 0;
-      const r = el.getBoundingClientRect?.();
-      if (!vw || !r || !r.width) return;
-      const half = Math.max(r.width, el.scrollWidth || 0) / 2 * 1.12, c = r.left + r.width / 2;
-      let dx = 0;
-      if (c - half < pad) dx = pad - (c - half);
-      else if (c + half > vw - pad) dx = (vw - pad) - (c + half);
+      const raf = globalThis.requestAnimationFrame;
+      if (typeof raf === 'function' && pad === 14) {
+        if (clampQueue.push(el) === 1) raf(flushClamp);
+        return;
+      }
+      const dx = measureClamp(el, doc.documentElement?.clientWidth || globalThis.innerWidth || 0, pad);
       if (dx) el.style.translate = `${Math.round(dx)}px 0`;
     } catch { /* yalnız yerleşim iyileştirmesi */ }
   }

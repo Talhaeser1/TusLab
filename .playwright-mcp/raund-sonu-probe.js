@@ -84,7 +84,7 @@ async (page) => {
     root.addEventListener('tuslab:pvp-round', onPhase, true);
     root.addEventListener('tuslab:pvp-arena', onPhase, true);
     root.addEventListener('tuslab:pvp-cast', e => { L.casts[L.phase === 'typing' ? 'typing' : 'end']++; L.ev.push([rel(), 'cast', e.detail?.seat, e.detail?.skill]); if (card()) L.viol.push(`${rel()} cast s${e.detail?.seat}`); }, true);
-    new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.classList?.contains('pxd-float')) { L.ev.push([rel(), 'float', (n.textContent || '').trim().slice(0, 20)]); if (card()) L.floatsCard.push(`${rel()} ${(n.textContent || '').trim().slice(0, 20)}`); } }).observe(root, {childList: true, subtree: true});
+    new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.classList?.contains('pxd-float')) { L.ev.push([rel(), 'float', (n.textContent || '').trim().slice(0, 20), /seat-2/.test(n.className) ? 2 : 1]); if (card()) L.floatsCard.push(`${rel()} ${(n.textContent || '').trim().slice(0, 20)}`); } }).observe(root, {childList: true, subtree: true});
     try { window.__tuslabAnimProbe?.start(); } catch { /* yok */ }
     let last = performance.now(), wasCard = false, camUntil = 0;
     const loop = () => {
@@ -142,8 +142,14 @@ async (page) => {
       } }
     const slow = E.filter(e => e[1] === 'slowdraw').map(e => `${Math.round(e[0] - L.t0)}:${e[2]}(${e[3]})`).slice(0, 30);
     const lst = Object.entries(window.__lst || {}).sort((a, b) => b[1][1] - a[1][1]).slice(0, 10).map(([k, v]) => `${k.slice(0, 110)} n${v[0]} top${Math.round(v[1])} max${Math.round(v[2])}`);
-    return {lst, scenes, slow, frames: fr.length, p50: pct(0.5), p95: pct(0.95), max: srt.at(-1), over250: fr.filter(x => x > 250).length, long: long.slice(0, 12),
-      casts: L.casts, contacts, ultSkip: PM.filter(e => e.type === 'ultSkip').map(e => `${Math.round(e.t - L.t0)}:s${e.seat}:${e.skill}`).slice(0, 8), silent: PM.filter(e => e.type === 'silent').map(e => `${Math.round(e.t - L.t0)}:${e.skill || ''}:${e.reason || ''}`).slice(0, 12),
+    // E: her hasar sayısı (yazı değil, rakam içeren) → saldıranın en yakın temas işaretine uzaklık (ms).
+    const cts = PM.filter(e => e.type === 'contact' || e.type === 'impact').map(e => [Math.round(e.t - L.t0), e.seat]);
+    const fl = L.ev.filter(e => e[1] === 'float' && /\d/.test(e[2]) && !/PERFECT|PARRY/.test(e[2]));
+    const fdist = fl.map(f => { const atk = f[3] === 2 ? 1 : 2; const d = cts.filter(c => c[1] === atk).map(c => f[0] - c[0]); const best = d.length ? d.reduce((a, b) => Math.abs(b) < Math.abs(a) ? b : a) : null; return {t: f[0], txt: f[2], seat: f[3], d: best}; });
+    const floatFar = fdist.filter(x => x.d === null || Math.abs(x.d) > 100);
+    return {floatsN: fdist.length, floatFar: floatFar.length, floatFarSample: floatFar.slice(0, 6).map(x => `${x.t}:s${x.seat}:${x.txt}:d${x.d} || ` + PM.filter(e => Math.abs(e.t - L.t0 - x.t) < 2500).map(e => `${Math.round(e.t - L.t0 - x.t)}:${e.type}${e.seat ?? ''}${e.skill || ''}${e.forced ? 'F' : ''}`).slice(-10).join(' ')),
+      lst, scenes, slow, frames: fr.length, p50: pct(0.5), p95: pct(0.95), max: srt.at(-1), over250: fr.filter(x => x > 250).length, long: long.slice(0, 12),
+      casts: L.casts, contacts, ultSkip: PM.filter(e => e.type === 'ultSkip').map(e => `${Math.round(e.t - L.t0)}:s${e.seat}:${e.skill}`).slice(0, 8), silent: PM.filter(e => e.type === 'silent').map(e => `${Math.round(e.t - L.t0)}:s${e.seat}:${e.skill || ''} || ` + PM.filter(x => x.t >= e.t - 1500 && x.t <= e.t + 300 && x !== e).map(x => `${Math.round(x.t - e.t)}:${x.type}${x.seat ?? ''}${x.skill || ''}`).slice(-8).join(' ') + ' || ' + L.ev.filter(x => x[0] >= e.t - L.t0 - 1500 && x[0] <= e.t - L.t0 + 300).map(x => x.join(':')).slice(-6).join(' ')).slice(0, 12),
       forced: PM.filter(e => e.type === 'end' && e.forced).length,
       cardOpens: L.cardOpens, viol: L.viol.length, violSample: [...new Set(L.viol.map(v => v.split(' ').slice(1).join(' ')))].slice(0, 6), violFirst: L.viol.slice(0, 4),
       floatsCard: L.floatsCard.slice(0, 8), camSamples: L.cam.length, camBad: camBad.length, camBadSample: camBad.slice(0, 3),

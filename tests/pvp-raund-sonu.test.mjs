@@ -115,6 +115,31 @@ test('sunucu (cloudflare/src/match.js) ile istemci aynı sonucu üretir',()=>{
   assert.equal(server.advanceMatch,advanceMatch);
 });
 
+test('resolveAtEnd: aynı raunttaki ultilerin kimliği benzersiz (istemci kopya sanıp sahnesiz göstermesin)',()=>{
+  let m=createMatch(players(),T0,'ul1',{rounds:true,roundStyle:'timed',resolveAtEnd:true,seed:'k12'});
+  let at=m.round.startedAt+100;
+  // Seri 7 → r (STREAK_SKILLS); 8. kelime yanlış (seri kırılır) → ikinci 7'lik seri ikinci ultiyi atar.
+  for(let i=0;i<16;i++){
+    const p=seatOf(m,1);const w=i===7?'yanlışxx':publicMatch(m,1).round?.words?.[p.roundWordIndex];
+    const out=submitWord(m,{playerId:p.playerId,matchId:m.id,wordIndex:p.wordIndex,text:w,round:m.round.index},at);
+    if(out.match)m=out.match;at+=400;
+  }
+  const ids=m.pendingAttacks.filter(a=>a.skill==='r').map(a=>a.ultimateId);
+  assert.ok(ids.length>=2,'en az iki ulti: '+ids.length);
+  assert.equal(new Set(ids).size,ids.length);
+});
+
+test('toplu temas: 30 bekleyen vuruş aynı karede teslim (taşma yok), en çok 3 tam darbe (kare donması olmasın)',async()=>{
+  const {createImpactDirector}=await import('../pvp/impact-feel.js');
+  let t=0,contacts=0;const got=[];let ready=false;
+  const d=createImpactDirector({now:()=>t,isReduced:()=>false,contact:()=>{contacts++;},deliver:(e,scene)=>got.push([e.id,scene])});
+  for(let i=0;i<30;i++)d.queue({id:i,amount:10,skill:'q'},()=>ready,9000);
+  d.flush();assert.equal(got.length,0,'temastan önce hiçbiri gösterilmez (16 sınırı taşmıyor)');
+  ready=true;t=100;d.flush();
+  assert.equal(got.length,30);assert.equal(contacts,3);
+  assert.deepEqual(got.map(g=>g[0]),[...Array(30).keys()],'sıra korunur');
+});
+
 test('arena raund sonu: özet kartı plan bitişinden önce açılmaz, vuruşlar plan içinde',()=>{
   let m=createArenaMatch(players(),T0,'ar1',{seed:'k12'});
   let at=T0;

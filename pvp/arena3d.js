@@ -2854,7 +2854,7 @@ export async function createArena3D({
     const span = ultGeometry(atk, def, tmpTarget);
     const roles = {atk, def};
     const sequence = ult;
-    const markContact = () => { sequence.contacts.add(n); impactFeel.flush(); };
+    const markContact = () => { sequence.contacts.add(n); impactFeel.flush(); probeMark('impact', {seat: atk, skill: `r${n}`}); };
     if (n === 1) {
       startSeg(attacker, {...roles, target: blocked ? 'atkBlocked' : 'atkCentre', dur: T.dashMs, ease: easeOutCubic, arc: 0.04 * span, onEnd: markContact});
       addTrack(attacker, 520, (p, o, m) => {           // raised weapon, energy glow
@@ -3898,9 +3898,14 @@ export async function createArena3D({
           // İş 12: faz segmenti sonraki fazca kesilirse (temas işaretlenmez) hasar zaman aşımına kalıp kart
           // açıkken düşüyordu (ölçüm: "2/3" sahne bitiminden 1,8 sn sonra). Sonraki fazın teması ya da ultinin
           // bitişi de bu fazın hasarını o karede gösterir (sıra korunur).
-          impactFeel.queue(event, () => (event.phase === 1 && cast.ranged ? cast.arrived : sequence.contacts.has(event.phase))
+          // İş 12: menzilli ultide cast.arrived ulti başındaki efektle erken true oluyordu (1/3 sayısı temastan ~0,9 sn önce);
+          // 1. faz da kendi temas karesine (markContact) bağlanır.
+          impactFeel.queue(event, () => sequence.contacts.has(event.phase)
             || [...sequence.contacts].some(p => p > event.phase) || ult !== sequence);
-        } else if (event.skill !== 'r' && !reduced() && (entry = bindCastEntry(event.fromSeat))) {
+        } else if (event.skill !== 'r' && !reduced() && (entry = bindCastEntry(event.fromSeat)
+          // İş 12 güvenlik ağı: bağlanacak sahne yoksa (destek/katlanan vuruş sahnesi önceden bitti/düştü) sahnesiz
+          // göstermek yerine saldıranın kendi q sahnesi açılır ve hasar onun temas karesinde gösterilir.
+          || (isSeat(event.fromSeat) && enqueueMeleeSkill(event.fromSeat, 'q', {fx: false}) && bindCastEntry(event.fromSeat)))) {
           // Görsel kuyruğa bağlı hasar: gösterim (efekt/sarsıntı/sayı/tepki) klibin gerçek temas karesinde.
           // Görev 4: hasar KENDİ vuruşunun (strike) temas karesine bağlanır.
           entry.strike.events.push(event);

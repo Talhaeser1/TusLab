@@ -93,12 +93,16 @@ export function createImpactDirector({now,isReduced,contact,deliver}) {
   return {state,
     queue(event,ready,deadlineMs) {
       // A dropped/replaced visual cue must never retain an unbounded backlog.
-      if(pending.length>=16)hit(pending.shift().event,false);
+      // İş 12: raund sonu toplu sahnesi ~70 vuruş taşıyabilir; 16'lık sınır fazlasını temastan ~1,9 sn önce gösteriyordu.
+      // Bekleyenler süre sınırlı (deadline) olduğundan 128 yine sınırlı birikimdir.
+      if(pending.length>=128)hit(pending.shift().event,false);
       pending.push({event,ready,deadline:now()+(deadlineMs||(event.skill==='r'?5000:2400))});
     },
-    flush() { for(let i=0;i<pending.length;i++) {
+    flush() { let full=0; for(let i=0;i<pending.length;i++) {
       const p=pending[i], ready=p.ready(); if(!ready&&now()<p.deadline)continue;
-      pending.splice(i--,1); hit(p.event,ready);
+      // İş 12: toplu sahnede ~25 vuruş aynı temas karesinde çözülüyor; hepsine tepki/efekt/ses 258 ms'lik kare
+      // donması yaptı. Aynı karede en çok 3 tam darbe; kalanı aynı karede yalnız sayı + can (sahne zaten oynuyor).
+      pending.splice(i--,1); hit(p.event,ready&&full++<3);
     } },
     hit,
     silent(event) { hit(event,false); },

@@ -465,7 +465,8 @@ export function submitWord(match,{playerId,matchId,wordIndex,text,round},at=Date
       const attack={fromSeat:mine.seat,toSeat:target.seat,skill,character:mine.character,
         amount:DAMAGE[mine.character][skill]+empowered.bonus,
         bonus:empowered.bonus,bonusTags:empowered.tags,issuedAt:at,resolveAt:at+SHIELD_WINDOW_MS,
-        ...(skill==='r'?{ultimateId:next.nextCombatId,phaseIndex:0}: {})};
+        // İş 12: pencere modunda yazarken olay üretilmez → kimlik burada tüketilir (iki ulti aynı kimliği almasın).
+        ...(skill==='r'?{ultimateId:next.exchange?next.nextCombatId++:next.nextCombatId,phaseIndex:0}: {})};
       if(next.exchange)attack.resolveAt=Infinity;
       next.pendingAttacks.push(attack);
       if(!next.exchange)cast=addEvent(next,'SKILL_CAST',{...attack,at});
@@ -544,7 +545,9 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
     const attack={fromSeat:mine.seat,toSeat:target.seat,skill,character:mine.character,amount,
       bonus:empowered.bonus,bonusTags:empowered.tags,issuedAt:at,resolveAt:at+SHIELD_WINDOW_MS,
       multiplier,streak:mine.combo,round:round.index,roundWordIndex:index,chain:mine.combo>=8,
-      ...(skill==='r'?{ultimateId:next.nextCombatId,phaseIndex:0}: {})};
+      // İş 12: resolveAtEnd'de yazarken olay üretilmez → nextCombatId artmaz → aynı raunttaki iki ulti aynı kimliği alıyordu;
+      // istemci ikincisini "bitmiş ultinin kopyası" sayıp atlıyor, hasarı sahnesiz düşüyordu. Kimlik burada tüketilir (yalnız kimlik).
+      ...(skill==='r'?{ultimateId:next.resolveAtEnd?next.nextCombatId++:next.nextCombatId,phaseIndex:0}: {})};
     // Clash (spec 5): the opponent already cast on the very same word within the shield window.
     const partner=next.pendingAttacks.find(a=>a.fromSeat===target.seat&&a.toSeat===mine.seat&&!a.counter&&!a.assist&&!a.clashId
       &&a.round===round.index&&a.roundWordIndex===index&&(a.phaseIndex===undefined||a.phaseIndex===0)
@@ -673,7 +676,9 @@ export function resolveDueAttacks(match,at=Date.now(),rng=Math.random){
             unblockable:true,counter:true,...(attack.resolve?{resolve:true,turn:attack.turn}: {})};
           // İş 12: karşı saldırı kendi sahnesinde oynar → sıradaki sahneler (ve çözüm bitişi) onun kadar kayar.
           if(attack.resolve&&attack.scene){
-            for(const p of next.pendingAttacks)if(p.resolve&&p.scene&&!(attack.ultimateId&&p.ultimateId===attack.ultimateId))p.resolveAt+=RESOLVE_SCENE.counterMs;
+            // Yalnız SONRAKİ sahneler kayar: aynı sahnenin kalan vuruşları (ve ulti fazları) o sahnenin yaklaşmasında kalır;
+            // önceden onlar da 6,1 sn kayıyor, sahne bitmiş olduğundan hasar sahnesiz düşüyordu (classic ölçümü: 3 destek).
+            for(const p of next.pendingAttacks)if(p.resolve&&p.scene>attack.scene)p.resolveAt+=RESOLVE_SCENE.counterMs;
             if(next.exchange?.resolveUntil)next.exchange.resolveUntil+=RESOLVE_SCENE.counterMs;
             if(next.round?.resolveUntil)next.round.resolveUntil+=RESOLVE_SCENE.counterMs;
           }
