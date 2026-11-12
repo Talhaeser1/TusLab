@@ -249,3 +249,9 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 
 ## Görev S — SES (bağlandı)
 - pvp/sound.js: replik/anons/efekt/seyirci katmanı + tek kanallı kuyruk (pvp/voice-queue.js); konyali q/e/r mp3, hit/ko dosyası yok → arketip (404 yok). music23.js: anadolu.mp3 lobi+dövüş varsayılanı, .wav yedek. Ses düğmesi artık müziği de keser. arena3d.js: tek satır `tuslab:pvp-cast` olayı. Kanıt: .playwright-mcp/ses-probe.js.
+
+## İş 1 — Dövüş temposu (düzeltme turu 4, 12 Kasım 2026)
+- Kök nedenler: (1) saldıran değişimi arası `TURN.breathMs` 200 ms idi ve savunanın tepkisi bitmeden sayılıyordu; (2) zincir dönüşü 240 ms / yaklaşma 340 ms ≈3,6 birim → kare başına 0,43–0,57 birim (ışınlanma hissi); (3) raund sonu `drain(1500)` OYNAYAN sahneyi de kesip bekleyenleri sessiz bitiriyordu; KO'da `onMatchEnd` oynayan ultiyi kesip 4,3 birim sıçratıyordu; (4) efekt malzemeleri kill'de dispose → program silinip yeniden derleniyordu; KRİTİK düzlemi ilk kritikte yaratılıyordu.
+- Kararlar: ara 1,2 sn (baskıda orantılı, ≥0,6 sn; yerleşik = idle + evde; tavan 0,8 sn → en kötü 2,0 sn); yaklaşma 620 ms (sıkışık 500), dönüş 900 ms (600); menzilli 420/560 ms; gövde ileri ofseti kare başına ≤0,3 birim (raund sıfırlamasında anında); boşaltmada koltuk başına bekleyenler tek sahneye katlanır (compactForDrain), süre dolunca yalnız başlamamışlar biter; raund sonu drain 2800 ms (whenIdle 3000 içinde); KO'da bitiş sinematiği whenIdle(1600) sonrası.
+- Ölçüm araçları: .playwright-mcp/dovus-sim.mjs (deterministik saat), dovus-tempo-probe.js + run-gpu.mjs (gerçek GPU; run.mjs swiftshader'da ~2 fps → saat 100 ms'ye kırpıldığı için ölçüm geçersiz).
+- Açık: GPU tarafı rAF donmaları (ana iş parçacığında longtask yok, dövüşte linkProgram yok); ulti oynarken raund biterse karşı koltuğun bekleyen sahnesi sessiz biter; ağ zamanında çalan sesler: attack-turn (arena), clash, counter, ward-rise.

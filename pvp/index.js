@@ -798,7 +798,10 @@ root?.addEventListener('tuslab:pvp-match',()=>{
   if(!arena3d.instance)fx24.motion?.onMatchEnd({winnerSeat:m.winnerSeat});
   if(arena3d.instance){
     if(m.winnerSeat===1||m.winnerSeat===2)arena3d.instance.handle({type:'KNOCKOUT',seat:m.winnerSeat===1?2:1});
-    arena3d.instance.onMatchEnd({winnerSeat:m.winnerSeat});
+    // İş 1: KO anında oynayan sahne yarıda kesilip sıçramasın — bitiş sinematiği kuyruk boşalınca (en geç 1,6 sn).
+    const inst=arena3d.instance,end=()=>{if(arena3d.instance===inst&&network.match?.matchId===m.matchId)inst.onMatchEnd({winnerSeat:m.winnerSeat});};
+    const idle=inst.visualQueue?.whenIdle?.(1600);
+    if(idle&&typeof idle.then==='function')idle.then(end,end);else end();
   }
   for(const seat of [1,2])controllers[seat===1?'fire':'rune']?.trigger(m.winnerSeat===null?'idle':m.winnerSeat===seat?'victory':'defeat');
   if(m.winnerSeat===1||m.winnerSeat===2){
@@ -900,7 +903,7 @@ function focusTypingWhenReady(attempt=0){
 root?.addEventListener('tuslab:pvp-recovered',()=>arena3d.instance?.clear());
 root?.addEventListener('tuslab:pvp-arena',event=>{
   if(['ARENA_ROUND_START','ARENA_PREP_START'].includes(event.detail?.type))arena3d.instance?.clear();
-  if(event.detail?.type==='ARENA_ROUND_END')arena3d.instance?.visualQueue?.drain(1500);
+  if(event.detail?.type==='ARENA_ROUND_END')arena3d.instance?.visualQueue?.drain(2800); // İş 1: bekleyenler sıralı, whenIdle(3000) içinde
 });
 root?.addEventListener('tuslab:pvp-round',event=>{
   const type=event.detail?.type;if(type!=='EXCHANGE_START'&&type!=='ROUND_START')return;
@@ -1011,7 +1014,7 @@ root?.addEventListener('tuslab:pvp-match',()=>matchInfo?.update(network.match,ne
 root?.addEventListener('tuslab:pvp-round',event=>{
   const detail=event.detail||{};
   if(detail.type==='ROUND_START')arena3d.instance?.clear();
-  if(detail.type==='ROUND_END')arena3d.instance?.visualQueue?.drain(1500);
+  if(detail.type==='ROUND_END')arena3d.instance?.visualQueue?.drain(2800); // İş 1: bekleyenler sıralı, whenIdle(3000) içinde
   if(detail.type==='ROUND_START'){pvpAudio.play('round-start',{character:'center',gain:.6});roundVoice();}
   if(detail.type==='ROUND_END'&&detail.payload?.reason==='TIME')pvpAudio.announce?.('spiker-sure',{priority:2,ttlMs:1800});
   if(detail.type==='ROUND_SKILL_ACK'){

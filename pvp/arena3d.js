@@ -121,13 +121,16 @@ export const ARENA_ENV_CAPS = Object.freeze({
  * Each phase starts a tween FROM the current pose, so late, bunched or missing
  * phases never snap; a watchdog throws the defender home if phases stop.
  */
+/** İş 1: gövde ileri ofsetinin kare başına en büyük değişimi (dünya birimi; ışınlanma koruması). */
+export const MAX_FWD_STEP = 0.3;
+
 export const ULTIMATE_TIMING = Object.freeze({
   pullMs: 340,        // phase 1: tether yanks the defender to the VS centre (ease-out)
   dashMs: 260,        // phase 1: attacker dashes toward the centre
   hitStopMs: 70,      // phase 2: frozen tremble before the knock (hit-stop)
   hitMs: 230,         // phase 2: knock up + tumble at the centre
   strikeMs: 160,      // phase 2: attacker step-in strike
-  throwMs: 560,       // phase 3: arc flight back to the defender's seat
+  throwMs: 700,       // phase 3: arc flight back to the defender's seat (İş 1: ≤ 0,35 birim/kare)
   bounceMs: 220,      // landing bounce after the slam
   returnDelayMs: 120, // phase 3: attacker waits, then hops home
   returnMs: 480,
@@ -1730,6 +1733,7 @@ export async function createArena3D({
       safeCall(() => root.classList?.add?.('pvp26-3d'));
       layout(true);
     }
+    safeCall(() => ensureCritBackdrop()); // İş 1: KRİTİK düzlemi de ön-ısıtmaya girsin
     safeCall(() => queueWarmup()); // kemikli malzeme programları savaş ortasında değil şimdi derlensin
   }
 
@@ -1816,8 +1820,17 @@ export async function createArena3D({
   const COMBO_SCENE_MAX_MS = 3000; // tek kombo sahnesinin (yaklaşma + vuruşlar + dönüş) tavanı
 
   // ---- Şerit H / Görev 4: görsel zaman çizelgesi (sunucu olayları sıraya alınır, temas karesinde gösterilir)
-  // Aynı anda tek koltuk; farklı koltuk girdileri arasında kısa nefes (TURN.breathMs, 150–250 ms).
+  // Aynı anda tek koltuk; saldıran değişince iki taraf yerleşikken TURN.breathMs (~1,2 sn) ara.
+  // Yerleşik = klip idle, kök hareketi/yolculuk/geri sekme bitmiş (darbe/blok tepkisi de bitti).
+  const fighterSettled = f => {
+    if (!f || f.ko || f.victory) return true;
+    if (f.seg) return false;
+    const kind = f.model?.anim?.state?.kind;
+    if (kind && kind !== 'idle') return false;
+    return Math.abs(f.actor?.position?.x || 0) < 0.05;
+  };
   const timeline = createVisualTimeline({now, isReduced: reduced, breathMs: TURN.breathMs,
+    isSettled: () => fighterSettled(fighters.get(1)) && fighterSettled(fighters.get(2)),
     setTimer: (fn, ms) => env?.setTimeout?.(fn, ms), clearTimer: id => env?.clearTimeout?.(id)});
   const probe = (() => {
     try { return /(?:^|[?&])animprobe=1(?=&|$)/.test(String(env?.location?.search || '')); } catch { return false; }
@@ -1981,6 +1994,11 @@ export async function createArena3D({
   const hexCss = n => `#${(Number(n) >>> 0).toString(16).padStart(6, '0').slice(-6)}`;
   function showCritBackdrop(seat) {
     const color = fighters.get(seat)?.palette?.main ?? 0xffffff;
+    if (!ensureCritBackdrop()) return false;
+    return paintCritBackdrop(seat, color);
+  }
+  /** İş 1 — kasma: düzlem ön-ısıtmadan ÖNCE yaratılır (ilk kritikte malzeme derleme/tahsis yok). */
+  function ensureCritBackdrop() {
     if (!critBackdrop) {
       const drawn = makeCanvas2D(1024, 256);
       const texture = canvasTexture(drawn);
@@ -1992,8 +2010,11 @@ export async function createArena3D({
       mesh.frustumCulled = false;
       mesh.visible = false;
       scene.add(mesh);
-      critBackdrop = {mesh, drawn, texture, start: -Infinity, seat, color: null};
+      critBackdrop = {mesh, drawn, texture, start: -Infinity, seat: null, color: null};
     }
+    return true;
+  }
+  function paintCritBackdrop(seat, color) {
     const b = critBackdrop;
     if (b.color !== color) {
       const {c, ctx} = b.drawn;
@@ -2218,7 +2239,15 @@ export async function createArena3D({
         if (!forced) impactFeel.flush();
         probeMark('contact', {seat, skill, forced: Boolean(forced)});
       } : undefined,
-      onEnd: ({forced}) => {
+      onEnd: ({forced, cancelled}) => {
+        if (cancelled) {
+          // Boşaltma sıkıştırması: hiç başlamadı, olayları başka girdiye katlandı (sessiz hasar YOK).
+          entry.dead = true; entry.open = false;
+          const i = fighter.castQueue.indexOf(entry);
+          if (i >= 0) fighter.castQueue.splice(i, 1);
+          probeMark('end', {seat, skill, cancelled: true});
+          return;
+        }
         // Atlanan dönüş: kalan ofset taşınır (iz silinirken poz sıçramasın diye carry = varış noktası).
         if (!forced) fighter.carry = entry.skipReturn ? entry.contactDistance * (entry.chain?.moveIn || 1) : 0;
         if (ultimate && fighter.pendingUltEvents) {
@@ -2246,6 +2275,35 @@ export async function createArena3D({
       if (last && !last.contact) return {entry: e, strike: last};
     }
     return null;
+  }
+
+  /**
+   * İş 1 — raund sonu/KO boşaltması: koltuk başına henüz başlamamış q/e girdileri TEK sahnede
+   * toplanır (ilki kalır; diğerlerinin hasar olayları onun son vuruşuna katlanır, girdileri sessizce
+   * sıradan çıkar). Böylece bekleyen sahneler süre tavanında SIRALI oynar; animasyonsuz hasar olmaz.
+   */
+  function compactForDrain() {
+    for (const seat of SEATS) {
+      const queue = fighters.get(seat)?.castQueue || [];
+      const pending = queue.filter(e => !e.dead && !e.started && !e.ultimate);
+      if (pending.length < 2) continue;
+      const keep = pending[0];
+      const last = keep.strikes[keep.strikes.length - 1];
+      for (const e of pending.slice(1)) {
+        for (const s of e.strikes) for (const ev of s.events) { last.events.push(ev); boundEvents.set(ev, {entry: keep, strike: last}); }
+        for (const ev of e.events) keep.events.push(ev);
+        for (const s of e.strikes) s.events = [];
+        e.events = [];
+        if (e.strikes.some(s => !s.bound)) last.bound = false; // gelecek hasar olayları da buraya bağlanır
+        if (!e.handle?.cancel?.()) { e.dead = true; e.open = false; }
+      }
+      keep.open = false;
+      probeMark('compact', {seat, folded: pending.length - 1});
+    }
+  }
+  function drainVisual(ms) {
+    safeCall(compactForDrain);
+    timeline.drain(ms);
   }
 
   function bindCastEntry(seat) {
@@ -2910,6 +2968,17 @@ export async function createArena3D({
       o.dark += 0.55 * k;
     }
 
+    // İş 1 — ışınlanma koruması: gövdenin ileri ofseti kare başına en fazla MAX_FWD_STEP (dünya birimi)
+    // değişir. İz silinmesi / zorla bitirme / saat kayması ofseti sıçratsa bile model hedefe kayarak
+    // gider (normal koşu/dönüş 60 fps'de bu sınırın altında kalır). Raund sıfırlaması (snapPose) ve
+    // azaltılmış hareket anında oturur.
+    const step = MAX_FWD_STEP / (fighter.root.scale.x || 1);
+    if (quiet || fighter.snapPose || !Number.isFinite(fighter.fwdShown)) { fighter.fwdShown = o.fwd; fighter.snapPose = false; }
+    else {
+      const d = o.fwd - fighter.fwdShown;
+      fighter.fwdShown = Math.abs(d) > step ? fighter.fwdShown + Math.sign(d) * step : o.fwd;
+    }
+    o.fwd = fighter.fwdShown;
     fighter.lastPose = o;
     const face = fighter.face;
     // Travel spin pivots around the waist (≈ body centre), tilt around the feet.
@@ -3651,7 +3720,7 @@ export async function createArena3D({
       cheer(0.45);
     } else if (type === 'KNOCKOUT') {
       // Client-only event sent by index.js right before onMatchEnd(); seat = loser.
-      timeline.drain(1500); // KO/raund sonu: görsel kuyruk en geç 1,5 s'de boşalır
+      drainVisual(1500); // KO/raund sonu: bekleyenler koltuk başına tek sahnede, kuyruk en geç 1,5 s'de boşalır
       if (isSeat(event.seat)) startKnockout(event.seat);
     } else if (type === 'SHIELD_BROKEN') {
       if (!isSeat(event.seat)) return;
@@ -3719,10 +3788,10 @@ export async function createArena3D({
         } else if (event.skill !== 'r' && !reduced() && (entry = bindCastEntry(event.fromSeat))) {
           // Görsel kuyruğa bağlı hasar: gösterim (efekt/sarsıntı/sayı/tepki) klibin gerçek temas karesinde.
           // Görev 4: hasar KENDİ vuruşunun (strike) temas karesine bağlanır.
-          const bound = entry.entry, strike = entry.strike;
-          strike.events.push(event);
+          entry.strike.events.push(event);
           boundEvents.set(event, entry);
-          impactFeel.queue(event, () => strike.contact && !bound.dead, 9000);
+          // Bağ dinamik: boşaltma sıkıştırması olayı başka sahneye taşıyabilir (compactForDrain).
+          impactFeel.queue(event, () => { const b = boundEvents.get(event) || entry; return b.strike.contact && !b.entry.dead; }, 9000);
         } else if (reduced()) impactFeel.hit(event);
         else impactFeel.silent(event);
         return;
@@ -3764,6 +3833,7 @@ export async function createArena3D({
     impactFeel.clear();
     for (const fighter of fighters.values()) {
       fighter.carry = 0;
+      fighter.snapPose = true; // raund sıfırlaması: yerine anında oturur (yumuşak takip yok)
       fighter.castQueue.length = 0;
       fighter.tracks.length = 0;
       fighter.bubblePulses.length = 0;
@@ -4213,7 +4283,7 @@ export async function createArena3D({
     isBusy: () => timeline.isBusy(),
     remainingMs: () => timeline.remainingMs(),
     whenIdle: maxWaitMs => timeline.whenIdle(maxWaitMs),
-    drain: ms => timeline.drain(ms),
+    drain: ms => drainVisual(ms),
     snapshot: () => timeline.snapshot(),
   });
   safeCall(() => { env.__tuslabVisualQueue = visualQueueApi; });
@@ -4256,7 +4326,7 @@ export async function createArena3D({
       /** KRİTİK arka plan düzlemi: görünür mü, opaklık, dövüşçülerin gerisinde mi (z farkı > 0). */
       crit: () => {
         const b = critBackdrop;
-        if (!b) return null;
+        if (!b || b.seat === null) return null; // ön-ısıtma için yaratıldı ama hiç gösterilmedi
         const zMin = Math.min(...[...fighters.values()].map(f => f.root.position.z));
         return {visible: b.mesh.visible, opacity: b.mesh.material.opacity, seat: b.seat, behind: zMin - b.mesh.position.z, renderOrder: b.mesh.renderOrder, depthTest: b.mesh.material.depthTest};
       },

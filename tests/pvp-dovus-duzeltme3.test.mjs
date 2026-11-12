@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../pvp/vendor/three.module.min.js';
-import {CHOREOGRAPHY, resolveChoreography, createFighterRig, MODEL_VARIANTS} from '../pvp/fighters3d.js';
+import {CHOREOGRAPHY, resolveChoreography, createFighterRig, MODEL_VARIANTS, COMBO} from '../pvp/fighters3d.js';
 import {createArena3D} from '../pvp/arena3d.js';
 import {createDisplayedHp} from '../pvp/attack-callout.js';
 import {impactTier} from '../pvp/impact-feel.js';
@@ -165,7 +165,7 @@ test('ulti sırası: başka koltuk saldırırken gelen ULTIMATE_PHASE, ulti gird
   run(100);
   assert.equal(instance._debug.ultimate(), null, 'seat 1 oynarken seat 2 ultisi başlamadı');
   assert.equal(instance.visualQueue.snapshot().activeSeat, 1);
-  run(1400);
+  run(3400); // İş 1: seat 1 sahnesi (koşu + vuruş + geri yürüyüş) + saldıran değişimi arası (~1,2 sn)
   assert.equal(instance.visualQueue.snapshot().activeSeat, 2);
   assert.equal(instance._debug.ultimate()?.attacker, 2, 'ulti kendi sırasında başladı');
   instance.destroy();
@@ -186,12 +186,13 @@ test('menzilli Meshy (nyx) q/e zinciri kurulur: koşu ile yaklaşır, sonra büy
     assert.ok(plan, `nyx ${skills.join('')} zinciri`);
     assert.equal(plan.contacts.length, skills.length);
     assert.equal(plan.steps[0].clip, run, 'ilk adım koşu klibi');
-    assert.equal(plan.travelMs, 340);
-    assert.equal(plan.steps[1].at, 340, 'büyü klibi varışta başlar');
-    assert.equal(plan.contacts[0].ms, 340 + MODEL_VARIANTS.nyx.meshy.skills[skills[0]].peakMs);
+    const lead = COMBO.rangedLeadMs; // İş 1: menzilli koşu da görünür hızda (eskiden 340 ms)
+    assert.equal(plan.travelMs, lead);
+    assert.equal(plan.steps[1].at, lead, 'büyü klibi varışta başlar');
+    assert.equal(plan.contacts[0].ms, lead + MODEL_VARIANTS.nyx.meshy.skills[skills[0]].peakMs);
   }
   const fast = rig.chainPlan(['q'], {compress: true});
-  assert.ok(fast.contacts[0].ms < 340 + 900 && fast.steps[1].speed <= 1.2, 'sıkıştırma: hız ≤ 1,2');
+  assert.ok(fast.contacts[0].ms < COMBO.rangedLeadMs + 900 && fast.steps[1].speed <= 1.2, 'sıkıştırma: hız ≤ 1,2');
   rig.dispose();
 });
 
@@ -220,7 +221,7 @@ test('KRİTİK: temas karesinde sahnede karakterlerin GERİSİNDE (derinlik test
   cast(instance, 1, 'q', 60, {bonusTags: ['RÜN']});
   run(100);
   assert.equal(instance._debug.crit(), null, 'temas öncesi yok');
-  run(400);
+  run(700); // İş 1: yaklaşma ~620 ms (görünür koşu)
   const c = instance._debug.crit();
   assert.ok(c?.visible && c.opacity > 0.3, JSON.stringify(c));
   assert.ok(c.behind > 0, 'dövüşçülerin gerisinde');
@@ -238,7 +239,7 @@ test('blok: kuyruk meşgulken erken kalkan yok; bloklanan hasarın TEMAS karesin
   instance.handle({type: 'DAMAGE_APPLIED', fromSeat: 1, toSeat: 2, skill: 'q', amount: 0, blocked: true, blockKind: 'PERFECT_BLOCK'});
   run(100);
   assert.notEqual(instance._debug.models()[2].state, 'blockHit', 'saldırı ulaşmadan blok yok');
-  run(350);
+  run(600); // İş 1: yaklaşma ~620 ms
   assert.match(instance._debug.models()[2].state, /^block/, 'temasta blok klibi');
   assert.ok(instance._debug.fighter(2).bubble, 'görünür kalkan efekti');
   instance.destroy();

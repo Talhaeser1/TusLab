@@ -350,7 +350,7 @@ export function dashProgress(elapsedMs, hitMs, {leadMs = 90, holdMs = 100, start
  */
 export const TRAVEL = Object.freeze({
   travelMs: 400, minMs: 300, maxMs: 500,
-  returnMs: 420, fastReturnMs: 240,
+  returnMs: 800, fastReturnMs: 500,   // İş 1: geri yürüyüş görünür hızda (ışınlanma hissi yok)
   fastTravelMs: 400,   // kuyruk baskısında da yolculuk görünür kalır
   holdMs: 200,         // KayKit için temas sonrası bekleyiş (Meshy: spec.recoverMs)
 });
@@ -365,13 +365,16 @@ export const TRAVEL = Object.freeze({
 /** Ulti sahnesi tavanı: temastan önceki hazırlık + sonraki toparlanma (ms, klip hızı uygulanmış). */
 export const ULT_SCENE = Object.freeze({windupMs: 1800, tailMs: 1200});
 
+// İş 1 (tempo): yaklaşma/dönüş kare başına ≤ 0,35 birim kalacak kadar uzun (≈3,6 birim: 340 ms'lik koşu
+// ve 240 ms'lik dönüş 60 fps'de bile 0,4–0,57 birim/kare sıçrıyordu → ışınlanma hissi).
 export const COMBO = Object.freeze({
   maxStrikes: 4,
-  leadMs: 340, leadFastMs: 300,
+  leadMs: 620, leadFastMs: 500,
   gapMs: 260, gapFastMs: 210,
   holdMs: 300, holdFastMs: 220,
-  returnMs: 240, returnFastMs: 180,
-  rangedHoldMs: 120, rangedReturnMs: 200,
+  returnMs: 900, returnFastMs: 600,
+  rangedLeadMs: 420, rangedLeadFastMs: 340,
+  rangedHoldMs: 120, rangedReturnMs: 560,
   flurryMs: 90,        // alt sınır: vuruşlar arası en kısa süre (ms)
   rangedStop: 0.5,       // menzilli vuruşta yaklaşma oranı (yarım mesafe)
 });
@@ -379,7 +382,7 @@ export const COMBO = Object.freeze({
 /** Saf: N vuruşlu zincirin temas anları + dönüş başlangıcı (ms). */
 export function chainTiming(count, {compress = false, ranged = false} = {}) {
   const n = clamp(Math.round(Number(count) || 1), 1, COMBO.maxStrikes);
-  const lead = compress ? COMBO.leadFastMs : COMBO.leadMs;
+  const lead = ranged ? (compress ? COMBO.rangedLeadFastMs : COMBO.rangedLeadMs) : compress ? COMBO.leadFastMs : COMBO.leadMs;
   const gap = Math.max(COMBO.flurryMs, compress ? COMBO.gapFastMs : COMBO.gapMs);
   // Menzilli zincir: mermi çıktıktan sonra uzun bekleyiş gereksiz → kısa hold/dönüş.
   const hold = ranged ? COMBO.rangedHoldMs : compress ? COMBO.holdFastMs : COMBO.holdMs;
@@ -1355,6 +1358,35 @@ export function createSkillFx(THREE, scene) {
   }
   function setLowQuality(low) { activeCap = low ? PARTICLE_POOL.low : POOL; if (pCursor >= activeCap) pCursor = 0; }
 
+  // İş 1 — kasma: her spawn kendi malzemesini yaratıp kill'de dispose ediyordu; bir programın son
+  // malzemesi gidince three.js programı siler → sonraki saldırıda gölgelendirici YENİDEN derlenirdi
+  // (ilk/tekrar eden vuruşta kare takılması). Her program düzeninden birer kalıcı malzeme gizli bir
+  // grupta tutulur: arena ön-ısıtması (compile + warmDraw) bunları derler, programlar hiç silinmez.
+  let warmGroup = null;
+  if (THREE.Group && THREE.Mesh) {
+    try {
+      const warm = warmGroup = new THREE.Group();
+      warm.name = 'pvp-fx-warm';
+      warm.visible = false;
+      const tiny = shapes.shard;
+      const keep = [additive(0xffffff, 0), additive(0xffffff, 1)];
+      if (THREE.MeshBasicMaterial) {
+        const core = new THREE.MeshBasicMaterial({color: 0xffffff, opacity: 0.98, transparent: true, toneMapped: false});
+        mats.push(core); keep.push(core);
+      }
+      for (const m of keep) { const mesh = new THREE.Mesh(tiny, m); mesh.frustumCulled = false; mesh.scale.setScalar(1e-4); warm.add(mesh); }
+      if (THREE.Line && THREE.LineBasicMaterial && THREE.BufferGeometry && THREE.BufferAttribute) {
+        const lg = g(new THREE.BufferGeometry());
+        lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+        const lm = new THREE.LineBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.7,
+          depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false});
+        mats.push(lm);
+        const line = new THREE.Line(lg, lm); line.frustumCulled = false; warm.add(line);
+      }
+      scene.add(warm);
+    } catch { /* yalnız performans: ısıtma olmazsa efektler yine çalışır */ }
+  }
+
   function make(kind, color, accent) {
     const group = new THREE.Group();
     group.name = `pvp32-fx-${kind}`;
@@ -1537,6 +1569,7 @@ export function createSkillFx(THREE, scene) {
   function dispose() {
     clear();
     if (points) { scene.remove(points); points = null; pointsReady = false; }
+    if (warmGroup) { scene.remove(warmGroup); warmGroup = null; }
     for (const geometry of geos) geometry.dispose();
     for (const m of mats) m.dispose();
     geos.length = 0;

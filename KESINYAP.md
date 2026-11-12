@@ -21,12 +21,14 @@ Durum: ⬜ başlanmadı · 🟡 sürüyor · ✅ bitti (test + tarayıcıda öl�
 
 | # | İş | Durum | Kanıt / not |
 |---|----|-------|-------------|
-| 1 | Dövüş temposu: saldır → yerine dön → 1–2 sn bekle → öbürü; animasyon bitmeden sıra geçmez; ışınlanma ve takılma yok; saldırı gecikmesi yok | ⬜ | |
+| 1 | Dövüş temposu: saldır → yerine dön → 1–2 sn bekle → öbürü; animasyon bitmeden sıra geçmez; ışınlanma ve takılma yok; saldırı gecikmesi yok | 🟡 | Gerçek GPU tarayıcı ölçümü (rounds/classic/arena + hızlı yazan): iki dövüşçü aynı anda saldırı 0 kare; saldıran değişimi arası 616–1393 ms; kelime→hareket 93–336 ms (kuyruk boş, rounds/classic); maxJump arena 0,30 · rounds 0,38 · classic 0,68 (savunanın darbe/fırlatma tepkisi, 57 ms'lik uzun karede); sayfa hatası 0; tests/pvp-dovus-tempo.test.mjs, 869/869. KALAN: GPU tarafı rAF donmaları (1,4–4,5 sn, ana iş parçacığında uzun görev YOK), raund sonunda ulti oynarken bekleyen karşı sahne sessiz biter |
 | 2 | Metinler her el/raund/maç değişir (kural 1), tüm modlarda | ✅ | atasözü/şiir tohumla karışık parça sırası, klasik cümleler tohumlu, timed uzatma tekrarsız; tests/pvp-icerik-tekrar.test.mjs |
 | 3 | Mekanik: zamana karşıda süre bitene kadar kelime gelir; sayılı raundda tam 10 kelime | ✅ | motor+tarayıcı ölçüldü (sayılı 5/10 kelime tam, timed tükenmedi); sayılı raund etiketi artık "SAYILI" |
-| 4 | Her doğru kelimede seri sesi (art arda doğruda gittikçe incelen), seyirci tepkisi | ⬜ | |
-| 5 | Anonslar sıraya girer ("süre doluyor" vb. karışmaz); spiker karakter sesiyle okunmaz | ⬜ | |
-| 6 | Teslim olan/kaybeden karakter zafer repliği söylemez | ⬜ | |
+| 4 | Her doğru kelimede seri sesi (art arda doğruda gittikçe incelen), seyirci tepkisi | ✅ | tarayıcı: perde 523→587→659→784→880→1046→1175→1318 Hz (8. basamakta sabit), yanlışta 523'e döndü; 5. seride seri-5 + tezahürat; probe .playwright-mcp/kesin-ses-probe.js |
+| 5 | Anonslar sıraya girer ("süre doluyor" vb. karışmaz); spiker karakter sesiyle okunmaz | ✅ | 3 bot maçı (~700 sn) konuşma çizelgesinde 0 çakışma; bayat (>2,5 sn) anons düşer (bitiş spikeri bazen düşer — bkz. rapor) |
+| 6 | Teslim olan/kaybeden karakter zafer repliği söylemez | ✅ | teslim: yalnız spiker-yenilgi; yenilgi: zafer repliği yok; galibiyet: yalnız vargr-zafer (kazanan) |
 | 7 | VS ekranında oynayan karakterlerin kendi görselleri | ⬜ | |
 | 8 | Sonuç (ZAFER/YENİLGİ) ve raund arası ekranlarında karakter + Higgsfield görselleri | ⬜ | |
-| 9 | Ana ekran boss'u eski haline döner (uzak ve kötü duran 3B kaldırılır) | ⬜ | |
+| 9 | Ana ekran boss'u eski haline döner (uzak ve kötü duran 3B kaldırılır) | ✅ | 1366x768 ve 375x812: canvas 0, arena-king.webp yüklü/opaklık 1, yatay taşma yok, liderlik/başarım yok |
+
+Mekanik (sayılı raund süresi = max(40 sn, kelime×6 sn), timed 40, arena aynı): ✅ tarayıcıda 10 kelimelik sayılı raund sayacı 58 sn'den (≈60) başladı.

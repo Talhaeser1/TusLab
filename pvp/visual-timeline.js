@@ -10,9 +10,9 @@
 //   tl.flush()            // raund geçişi: son durumu anında uygula
 //   tl.isBusy() / tl.remainingMs() / tl.whenIdle(maxWaitMs)    // okuma API'si
 //
-// SIRA (Görev 4): aynı anda tek koltuk oynar. Farklı koltukların girdileri arasında kısa
-// "nefes" (TURN.breathMs, 150–250 ms) bırakılır; aynı koltuğun girdisi (kombo devamı) arksız
-// başlar. Görsel kuyruk boş beklediyse nefes atlanır (gereksiz gecikme yok).
+// SIRA (Görev 4 + İş 1): aynı anda tek koltuk oynar. Saldıran değişince iki taraf idle ve
+// evdeyken TURN.breathMs (~1,2 sn; baskıda ≥ 0,6 sn) ara bırakılır; aynı koltuğun yeni yaklaşması
+// yalnız kısa oturma payı bekler. Görsel kuyruk boş beklediyse ara zaten dolmuştur (gecikme yok).
 //
 // Çoklu temas (kombo): start {contacts: [{ms, fn}]} döndürebilir; her temas kendi fn'sini
 // kendi karesinde çağırır. Eski tekli sözleşme (contactMs + onContact) aynen çalışır.
@@ -28,18 +28,34 @@ export const VISUAL_QUEUE = Object.freeze({
   maxItems: 12,         // koruma: daha fazlasında en eskiler anında tamamlanır
 });
 
-/** İki koltuk arasındaki kısa nefes (ms): saldıran değişince karakter yerine oturur.
- *  Varsayılan KAPALIdır (breathMs: 0) — arena3d açar; saf zaman çizelgesi testleri etkilenmez. */
-export const TURN = Object.freeze({breathMs: 200, minMs: 150, maxMs: 250});
+/** İş 1 (dövüş temposu): saldıran DEĞİŞİRKEN iki taraf idle beklerken geçen ara (ms).
+ *  breathMs varsayılan ara; kuyruk baskısında orantılı kısalır ama minMs'in altına inmez.
+ *  Ara yalnız iki dövüşçü YERLEŞİKKEN (idle + evde; isSettled) sayılır; tepki klibi takılırsa
+ *  settleCapMs sonra yine sayılmaya başlar (kilitlenme yok).
+ *  createVisualTimeline'da varsayılan KAPALIdır (breathMs: 0) — arena3d açar. */
+export const TURN = Object.freeze({breathMs: 1200, minMs: 600, maxMs: 2000, settleCapMs: 800, sameSeatMs: 300});
 
-export function createVisualTimeline({now = () => Date.now(), isReduced = () => false, setTimer = null, clearTimer = null, breathMs = 0} = {}) {
+/** Saf: bekleyen kuyruk süresine göre saldıran değişimi arası (ms). draining → en kısa ara. */
+export function turnGapMs(backlogMs = 0, {base = TURN.breathMs, min = TURN.minMs, pressureMs = VISUAL_QUEUE.maxBacklogMs, draining = false} = {}) {
+  const b = Math.max(0, Number(base) || 0);
+  if (b <= 0) return 0;
+  const floor = Math.min(b, Math.max(0, Number(min) || 0));
+  if (draining) return floor;
+  const backlog = Math.max(0, Number(backlogMs) || 0);
+  if (backlog <= pressureMs) return b;
+  return Math.max(floor, Math.round(b * pressureMs / backlog));
+}
+
+export function createVisualTimeline({now = () => Date.now(), isReduced = () => false, setTimer = null, clearTimer = null, breathMs = 0,
+  isSettled = () => true, settleCapMs = TURN.settleCapMs, minBreathMs = TURN.minMs} = {}) {
   const queue = [];
   let active = null;
   let clock = 0;             // simülasyon saati (ms)
   let drainUntil = Infinity; // clock bu değere varınca kalan her şey anında tamamlanır
   let lastSeat = null;       // son BAŞLATILAN girdinin koltuğu (nefes hesabı)
-  let lastEndClock = -Infinity; // son girdinin bittiği an (boşta geçen süre nefesi emer)
-  let breathLeft = 0;        // kalan nefes (ms)
+  let lastEndClock = -Infinity; // son girdinin bittiği an
+  let quietMs = Infinity;    // son girdiden beri iki taraf yerleşikken geçen süre (ara bunu sayar)
+  let breathLeft = 0;        // kalan ara (ms; snapshot için)
   const waiters = [];
   const stats = {started: 0, completed: 0, compressed: 0, skippedReturns: 0, forced: 0, maxBacklogMs: 0, lastLagMs: 0, breaths: 0};
   const timer = setTimer || ((fn, ms) => globalThis.setTimeout?.(fn, ms));
@@ -78,8 +94,7 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
     if (forced) { stats.forced++; safe(item.complete, true); }
     safe(item.onEnd, {forced});
     stats.completed++;
-    lastEndClock = clock;
-    if (active === item) active = null;
+    if (active === item) { active = null; lastEndClock = clock; quietMs = 0; }
   }
 
   /** start planından temas listesi: yeni çoklu sözleşme + eski tekli sözleşme. */
@@ -100,20 +115,26 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
   function startNext() {
     while (!active && queue.length) {
       const next = queue[0];
-      // Nefes (yalnız breathMs > 0 isteyen katman): farklı koltuk geçişi ve kuyruk henüz
-      // boşken beklememişsek kısa duraklama. Aynı koltuk (kombo devamı) arksız başlar.
-      if (breathMs > 0 && next.seat !== undefined && lastSeat !== null && next.seat !== lastSeat) {
-        const waited = Math.max(0, clock - lastEndClock);
-        if (waited < breathMs) {
-          breathLeft = breathMs - waited;
-          stats.breaths++;
+      // Ara (yalnız breathMs > 0 isteyen katman): saldıran değişince iki taraf yerleşik halde
+      // turnGapMs kadar bekler. Kuyruk boş beklediyse ara zaten dolmuştur (gecikme yok).
+      // Aynı koltuk (kombo devamı) arasız başlar.
+      const draining = drainUntil !== Infinity;
+      if (breathMs > 0 && next.seat !== undefined && lastSeat !== null) {
+        const backlogAll = queue.reduce((s, q) => s + (q.estimateMs || 0), 0);
+        const full = turnGapMs(backlogAll, {base: breathMs, min: minBreathMs, draining});
+        // Aynı koltuğun yeni yaklaşması: yalnız yerine oturma payı (kısa); saldıran değişimi: tam ara.
+        const gap = next.seat !== lastSeat ? full : Math.min(TURN.sameSeatMs, full);
+        if (quietMs < gap) {
+          if (breathLeft <= 0) stats.breaths++;
+          breathLeft = gap - quietMs;
           return;
         }
       }
       const item = queue.shift();
-      breathLeft = 0; // bir girdi başladı: bekleyen nefes artık geçerli değil
+      breathLeft = 0; // bir girdi başladı: bekleyen ara artık geçerli değil
       const backlog = (item.estimateMs || 0) + queue.reduce((s, q) => s + (q.estimateMs || 0), 0);
-      const compress = backlog > VISUAL_QUEUE.maxBacklogMs;
+      // Sıkıştırma: birikim eşiği aşıldıysa ya da raund sonu boşaltması sürüyorsa yürüyüş/ara kısalır.
+      const compress = backlog > VISUAL_QUEUE.maxBacklogMs || draining;
       const skipReturn = false;
       if (compress) stats.compressed++;
       stats.lastLagMs = backlog;
@@ -142,6 +163,8 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
       const item = queue.shift();
       finish(item, true);
     }
+    // Sahne temizliği/raund geçişi: son durum uygulandı → yeni sahne ara beklemeden başlayabilir.
+    lastSeat = null; quietMs = Infinity; breathLeft = 0;
     settle();
   }
 
@@ -155,6 +178,18 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
       set returnStartMs(ms) { if (!entry.done) entry.returnStartMs = Number.isFinite(Number(ms)) ? Number(ms) : null; },
       extend(ms) { if (!entry.done) entry.durationMs += Math.max(0, Number(ms) || 0); },
       reestimate(ms) { entry.estimateMs = Math.max(0, Number(ms) || 0); },
+      /** Henüz başlamamış girdiyi sessizce sıradan çıkar (içeriği başka sahneye katlandı). */
+      cancel() {
+        if (entry.done || active === entry) return false;
+        const i = queue.indexOf(entry);
+        if (i < 0) return false;
+        queue.splice(i, 1);
+        entry.done = true;
+        stats.completed++;
+        safe(entry.onEnd, {forced: false, cancelled: true});
+        settle();
+        return true;
+      },
       addContact({ms, fn} = {}) {
         if (entry.done || typeof fn !== 'function') return null;
         const c = {ms: Math.max(0, Number(ms) || 0), fn, fired: false};
@@ -195,17 +230,25 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
   function tick(dtMs) {
     const dt = Math.max(0, Number(dtMs) || 0);
     clock += dt;
-    if (breathLeft > 0) {
-      breathLeft -= dt;
-      if (breathLeft > 0) { settle(); return; }   // nefes: iki koltuk arası kısa boşluk
-      breathLeft = 0;
+    // Ara sayacı: girdi yokken ve iki taraf yerleşikken (ya da tepki tavanı dolduysa) ilerler.
+    if (!active && quietMs !== Infinity) {
+      let settled = true;
+      if (breathMs > 0 && clock - lastEndClock < settleCapMs) { try { settled = isSettled() !== false; } catch { settled = true; } }
+      if (settled) quietMs += dt;
     }
     if (active) {
       active.elapsed += dt;
       pumpContacts(active);
       if (active.elapsed >= active.durationMs) finish(active, false);
     }
-    if (clock >= drainUntil && isBusy()) { flush(); return; }
+    if (clock >= drainUntil && isBusy()) {
+      // Süre doldu: başlamamış girdiler tamamlanır; OYNAYAN sahne kesilmez (yarım animasyon/sıçrama
+      // yok), en geç kendi süresi kadar sürer. Aktif yoksa her şey anında biter (eski davranış).
+      if (!active) { flush(); return; }
+      while (queue.length) finish(queue.shift(), true);
+      settle();
+      return;
+    }
     startNext();
     settle();
   }
@@ -218,7 +261,7 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
 
   function clear() {
     queue.length = 0; active = null; drainUntil = Infinity; breathLeft = 0;
-    lastSeat = null; lastEndClock = -Infinity;
+    lastSeat = null; lastEndClock = -Infinity; quietMs = Infinity;
     settle();
   }
 
@@ -255,7 +298,7 @@ export function createVisualTimeline({now = () => Date.now(), isReduced = () => 
         phase = a.elapsed < firstMs ? 'approach' : retMs !== null && a.elapsed >= retMs ? 'return' : 'strike';
       }
       return {busy: isBusy(), remainingMs: remainingMs(), queued: queue.length, active: Boolean(a),
-        activeSeat: a?.seat ?? null, phase, comboIndex, lastSeat, clock, ...stats};
+        activeSeat: a?.seat ?? null, phase, comboIndex, lastSeat, clock, gapLeftMs: a ? 0 : Math.max(0, breathLeft), ...stats};
     },
   };
 }

@@ -18,7 +18,8 @@ test('iki koltuk: ikinci saldırı birincinin dönüşünden + nefesten sonra ba
   assert.equal(trace.includes('start2'), false);
   q.tick(2);
   assert.ok(trace.includes('start2'));
-  assert.ok(TURN.breathMs >= 150 && TURN.breathMs <= 250);
+  // İş 1: saldıran değişince 1–2 sn ara (varsayılan ~1,2 sn; baskıda en az 0,6 sn).
+  assert.ok(TURN.breathMs >= 1000 && TURN.breathMs <= 2000 && TURN.minMs >= 600);
 });
 
 test('kombo: 3 temas tek girdide; snapshot approach → strike → return, comboIndex artar', () => {
@@ -37,7 +38,9 @@ test('kombo: 3 temas tek girdide; snapshot approach → strike → return, combo
 test('chainTiming: 3 vuruş = tek yaklaşma + 3 temas + tek dönüş; kombo etiketi 2,3', () => {
   const t = chainTiming(3);
   assert.equal(t.contacts.length, 3);
-  assert.ok(t.lead >= 300 && t.lead <= 500, 'yaklaşma 300–500 ms');
+  // İş 1: yaklaşma görünür koşu (~0,5–0,8 sn); ≈3,6 birimlik mesafede kare başına ≤ 0,35 birim (60 fps).
+  assert.ok(t.lead >= 450 && t.lead <= 800, 'yaklaşma 450–800 ms');
+  assert.ok(t.returnMs >= 600, 'geri yürüyüş ışınlanma gibi değil');
   assert.equal(t.contacts[1] - t.contacts[0], t.gap);
   assert.equal(t.totalMs, t.contacts[2] + t.hold + t.returnMs);
   assert.ok(chainTiming(9).count <= COMBO.maxStrikes, 'süre tavanı: en fazla N vuruş');
