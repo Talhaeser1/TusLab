@@ -7,7 +7,7 @@
  * kişisel `endsAt` üst sınırdır). Sunucu her gönderimi yine kendi saatiyle doğrular.
  */
 import {WORD_BANK} from './shared/words.js';
-import {createRoundEndCard,summaryColors,ROUND_TITLE_MS,ROUND_HOLD_MAX_MS} from './rounds-ui.js';
+import {createRoundEndCard,summaryColors,summaryPresentation,ROUND_TITLE_MS,ROUND_HOLD_MAX_MS} from './rounds-ui.js';
 import {ARENA_ROUND_DURATION_MS,ARENA_SUMMARY_MS,ARENA_PREP_DURATION_MS} from './shared/arena.js';
 
 // Şartname §2 sabitleri (yalnız sunum için aynalanır; otorite motordadır).
@@ -203,7 +203,7 @@ export function arenaSummaryModel(roundEnd,match,myId,{damage=null,record=null}=
   const next=round+1;
   const wins={1:0,2:0};
   for(const r of match?.roundResults||[])if(r.winnerSeat)wins[r.winnerSeat]++;
-  return {round,title:`RAUND ${round} BİTTİ`,names,rows,winnerSeat,colors:summaryColors(match),
+  return {round,title:`RAUND ${round} BİTTİ`,names,rows,winnerSeat,...summaryPresentation(winnerSeat,match,myId),ko:roundEnd?.reason==='KO',colors:summaryColors(match),
     pips:[1,2].map(seat=>({filled:wins[seat],total})),
     winnerText:winnerSeat?`${nameOf(match,winnerSeat)} RAUNDU ALDI`:'BERABERE',
     nextText:round<total?`Sıradaki: RAUND ${next} · ${ARENA_UI_ROUND_WORDS[next-1]??'—'} kelime`:'Maç sonucu hazırlanıyor'};
@@ -228,7 +228,7 @@ export function arenaResultModel(result,myId,{record=null}={}){
         return pickLabel(pick&&Object.hasOwn(pick,kind)?pick[kind]:detail[seat][kind],
           players.find(p=>p.seat===seat)?.playerId===myId?'own':'opponent');
       };
-      return {label:`Raund ${r.round}`,winner:r.winnerSeat?name(r.winnerSeat):'Berabere',winnerSeat:r.winnerSeat??null,
+      return {label:`Raund ${r.round}`,winner:r.winnerSeat?name(r.winnerSeat):'Berabere',winnerSeat:r.winnerSeat??null,ko:r.reason==='KO',
         damage:[num(d(1)),num(d(2))],picks:[1,2].map(seat=>`${selection(seat,'skill')} · ${selection(seat,'item')}`)};
     })
   };
@@ -780,7 +780,7 @@ export function renderArenaResult(root,match,myId,doc=globalThis.document){
      h('small',{text:`Hasar ${r.damage} · ceza kaybı ${r.penalty} · ${r.correct} doğru / ${r.wrong} yanlış · en iyi seri ${r.maxCombo}`}))));
   const list=h('div',{cls:'aui-res-table-wrap'},h('table',{cls:'aui-res-table',attrs:{'aria-label':'Raund dökümü'}},
     h('thead',{},h('tr',{},h('th',{attrs:{scope:'col'},text:'Raund'}),...model.rows.map(p=>h('th',{attrs:{scope:'col'},text:p.name})))),
-    h('tbody',{},...model.rounds.map(r=>h('tr',{},h('th',{attrs:{scope:'row'},text:r.label}),
+    h('tbody',{},...model.rounds.map(r=>h('tr',{},h('th',{attrs:{scope:'row'}},r.label,r.ko?h('em',{cls:'rui-ko',text:'NAKAVT'}):null),
       ...r.damage.map((value,i)=>h('td',{},h('strong',{text:`${value} hasar`}),h('small',{text:r.picks[i]}))))),
       h('tr',{cls:'aui-res-total'},h('th',{attrs:{scope:'row'},text:'TOPLAM'}),...model.rows.map(p=>h('td',{},h('strong',{text:`${p.damage} hasar`}),h('small',{text:`${p.penalty} ceza kaybı`})))))));
   const next=h('div',{cls:'aui-result',attrs:{'data-arena-result':''}},h('small',{cls:'aui-res-len',text:'Arena · 6 raund · 3.000 HP'}),

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
   ROUND_OPTIONS,STREAK_SKILLS,PRACTICE_ROUNDS_KEY,normalizeRounds,isRoundMatch,streakMultiplier,multiplierLabel,
-  streakModel,predictedSkill,winsNeeded,roundsViewModel,summaryModel,clashModel,roundsPickDecision,
+  streakModel,predictedSkill,winsNeeded,roundsViewModel,summaryModel,summaryPresentation,clashModel,roundsPickDecision,
   roundInputLock,roundsResultModel,roundsPickerHTML,createRoundsUi,intermissionStage,ROUND_TITLE_MS,ROUND_HOLD_MAX_MS,ROUND_HOLD_TITLE_SKIP_MS
 } from '../pvp/rounds-ui.js';
 
@@ -381,7 +381,7 @@ test('rounds DOM: last call, clash callout, summary overlay and unknown packets'
   const ended=roundMatch({roundsWon:{1:1,2:1},round:{phase:'intermission',nextRoundAt:50_000}});
   setNow(46_000);ui.handle({type:'ROUND_END',payload:{...roundEnd,match:ended}});ui.update(ended,'me');
   const summary=byRole(el,'summary')[0];assert.equal(summary.hidden,false);
-  assert.ok(summary.textContent.includes('TUR 2 BİTTİ'));assert.ok(summary.textContent.includes('KO'));assert.ok(summary.textContent.includes('1.170'));
+  assert.ok(summary.textContent.includes('TUR 2 BİTTİ'));assert.ok(summary.textContent.includes('NAKAVT'));assert.ok(summary.textContent.includes('1.170'));
   setNow(48_500);ui.tick();
   // Yeni davranış: son 3 sn'de (count) özet GİZLENMEZ; geri sayımla birlikte görünür kalır.
   assert.equal(summary.hidden,false);
@@ -398,4 +398,13 @@ test('rounds DOM: streak break flag on wrong word and destroy clears every timer
   assert.ok(timers.live.size>0);
   ui.destroy();
   assert.equal(timers.live.size,0);assert.equal(el.parentNode,null);
+});
+
+test('round summary presentation: SEN KAZANDIN / rakip adı / berabere + ton',()=>{
+  const m=roundMatch();
+  const mine=summaryModel({...roundEnd,winnerSeat:1},m,'me');
+  assert.deepEqual([mine.mine,mine.tone,mine.headline],[true,'win','SEN KAZANDIN']);
+  const opp=summaryModel(roundEnd,m,'me');
+  assert.equal(opp.tone,'loss');assert.equal(opp.mine,false);assert.ok(opp.headline.endsWith(' KAZANDI')&&!opp.headline.includes('SEN'));
+  assert.deepEqual(summaryPresentation(null,m,'me'),{mine:false,tone:'draw',headline:'BERABERE'});
 });

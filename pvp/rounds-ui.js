@@ -199,6 +199,13 @@ export function roundInputLock(match,myId,serverNow){
   return {locked:false,reason:null};
 }
 
+/** Raund özeti sunumu: kazanan "SEN" ise zafer, rakipse yenilgi tonu; berabere nötr. */
+export function summaryPresentation(winnerSeat,match,myId){
+  if(winnerSeat!==1&&winnerSeat!==2)return {mine:false,tone:'draw',headline:'BERABERE'};
+  const mine=playerBySeat(match,winnerSeat)?.playerId===myId&&myId!=null;
+  return {mine,tone:mine?'win':'loss',headline:mine?'SEN KAZANDIN':`${nameOf(match,winnerSeat)} KAZANDI`};
+}
+
 export function summaryModel(roundEnd,match,myId){
   const round=Number(roundEnd?.round)||Number(match?.round?.index)||1;
   const total=Number(match?.round?.total??match?.totalRounds)||DEFAULT_ROUNDS;
@@ -210,6 +217,7 @@ export function summaryModel(roundEnd,match,myId){
   const next=round+1;
   return {round,title:`TUR ${round} BİTTİ`,winnerSeat,draw:winnerSeat===null,
     winnerText:winnerSeat?`${nameOf(match,winnerSeat)} TURU ALDI`:'BERABERE',
+    ...summaryPresentation(winnerSeat,match,myId),
     ko:roundEnd?.reason==='KO',reasonText:REASON_LABELS[roundEnd?.reason]||'',names,
     rows:[row('Doğru','correct'),row('Yanlış','wrong'),row('En iyi seri','bestStreak'),row('Hasar','damageDealt'),row('RP','rp')],
     colors:summaryColors(match),pips:[1,2].map(seat=>({filled:Number(wins[seat])||0,total:Math.max(total,Number(wins[seat])||0)})),
@@ -345,8 +353,12 @@ export function createRoundEndCard(doc,model){
   fill.setAttribute('stroke-dasharray',RING_C.toFixed(2));svg.append(track,fill);
   const seconds=h('strong',{text:'0'});
   const countdown=h('div',{cls:'m33-countdown',attrs:{role:'timer','aria-label':'Sonraki tura kalan süre'}},svg,seconds,h('small',{text:'sn'}));
-  const node=h('div',{cls:'m33-result'},h('header',{},h('h2',{cls:'m33-title',text:model.title}),model.ko?h('span',{cls:'rui-ko',text:'KO'}):null),
-    h('div',{cls:'m33-winner',text:model.winnerText,attrs:{style:`--m33-winner:${model.winnerSeat?model.colors[model.winnerSeat-1]:'#e4dcff'}`}}),players,
+  const tone=model.tone||'draw';
+  const winColor=model.winnerSeat?model.colors[model.winnerSeat-1]:'#e4dcff';
+  const node=h('div',{cls:'m33-result',attrs:{'data-tone':tone,'data-ko':model.ko?'1':'0',style:`--rui-win:${winColor}`}},
+    h('i',{cls:'rui-sweep',attrs:{'aria-hidden':'true'}}),
+    h('header',{},h('h2',{cls:'m33-title',text:model.title}),model.ko?h('span',{cls:'rui-ko',text:'NAKAVT'}):null),
+    h('div',{cls:'m33-winner',text:model.headline||model.winnerText,attrs:{style:`--m33-winner:${winColor}`}}),players,
     h('footer',{cls:'m33-footer'},pips,h('span',{cls:'m33-next',text:model.nextText}),countdown));
   return {node,update(deadline,at,duration){
     const remaining=Number.isFinite(deadline)?Math.max(0,deadline-at):0;
@@ -735,7 +747,7 @@ export function renderRoundsResult(root,match,myId,doc=globalThis.document){
     h('strong',{cls:'rui-res-line',text:model.scoreline,attrs:{'aria-label':`Tur skoru ${model.scoreline}`}}),
     h('span',{cls:`rui-res-name rui-col-2${model.mySeat===2?' is-me':''}`,text:model.names[1]}));
   const list=h('ol',{cls:'rui-res-rounds',attrs:{'aria-label':'Tur tablosu'}},...model.rows.map(r=>h('li',{cls:`rui-res-round${r.winnerSeat?` is-seat-${r.winnerSeat}`:' is-draw'}`},
-    h('span',{cls:'rui-res-label',text:r.label}),h('b',{text:r.winner}),h('small',{text:`RP ${r.rp}`}),r.ko?h('em',{cls:'rui-ko',text:'KO'}):null)));
+    h('span',{cls:'rui-res-label',text:r.label}),h('b',{text:r.winner}),h('small',{text:`RP ${r.rp}`}),r.ko?h('em',{cls:'rui-ko',text:'NAKAVT'}):null)));
   const next=h('div',{cls:'rui-result',attrs:{'data-rounds-result':''}},h('small',{cls:'rui-res-len',text:model.lengthLabel}),score,list);
   if(block)block.replaceWith(next);
   else{const anchor=card.querySelector('[data-pvp15-reason]');anchor?anchor.after(next):card.prepend(next);}
