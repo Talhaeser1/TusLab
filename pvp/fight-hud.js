@@ -382,8 +382,12 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
           else { bumpCombo(from, amount); if (to) hideCombo(to); }
         }
       } else if (event.type === 'SKILL_CAST' && event.skill === 'r' && !event.arena) {
+        // İş 1, 3. tur: 3B arenada ulti sahnesi sıraya girer ve girişini (yavaş çekim + kamera) sahne başında
+        // kendisi yapar; sunucu anındaki süper donması ve "SUR ÇÖKÜŞÜ!" yazısı başka bir vuruşun üstüne biniyordu.
+        // superFreeze yalnız 3B api'si varken bir şey yapar → kaldırıldı; HUD bar parlaması kalır.
         const seat = seatOf(event.fromSeat);
-        if (seat) { callApi('superFreeze', seat, HUD_TIMES.freeze); flashSuper(seat); }
+        if (seat) flashSuper(seat);
+        if (getArenaApi()) return true;
       } else if (event.type === 'KNOCKOUT') {
         callApi('slowMo', HUD_TIMES.slowRate, HUD_TIMES.slowMs);
       }

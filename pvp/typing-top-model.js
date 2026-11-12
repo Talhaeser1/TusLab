@@ -16,9 +16,13 @@ export function ttModeLabel(match){
   if(!live(match))return 'YEREL YAZMA TESTİ';
   const r=match.round;
   if(match.mode==='rounds'&&hasRound(match)){
-    const name=CONTENT_TITLES[match.content]||(r.style==='counted'?'SAYILI':'ZAMANA KARŞI'); // atasözü/şiir/Osmanlıca modunda mod adı içerik adıdır
-    if(r.suddenDeath)return `${name} · ALTIN RAUND`;
-    return `${name} · RAUND ${r.index}${r.total?`/${r.total}`:''}`;
+    // KESINYAP 11: 'ZAMANA KARŞI · RAUND 2/7' ya da 'KELİME RAUNDU · RAUND 2/7 · 7 kelime'; içerik modunda ad içerik adıdır.
+    const counted=r.style==='counted';
+    const name=CONTENT_TITLES[match.content]||(counted?'KELİME RAUNDU':'ZAMANA KARŞI');
+    const words=counted?Number(r.wordCount)||(Array.isArray(r.words)?r.words.length:0):0;
+    const tail=words?` · ${words} kelime`:'';
+    if(r.suddenDeath)return `${name} · ALTIN RAUND${tail}`;
+    return `${name} · RAUND ${r.index}${r.total?`/${r.total}`:''}${tail}`;
   }
   if(match.mode==='arena'&&hasRound(match))return `ARENA · RAUND ${r.index}${r.total?`/${r.total}`:''}`;
   return 'CANLI MAÇ';

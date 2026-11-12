@@ -39,7 +39,7 @@ test('assist rules: constants, partner mapping and payload validation',()=>{
   assert.equal(normalizeAssist(undefined),true);assert.equal(normalizeAssist(true),true);assert.equal(normalizeAssist(false),false);
   for(const bad of [0,1,'true','off',null,undefined,{},[],{assist:true}])assert.equal(isAssistPayload(bad),false,String(bad));
   assert.equal(isAssistPayload(true),true);assert.equal(isAssistPayload(false),true);
-  assert.equal(assistDamage(MATCH_HP),70);assert.equal(assistDamage(ROUND_HP),42);
+  assert.equal(assistDamage(MATCH_HP),70);assert.equal(assistDamage(ROUND_HP),140); // KESINYAP 11: raund canı 4000 → %3,5 = 140
   assert.deepEqual([0,19,20,105,160,400].map(assistGainFromDamage),[0,0,1,5,8,8]);
   assert.ok(SERVER_ONLY_EVENTS.has('ASSIST_CAST'));
 });
@@ -175,9 +175,9 @@ test('assist engine: round mode scales damage to round HP, keeps the meter betwe
   let m=ready(make());
   const out=type(m,1,T0+1000);m=out.match;
   const cast=out.result.assistCast;
-  assert.deepEqual([cast.amount,cast.round,cast.roundWordIndex,cast.partner],[42,1,0,'rune']);
+  assert.deepEqual([cast.amount,cast.round,cast.roundWordIndex,cast.partner],[140,1,0,'rune'] /* KESINYAP 11: 4000 can */);
   m=advanceMatch(m,T0+1900,NO_BLOCK).match;
-  assert.equal(seat(m,2).hp,ROUND_HP-42);
+  assert.equal(seat(m,2).hp,ROUND_HP-140);
   // Bar tur arasında korunur.
   m=make();
   for(let i=1;i<=3;i++)m=type(m,1,T0+i*1000).match;
@@ -194,7 +194,7 @@ test('assist engine: round mode scales damage to round HP, keeps the meter betwe
   const res=advanceMatch(d,d.round.endsAt+1300,NO_BLOCK);
   assert.ok(res.roundEvents.some(e=>e.type==='ROUND_RESOLVE'));
   assert.ok(res.events.some(e=>e.type==='ASSIST_CAST'&&e.resolve===true));
-  assert.equal(res.events.find(e=>e.type==='DAMAGE_APPLIED'&&e.skill==='assist').amount,42);
+  assert.equal(res.events.find(e=>e.type==='DAMAGE_APPLIED'&&e.skill==='assist').amount,140); // KESINYAP 11
 });
 
 test('assist engine: balance — even with a pre-charged assist no character × rune can KO before the 9th correct word',()=>{

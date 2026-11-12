@@ -37,9 +37,9 @@ function fakeClock(start=1_700_000_000_000){
     }
   };
 }
-function setup({seed=7,difficulty='orta',character='fire',ids=true}={}){
+function setup({seed=7,difficulty='orta',character='fire',ids=true,roundStyle='counted'}={}){
   const clock=fakeClock();const packets=[],combat=[],words=[],snapshots=[];let n=0;
-  const session=createPracticeSession({roundStyle:'counted',difficulty,character,rng:seeded(seed),now:clock.now,scheduler:clock.scheduler,
+  const session=createPracticeSession({roundStyle,difficulty,character,rng:seeded(seed),now:clock.now,scheduler:clock.scheduler,
     createId:ids?()=>`practice-test-${++n}`:undefined,
     onPacket:p=>packets.push(p),onCombat:e=>combat.push(e),onWordResult:r=>words.push(r),onMatch:m=>snapshots.push(m)});
   return {clock,session,packets,combat,words,snapshots};
@@ -58,7 +58,10 @@ test('practice: cloudflare/src/match.js still exports everything it did before (
   // Eski ihracatların hepsi yerinde olmalı; ek ihracatlara yalnızca Arena modu için izin var.
   for(const name of ORIGINAL_EXPORTS)assert.ok(name in serverEngine,`eksik ihracat: ${name}`);
   const extra=Object.keys(serverEngine).filter(k=>!ORIGINAL_EXPORTS.includes(k));
-  for(const name of extra)assert.match(name,/arena/i,`beklenmeyen ek ihracat: ${name}`);
+  // KESINYAP 11: raund sistemi sabitleri (tavan, 7 raund, kelime planı, seri→beceri) sunucuya da aynı kaynaktan verilir.
+  const ROUND_RULE_EXPORTS=['ROUND_DAMAGE_CAP','ROUND_TOTAL','ROUND_WORD_PLAN','roundWordsFor','streakSkill'];
+  for(const name of extra)assert.ok(/arena/i.test(name)||ROUND_RULE_EXPORTS.includes(name),`beklenmeyen ek ihracat: ${name}`);
+  for(const name of ROUND_RULE_EXPORTS)assert.equal(serverEngine[name],sharedEngine[name],name);
   for(const name of ORIGINAL_EXPORTS)assert.equal(serverEngine[name],sharedEngine[name],name);
   const shim=readFileSync(new URL('../cloudflare/src/match.js',import.meta.url),'utf8');
   assert.match(shim,/from '\.\.\/\.\.\/pvp\/shared\/match\.js'/);
@@ -70,14 +73,14 @@ test('practice: a full deterministic match runs to an end state with real engine
   const run=()=>{
     const ctx=setup({seed:42,difficulty:'zor'});humanTyper(ctx,1400);
     ctx.session.start();
-    ctx.clock.advance(140_000);
+    ctx.clock.advance(900_000); // KESINYAP 11: 7 raund (kelime raundu ~400 sn yazma + aralar)
     return ctx;
   };
   const a=run(),b=run();
   const end=a.session.snapshot();
   assert.equal(end.status,'ended');
   assert.equal(end.result.mode,'rounds');
-  assert.ok(['ROUNDS','ROUNDS_DRAW'].includes(end.endReason));
+  assert.ok(['ROUNDS','ROUNDS_DRAW','KNOCKOUT'].includes(end.endReason)); // KESINYAP 11: can taşındığından nakavt da olası
   assert.ok(end.result&&end.result.players.length===2);
   // Same seed + same clock = byte-identical outcome.
   assert.deepEqual(b.session.snapshot(),end);
@@ -111,16 +114,15 @@ test('practice: combat event ids strictly increase and match snapshots never go 
 });
 
 test('practice: bot difficulty changes typing speed',()=>{
+  // KESINYAP 11: kelime raundunun 1. raundu yalnız 5 kelime; hız farkı tükenmeyen zamana karşı raundunda ölçülür (30 sn).
   const typed=difficulty=>{
-    const ctx=setup({seed:11,difficulty});ctx.session.start();ctx.clock.advance(20_000);
+    const ctx=setup({seed:11,difficulty,roundStyle:'timed'});ctx.session.start();ctx.clock.advance(20_000);
     const bot=ctx.session.match.participants.find(p=>p.playerId===BOT_ID);
     return bot.correctWords+bot.wrongWords;
   };
   const kolay=typed('kolay'),orta=typed('orta'),zor=typed('zor');
-  // Resolve locks typing after ten words; orta and zor can both reach that cap before 20 s.
-  assert.ok(kolay<orta&&orta<=zor,`kolay ${kolay} < orta ${orta} <= zor ${zor}`);
-  // The bot has at most 10 attempts per round; fast bots may enter round two.
-  assert.ok(kolay>=3&&kolay<=10,String(kolay));assert.ok(zor>=10&&zor<=20,String(zor));
+  assert.ok(kolay<orta&&orta<zor,`kolay ${kolay} < orta ${orta} < zor ${zor}`);
+  assert.ok(kolay>=3,String(kolay));assert.ok(zor>=10,String(zor));
   assert.deepEqual(Object.keys(BOT_DIFFICULTIES),['kolay','orta','zor']);
   const rng=seeded(1);const slow=botWordDelay('savaşçı',{...BOT_DIFFICULTIES.kolay,jitter:0,pause:0},rng);
   const fast=botWordDelay('savaşçı',{...BOT_DIFFICULTIES.zor,jitter:0,pause:0},rng);
@@ -165,7 +167,7 @@ test('practice: surrender, rematch (new match) and seat follows chosen fighter',
   ctx.clock.advance(PRACTICE_REMATCH_DELAY_MS+10);
   const fresh=ctx.session.snapshot();
   assert.notEqual(fresh.matchId,firstId);assert.equal(fresh.status,'running');
-  assert.equal(fresh.round.index,1);assert.equal(fresh.totalRounds,5);
+  assert.equal(fresh.round.index,1);assert.equal(fresh.totalRounds,7); // KESINYAP 11: her maç 7 raund
   assert.equal(ctx.packets.filter(p=>p.type==='MATCH_START').at(-1).payload.rematch,true);
   ctx.session.dispose();assert.equal(ctx.clock.active(),0);
 });

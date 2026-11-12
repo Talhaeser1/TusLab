@@ -35,10 +35,10 @@ function setup(options={}){
   return {time,packets,session};
 }
 
-test('practice rounds: five complete rounds end in a round-mode result and ordered packets',()=>{
+test('practice rounds: a full 7-round match (or a KO from round 4 on) ends in a round-mode result and ordered packets',()=>{
+  // KESINYAP 11: maç 7 raund, can taşınır; eski rounds:5 yok sayılır. Bot nakavt ederse maç en erken 4. raundda biter.
   const ctx=setup({rounds:5,difficulty:'zor'});
-  // Human wins the first two rounds; bot wins the remaining three. This prevents
-  // early clinching and exercises every intermission and the fifth round.
+  // Human types in the first two rounds only; the bot plays every round.
   ctx.time.scheduler.setInterval(()=>{
     const m=ctx.session.match;
     if(m?.status!=='running'||m.round.phase!=='round'||m.round.index>2)return;
@@ -47,17 +47,19 @@ test('practice rounds: five complete rounds end in a round-mode result and order
     ctx.session.send('WORD_SUBMIT',{matchId:m.id,round:m.round.index,wordIndex:me.wordIndex,text:me.currentWord});
   },180);
   ctx.session.start();
-  ctx.time.advance(200_000);
+  ctx.time.advance(900_000);
   const result=ctx.session.snapshot().result;
   assert.equal(ctx.session.snapshot().status,'ended');
   assert.equal(result.mode,'rounds');
-  assert.equal(result.totalRounds,5);
-  assert.equal(result.rounds.length,5);
-  assert.equal(ctx.packets.filter(p=>p.type==='ROUND_START').length,5);
-  assert.equal(ctx.packets.filter(p=>p.type==='ROUND_END').length,5);
+  assert.equal(result.totalRounds,7);
+  const n=result.rounds.length;
+  assert.ok(result.endReason==='KNOCKOUT'?n>=4:n>=7,`${result.endReason} after ${n} rounds`);
+  for(const r of result.rounds)for(const s of r.scores)assert.ok(s.damageDealt<=1300,'raund hasar tavanı');
+  assert.equal(ctx.packets.filter(p=>p.type==='ROUND_START').length,n);
+  assert.equal(ctx.packets.filter(p=>p.type==='ROUND_END').length,n);
   assert.equal(ctx.packets.filter(p=>p.type==='MATCH_END').length,1);
   const ordered=ctx.packets.filter(p=>['MATCH_START','ROUND_START','ROUND_END','MATCH_END'].includes(p.type));
-  assert.deepEqual(ordered.map(p=>p.type),['MATCH_START',...Array.from({length:5},()=>['ROUND_START','ROUND_END']).flat(),'MATCH_END']);
+  assert.deepEqual(ordered.map(p=>p.type),['MATCH_START',...Array.from({length:n},()=>['ROUND_START','ROUND_END']).flat(),'MATCH_END']);
   for(const p of ordered.filter(p=>p.type.startsWith('ROUND_'))){
     assert.equal(p.eventId,`${p.matchId}:${p.sequence}:${p.type}:r${p.payload.round}`);
     assert.equal(p.payload.serverTime,p.serverTime);
@@ -72,7 +74,7 @@ test('practice rounds: shared words, per-round bot limits, no intermission submi
   const {time,session,packets}=setup({difficulty:'zor'});
   session.start();
   const first=session.match.round.words;
-  assert.equal(first.length,10);
+  assert.equal(first.length,5); // KESINYAP 11: kelime raundu 1. raund 5 kelime
   assert.deepEqual(session.snapshot().round.words,first);
   assert.equal(session.match.participants[0].currentWord,first[0]);
   assert.equal(session.match.participants[1].currentWord,first[0]);
@@ -107,7 +109,7 @@ test('practice rounds: difficulty affects first reaction and typing pace',()=>{
   assert.deepEqual(BOT_DIFFICULTIES.kolay.startDelayMs,[900,1500]);
   assert.deepEqual(BOT_DIFFICULTIES.orta.startDelayMs,[600,1100]);
   assert.deepEqual(BOT_DIFFICULTIES.zor.startDelayMs,[400,800]);
-  assert.equal(normalizeRounds(7),7);assert.equal(normalizeRounds(10),10);assert.equal(normalizeRounds(99),5);
+  assert.equal(normalizeRounds(7),7);assert.equal(normalizeRounds(10),7);assert.equal(normalizeRounds(99),7); // KESINYAP 11: her zaman 7
 });
 
 test('practice rounds: rematch keeps rounds, changes words, and dispose clears timers',()=>{

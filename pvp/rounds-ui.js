@@ -9,21 +9,21 @@
 import {FIGHTERS,normalizeFighter} from './shared/fighters.js';
 import {portraitImg} from './portraits.js';
 import {ROUND_DURATION_MS,roundDurationMs,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,RESOLVE_BUDGET_MS,roundSkillMs,
-  ROUND_STYLES,DEFAULT_ROUND_STYLE,normalizeRoundStyle,normalizeRoundWords,validRoundWords} from './shared/match.js';
-export {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS};
-// Spec §1 sabitleri. Motor henüz yüklenmemiş olabileceği için burada aynalanır (yalnız sunum).
-export const ROUND_OPTIONS=Object.freeze([5,7,10]);
-export const DEFAULT_ROUNDS=5;
-export const ROUND_WORDS=10;
+  ROUND_STYLES,DEFAULT_ROUND_STYLE,normalizeRoundStyle,ROUND_TOTAL,ROUND_HP,ROUND_DAMAGE_CAP,roundWordsFor,streakSkill,STREAK_SKILLS} from './shared/match.js';
+export {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,STREAK_SKILLS};
+// KESINYAP 11: maç uzunluğu ve kelime sayısı seçeneği yok; her rounds maçı 7 raund, 4000 taşınan can.
+export const ROUND_OPTIONS=Object.freeze([ROUND_TOTAL]);
+export const DEFAULT_ROUNDS=ROUND_TOTAL;
+export const ROUND_WORDS=10; // seri göstergesi hücre sayısı ve kelime şeridi penceresi
 export const ROUND_LAST_CALL_MS=5_000;
-export const STREAK_SKILLS=Object.freeze({3:'q',5:'e',7:'r',8:'q',9:'q',10:'q'});
 export const STREAK_TICKS=Object.freeze([{at:3,key:'Q'},{at:5,key:'E'},{at:7,key:'R'}]);
 export const PRACTICE_ROUNDS_KEY='tuslab-pvp-practice-rounds';
 export const PRACTICE_ROUND_STYLE_KEY='tuslab-pvp-practice-round-style';
-export const PRACTICE_ROUND_WORDS_KEY='tuslab-pvp-practice-round-words';
-export const ROUND_STYLE_LABELS=Object.freeze({timed:'Zamana karşı',counted:'Sayılı'});
-export const ROUND_WORD_CHOICES=Object.freeze([5,10,15]);
-export {DEFAULT_ROUND_STYLE,normalizeRoundStyle,normalizeRoundWords};
+export const ROUND_STYLE_LABELS=Object.freeze({timed:'Zamana karşı',counted:'Kelime raundu'});
+export const ROUND_STYLE_TITLES=Object.freeze({timed:'ZAMANA KARŞI',counted:'KELİME RAUNDU'});
+/** Tek satırlık hasar kuralı ipucu (lobi MAÇ AYARLARI). */
+export const DAMAGE_RULE_HINT=`Seri 3 → Q · 5 → E · 7 → R · sonra her doğru kelime vurur · 7. seriden sonra hasar çarpanı artar · yanlış kelime seriyi sıfırlar · raund başına en çok ${ROUND_DAMAGE_CAP} hasar`;
+export {DEFAULT_ROUND_STYLE,normalizeRoundStyle,ROUND_HP,ROUND_DAMAGE_CAP};
 const START_FLASH_MS=900;
 /** Raund arası: "RAUND X" yazısı önce tek başına bu kadar görünür; sonra kompakt özet/seçim paneli açılır. */
 export const ROUND_TITLE_MS=900;
@@ -47,12 +47,30 @@ const num=n=>Number(n||0).toLocaleString('tr-TR');
 const clamp01=v=>Math.max(0,Math.min(1,v));
 const REASON_LABELS=Object.freeze({KO:'NAKAVT',TIME:'SÜRE DOLDU',ALL_DONE:'İKİ TARAF DA BİTİRDİ'});
 const BLOCK_LABELS=Object.freeze({PERFECT_BLOCK:'PERFECT BLOK',PARRY:'PARRY',BLOCK:'BLOK'});
-const END_REASON_LABELS=Object.freeze({ROUNDS:'TUR ÜSTÜNLÜĞÜ',ROUNDS_DRAW:'ANİ ÖLÜMDE DE BERABERE'});
+const END_REASON_LABELS=Object.freeze({ROUNDS:'KALAN CAN ÜSTÜNLÜĞÜ',ROUNDS_DRAW:'ANİ ÖLÜMDE DE BERABERE',KNOCKOUT:'NAKAVT'});
 
-export function normalizeRounds(value){const n=Number(value);return ROUND_OPTIONS.includes(n)?n:DEFAULT_ROUNDS;}
+/** Eski kayıtlı 5/10 tercihleri sessizce 7'ye döner. */
+export function normalizeRounds(){return DEFAULT_ROUNDS;}
 const validRounds=value=>ROUND_OPTIONS.includes(Number(value));
 export function isRoundMatch(match){return Boolean(match&&match.mode==='rounds'&&match.round&&typeof match.round==='object');}
-export function winsNeeded(total){return Math.floor(normalizeRounds(total)/2)+1;}
+/** Raund hasarı metni: '640/1300' ya da tavanda '1300/1300 · TAVAN'. */
+export function roundDamageText(damage){
+  const d=Math.max(0,Math.round(Number(damage)||0));
+  return `${d}/${ROUND_DAMAGE_CAP}${d>=ROUND_DAMAGE_CAP?' · TAVAN':''}`;
+}
+/** Raund ilerleme noktaları: 7 nokta, oynanmış (bitmiş) raundlar dolu. */
+export function roundDots(index,total,phase){
+  const t=Math.max(1,Number(total)||ROUND_TOTAL),i=Number(index)||1;
+  const played=Math.min(t,Math.max(0,phase==='round'||phase==='settling'||phase==='resolve'?i-1:i));
+  return {filled:played,total:t,current:Math.min(t,i)};
+}
+/** 'Sıradaki: RAUND 3 · 9 kelime' / '· 30 sn'. */
+export function nextRoundText(next,style,total=ROUND_TOTAL){
+  const idx=Number(next?.round)||0;if(!idx)return '';
+  const st=normalizeRoundStyle(next?.style??style);
+  const tail=st==='timed'?`${Number(next?.seconds)||ROUND_DURATION_MS/1000} sn`:`${Number(next?.words)||roundWordsFor(idx)} kelime`;
+  return `Sıradaki: ${idx>total?'ANİ ÖLÜM':`RAUND ${idx}`} · ${tail}`;
+}
 
 /** M(seri) = seri<7 ? 1 : min(2.5, 1.5 × 1.2^(seri−7)) — 2 ondalığa yuvarlanmış gösterim değeri. */
 export function streakMultiplier(streak){
@@ -69,7 +87,7 @@ const streakOf=p=>Math.max(0,Math.floor(Number(p?.streak??p?.combo)||0));
 export function streakModel(streak,serverNextSkill){
   const s=Math.max(0,Math.floor(Number(streak)||0));
   const multiplier=streakMultiplier(s);
-  const derived=STREAK_SKILLS[s+1]||null;
+  const derived=streakSkill(s+1);
   const next=serverNextSkill===undefined?derived:serverNextSkill;
   return {streak:s,cells:ROUND_WORDS,filled:Math.min(s,ROUND_WORDS),
     ticks:STREAK_TICKS.map(t=>({...t,reached:s>=t.at})),
@@ -78,7 +96,7 @@ export function streakModel(streak,serverNextSkill){
 
 /** Sonraki doğru kelimede tetiklenecek büyü (tahmin yalnızca bekleme metni içindir). */
 export function predictedSkill(player,match){
-  if(match?.mode==='rounds'){const k=STREAK_SKILLS[streakOf(player)+1];return k?k.toUpperCase():null;}
+  if(match?.mode==='rounds'){const k=streakSkill(streakOf(player)+1);return k?k.toUpperCase():null;}
   const future=(Number(player?.combo)||0)+1;
   return future%5===2?'Q':future%5===4?'E':future%5===0?'R':null;
 }
@@ -132,7 +150,7 @@ function timerOf(match,serverNow,seat){
   const seconds=Math.ceil(remaining/1000);
   // Halka toplamı: temel süre + Donmuş An (+) − rakibin Zaman Hırsızı'sı; böylece hızlı/yavaş başlangıçta halka dolu başlar.
   const mine=round.skills?.[seat],rival=round.skills?.[seat===1?2:1];
-  const baseMs=roundDurationMs({roundStyle:round.style,roundWords:Array.isArray(round.words)?round.words.length:undefined});
+  const baseMs=roundDurationMs({roundStyle:round.style,roundWords:Number.isInteger(round.wordCount)?round.wordCount:roundWordsFor(round.index)});
   const total=active?Math.max(1000,baseMs+(mine==='freeze'?roundSkillMs('freeze'):0)-(rival==='timethief'?roundSkillMs('timethief'):0))
     :(PHASE_TOTAL_MS[round.phase]||ROUND_DURATION_MS);
   return {remaining,seconds,text:hidden?'🌑 —':String(seconds),fraction:hidden?0:clamp01(remaining/total),
@@ -151,8 +169,7 @@ export function roundsViewModel(match,myId,serverNow,marks,{lastCallRound=null}=
   const players=[1,2].map(seat=>playerBySeat(match,seat));
   const anyDone=players.some(p=>p?.roundDone),allDone=players.every(p=>p?.roundDone);
   const lastCallActive=round.phase==='round'&&!allDone&&(anyDone||(lastCallRound!==null&&Number(lastCallRound)===Number(round.index)));
-  const wins=match.roundsWon||{};
-  const needed=winsNeeded(total);
+  const dots=roundDots(index,total,round.phase);
   const me=playerBySeat(match,mySeat),opp=playerBySeat(match,mySeat===1?2:1);
   const myIdx=Number(me?.roundWordIndex)||0;
   // Kelime penceresi: timed modda sunucu yalnız pencereyi gönderir (öncesi '' ile dolu); counted'da 10'dan uzun listede kaydırılır.
@@ -166,23 +183,28 @@ export function roundsViewModel(match,myId,serverNow,marks,{lastCallRound=null}=
       opponent:Boolean(opp&&!opp.roundDone&&Number(opp.roundWordIndex)===i)};
   });
   const timed=round.style==='timed';
-  const wordTotal=timed?0:allWords.length||ROUND_WORDS;
+  const wordTotal=timed?0:(Number(round.wordCount)||allWords.length||roundWordsFor(index));
   const sides=[1,2].map(seat=>{
     const p=playerBySeat(match,seat);
     const idx=timed?Math.max(0,Number(p?.roundWordIndex)||0):Math.min(wordTotal,Number(p?.roundWordIndex)||0);
-    const filled=Number(wins[seat])||0;
+    const hp=Math.max(0,Number(p?.hp)||0),maxHp=Number(p?.maxHp)||ROUND_HP;
+    const damage=Number(p?.roundDamage)||0;
     const clock=timerOf(match,serverNow,seat);
     const skill=round.phase==='round'?round.skills?.[seat]??null:null;
     const badge=[skill==='freeze'?'❄ +3 sn':null,round.phase==='round'&&round.skills?.[seat===1?2:1]==='timethief'?'−5 sn':null].filter(Boolean).join(' · ');
     return {seat,name:nameOf(match,seat),isMe:Boolean(p&&p.playerId===myId),clock:clock.text,badge,
       progress:timed?`Kelime ${idx}`:`Kelime ${idx}/${wordTotal}`,progressValue:idx,done:Boolean(p?.roundDone),doneText:p?.roundDone?'Tamamlandı ✓':'',
-      streak:streakModel(streakOf(p),p?.nextSkill),pips:{filled,total:Math.max(needed,filled)}};
+      streak:streakModel(streakOf(p),p?.nextSkill),pips:dots,
+      hp,maxHp,hpText:`Can ${num(hp)}/${num(maxHp)}`,damage,capped:damage>=ROUND_DAMAGE_CAP,damageText:`Raund hasarı ${roundDamageText(damage)}`};
   });
+  const styleTitle=ROUND_STYLE_TITLES[timed?'timed':'counted'];
   const phaseLabel=['settling','resolve'].includes(round.phase)?'ÇÖZÜLÜYOR':round.phase==='intermission'?'TUR ARASI':match.status==='paused'?'DURAKLADI':'SANİYE';
   // Madalyon: faz birimi her zaman kısa "sn"; başlık alanında yalnız TEK yazı (raund adı YA DA faz adı) görünür.
   const title=suddenDeath?'ANİ ÖLÜM':`RAUND ${index} / ${total}`;
   const medalTitle=match.status==='paused'?'DURAKLADI':round.phase==='round'?title:phaseLabel;
-  return {visible:true,index,total,title,medalTitle,unit:'sn',suddenDeath,phase:round.phase,phaseLabel,
+  // Üst bilgi: 'ZAMANA KARŞI · RAUND 2/7' ya da 'KELİME RAUNDU · RAUND 2/7 · 7 kelime'.
+  const headline=`${styleTitle} · ${suddenDeath?'ANİ ÖLÜM':`RAUND ${index}/${total}`}${timed?'':` · ${wordTotal} kelime`}`;
+  return {visible:true,index,total,title,medalTitle,headline,style:timed?'timed':'counted',dots,unit:'sn',suddenDeath,phase:round.phase,phaseLabel,
     timer,lastCall:{active:lastCallActive&&!timer.hidden,text:lastCallActive&&!timer.hidden?`SON ÇAĞRI · ${timer.seconds} sn`:''},sides,words,mySeat};
 }
 
@@ -213,18 +235,27 @@ export function summaryModel(roundEnd,match,myId){
   const total=Number(match?.round?.total??match?.totalRounds)||DEFAULT_ROUNDS;
   const winnerSeat=roundEnd?.winnerSeat===1||roundEnd?.winnerSeat===2?roundEnd.winnerSeat:null;
   const scores=[1,2].map(seat=>(roundEnd?.scores||[]).find(s=>s.seat===seat)||{});
-  const wins=roundEnd?.roundsWon||match?.roundsWon||{};
   const names=[1,2].map(seat=>nameOf(match,seat)+(playerBySeat(match,seat)?.playerId===myId?' (sen)':''));
   const row=(label,key)=>({label,values:scores.map(s=>num(s[key]))});
-  const next=round+1;
-  return {round,title:`TUR ${round} BİTTİ`,winnerSeat,draw:winnerSeat===null,
-    winnerText:winnerSeat?`${nameOf(match,winnerSeat)} TURU ALDI`:'BERABERE',
-    ...summaryPresentation(winnerSeat,match,myId),
-    ko:roundEnd?.reason==='KO',reasonText:REASON_LABELS[roundEnd?.reason]||'',names,
-    rows:[row('Doğru','correct'),row('Yanlış','wrong'),row('En iyi seri','bestStreak'),row('Hasar','damageDealt'),row('RP','rp')],
-    colors:summaryColors(match),players:summaryPlayers(match),pips:[1,2].map(seat=>({filled:Number(wins[seat])||0,total:Math.max(total,Number(wins[seat])||0)})),
-    scoreline:`${Number(wins[1])||0} – ${Number(wins[2])||0}`,
-    nextText:roundEnd?.nextRoundAt?`Sıradaki: ${roundLabel(next,total)}`:'Maç sonucu hazırlanıyor'};
+  // KESINYAP 11: raund kazananı yok; kart iki tarafın bu raunddaki hasarını ve TAŞINAN kalan canını gösterir.
+  const mySeat=mySeatOf(match,myId);
+  const order=mySeat===2?[2,1]:[1,2];
+  const who=seat=>mySeat?(seat===mySeat?'Sen':'Rakip'):nameOf(match,seat);
+  const dmg=seat=>Number(scores[seat-1].damageDealt)||0;
+  const hpOf=seat=>Number(roundEnd?.hp?.[seat]??scores[seat-1].hpLeft??playerBySeat(match,seat)?.hp)||0;
+  const damageLine=`Bu raund: ${order.map(s=>`${who(s)} ${num(dmg(s))} hasar${dmg(s)>=ROUND_DAMAGE_CAP?' (TAVAN)':''}`).join(' · ')}`;
+  const hpLine=`Kalan can: ${order.map(s=>`${who(s)} ${num(hpOf(s))}`).join(' · ')}`;
+  const ko=roundEnd?.reason==='KO';
+  const pres=ko?summaryPresentation(winnerSeat,match,myId):{mine:false,tone:winnerSeat&&mySeat?(winnerSeat===mySeat?'win':'loss'):'draw',headline:damageLine};
+  const next=roundEnd?.next||(roundEnd?.nextRoundAt?{round:round+1}:null);
+  return {round,title:`RAUND ${round} BİTTİ`,winnerSeat,draw:winnerSeat===null,
+    winnerText:damageLine,...pres,damageLine,hpLine,
+    ko,reasonText:REASON_LABELS[roundEnd?.reason]||'',names,
+    rows:[row('Doğru','correct'),row('Yanlış','wrong'),row('En iyi seri','bestStreak'),
+      {label:'Hasar',values:[1,2].map(s=>roundDamageText(dmg(s)))},row('Kalan can','hpLeft')],
+    colors:summaryColors(match),players:summaryPlayers(match),pips:[1,2].map(()=>roundDots(round,total,'intermission')),
+    scoreline:`${num(hpOf(1))} – ${num(hpOf(2))}`,
+    nextText:next&&!roundEnd?.matchOver?nextRoundText(next,match?.round?.style,total):'Maç sonucu hazırlanıyor'};
 }
 
 export function clashModel(event,match){
@@ -242,48 +273,35 @@ export function roundsPickDecision({scope,value,isHost,phase,current}={}){
   return {type:'MATCH_CONFIG',payload:{rounds}};
 }
 
-export function roundsPickerHTML(scope){
-  const s=scope==='practice'?'practice':'room';
-  return `<div class="rui-picker" data-rounds-picker="${s}"><span class="rui-picker-label" id="rui-picker-${s}">Maç uzunluğu</span>`
-    +`<div class="rui-seg" role="group" aria-labelledby="rui-picker-${s}">`
-    +ROUND_OPTIONS.map(n=>`<button type="button" data-lobby-action="rounds" data-rounds-scope="${s}" data-rounds="${n}" aria-pressed="${n===DEFAULT_ROUNDS}" title="${n} turluk maç seç"><b>${n}</b> tur</button>`).join('')
-    +`</div><small class="rui-picker-note" data-rounds-note></small></div>`;
+/** KESINYAP 11: 'Maç uzunluğu' seçeneği kaldırıldı; yerinde (yalnız bot lobisinde çağrılıyordu) hiçbir şey çizilmez. */
+export function roundsPickerHTML(){return '';}
+/** Raund biçimi seçici kararı (yalnız kind='style'). practice: yerel tercih; room: yalnız host, waiting/countdown, değişiklikte MATCH_CONFIG. */
+export function roundStylePickDecision({scope,kind='style',value,isHost,phase,current}={}){
+  if(kind!=='style'||!ROUND_STYLES.includes(value))return null;
+  if(scope==='practice')return {store:value};
+  if(scope!=='room'||!isHost||!['waiting','countdown'].includes(phase)||value===current)return null;
+  return {type:'MATCH_CONFIG',payload:{roundStyle:value}};
 }
-/** Raund biçimi seçici kararı. kind='style'|'words'. practice: yerel tercih; room: yalnız host, waiting/countdown, değişiklikte MATCH_CONFIG. */
-export function roundStylePickDecision({scope,kind,value,isHost,phase,current}={}){
-  const v=kind==='words'?Number(value):value;
-  if(kind==='style'?!ROUND_STYLES.includes(v):kind!=='words'||!ROUND_WORD_CHOICES.includes(v)||!validRoundWords(v))return null;
-  if(scope==='practice')return {store:v};
-  if(scope!=='room'||!isHost||!['waiting','countdown'].includes(phase)||v===current)return null;
-  return {type:'MATCH_CONFIG',payload:kind==='style'?{roundStyle:v}:{roundWords:v}};
-}
+const STYLE_TITLES=Object.freeze({timed:'Her raund 30 sn; süre bitene kadar kelime akar, kim çok doğru yazarsa o kadar vurur',
+  counted:'Raund başına 5-7-9-10-10-10-15 kelime (kelime başına 6 sn); iki oyuncuya aynı kelimeler'});
 export function roundStylePickerHTML(scope){
   const s=scope==='practice'?'practice':'room';
   return `<div class="rui-picker" data-style-picker="${s}"><span class="rui-picker-label" id="rui-style-${s}">Raund biçimi</span>`
     +`<div class="rui-seg" role="group" aria-labelledby="rui-style-${s}">`
-    +ROUND_STYLES.slice().reverse().map(k=>`<button type="button" data-lobby-action="roundstyle" data-style-scope="${s}" data-round-style="${k}" aria-pressed="${k===DEFAULT_ROUND_STYLE}" title="${k==='timed'?'Süre bitene kadar sürekli yeni kelime':'Raund başına sabit kelime sayısı'}">${ROUND_STYLE_LABELS[k]}</button>`).join('')
-    +`</div><span class="rui-picker-label" id="rui-words-${s}" data-words-label hidden>Kelime sayısı</span>`
-    +`<div class="rui-seg" role="group" aria-labelledby="rui-words-${s}" data-words-group hidden>`
-    +ROUND_WORD_CHOICES.map(n=>`<button type="button" data-lobby-action="roundwords" data-style-scope="${s}" data-round-words="${n}" aria-pressed="${n===10}" title="Raund başına ${n} kelime"><b>${n}</b> kelime</button>`).join('')
-    +`</div><small class="rui-picker-note" data-style-note></small></div>`;
+    +ROUND_STYLES.slice().reverse().map(k=>`<button type="button" data-lobby-action="roundstyle" data-style-scope="${s}" data-round-style="${k}" aria-pressed="${k===DEFAULT_ROUND_STYLE}" title="${STYLE_TITLES[k]}">${ROUND_STYLE_LABELS[k]}</button>`).join('')
+    +`</div><small class="rui-rule-hint" data-damage-rules>7 raund · ${num(ROUND_HP)} can (raundlar arası taşınır) · ${DAMAGE_RULE_HINT}</small>`
+    +`<small class="rui-picker-note" data-style-note></small></div>`;
 }
-/** Biçim seçicisini eşitle; sayılı olmayan modda kelime sayısı satırı gizlenir. */
-export function syncRoundStylePicker(container,scope,{style,words,editable,note=''}={}){
+/** Biçim seçicisini eşitle. */
+export function syncRoundStylePicker(container,scope,{style,editable,note=''}={}){
   const box=container?.querySelector(`[data-style-picker="${scope}"]`);if(!box)return;
-  const st=normalizeRoundStyle(style),wn=normalizeRoundWords(words);
+  const st=normalizeRoundStyle(style);
   box.dataset.readonly=String(!editable);
   box.querySelectorAll('[data-round-style]').forEach(b=>{
     const pressed=String(b.dataset.roundStyle===st);
     if(b.getAttribute('aria-pressed')!==pressed)b.setAttribute('aria-pressed',pressed);
     if(b.disabled!==!editable)b.disabled=!editable;
   });
-  box.querySelectorAll('[data-round-words]').forEach(b=>{
-    const pressed=String(Number(b.dataset.roundWords)===wn);
-    if(b.getAttribute('aria-pressed')!==pressed)b.setAttribute('aria-pressed',pressed);
-    if(b.disabled!==!editable)b.disabled=!editable;
-  });
-  const hide=st!=='counted';
-  for(const el of box.querySelectorAll('[data-words-label],[data-words-group]'))if(el.hidden!==hide)el.hidden=hide;
   const n=box.querySelector('[data-style-note]');if(n&&n.textContent!==note)n.textContent=note;
 }
 /** Seçici durumunu eşitle; host olmayan oyuncu için salt-okunur. */
@@ -303,17 +321,20 @@ export function syncRoundsPicker(container,scope,{value,editable,note=''}={}){
 export function roundsResultModel(result,myId){
   if(!result||(result.mode!=='rounds'&&!Array.isArray(result.rounds)))return null;
   const total=Number(result.totalRounds)||DEFAULT_ROUNDS;
-  const wins=result.roundsWon||{};
   const name=seat=>String(result.players?.find(p=>p.seat===seat)?.name||`Oyuncu ${seat}`);
-  const rows=(Array.isArray(result.rounds)?result.rounds:[]).map(r=>{
-    const sc=seat=>(r.scores||[]).find(s=>s.seat===seat)?.rp;
+  const list=Array.isArray(result.rounds)?result.rounds:[];
+  const rows=list.map(r=>{
+    const sc=seat=>(r.scores||[]).find(s=>s.seat===seat)?.damageDealt;
     return {round:r.round,label:r.round>total?`Ani ölüm ${r.round-total}`:`Raund ${r.round}`,
-      winnerSeat:r.winnerSeat??null,winner:r.winnerSeat===1||r.winnerSeat===2?name(r.winnerSeat):'Berabere',
-      ko:r.reason==='KO',rp:`${num(sc(1))} – ${num(sc(2))}`};
+      winnerSeat:r.winnerSeat??null,winner:r.winnerSeat===1||r.winnerSeat===2?name(r.winnerSeat):'Eşit',
+      ko:r.reason==='KO',damage:`${num(sc(1))} – ${num(sc(2))}`};
   });
+  // Skor satırı: kalan (taşınan) can. '1.240 – 0 · NAKAVT' ya da '2.100 – 1.650 · 7 raund'.
+  const hpOf=seat=>Number(result.finalHp?.[seat]??result.players?.find(p=>p.seat===seat)?.hp)||0;
+  const ko=result.endReason==='KNOCKOUT';
   const mySeat=result.players?.find(p=>p.playerId===myId)?.seat||null;
-  return {scoreline:`${Number(wins[1])||0} – ${Number(wins[2])||0}`,names:[name(1),name(2)],mySeat,rows,
-    reasonLabel:END_REASON_LABELS[result.endReason]||null,lengthLabel:`${total} turluk maç`};
+  return {scoreline:`${num(hpOf(1))} – ${num(hpOf(2))} · ${ko?'NAKAVT':`${list.length||total} raund`}`,names:[name(1),name(2)],mySeat,rows,
+    reasonLabel:END_REASON_LABELS[result.endReason]||null,lengthLabel:`Kalan can · ${total} raundluk maç · ${num(ROUND_HP)} can`};
 }
 
 // ------------------------------------------------------------------ DOM ---
@@ -350,8 +371,10 @@ export function createRoundEndCard(doc,model){
     const portrait=model.players?.[i]?portraitImg(doc,model.players[i],'m33-portrait'):null;
     return h('article',{cls:`m33-player${model.winnerSeat===i+1?' is-winner':''}${portrait?' has-portrait':''}`,attrs:{style:`--m33-player:${model.colors[i]}`}},portrait,h('h3',{text:name}),stats);
   }));
-  const pips=h('div',{cls:'m33-pips',attrs:{'aria-label':'Tur galibiyetleri'}},...model.pips.map((p,i)=>h('div',{cls:'m33-pip-side',attrs:{'aria-label':`${model.names[i]}: ${p.filled} galibiyet`,style:`--m33-player:${model.colors[i]}`}},
-    ...Array.from({length:p.total},(_,j)=>h('span',{cls:`m33-pip${j<p.filled?' is-won':''}`,text:j<p.filled?'●':'○',attrs:{'aria-hidden':'true'}})))));
+  // Raund ilerleme noktaları (7 nokta, oynanan dolu) — artık raund galibiyeti değil.
+  const d=model.pips[0];
+  const pips=h('div',{cls:'m33-pips',attrs:{'aria-label':`Raund ilerlemesi ${d.filled}/${d.total}`}},h('div',{cls:'m33-pip-side'},
+    ...Array.from({length:d.total},(_,j)=>h('span',{cls:`m33-pip${j<d.filled?' is-won':''}`,text:j<d.filled?'●':'○',attrs:{'aria-hidden':'true'}}))));
   const svg=doc.createElementNS(SVG_NS,'svg');
   svg.setAttribute('viewBox','0 0 64 64');svg.setAttribute('aria-hidden','true');
   const track=doc.createElementNS(SVG_NS,'circle'),fill=doc.createElementNS(SVG_NS,'circle');
@@ -365,7 +388,8 @@ export function createRoundEndCard(doc,model){
   const node=h('div',{cls:'m33-result',attrs:{'data-tone':tone,'data-ko':model.ko?'1':'0',style:`--rui-win:${winColor}`}},
     h('i',{cls:'rui-sweep',attrs:{'aria-hidden':'true'}}),
     h('header',{},h('h2',{cls:'m33-title',text:model.title}),model.ko?h('span',{cls:'rui-ko',text:'NAKAVT'}):null),
-    h('div',{cls:'m33-winner',text:model.headline||model.winnerText,attrs:{style:`--m33-winner:${winColor}`}}),players,
+    h('div',{cls:'m33-winner',text:model.headline||model.winnerText,attrs:{style:`--m33-winner:${winColor}`,'data-round-damage':''}}),
+    model.hpLine?h('div',{cls:'m33-hpline',text:model.ko?`${model.damageLine} · ${model.hpLine}`:model.hpLine,attrs:{'data-round-hp':''}}):null,players,
     h('footer',{cls:'m33-footer'},pips,h('span',{cls:'m33-next',text:model.nextText}),countdown));
   return {node,update(deadline,at,duration){
     const remaining=Number.isFinite(deadline)?Math.max(0,deadline-at):0;
@@ -389,6 +413,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     const progress=h('span',{cls:'rui-progress',rui:'progress'});
     const clock=h('span',{cls:'rui-side-clock'}),badge=h('span',{cls:'rui-time-badge',hidden:true});
     const done=h('span',{cls:'rui-done',hidden:true});
+    const hp=h('span',{cls:'rui-hp',attrs:{'data-rui-hp':String(seat)}}),dmg=h('span',{cls:'rui-dmg',attrs:{'data-rui-dmg':String(seat)}});
     const cells=Array.from({length:ROUND_WORDS},(_,i)=>h('i',{cls:`rui-cell${STREAK_TICKS.some(t=>t.at===i+1)?' rui-cell-tick':''}`}));
     const ticks=STREAK_TICKS.map(t=>h('span',{cls:'rui-tick',attrs:{'data-at':String(t.at),style:`--at:${t.at}`},text:t.key}));
     const meterLabel=h('span',{cls:'rui-meter-label'});
@@ -398,8 +423,9 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
       h('div',{cls:'rui-cells'},...cells),h('div',{cls:'rui-ticks'},...ticks));
     const node=h('div',{cls:`rui-side rui-side-${seat}`,rui:'side'},
       h('div',{cls:'rui-side-top'},name,you,progress,clock,badge,done,h('span',{cls:'rui-meter-meta'},meterLabel,next,mult),pips),
+      h('div',{cls:'rui-side-hp'},hp,dmg),
       meter);
-    return {seat,node,pips,name,you,progress,clock,badge,done,cells,ticks,meter,meterLabel,next,mult,
+    return {seat,node,pips,name,you,progress,clock,badge,done,hp,dmg,cells,ticks,meter,meterLabel,next,mult,
       pipCount:-1,prev:null,breakTimer:null,pulseTimer:null};
   });
   const ringFill=doc.createElementNS(SVG_NS,'circle');
@@ -488,7 +514,8 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     setHidden(side.done,!vm.done);setText(side.done,vm.doneText);setFlag(side.node,'is-done',vm.done);
     if(side.pipCount!==vm.pips.total){side.pipCount=vm.pips.total;side.pips.replaceChildren(...Array.from({length:vm.pips.total},()=>doc.createElement('i')));}
     side.pips.children&&Array.from(side.pips.children).forEach((pip,i)=>setFlag(pip,'is-won',i<vm.pips.filled));
-    side.pips.setAttribute?.('aria-label',`Kazanılan tur ${vm.pips.filled}, gereken ${vm.pips.total}`);
+    side.pips.setAttribute?.('aria-label',`Oynanan raund ${vm.pips.filled}/${vm.pips.total}`);
+    setText(side.hp,vm.hpText);setText(side.dmg,vm.damageText);setFlag(side.dmg,'is-capped',vm.capped);
     const s=vm.streak;
     side.cells.forEach((c,i)=>setFlag(c,'is-on',i<s.filled));
     side.ticks.forEach((t,i)=>setFlag(t,'is-reached',s.ticks[i].reached));
@@ -707,7 +734,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
         }else if(packet.type==='ROUND_END'){
           state.lastRoundEnd={...p,matchId:p.match?.matchId??state.match?.matchId};
           const m=summaryModel(p,p.match||state.match,state.myId);
-          announce(`${m.title}: ${m.winnerText}. Tur skoru ${m.scoreline}`);
+          announce(`${m.title}: ${m.damageLine}. ${m.hpLine}`);
         }else if(packet.type==='WORD_CLASH'){showClash(p.type==='WORD_CLASH'?p:{...p});return;}
         else return;
         if(p.match&&isRoundMatch(p.match))state.match=p.match;
@@ -751,10 +778,10 @@ export function renderRoundsResult(root,match,myId,doc=globalThis.document){
   if(model.reasonLabel){const reason=card.querySelector('[data-pvp15-reason]');if(reason)reason.textContent=model.reasonLabel;}
   const score=h('div',{cls:'rui-res-score'},
     h('span',{cls:`rui-res-name rui-col-1${model.mySeat===1?' is-me':''}`,text:model.names[0]}),
-    h('strong',{cls:'rui-res-line',text:model.scoreline,attrs:{'aria-label':`Tur skoru ${model.scoreline}`}}),
+    h('strong',{cls:'rui-res-line',text:model.scoreline,attrs:{'aria-label':`Kalan can ${model.scoreline}`,'data-rounds-scoreline':''}}),
     h('span',{cls:`rui-res-name rui-col-2${model.mySeat===2?' is-me':''}`,text:model.names[1]}));
-  const list=h('ol',{cls:'rui-res-rounds',attrs:{'aria-label':'Tur tablosu'}},...model.rows.map(r=>h('li',{cls:`rui-res-round${r.winnerSeat?` is-seat-${r.winnerSeat}`:' is-draw'}`},
-    h('span',{cls:'rui-res-label',text:r.label}),h('b',{text:r.winner}),h('small',{text:`RP ${r.rp}`}),r.ko?h('em',{cls:'rui-ko',text:'NAKAVT'}):null)));
+  const list=h('ol',{cls:'rui-res-rounds',attrs:{'aria-label':'Raund tablosu: raund başına iki tarafın hasarı'}},...model.rows.map(r=>h('li',{cls:`rui-res-round${r.winnerSeat?` is-seat-${r.winnerSeat}`:' is-draw'}`},
+    h('span',{cls:'rui-res-label',text:r.label}),h('b',{text:`Hasar ${r.damage}`}),r.ko?h('em',{cls:'rui-ko',text:'NAKAVT'}):null)));
   const next=h('div',{cls:'rui-result',attrs:{'data-rounds-result':''}},h('small',{cls:'rui-res-len',text:model.lengthLabel}),score,list);
   if(block)block.replaceWith(next);
   else{const anchor=card.querySelector('[data-pvp15-reason]');anchor?anchor.after(next):card.prepend(next);}

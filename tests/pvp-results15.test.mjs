@@ -73,7 +73,7 @@ test('rematch takes two approvals and generates fresh match id, full ROUND_HP an
  assert.equal(received(b,'REMATCH_COUNTDOWN').length,1);
  const data=await room.roster();data.startAt=Date.now()-1;await room.save(data);await room.alarm();
  const next=await ctx.storage.get('match');assert.notEqual(next.id,ended.id);assert.equal(next.status,'running');
- assert.deepEqual(next.participants.map(p=>p.hp),[1200,1200]);assert.equal(next.participants[0].combo,0);
+ assert.deepEqual(next.participants.map(p=>p.hp),[4000,4000]); // KESINYAP 11: ROUND_HP 4000assert.equal(next.participants[0].combo,0);
  assert.equal(next.mode,'rounds');assert.equal(next.round.index,1);
  assert.equal(matchResult(ended).mode,'rounds');
  assert.equal(next.participants[0].combatStats.damageDealt,0);

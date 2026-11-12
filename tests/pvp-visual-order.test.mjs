@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createVisualTimeline} from '../pvp/visual-timeline.js';
+import {createVisualTimeline, VISUAL_QUEUE} from '../pvp/visual-timeline.js';
 import {createImpactDirector} from '../pvp/impact-feel.js';
 import {TRAVEL} from '../pvp/fighters3d.js';
 
@@ -30,7 +30,9 @@ test('discarded scene delivers the damage number without hitstop or reaction', (
 
 test('backlog drops old waiting scenes without synthetic contacts and keeps travel visible', () => {
   const contacts = [], queue = createVisualTimeline();
-  for (let i = 0; i < 5; i++) queue.enqueue({seat: i % 2 + 1, estimateMs: 1000,
+  // İş 1, 3. tur: birikim eşiği okunur sahne süresine göre büyüdü (VISUAL_QUEUE.maxBacklogMs) → eşiği aşacak kadar sahne.
+  const n = Math.ceil(VISUAL_QUEUE.maxBacklogMs / 1000) + 2;
+  for (let i = 0; i < n; i++) queue.enqueue({seat: i % 2 + 1, estimateMs: 1000,
     start: ctx => { assert.equal(ctx.skipReturn, false); return {contactMs: 600, durationMs: 1000}; },
     onContact: ({forced}) => contacts.push(forced)});
   assert.equal(contacts.includes(true), false);

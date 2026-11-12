@@ -12,6 +12,7 @@ import {
 } from '../pvp/fighters3d.js';
 import {FIGHTERS, FIGHTER_IDS} from '../pvp/shared/fighters.js';
 import {createArena3D} from '../pvp/arena3d.js';
+import {TURN} from '../pvp/visual-timeline.js';
 import {createArena3DAssist} from '../pvp/arena3d-assist.js';
 import {createArena3DFx} from '../pvp/arena3d-fx.js';
 import {CHARACTER_BUILDS, COMMON_CLIPS, reduceKeys, readGlb} from '../scripts/optimize-characters.mjs';
@@ -59,10 +60,12 @@ test('Vargr melee plan plays each complete attack clip before walking back at na
   for(const skill of ['q','e']){
     const plan=rig.plan(skill),attack=plan.steps.find(s=>s.clip===MODEL_VARIANTS.vargr.meshy.skills[skill].clip);
     const fullMs=asset.clips.find(c=>c.name===attack.clip).duration*1000;
-    assert.equal(attack.offset,0);
-    assert.ok(attack.speed<=1.2);
-    assert.ok(attack.endMs>=fullMs-1,`${skill} must include the whole clip`);
-    assert.ok(plan.hitMs+plan.holdMs>=plan.travelMs+fullMs/attack.speed-1);
+    const peak=MODEL_VARIANTS.vargr.meshy.skills[skill].peakMs;
+    // İş 1, 3. tur: doğal hız; hazırlık (≤750 ms) + temas + takip (≤750 ms) görünür, dönüş takipten sonra.
+    assert.equal(attack.speed,1);
+    assert.ok(Math.abs(attack.offset*1000-(peak-Math.min(peak,750)))<1,`${skill} hazırlık penceresi`);
+    assert.ok(Math.abs(plan.hitMs-(attack.at+Math.min(peak,750)))<1,`${skill} temas = klip zirvesi`);
+    assert.ok(plan.timing.returnStart>=plan.hitMs+Math.min(fullMs-peak,750)-1,`${skill} takip dönüşten önce biter`);
   }
   rig.play('r',{force:true});
   // Düzeltme turu 2 / B: ulti sahnesi ≤ ~3 sn → hazırlık temastan 1,8 sn önce başlar.
@@ -336,22 +339,28 @@ test('arena3d + models: skills, hits, slowMo, hitStop, KO and victory drive the 
   const {instance, run} = await buildArena();
   await instance.setFighters({1: 'vargr', 2: 'doran'});
   instance.handle({type: 'SKILL_CAST', fromSeat: 1, skill: 'e'});
+  // İş 1, 3. tur: telegraf → koşu → vuruş (doğal hız) → yön çevirip koşarak dönüş.
+  const T = instance._debug.chainPlan(1, ['e']).timing;
   run(32);
   let m = instance._debug.models();
   assert.equal(m[1].state, 'e');
-  assert.equal(m[1].clip, 'Dodge_Forward', 'Şerit H: önce yolculuk (koşu/atılma) klibi');
-  run(500);
+  assert.equal(m[1].clip, '2H_Melee_Idle', 'telegraf: yerinde hazırlık');
+  run(T.telegraphMs + 60);
+  assert.equal(instance._debug.models()[1].clip, 'Dodge_Forward', 'gidişte koşu klibi');
+  run(T.strikes[0].start - T.telegraphMs);
   assert.equal(instance._debug.models()[1].clip, '2H_Melee_Attack_Spin', 'yolculuktan sonra saldırı klibi');
-  run(400); // İş 1: zincir ~1,8 sn (görünür koşu + geri yürüyüş); dönüş zincir bitmeden ölçülür
-  assert.ok(Math.abs(instance._debug.models()[1].yaw) > 1, 'Kasırga turns the model on its own axis');
+  run(T.moveStart - T.strikes[0].start + 200);
   assert.ok(instance._debug.skillFx().kinds.includes('swirl'));
+  assert.equal(instance._debug.models()[1].clip, 'Dodge_Forward', 'dönüşte koşu klibi');
+  assert.ok(Math.abs(instance._debug.models()[1].yaw) > 1, 'dönüşte gövde eve döner (geri geri yürümez)');
   // Server damage arrives with the cast: the defender reacts at the attacker's hit moment.
   instance.clear();
+  run(T.totalMs + 2000); // raund geçişi: model yerine yürür (anında oturtma yok)
   instance.handle({type: 'SKILL_CAST', fromSeat: 1, skill: 'q'});
   instance.handle({type: 'DAMAGE_APPLIED', fromSeat: 1, toSeat: 2, amount: 60});
   run(16);
   assert.notEqual(instance._debug.models()[2].state, 'hit', 'not before the axe lands');
-  run(900);
+  run(instance._debug.chainPlan(1, ['q']).contacts[0].ms + 100);
   m = instance._debug.models();
   assert.ok(['hit', 'idle'].includes(m[2].state));
   // slowMo → mixer time scale; hitStop → paused.
@@ -387,17 +396,21 @@ test('arena visual queue keeps two ranged attacks separate and exposes position 
   instance.handle({type: 'DAMAGE_APPLIED', fromSeat: 1, toSeat: 2, skill: 'q', amount: 50});
   instance.handle({type: 'SKILL_CAST', fromSeat: 2, toSeat: 1, skill: 'q'});
   instance.handle({type: 'DAMAGE_APPLIED', fromSeat: 2, toSeat: 1, skill: 'q', amount: 50});
-  run(500); // İş 1: menzilli koşu yaklaşması COMBO.rangedLeadMs (420 ms)
+  // İş 1, 3. tur: menzilli yerinde kalır; telegraf → atış klibi (doğal hız) → mermi ~600 ms → temas.
+  const P = instance._debug.chainPlan(1, ['q']);
+  run(P.timing.strikes[0].start + 150);
   let models = instance._debug.models();
   assert.equal(models[1].clip, 'Throw');
   assert.equal(models[2].state, 'idle');
   assert.equal(typeof models[1].x, 'number');
   assert.ok(models[1].clipTime > 0);
-  run(3700); // İş 1: koşu + temas + geri yürüyüş + savunanın tepkisi biter + ~1,2 sn ara → ikinci koltuk
+  assert.equal(impacts.length, 0, 'mermi varmadan hasar yok');
+  // sahne biter + savunanın tepkisi + saldıran değişimi arası (~1,3 sn) + telegraf → ikinci koltuk atar
+  run(P.totalMs + TURN.breathMs + P.timing.strikes[0].start + 200 - (P.timing.strikes[0].start + 150));
   models = instance._debug.models();
   assert.equal(models[2].clip, 'Throw');
   assert.equal(impacts.length, 1);
-  run(1100);
+  run(P.contacts[0].ms);
   assert.equal(impacts.length, 2);
   assert.ok(impacts.every(i => i.scene));
   instance.destroy();
@@ -421,7 +434,7 @@ test('arena3d + models: projectile skills spawn their effect (sira spear, nyx me
   const {instance, run} = await buildArena();
   await instance.setFighters({1: 'sira', 2: 'nyx'});
   instance.handle({type: 'SKILL_CAST', fromSeat: 1, skill: 'q'});
-  run(1150); // menzilli zincir: 420 ms koşu yaklaşması, sonra atış
+  run(instance._debug.chainPlan(1, ['q']).contacts[0].releaseMs + 100); // İş 1, 3. tur: mızrak el bırakma karesinde çıkar
   assert.ok(instance._debug.skillFx().kinds.includes('spear'));
   instance.clear();
   instance.handle({type: 'SKILL_CAST', fromSeat: 2, skill: 'r'});
@@ -430,7 +443,7 @@ test('arena3d + models: projectile skills spawn their effect (sira spear, nyx me
   instance.clear();
   await instance.setFighters({1: 'sira', 2: 'doran'});
   instance.handle({type: 'SKILL_CAST', fromSeat: 2, skill: 'e'});
-  run(800); // İş 1: yaklaşma ~620 ms'de temas → kalkan kırığı (300 ms görünür)
+  run(instance._debug.chainPlan(2, ['e']).contacts[0].ms + 80); // İş 1, 3. tur: telegraf + koşu + doğal hızda vuruş → temasta kalkan kırığı
   assert.ok(instance._debug.fighter(1).bubble, "doran's shield bash shatters the opponent's guard");
   instance.destroy();
 });
@@ -468,25 +481,30 @@ test('Görev 4: 3 birikmiş saldırı = 1 yaklaşma + 3 temas + 1 dönüş; bot 
     instance.handle({type: 'SKILL_CAST', fromSeat: seat, toSeat: 3 - seat, skill});
     instance.handle({type: 'DAMAGE_APPLIED', fromSeat: seat, toSeat: 3 - seat, skill, amount});
   };
+  const P = instance._debug.chainPlan(1, ['q', 'e', 'q']);
   cast(1, 'q', 40); cast(1, 'e', 40); cast(1, 'q', 40);
   const q = () => instance.visualQueue.snapshot();
   assert.equal(q().queued, 0, 'üç saldırı tek girdide birleşir');
   assert.equal(q().started, 1);
   run(150);
   assert.equal(q().phase, 'approach');
-  run(1400);
+  // İş 1, 3. tur: her vuruşun hasarı KENDİ temas karesinde (temastan önce yok).
+  run(P.contacts[0].ms - 150 - 60); // run() 16 ms adımla biraz aşar: güvenli pay
+  assert.equal(impacts.length, 0, 'ilk temastan önce hasar yok');
+  // her temas kısa hit-stop ile sahne saatini durdurur → sonraki temaslar o kadar kayar
+  for (let t = 0; t < 1500 && impacts.length < 3; t += 16) run(16);
   assert.equal(impacts.length, 3, 'her hasar kendi temas karesinde, toplam 3');
-  assert.ok(instance._debug.models()[1].timeScale <= 1.2);
+  assert.ok(instance._debug.models()[1].timeScale <= 1.25);
   assert.equal(q().started, 1, 'tek girdi: gidip gelme yok');
-  run(1600); // İş 1: geri yürüyüş ~0,9 sn + saldıran değişimi arası (~1,2 sn) dolar
+  for (let t = 0; t < 4000 && q().busy; t += 16) run(16); // dönüş (yön çevirip koşarak) biter
   assert.equal(q().busy, false);
-  // Bot koltuğu da yaklaşır (yerinde vuruş yok).
-  run(1300); // İş 1: saldıran değişimi arası (~1,2 sn, iki taraf idle) dolar
+  // Bot koltuğu (nyx, menzilli) yerinde atar; saldıran değişimi arası (~1,3 sn, iki taraf idle) dolar.
+  run(TURN.breathMs + 100);
   cast(2, 'q', 30);
   run(100);
   assert.equal(q().activeSeat, 2);
   assert.ok(['approach', 'strike'].includes(q().phase));
-  run(2400);
+  run(instance._debug.chainPlan(2, ['q']).totalMs + 100);
   assert.equal(q().busy, false);
   instance.destroy();
 });
@@ -500,21 +518,23 @@ test('Düzeltme turu 2 / A: ilk temastan SONRA gelen saldırılar aynı yaklaşm
     instance.handle({type: 'DAMAGE_APPLIED', fromSeat: seat, toSeat: 3 - seat, skill, amount});
   };
   const q = () => instance.visualQueue.snapshot();
+  const runUntil = (cond, max = 8000) => { for (let t = 0; t < max && !cond(); t += 16) run(16); };
   cast(1, 'q', 40);
-  run(700); // ilk temas (~620 ms, İş 1 görünür koşu) geçti
+  run(instance._debug.chainPlan(1, ['q']).contacts[0].ms + 80); // ilk temas geçti (İş 1, 3. tur: telegraf + koşu + doğal vuruş)
   assert.equal(impacts.length, 1);
   assert.equal(q().comboIndex, 1);
-  cast(1, 'q', 40); // temastan ~80 ms sonra: eskiden yeni girdi açılıyordu
+  cast(1, 'q', 40); // temastan ~80 ms sonra (dönüş başlamadan): eskiden yeni girdi açılıyordu
   assert.equal(q().queued, 0, 'yeni girdi yok: zincire eklendi');
-  run(300);
-  assert.equal(q().comboIndex, 2);
+  runUntil(() => impacts.length >= 2);
+  assert.equal(q().comboIndex, 2, 'ikinci hasar kendi temas karesinde');
   cast(1, 'e', 40);
   assert.equal(q().queued, 0);
-  run(1500);
+  runUntil(() => impacts.length >= 3);
   assert.equal(impacts.length, 3);
   assert.equal(q().started, 1, 'tek yaklaşma + tek dönüş');
-  run(1500);
+  runUntil(() => !q().busy);
   assert.equal(q().busy, false);
+  run(TURN.sameSeatMs + 50); // aynı koltuğun yeni yaklaşması: kısa oturma payı
   // Dönüş başladıktan sonra gelen saldırı yeni girdi (yeni yaklaşma) olur; ışınlanma yok.
   cast(1, 'q', 40);
   assert.equal(q().started, 2);

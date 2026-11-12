@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createVisualTimeline} from '../pvp/visual-timeline.js';
+import {createVisualTimeline,VISUAL_QUEUE} from '../pvp/visual-timeline.js';
 import {TRAVEL,travelProgress,travelEase} from '../pvp/fighters3d.js';
 import {clampAttackSpeed} from '../pvp/anim-state.js';
 
@@ -19,7 +19,9 @@ test('visual timeline serializes casts and delivers their cosmetic contacts in o
 
 test('visual timeline drops waiting scenes silently and drains within round budget',()=>{
   const contexts=[],hits=[];const tl=createVisualTimeline();
-  for(let i=0;i<5;i++)tl.enqueue({seat:1,estimateMs:900,start:ctx=>{contexts.push(ctx);return {contactMs:450,durationMs:900};},onContact:({forced})=>hits.push(forced)});
+  // İş 1, 3. tur: birikim eşiği okunur sahne süresine göre büyüdü → eşiği aşacak kadar sahne.
+  const n=Math.ceil(VISUAL_QUEUE.maxBacklogMs/900)+2;
+  for(let i=0;i<n;i++)tl.enqueue({seat:1,estimateMs:900,start:ctx=>{contexts.push(ctx);return {contactMs:450,durationMs:900};},onContact:({forced})=>hits.push(forced)});
   tl.tick(900);
   assert.ok(tl.snapshot().forced > 0);
   assert.equal(contexts[1].skipReturn,false);

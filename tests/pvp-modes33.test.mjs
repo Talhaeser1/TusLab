@@ -9,8 +9,8 @@ import {createPracticeSession} from '../pvp/practice.js';
 const players=[{playerId:'a',seat:1,name:'Sira',fighter:'sira',character:'fire'},{playerId:'b',seat:2,name:'Nyx',fighter:'nyx',character:'rune'}];
 const fresh=(options={})=>createMatch(players,1000,'modes33',{rounds:5,seed:33,roundStyle:'counted',...options});
 function secondRound(skillA,skillB){
-  let m=fresh({resolveAtEnd:true});m=advanceMatch(m,R+1000).match;
-  for(const [playerId,skill] of [['a',skillA],['b',skillB]])if(skill)m=pickRoundSkill(m,{playerId,skill},R+1001).match;
+  let m=fresh({resolveAtEnd:true});m=advanceMatch(m,R1+1000).match;
+  for(const [playerId,skill] of [['a',skillA],['b',skillB]])if(skill)m=pickRoundSkill(m,{playerId,skill},R1+1001).match;
   return advanceMatch(m,m.round.nextRoundAt).match;
 }
 function arena(skillA=null,skillB=null){
@@ -18,7 +18,9 @@ function arena(skillA=null,skillB=null){
   for(const [playerId,skill] of [['a',skillA],['b',skillB]])m=submitArenaPick(m,{playerId,skill},1100).match;
   return advanceArenaMatch(m,1200).match;
 }
-const R=roundDurationMs({roundStyle:'counted',roundWords:10}); // sayılı raund (varsayılan 10 kelime) → 60 sn
+// KESINYAP 11: kelime raundu planı 5,7,…; 1. raund 5×6=30 sn, 2. raund 7×6=42 sn (beceriler 2. raundda).
+const R1=roundDurationMs({roundStyle:'counted',roundWords:5});
+const R=roundDurationMs({roundStyle:'counted',roundWords:7});
 const submit=(m,p,at,text=p.currentWord)=>submitWord(m,{playerId:p.playerId,matchId:m.id,wordIndex:p.wordIndex,round:m.round.index,text},at);
 
 test('modes33: rounds time thief and freeze combine, reject expired words and keep source immutable',()=>{
@@ -48,23 +50,25 @@ test('modes33: last call gives unfinished rounds player five seconds and never e
   for(const late of [false,true]){
     let m=secondRound('timethief',null);const start=m.round.startedAt;
     const began=start+(late?R-6000:1000);let packet;
-    for(let i=0;i<10;i++){packet=submit(m,m.participants[0],began+i*60,'yanlis');m=packet.match;}
+    for(let i=0;i<7;i++){packet=submit(m,m.participants[0],began+i*60,'yanlis');m=packet.match;} // KESINYAP 11: 2. raund 7 kelime
     assert.equal(packet.result.roundEvents[0].type,'ROUND_LAST_CALL');
-    assert.equal(m.participants[1].roundEndsAt,late?start+R-5000:start+6540);
+    assert.equal(m.participants[1].roundEndsAt,late?start+R-5000:start+6360);
     assert.equal(advanceMatch(m,m.round.endsAt).match.round.phase,'intermission');
   }
 });
 test('modes33: tied planned rounds enter sudden death and three tied extra rounds finish as a draw',()=>{
   let m=fresh({resolveAtEnd:true});let safety=0;
-  while(m.round.index<=5&&safety++<20)m=advanceMatch(m,nextDeadline(m)).match;
-  assert.equal(m.round.index,6);assert.equal(m.round.suddenDeath,true);assert.equal(m.status,'running');
+  // KESINYAP 11: 7 raund sonunda can eşit → ani ölüm (8.–10.).
+  while(m.round.index<=7&&safety++<30)m=advanceMatch(m,nextDeadline(m)).match;
+  assert.equal(m.round.index,8);assert.equal(m.round.suddenDeath,true);assert.equal(m.status,'running');
   while(m.status==='running'&&safety++<40)m=advanceMatch(m,nextDeadline(m)).match;
-  assert.equal(m.status,'ended');assert.equal(m.winnerSeat,null);assert.equal(m.endReason,'ROUNDS_DRAW');assert.equal(m.roundHistory.length,8);
+  assert.equal(m.status,'ended');assert.equal(m.winnerSeat,null);assert.equal(m.endReason,'ROUNDS_DRAW');assert.equal(m.roundHistory.length,10);
 });
-test('modes33: a sudden death score wins immediately',()=>{
-  let m=fresh({resolveAtEnd:true});while(m.round.index<6)m=advanceMatch(m,nextDeadline(m)).match;
-  m=submit(m,m.participants[0],m.round.startedAt+100).match;
-  m=advanceMatch(m,m.round.endsAt).match;
+test('modes33: a sudden death with damage wins immediately',()=>{
+  // KESINYAP 11: ani ölümü hasar veren (can farkı) kazanır; seri 3 → Q.
+  let m=fresh({resolveAtEnd:true});while(m.round.index<8)m=advanceMatch(m,nextDeadline(m)).match;
+  for(let i=0;i<3;i++)m=submit(m,m.participants[0],m.round.startedAt+100+i*200).match;
+  m=advanceMatch(m,m.round.endsAt+20_000).match;
   assert.equal(m.status,'ended');assert.equal(m.winnerSeat,1);assert.equal(m.endReason,'ROUNDS');
 });
 test('modes33: six empty arena rounds end in a draw with a complete history',()=>{
@@ -96,16 +100,18 @@ test('modes33: all locked arena phases and personal expiry explicitly clear inpu
   m.round.phase='round';assert.equal(arenaInputLock(m,'a',42000,41000).clearInput,true);
   assert.equal(arenaInputLock(m,'a',2000).locked,false);
 });
-test('modes33: a fresh forty-second timed round starts with a full UI clock',()=>{
+test('modes33: a fresh thirty-second timed round starts with a full UI clock',()=>{
+  // KESINYAP 11: zamana karşı raund 30 sn.
   const timed=()=>fresh({roundStyle:'timed'});
   const vm=roundsViewModel(publicMatch(timed(),1),'a',1000);
-  assert.equal(vm.timer.seconds,40);assert.equal(vm.timer.fraction,1);
-  assert.equal(roundsViewModel(publicMatch(timed(),1),'a',21000).timer.fraction,0.5);
+  assert.equal(vm.timer.seconds,30);assert.equal(vm.timer.fraction,1);
+  assert.equal(roundsViewModel(publicMatch(timed(),1),'a',16000).timer.fraction,0.5);
 });
-test('modes33: a fresh counted round (10 words) starts with a full 60 s UI clock',()=>{
+test('modes33: a fresh counted round (5 words) starts with a full 30 s UI clock',()=>{
+  // KESINYAP 11: 1. kelime raundu 5 kelime × 6 sn.
   const vm=roundsViewModel(publicMatch(fresh(),1),'a',1000);
-  assert.equal(vm.timer.seconds,60);assert.equal(vm.timer.fraction,1);
-  assert.equal(roundsViewModel(publicMatch(fresh(),1),'a',31000).timer.fraction,0.5);
+  assert.equal(vm.timer.seconds,30);assert.equal(vm.timer.fraction,1);
+  assert.equal(roundsViewModel(publicMatch(fresh(),1),'a',16000).timer.fraction,0.5);
 });
 test('modes33: practice rematch retains stage, typing and assist preferences in every mode',()=>{
   for(const mode of ['classic','rounds','arena'])for(const assist of [true,false]){

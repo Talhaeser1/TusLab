@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {createMatch,pickRoundSkill,advanceMatch,submitWord,publicMatch,roundStartPayload,nextDeadline,
   roundDurationMs,ROUND_LAST_CALL_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS} from '../pvp/shared/match.js';
 // KESINYAP mekanik: sayılı raund süresi kelime sayısına bağlı; testlerde "varsayılan raund süresi" = varsayılan sayılı raund (10 kelime → 60 sn).
-const ROUND_DURATION_MS=roundDurationMs({roundStyle:'counted',roundWords:5}); // 5 kelime → 40 sn (eski zaman çizelgesi)
+// KESINYAP 11: beceriler 2. raundda uygulanır; 2. kelime raundu 7 kelime × 6 sn = 42 sn.
+const ROUND_DURATION_MS=roundDurationMs({roundStyle:'counted',roundWords:7});
 import {ARENA_TIME_THIEF_MS,ARENA_FREEZE_MS} from '../pvp/shared/arena-skills.js';
 import {PvPRoom} from '../cloudflare/src/room.js';
 import {createPracticeSession,HUMAN_ID,BOT_ID} from '../pvp/practice.js';
@@ -172,7 +173,8 @@ test('practice human pick, bot pick and packets use the same round contract',()=
   advance(ROUND_SUMMARY_MS+ROUND_INTRO_MS);
   const start=packets.filter(p=>p.type==='ROUND_START').at(-1);
   assert.deepEqual(start.payload.skills,{1:'freeze',2:'timethief'});
-  assert.equal(start.payload.match.round.personalEndsAt[1],start.payload.startedAt+ROUND_DURATION_MS+ARENA_FREEZE_MS-ARENA_TIME_THIEF_MS);
+  // KESINYAP 11: bot antrenmanı varsayılanı zamana karşı → 30 sn (kelime raundu 2. raund 42 sn'den farklı).
+  assert.equal(start.payload.match.round.personalEndsAt[1],start.payload.startedAt+roundDurationMs({roundStyle:'timed'})+ARENA_FREEZE_MS-ARENA_TIME_THIEF_MS);
   assert.equal(MessageType.ROUND_SKILL_PICK,'ROUND_SKILL_PICK');
   assert.deepEqual(makeEnvelope('ROUND_SKILL_PICK',{skill:null}).payload,{skill:null});
   assert.equal(session.match.participants.find(p=>p.playerId===HUMAN_ID).roundSkillUses.freeze,1);

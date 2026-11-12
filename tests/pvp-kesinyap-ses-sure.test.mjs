@@ -89,17 +89,19 @@ test('iş 6: berabere / iptal / izleyici durumunda kimse zafer demez', () => {
 });
 
 // ── MEKANİK: sayılı raund süresi ──
-test('mekanik: sayılı raund süresi = max(40 sn, kelime × 6 sn); timed 40 sn kalır', () => {
+test('mekanik: kelime raundu süresi = kelime × 6 sn (5→30, 7→42, 9→54, 10→60, 15→90); zamana karşı 30 sn', () => {
+  // KESINYAP 11: alt sınır 40 sn kalktı; zamana karşı 40 → 30 sn.
   const c = n => roundDurationMs({roundStyle: 'counted', roundWords: n});
-  assert.equal(c(5), 40_000); assert.equal(c(7), 42_000); assert.equal(c(10), 60_000); assert.equal(c(15), 90_000); assert.equal(c(20), 120_000);
-  assert.equal(roundDurationMs({roundStyle: 'timed', roundWords: 15}), 40_000);
-  assert.equal(roundDurationMs({}), 40_000); // varsayılan stil timed
-  assert.equal(ROUND_DURATION_MS, 40_000);
+  assert.equal(c(5), 30_000); assert.equal(c(7), 42_000); assert.equal(c(9), 54_000); assert.equal(c(10), 60_000); assert.equal(c(15), 90_000);
+  assert.equal(roundDurationMs({roundStyle: 'timed', roundWords: 15}), 30_000);
+  assert.equal(roundDurationMs({}), 30_000); // varsayılan stil timed
+  assert.equal(ROUND_DURATION_MS, 30_000);
   assert.equal(cf.roundDurationMs, roundDurationMs); // sunucu tarafı aynı yardımcıyı yeniden dışa aktarır
 });
 test('mekanik: motor raund bitişini ve kişisel bitişi yardımcıdan alır; arayüz sayacı aynı toplamı kullanır', () => {
   const players = [{playerId: 'a', seat: 1, name: 'A', fighter: 'sira', character: 'fire'}, {playerId: 'b', seat: 2, name: 'B', fighter: 'nyx', character: 'rune'}];
-  for (const [style, words, expected] of [['counted', 5, 40_000], ['counted', 10, 60_000], ['counted', 15, 90_000], ['timed', 15, 40_000]]) {
+  // KESINYAP 11: kelime sayısı seçeneği yok; 1. kelime raundu 5 kelime → 30 sn, zamana karşı 30 sn (roundWords yok sayılır).
+  for (const [style, words, expected] of [['counted', 5, 30_000], ['counted', 10, 30_000], ['counted', 15, 30_000], ['timed', 15, 30_000]]) {
     const m = createMatch(players, 1000, 'dur', {rounds: 5, seed: 9, roundStyle: style, roundWords: words});
     assert.equal(m.round.endsAt - m.round.startedAt, expected, `${style}/${words}`);
     assert.ok(m.participants.every(p => p.roundEndsAt === m.round.endsAt));

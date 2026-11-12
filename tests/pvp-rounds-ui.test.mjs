@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
   ROUND_OPTIONS,STREAK_SKILLS,PRACTICE_ROUNDS_KEY,normalizeRounds,isRoundMatch,streakMultiplier,multiplierLabel,
-  streakModel,predictedSkill,winsNeeded,roundsViewModel,summaryModel,summaryPresentation,clashModel,roundsPickDecision,
+  streakModel,predictedSkill,roundDots,roundsViewModel,summaryModel,summaryPresentation,clashModel,roundsPickDecision,
   roundInputLock,roundsResultModel,roundsPickerHTML,createRoundsUi,intermissionStage,ROUND_TITLE_MS,ROUND_HOLD_MAX_MS,ROUND_HOLD_TITLE_SKIP_MS
 } from '../pvp/rounds-ui.js';
 
@@ -96,7 +96,9 @@ test('round end: shared player columns, winner emphasis, win pips and live count
   const columns=all(result).filter(n=>n.classList.contains('m33-player'));
   assert.equal(columns.length,2);assert.ok(columns[1].classList.contains('is-winner'));
   assert.ok(columns[0].textContent.includes('Doğru'));assert.ok(columns[0].textContent.includes('210'));
-  assert.equal(all(result).filter(n=>n.classList.contains('m33-pip')).length,10);
+  // KESINYAP 11: pipler raund galibiyeti değil, raund ilerleme noktaları (toplam raund kadar, tek sıra).
+  assert.equal(all(result).filter(n=>n.classList.contains('m33-pip')).length,5);
+  assert.ok(result.textContent.includes('Kalan can'));
   const ring=all(result).find(n=>n.getAttribute('class')==='m33-count-fill');
   const before=Number(ring.getAttribute('stroke-dashoffset'));
   setNow(43_000);ui.tick();assert.ok(Number(ring.getAttribute('stroke-dashoffset'))>before);
@@ -211,10 +213,10 @@ test('tur arası: count aşamasında beceri seçici açık kalır ve kilitlenebi
 });
 
 // ---------- sabitler ve eşlemeler ----------
-test('rounds: options and normalisation (invalid → 5)',()=>{
-  assert.deepEqual(ROUND_OPTIONS,[5,7,10]);
-  assert.equal(normalizeRounds(7),7);assert.equal(normalizeRounds('10'),10);
-  for(const bad of [0,3,6,'x',null,undefined,11])assert.equal(normalizeRounds(bad),5);
+test('rounds: single option 7; every stored value normalises to 7',()=>{
+  // KESINYAP 11: maç uzunluğu seçeneği kalktı; eski kayıtlı 5/10 sessizce 7'ye döner.
+  assert.deepEqual(ROUND_OPTIONS,[7]);
+  for(const v of [7,'10',5,0,3,6,'x',null,undefined,11])assert.equal(normalizeRounds(v),7);
   assert.equal(PRACTICE_ROUNDS_KEY,'tuslab-pvp-practice-rounds');
 });
 test('rounds: streak multiplier and label mapping (×1.5 → ×2.5 cap, none below 7)',()=>{
@@ -231,7 +233,7 @@ test('rounds: streak meter thresholds 3 Q / 5 E / 7 R and next skill',()=>{
   assert.equal(four.nextSkill,'E');assert.equal(four.multiplierLabel,null);assert.equal(four.cells,10);assert.equal(four.filled,4);
   assert.equal(streakModel(2).nextSkill,'Q');assert.equal(streakModel(6).nextSkill,'R');
   const seven=streakModel(7);assert.equal(seven.multiplierLabel,'×1.5');assert.equal(seven.nextSkill,'Q');
-  assert.equal(streakModel(10).nextSkill,null);
+  assert.equal(streakModel(10).nextSkill,'Q'); // KESINYAP 11: 8 ve sonrası her doğru kelime Q
   assert.equal(streakModel(-3).filled,0);
 });
 test('rounds: predicted skill uses streak table in round mode, cyclic Q2/E4/R5 in classic',()=>{
@@ -243,8 +245,12 @@ test('rounds: predicted skill uses streak table in round mode, cyclic Q2/E4/R5 i
   assert.equal(predictedSkill({combo:4},classicMatch),'R');
   assert.equal(predictedSkill({combo:2},classicMatch),null);
 });
-test('rounds: wins needed for 5 / 7 / 10',()=>{
-  assert.deepEqual([5,7,10].map(winsNeeded),[3,4,6]);
+test('rounds: progress dots replace wins needed (7 dots, played filled)',()=>{
+  // KESINYAP 11: raund kazanma/pip yok; noktalar oynanan raundları gösterir.
+  assert.deepEqual(roundDots(1,7,'round'),{filled:0,total:7,current:1});
+  assert.deepEqual(roundDots(3,7,'round'),{filled:2,total:7,current:3});
+  assert.deepEqual(roundDots(3,7,'intermission'),{filled:3,total:7,current:3});
+  assert.deepEqual(roundDots(9,7,'round'),{filled:7,total:7,current:7});
 });
 
 // ---------- HUD görünüm modeli ----------
@@ -259,13 +265,16 @@ test('rounds HUD: ROUND_START → RAUND 2 / 5, ten-word strip, server-clock time
   const vm=roundsViewModel(roundMatch(),'me',25_000);
   assert.equal(vm.visible,true);assert.equal(vm.title,'RAUND 2 / 5');assert.equal(vm.suddenDeath,false);
   assert.equal(vm.timer.seconds,15);assert.equal(vm.timer.text,'15');assert.equal(vm.timer.urgent,false);
-  assert.ok(Math.abs(vm.timer.fraction-0.375)<1e-9);
+  assert.ok(Math.abs(vm.timer.fraction-0.5)<1e-9); // KESINYAP 11: biçimsiz raund = zamana karşı 30 sn → 15/30
   assert.equal(vm.words.length,10);assert.equal(vm.words[6].state,'active');assert.equal(vm.words[7].opponent,true);
   assert.equal(vm.words[9].state,'todo');
   const [left,right]=vm.sides;
   assert.equal(left.seat,1);assert.equal(left.isMe,true);assert.equal(left.progress,'Kelime 6/10');
   assert.equal(right.progress,'Kelime 7/10');assert.equal(right.streak.multiplierLabel,'×1.5');
-  assert.deepEqual(left.pips,{filled:1,total:3});assert.deepEqual(right.pips,{filled:0,total:3});
+  // KESINYAP 11: pip = raund ilerlemesi (2. raund oynanıyor → 1 dolu / 5); taşınan can ve raund hasarı görünür.
+  assert.deepEqual(left.pips,{filled:1,total:5,current:2});assert.deepEqual(right.pips,left.pips);
+  assert.equal(left.hpText,'Can 1.200/1.200');assert.equal(right.hpText,'Can 900/1.200');
+  assert.equal(right.damageText,'Raund hasarı 738/1300');assert.equal(right.capped,false);
 });
 test('rounds HUD: urgent in the last 5 s and frozen while paused',()=>{
   assert.equal(roundsViewModel(roundMatch(),'me',35_500).timer.urgent,true);
@@ -296,16 +305,20 @@ test('rounds HUD: input lock reasons (intermission, settling, done, time over)',
 });
 
 // ---------- tur sonu, çarpışma ----------
-test('round summary card: winner, KO badge, stats table and score line',()=>{
-  const s=summaryModel(roundEnd,roundMatch(),'me');
-  assert.equal(s.title,'TUR 2 BİTTİ');assert.equal(s.ko,true);assert.equal(s.draw,false);assert.equal(s.winnerSeat,2);
-  assert.ok(s.winnerText.includes('<img src=x onerror=alert(1)>'),'isim düz metin olarak kalır; DOM katmanı textContent kullanır');
-  assert.deepEqual(s.rows.map(r=>r.label),['Doğru','Yanlış','En iyi seri','Hasar','RP']);
-  assert.deepEqual(s.rows.find(r=>r.label==='RP').values,['721','1.170']);
+test('round summary card: both sides\' damage, carried HP, KO badge, stats table and next round',()=>{
+  // KESINYAP 11: raund kazananı yerine 'Bu raund: Sen X hasar · Rakip Y hasar' + kalan can + sıradaki raund.
+  const s=summaryModel({...roundEnd,next:{round:3,style:'counted',words:9}},roundMatch(),'me');
+  assert.equal(s.title,'RAUND 2 BİTTİ');assert.equal(s.ko,true);assert.equal(s.draw,false);assert.equal(s.winnerSeat,2);
+  assert.ok(s.names[1].includes('<img src=x onerror=alert(1)>'),'isim düz metin olarak kalır; DOM katmanı textContent kullanır');
+  assert.equal(s.damageLine,'Bu raund: Sen 210 hasar · Rakip 1.200 hasar');
+  assert.equal(s.hpLine,'Kalan can: Sen 0 · Rakip 420');
+  assert.deepEqual(s.rows.map(r=>r.label),['Doğru','Yanlış','En iyi seri','Hasar','Kalan can']);
+  assert.deepEqual(s.rows.find(r=>r.label==='Hasar').values,['210/1300','1200/1300']);
   assert.deepEqual(s.rows.find(r=>r.label==='En iyi seri').values,['4','7']);
-  assert.equal(s.scoreline,'1 – 1');assert.equal(s.nextText,'Sıradaki: RAUND 3');
+  assert.equal(s.scoreline,'0 – 420');assert.equal(s.nextText,'Sıradaki: RAUND 3 · 9 kelime');
+  assert.equal(summaryModel({...roundEnd,next:{round:3,style:'timed',seconds:30}},roundMatch(),'me').nextText,'Sıradaki: RAUND 3 · 30 sn');
   const draw=summaryModel({...roundEnd,winnerSeat:null,reason:'TIME'},roundMatch(),'me');
-  assert.equal(draw.winnerText,'BERABERE');assert.equal(draw.draw,true);assert.equal(draw.ko,false);
+  assert.equal(draw.winnerText,draw.damageLine);assert.equal(draw.draw,true);assert.equal(draw.ko,false);
   const last=summaryModel({...roundEnd,nextRoundAt:null,matchOver:true},roundMatch(),'me');
   assert.equal(last.nextText,'Maç sonucu hazırlanıyor');
 });
@@ -319,17 +332,18 @@ test('word clash callout: blocker variant and both-hit variant',()=>{
 });
 
 // ---------- lobi seçici ----------
-test('rounds picker: MATCH_CONFIG only for the host while waiting/countdown; practice stores locally',()=>{
+test('rounds picker removed: only 7 is valid, the picker renders nothing',()=>{
+  // KESINYAP 11: 'Maç uzunluğu 5/7/10 tur' seçeneği kalktı; yalnız 7 geçerli, seçici HTML üretmez.
   assert.deepEqual(roundsPickDecision({scope:'room',value:7,isHost:true,phase:'waiting'}),{type:'MATCH_CONFIG',payload:{rounds:7}});
-  assert.deepEqual(roundsPickDecision({scope:'room',value:'10',isHost:true,phase:'countdown'}),{type:'MATCH_CONFIG',payload:{rounds:10}});
+  assert.equal(roundsPickDecision({scope:'room',value:'10',isHost:true,phase:'countdown'}),null);
   assert.equal(roundsPickDecision({scope:'room',value:7,isHost:false,phase:'waiting'}),null);
   assert.equal(roundsPickDecision({scope:'room',value:7,isHost:true,phase:'started'}),null);
   assert.equal(roundsPickDecision({scope:'room',value:7,isHost:true,phase:'waiting',current:7}),null,'aynı değer tekrar gönderilmez');
-  assert.equal(roundsPickDecision({scope:'room',value:6,isHost:true,phase:'waiting'}),null,'geçersiz değer gönderilmez');
-  assert.deepEqual(roundsPickDecision({scope:'practice',value:10}),{store:10});
+  assert.equal(roundsPickDecision({scope:'room',value:5,isHost:true,phase:'waiting'}),null,'eski değer gönderilmez');
+  assert.equal(roundsPickDecision({scope:'practice',value:10}),null);
+  assert.deepEqual(roundsPickDecision({scope:'practice',value:7}),{store:7});
   const html=roundsPickerHTML('room');
-  for(const n of [5,7,10])assert.ok(html.includes(`data-rounds="${n}"`));
-  assert.ok(html.includes('data-lobby-action="rounds"'));assert.ok(html.includes('Maç uzunluğu'));
+  assert.equal(html,'');assert.ok(!html.includes('Maç uzunluğu'));
 });
 test('network.js wires the picker, MATCH_CONFIG, practice rounds and round packets',()=>{
   const net=readFileSync(new URL('../pvp/network.js',import.meta.url),'utf8');
@@ -342,15 +356,17 @@ test('network.js wires the picker, MATCH_CONFIG, practice rounds and round packe
 });
 
 // ---------- maç sonu ----------
-test('match result: round scoreline and per-round rows; classic result has none',()=>{
-  const result={mode:'rounds',totalRounds:5,roundsWon:{1:3,2:1},winnerSeat:1,endReason:'ROUNDS',
+test('match result: remaining-HP scoreline and per-round damage rows; classic result has none',()=>{
+  // KESINYAP 11: '3 – 2' yerine kalan can ('2.100 – 1.650 · 7 raund' / '1.240 – 0 · NAKAVT'); tabloda raund başına iki tarafın hasarı.
+  const result={mode:'rounds',totalRounds:7,finalHp:{1:2100,2:1650},winnerSeat:1,endReason:'ROUNDS',
     players:[{seat:1,playerId:'me',name:'Ayşe'},{seat:2,playerId:'op',name:'Bot'}],
-    rounds:[{round:1,winnerSeat:1,reason:'KO',scores:[{seat:1,rp:900},{seat:2,rp:400}]},{round:2,winnerSeat:2,reason:'TIME',scores:[{seat:1,rp:700},{seat:2,rp:800}]},
-      {round:3,winnerSeat:null,reason:'TIME',scores:[{seat:1,rp:0},{seat:2,rp:0}]},{round:4,winnerSeat:1,reason:'ALL_DONE',scores:[{seat:1,rp:1100},{seat:2,rp:1000}]},{round:5,winnerSeat:1,reason:'KO',scores:[{seat:1,rp:1300},{seat:2,rp:200}]}]};
+    rounds:[1,2,3,4,5,6,7].map(n=>({round:n,winnerSeat:n===3?null:n%2?1:2,reason:'TIME',scores:[{seat:1,damageDealt:n===3?0:400},{seat:2,damageDealt:n===3?0:300}]}))};
   const r=roundsResultModel(result,'me');
-  assert.equal(r.scoreline,'3 – 1');assert.equal(r.rows.length,5);
-  assert.equal(r.rows[0].winner,'Ayşe');assert.equal(r.rows[0].ko,true);assert.equal(r.rows[2].winner,'Berabere');
-  assert.equal(r.reasonLabel,'TUR ÜSTÜNLÜĞÜ');assert.equal(r.lengthLabel,'5 turluk maç');
+  assert.equal(r.scoreline,'2.100 – 1.650 · 7 raund');assert.equal(r.rows.length,7);
+  assert.equal(r.rows[0].winner,'Ayşe');assert.equal(r.rows[0].damage,'400 – 300');assert.equal(r.rows[2].winner,'Eşit');
+  assert.equal(r.reasonLabel,'KALAN CAN ÜSTÜNLÜĞÜ');assert.equal(r.lengthLabel,'Kalan can · 7 raundluk maç · 4.000 can');
+  const ko=roundsResultModel({...result,endReason:'KNOCKOUT',finalHp:{1:1240,2:0},rounds:result.rounds.slice(0,5)},'me');
+  assert.equal(ko.scoreline,'1.240 – 0 · NAKAVT');assert.equal(ko.reasonLabel,'NAKAVT');
   assert.equal(roundsResultModel({...result,endReason:'ROUNDS_DRAW',winnerSeat:null},'me').reasonLabel,'ANİ ÖLÜMDE DE BERABERE');
   assert.equal(roundsResultModel({endReason:'KNOCKOUT',players:[]},'me'),null);
   assert.equal(roundsResultModel(null,'me'),null);
@@ -381,7 +397,8 @@ test('rounds DOM: last call, clash callout, summary overlay and unknown packets'
   const ended=roundMatch({roundsWon:{1:1,2:1},round:{phase:'intermission',nextRoundAt:50_000}});
   setNow(46_000);ui.handle({type:'ROUND_END',payload:{...roundEnd,match:ended}});ui.update(ended,'me');
   const summary=byRole(el,'summary')[0];assert.equal(summary.hidden,false);
-  assert.ok(summary.textContent.includes('TUR 2 BİTTİ'));assert.ok(summary.textContent.includes('NAKAVT'));assert.ok(summary.textContent.includes('1.170'));
+  // KESINYAP 11: başlık RAUND; kart iki tarafın hasarını (tavana göre) gösterir.
+  assert.ok(summary.textContent.includes('RAUND 2 BİTTİ'));assert.ok(summary.textContent.includes('NAKAVT'));assert.ok(summary.textContent.includes('1200/1300'));
   setNow(48_500);ui.tick();
   // Yeni davranış: son 3 sn'de (count) özet GİZLENMEZ; geri sayımla birlikte görünür kalır.
   assert.equal(summary.hidden,false);

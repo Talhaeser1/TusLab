@@ -42,19 +42,19 @@ test('atasözü: SIRAYLA, kelime kelime; raund kaldığı yerden devam eder',()=
   // Hangi atasözünün geleceği tohumla karışır (kural 1); her atasözü kendi içinde sıralı kalır.
   const flat=contentWords('atasozu',{seed:'s',start:0,count:40,round:1,total:5}).words;
   const m=mk('atasozu');
-  assert.deepEqual(m.round.words,flat.slice(0,10));
+  assert.deepEqual(m.round.words,flat.slice(0,5)); // KESINYAP 11: 1. kelime raundu 5 kelime
   assert.ok(ATASOZLERI.some(s=>s.split(/\s+/).slice(0,3).join(' ')===flat.slice(0,3).join(' ')),'akış bir atasözünün başından başlar');
   assert.equal(publicMatch(m,1).content,'atasozu');
   assert.equal(roundStartPayload(m).content,'atasozu');
   assert.equal(publicMatch(m,1).round.hints,undefined,'atasözünde ipucu yok');
-  // her iki oyuncu 10 kelimeyi de yazarsa 2. raund 11. kelimeden başlar
-  assert.deepEqual(contentWords('atasozu',{seed:'s',start:10,count:10,round:2,total:5}).words,flat.slice(10,20));
-  assert.deepEqual(contentWords('atasozu',{seed:'s',start:10,count:10,round:2,total:5}).words,flat.slice(10,20),'deterministik');
+  // her iki oyuncu 5 kelimeyi de yazarsa 2. raund (7 kelime) 6. kelimeden başlar — KESINYAP 11 planı
+  assert.deepEqual(contentWords('atasozu',{seed:'s',start:5,count:7,round:2,total:7}).words,flat.slice(5,12));
+  assert.deepEqual(contentWords('atasozu',{seed:'s',start:5,count:7,round:2,total:7}).words,flat.slice(5,12),'deterministik');
 });
 
 test('şiir: dizeler sırayla, her kelimede şair adı ipucu',()=>{
   const m=mk('siir');
-  assert.deepEqual(m.round.words,contentWords('siir',{seed:'s',start:0,count:10,round:1,total:5}).words);
+  assert.deepEqual(m.round.words,contentWords('siir',{seed:'s',start:0,count:5,round:1,total:7}).words); // KESINYAP 11: 5 kelime
   const pub=publicMatch(m,1);
   assert.equal(pub.round.hints.length,pub.round.words.length);
   assert.ok(SIIR_DIZELERI.some(d=>pub.round.hints[0].startsWith(d.sair)),pub.round.hints[0]);
@@ -107,7 +107,7 @@ test('bot antrenmanı uçtan uca: içerik pratik oturumuna ve anlık görüntüy
     assert.equal(s.content,content);assert.equal(s.mode,'rounds');
     const snap=s.snapshot();
     assert.equal(snap.mode,'rounds');assert.equal(snap.content,content);
-    assert.ok(snap.round.words.length>=10&&snap.round.words.every(Boolean));
+    assert.ok(snap.round.words.length===5&&snap.round.words.every(Boolean)); // KESINYAP 11: kelime raundu planı 5
     assert.equal(packets.find(p=>p.type==='ROUND_START').payload.content,content);
     s.dispose();
   }
@@ -153,16 +153,16 @@ test('sunucu: MATCH_CONFIG content yalnız izinli kimlikleri kabul eder; maç i�
   const err=ws=>ws.messages.filter(m=>m.type==='ERROR').at(-1)?.payload.code;
   const state=ws=>ws.messages.filter(m=>m.type==='ROOM_STATE').at(-1).payload;
   assert.equal(state(a).content,'kelime');
-  await request(room,b,'MATCH_CONFIG',{mode:'rounds',rounds:5,content:'siir'});assert.equal(err(b),'HOST_ONLY');
-  await request(room,a,'MATCH_CONFIG',{mode:'rounds',rounds:5,content:'<script>'});assert.equal(err(a),'INVALID_MATCH_CONFIG');
-  await request(room,a,'MATCH_CONFIG',{mode:'rounds',rounds:5,content:'classic'});assert.equal(err(a),'INVALID_MATCH_CONFIG');
-  await request(room,a,'MATCH_CONFIG',{mode:'rounds',rounds:5,content:'osmanlica',x:1});assert.equal(err(a),'INVALID_ROUNDS');
+  await request(room,b,'MATCH_CONFIG',{mode:'rounds',rounds:7,content:'siir'});assert.equal(err(b),'HOST_ONLY');
+  await request(room,a,'MATCH_CONFIG',{mode:'rounds',rounds:7,content:'<script>'});assert.equal(err(a),'INVALID_MATCH_CONFIG');
+  await request(room,a,'MATCH_CONFIG',{mode:'rounds',rounds:7,content:'classic'});assert.equal(err(a),'INVALID_MATCH_CONFIG');
+  await request(room,a,'MATCH_CONFIG',{mode:'rounds',rounds:7,content:'osmanlica',x:1});assert.equal(err(a),'INVALID_ROUNDS');
   for(const content of CONTENT_MODES){
     await request(room,a,'MATCH_CONFIG',{mode:'rounds',rounds:7,content});
     assert.equal(state(a).content,content);assert.equal(state(a).mode,'rounds');assert.equal(state(b).rounds,7);
   }
   await request(room,a,'MATCH_CONFIG',{mode:'classic'});assert.equal(state(a).content,'kelime');
-  await request(room,a,'MATCH_CONFIG',{mode:'rounds',rounds:5,content:'atasozu'});
+  await request(room,a,'MATCH_CONFIG',{mode:'rounds',rounds:7,content:'atasozu'});
   await request(room,a,'READY_SET',{ready:true});await request(room,b,'READY_SET',{ready:true});
   const l=await room.roster();l.startAt=Date.now()-5;await room.save(l);await room.alarm();
   const m=await ctx.storage.get('match');

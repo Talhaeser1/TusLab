@@ -379,6 +379,86 @@ export const COMBO = Object.freeze({
   rangedStop: 0.5,       // menzilli vuruşta yaklaşma oranı (yarım mesafe)
 });
 
+/**
+ * İş 1, 3. tur — OKUNUR sahne temposu (kullanıcı: "ışınlanıyor, çok hızlı, ne olduğunu anlamıyorum").
+ * Evreler: telegraf (yerinde hazırlık) → GİDİŞ (koşu klibi, yüz hedefe) → vuruş klibi DOĞAL hızda
+ * (hazırlık + temas + takip; uzun kliplerde en çok windupMaxMs/followMaxMs penceresi) → DÖNÜŞ: önce yön
+ * çevirme (turnMs), koşu klibiyle yürüyerek eve (returnMs), varınca rakibe dönüp idle'a geçiş.
+ * Menzilli: yerinde kalır; temas = el bırakma + mermi uçuşu (projectileMs). Baskıda hız en çok speedMax.
+ * Hit-stop sahne saatini durdurur (rig/kuyruk/iz aynı saat) → burada ayrıca eklenmez.
+ */
+export const SCENE = Object.freeze({
+  telegraphMs: 350, approachMs: 1000, windupMaxMs: 750, followMaxMs: 750, strikeLeadMs: 60, overlapMs: 120,
+  holdMs: 200, turnMs: 200, returnMs: 1100, idleFadeMs: 300, projectileMs: 600, reactMs: 900,
+  speedMax: 1.25, maxStrikes: 3,
+  runRefSpeed: 5.2,          // koşu klibinin timeScale 1'deki yol hızı (gövde birimi/sn) — ayak kayması oranı
+  locoTsMin: 0.55, locoTsMax: 1.15,
+});
+
+/** Saf: koşu klibi hızı yol hızına oranlanır (gövde birimi/sn → timeScale). */
+export const locoTimeScale = speed => clamp((Number(speed) || 0) / SCENE.runRefSpeed, SCENE.locoTsMin, SCENE.locoTsMax);
+
+/**
+ * Saf: sahne zaman çizelgesi. strikes: [{peakMs, clipMs, ranged}] (klip zamanı, ms).
+ * fixed: canlı zincirde önceden verilmiş temas anları; notBefore: eklenen vuruş geçmişe düşmesin.
+ * Dönen: {k, telegraphMs, arrive, strikes:[{start, release, contact, end, offsetMs, speed}], contacts,
+ *         returnStart, moveStart, homeAt, totalMs, moveIn}
+ */
+export function sceneTiming(strikes, {compress = false, fixed = null, notBefore = 0} = {}) {
+  const list = (Array.isArray(strikes) ? strikes : [strikes]).filter(Boolean).slice(0, SCENE.maxStrikes);
+  if (!list.length) return null;
+  const k = compress ? SCENE.speedMax : 1;
+  const ranged = list.every(s => s.ranged);
+  const telegraphMs = SCENE.telegraphMs / k;
+  const arrive = ranged ? telegraphMs : telegraphMs + SCENE.approachMs / k;
+  const out = [];
+  for (let i = 0; i < list.length; i++) {
+    const s = list[i];
+    const peak = Math.max(0, Number(s.peakMs) || 0);
+    const clip = Math.max(peak, Number(s.clipMs) || peak);
+    const windup = Math.min(peak, SCENE.windupMaxMs);
+    const follow = Math.min(clip - peak, SCENE.followMaxMs);
+    const flight = s.ranged ? SCENE.projectileMs / k : 0;
+    let start = i === 0 ? (ranged ? telegraphMs : arrive - SCENE.strikeLeadMs / k) : out[i - 1].end - SCENE.overlapMs / k;
+    if (fixed && i < fixed.length && Number.isFinite(fixed[i])) start = fixed[i] - flight - windup / k;
+    else if (notBefore > 0 && start < notBefore) start = notBefore;
+    const release = start + windup / k;
+    const contact = release + flight;
+    const end = Math.max(release + follow / k, contact + (s.ranged ? 150 / k : 0));
+    out.push({start, release, contact, end, offsetMs: peak - windup, speed: k, ranged: Boolean(s.ranged)});
+  }
+  const lastEnd = out[out.length - 1].end;
+  const lastContact = out[out.length - 1].contact;
+  if (ranged) {
+    const totalMs = Math.max(lastEnd + SCENE.idleFadeMs / k, lastContact + SCENE.reactMs / k);
+    return {k, telegraphMs, arrive, strikes: out, contacts: out.map(o => o.contact), returnStart: lastEnd, moveStart: lastEnd, homeAt: lastEnd, totalMs, moveIn: 0};
+  }
+  const turn = SCENE.turnMs / k;
+  const returnStart = lastEnd + SCENE.holdMs / k; // takipten sonra kısa duruş (zincire ekleme penceresi)
+  const moveStart = returnStart + turn * 0.6; // yön çevirmenin sonuna doğru yürümeye başlar
+  const homeAt = moveStart + SCENE.returnMs / k;
+  const totalMs = Math.max(homeAt + turn, lastContact + SCENE.reactMs / k);
+  return {k, telegraphMs, arrive, strikes: out, contacts: out.map(o => o.contact), returnStart, moveStart, homeAt, totalMs, turnMs: turn, moveIn: 1};
+}
+
+/** Saf: sahne konumu (0 = ev, 1 = temas noktası). Sürekli eğri; menzillide hep 0. */
+export function sceneProgress(elapsedMs, T, from = 0) {
+  if (!T || !T.moveIn) return from ? from * (1 - easeInOutSine(window01(elapsedMs, 0, SCENE.returnMs))) : 0;
+  const e = Number(elapsedMs) || 0;
+  const goMs = Math.max(1, T.arrive - T.telegraphMs);
+  const out = from + (1 - from) * travelEase((e - T.telegraphMs) / goMs);
+  if (e < T.moveStart) return e <= T.telegraphMs ? from : out;
+  return out * (1 - easeInOutSine(window01(e, T.moveStart, T.homeAt - T.moveStart)));
+}
+
+/** Saf: dönüş yön çevirme oranı (0 = rakibe bakar, 1 = eve bakar). */
+export function sceneTurn(elapsedMs, T) {
+  if (!T || !T.moveIn) return 0;
+  const e = Number(elapsedMs) || 0;
+  const turn = Math.max(1, T.turnMs || SCENE.turnMs);
+  return easeInOutSine(window01(e, T.returnStart, turn)) * (1 - easeInOutSine(window01(e, T.homeAt, turn))) + 0; // -0 → 0
+}
+
 /** Saf: N vuruşlu zincirin temas anları + dönüş başlangıcı (ms). */
 export function chainTiming(count, {compress = false, ranged = false} = {}) {
   const n = clamp(Math.round(Number(count) || 1), 1, COMBO.maxStrikes);
@@ -666,6 +746,7 @@ export function createFighterRig(THREE, asset, {
     name: 'idle', clip: null, current: null, queue: [], elapsed: 0, timeScale: 1, paused: false,
     yaw: 0, hits: 0, disposed: false, plays: 0, endMs: 0,
     chain: [], chainStrikes: 0, chainPlan: null,
+    loco: false, locoTs: 1, planTotal: 0, // İş 1, 3. tur: koşu adımı / sahne toplam süresi
   };
 
   /** Varyant saldırıları tam klip, sıfır başlangıç ofseti ve doğal hız kullanır. */
@@ -704,6 +785,12 @@ export function createFighterRig(THREE, asset, {
   const meleeSkills = SKILLS.filter(skill => isMeleeSkill(skill, choreo[skill]));
   for (const skill of meleeSkills) baseChoreo[skill] = choreo[skill];
   function buildPlan(skill, {compress = false, skipReturn = false} = {}) {
+    // İş 1, 3. tur: tekli yakın saldırı da zincirle AYNI sahne çizelgesini kullanır (tek kaynak).
+    const scene = chainPlan([skill], {compress});
+    if (scene) {
+      return {skill, steps: scene.steps, hitMs: scene.contacts[0].ms, travelMs: scene.travelMs, holdMs: scene.holdMs,
+        returnMs: scene.returnMs, totalMs: scene.totalMs, speed: scene.speed, compress, skipReturn, timing: scene.timing};
+    }
     const base = baseChoreo[skill];
     const vs = variantReady?.skills?.[skill];
     const travelMs = TRAVEL.travelMs;
@@ -753,13 +840,13 @@ export function createFighterRig(THREE, asset, {
     if (melee) {
       const vs = variantReady?.skills?.[skill];
       if (vs && clipByName.has(vs.clip)) {
-        return {skill, melee: true, ranged: false, clip: vs.clip,
+        return {skill, melee: true, ranged: false, clip: vs.clip, clipMs: clipMs(vs.clip), clipPeakMs: vs.peakMs || clipMs(vs.clip) / 2,
           peakMs: vs.peakMs || clipMs(vs.clip) / 2, speed: vs.speed || 1, fx: baseChoreo[skill].fx || []};
       }
       const b = baseChoreo[skill];
       const step = b.steps && b.steps[0];
       if (!step || !clipByName.has(step.clip)) return null;
-      return {skill, melee: true, ranged: false, clip: step.clip,
+      return {skill, melee: true, ranged: false, clip: step.clip, clipMs: clipMs(step.clip), clipPeakMs: Math.min(b.hitMs || clipMs(step.clip) / 2, clipMs(step.clip)),
         peakMs: b.hitMs || clipMs(step.clip) / 2, speed: step.speed || 1, fx: b.fx || []};
     }
     const spec = choreo[skill];
@@ -773,11 +860,12 @@ export function createFighterRig(THREE, asset, {
       // Efekt (mermi/sütun) zamanları tablo temasına göre yazılı: varyant zirvesine kaydır (varış = temas).
       const shift = peakMs - (spec.hitMs || peakMs);
       return {skill, melee: false, ranged: true, clip: vs.clip, peakMs, speed: vs.speed || 1,
+        clipMs: clipMs(vs.clip), clipPeakMs: vs.peakMs || clipMs(vs.clip) / 2,
         fx: (spec.fx || []).map(f => ({...f, at: Math.max(0, (f.at || 0) + shift)}))};
     }
     const step = spec.steps && spec.steps[0];
     if (!step || !clipByName.has(step.clip)) return null;
-    return {skill, melee: false, ranged: true, clip: step.clip,
+    return {skill, melee: false, ranged: true, clip: step.clip, clipMs: clipMs(step.clip), clipPeakMs: Math.min(spec.hitMs || clipMs(step.clip) / 2, clipMs(step.clip)),
       peakMs: spec.hitMs || clipMs(step.clip) / 2, speed: step.speed || 1, fx: spec.fx || []};
   }
 
@@ -789,55 +877,34 @@ export function createFighterRig(THREE, asset, {
   function chainPlan(skills, {compress = false, fixed = null, notBefore = 0} = {}) {
     const list = (Array.isArray(skills) ? skills : [skills]).filter(s => typeof s === 'string');
     if (!list.length) return null;
-    const specs = list.slice(0, COMBO.maxStrikes).map(strikeSpec);
+    const specs = list.slice(0, SCENE.maxStrikes).map(strikeSpec);
     if (specs.some(s => !s)) return null;
-    const timing = chainTiming(specs.length, {compress, ranged: specs.every(s => s.ranged)});
-    const gap = timing.gap;
+    // İş 1, 3. tur: saf sahne çizelgesi (telegraf → koşu → doğal hızda vuruş(lar) → yön çevirip koşarak dönüş → idle).
+    const T = sceneTiming(specs.map(s => ({peakMs: s.clipPeakMs, clipMs: s.clipMs, ranged: s.ranged})), {compress, fixed, notBefore});
+    const hasRun = clipByName.has(stateRun);
     const steps = [];
-    // Her zincir koşuyla başlar (yerinde saldırı yok). Menzilli ilk vuruş: koşu ile yarım mesafe
-    // (lead ms), büyü klibi varışta başlar → konum değişimi her zaman koşu klibiyle (kayma yok).
-    const rangedLead = specs[0].ranged && clipByName.has(stateRun) ? timing.lead : 0;
-    if (clipByName.has(stateRun)) steps.push({clip: stateRun, at: 0, speed: 1, endMs: 0});
+    // Koşu klibi, hareket başlamadan crossFade'ini bitirir (idle pozunda kayma olmasın).
+    if (T.moveIn && hasRun) steps.push({clip: stateRun, at: Math.max(0, T.telegraphMs - 180), loop: true, loco: true, fade: 180});
     const contacts = [];
     const fx = [];
-    for (let i = 0; i < specs.length; i++) {
+    T.strikes.forEach((st, i) => {
       const spec = specs[i];
-      if (spec.ranged) {
-        // Menzilli: klip BAŞTAN (ofset yok), temas = tablo hitMs'i (el bırakma + mermi uçuşu).
-        // peakMs gerçek zamandır (spec.speed'de); sıkıştırmada klip en fazla 1,2 hızla oynar, temas orantılı öne gelir.
-        const base = clampAttackSpeed(spec.speed || 1);
-        const speed = compress ? clampAttackSpeed(Math.max(base, 1.2)) : base;
-        const k = base / speed;
-        const startMs = i === 0 ? rangedLead : contacts[i - 1].ms;
-        steps.push({clip: spec.clip, at: startMs, speed, offset: 0, endMs: 0});
-        contacts.push({ms: Math.round(startMs + spec.peakMs * k), skill: spec.skill, prepMs: 0, speed, startMs, peakMs: spec.peakMs});
-        for (const item of spec.fx || []) fx.push({...item, at: startMs + Math.round((item.at || 0) * k), skill: spec.skill, index: i});
-        continue;
+      steps.push({clip: spec.clip, at: st.start, speed: st.speed, offset: st.offsetMs / 1000, fade: i ? 160 : 200});
+      contacts.push({ms: Math.round(st.contact), releaseMs: Math.round(st.release), skill: spec.skill, speed: st.speed, startMs: st.start, peakMs: spec.clipPeakMs});
+      // Menzilli: mermi el bırakma anında çıkar, temas karesinde varır. Yakın: efekt temas karesinde.
+      for (const item of spec.fx || []) {
+        fx.push(st.ranged
+          ? {...item, at: Math.round(st.release), flight: Math.round(st.contact - st.release), skill: spec.skill, index: i}
+          : {...item, at: Math.round(st.contact), skill: spec.skill, index: i});
       }
-      // Aynı klip art arda gelirse hafif hız varyasyonu (0,9–1,2 aralığında kalır).
-      const vary = i > 0 && specs[i - 1].clip === spec.clip ? [1, 0.92, 1.1, 0.96][i % 4] : 1;
-      const speed = clampAttackSpeed((compress ? Math.max(spec.speed || 1, 1.2) : spec.speed || 1) * vary);
-      const prepMs = Math.min(220, Math.max(120, spec.peakMs * 0.25));
-      let contact = i === 0 ? timing.lead : contacts[i - 1].ms + gap;
-      // Canlı zincire sonradan eklenen vuruş: hazırlık adımı geçmişe düşmesin (notBefore = şimdiki an).
-      if (fixed && i < fixed.length) contact = fixed[i];
-      else if (fixed && notBefore > 0) contact = Math.max(contact, Math.ceil(notBefore + prepMs / speed));
-      const startAt = Math.max(0, contact - prepMs / speed);
-      steps.push({clip: spec.clip, at: startAt, speed, offset: Math.max(0, (spec.peakMs - prepMs) / 1000), endMs: 0});
-      contacts.push({ms: Math.round(contact), skill: spec.skill, prepMs, speed, startMs: startAt, peakMs: spec.peakMs});
-      for (const item of spec.fx || []) fx.push({...item, at: Math.round(contact), skill: spec.skill, index: i});
-    }
+    });
+    if (T.moveIn && hasRun) steps.push({clip: stateRun, at: T.returnStart, loop: true, loco: true, fade: 120});
+    // Idle: yerine VARINCA (hız ~0) başlar, crossFade ≥ 250 ms.
+    steps.push({clip: idleClip, at: T.moveIn ? T.homeAt + 60 : T.homeAt, loop: true, fade: SCENE.idleFadeMs});
     const last = contacts[contacts.length - 1].ms;
-    const returnStart = last + timing.hold;
-    const totalMs = returnStart + timing.returnMs;
-    if (clipByName.has(stateWalkBack)) {
-      const walkSpeed = clamp(clipMs(stateWalkBack) / Math.max(1, timing.returnMs || 1), 0.8, 1.2);
-      steps.push({clip: stateWalkBack, at: returnStart, speed: walkSpeed, endMs: timing.returnMs * walkSpeed});
-    }
-    return {skills: specs.map(s => s.skill), steps, contacts, fx,
-      travelMs: rangedLead || contacts[0].ms, holdMs: timing.hold, returnStart, returnMs: timing.returnMs, totalMs,
-      speed: Math.max(1, ...specs.map(s => clampAttackSpeed(s.speed || 1))),
-      moveIn: specs.every(s => s.ranged) ? COMBO.rangedStop : 1, compress};
+    return {skills: specs.map(s => s.skill), steps, contacts, fx, timing: T,
+      travelMs: T.arrive, holdMs: Math.max(0, T.returnStart - last), returnStart: T.returnStart, returnMs: T.homeAt - T.moveStart,
+      totalMs: T.totalMs, speed: T.k, moveIn: T.moveIn, compress};
   }
   // Varsayılan plan koreografiye yansır (skillDuration / hitMs / fx zamanları tutarlı olsun).
   for (const skill of meleeSkills) {
@@ -854,6 +921,10 @@ export function createFighterRig(THREE, asset, {
     const next = action(name);
     if (!next) return false;
     const prev = state.current;
+    // Aynı döngülü klip zaten oynuyorsa baştan başlatma (idle → idle poz sıçraması olmasın).
+    if (prev === next && loop && next.isRunning?.() && next.loop === THREE.LoopRepeat) {
+      next.setEffectiveTimeScale?.(speed); state.endMs = 0; state.clip = name; return true;
+    }
     next.enabled = true;
     next.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
     next.clampWhenFinished = clampEnd;
@@ -881,6 +952,8 @@ export function createFighterRig(THREE, asset, {
 
   function goIdle(fade) {
     state.name = 'idle';
+    state.loco = false;
+    state.planTotal = 0;
     state.queue.length = 0;
     state.chain = [];
     state.chainStrikes = 0;
@@ -926,11 +999,14 @@ export function createFighterRig(THREE, asset, {
     state.chain = [];
     state.chainStrikes = 0;
     state.chainPlan = null;
+    state.loco = false;
+    state.planTotal = 0;
     if (next === 'idle') { goIdle(opts.fade); return true; }
     if (SKILLS.includes(next)) {
       const spec = choreo[next];
       state.name = next;
       const melee = baseChoreo[next] ? plan(next, opts) : null;
+      state.planTotal = melee?.timing ? melee.totalMs : 0;
       state.queue = (melee?.steps || variantSteps[next] || spec.steps).map(s => ({...s}));
       state.fade = opts.fade;
       advanceQueue();
@@ -954,11 +1030,31 @@ export function createFighterRig(THREE, asset, {
   function advanceQueue() {
     while (state.queue.length && state.queue[0].at <= state.elapsed) {
       const step = state.queue.shift();
+      // İş 1, 3. tur: vuruş klibi doğal hızda (0,9–1,25; eski 1,2 tavanı sıkıştırmada 1,25'e çıkar);
+      // koşu adımı döngülü ve hızı yol hızına oranlanır (setLocoSpeed).
+      const speed = step.loco ? state.locoTs : clamp(Number(step.speed) || 1, 0.8, SCENE.speedMax);
       fadeTo(step.clip, {
-        loop: false, speed: clampAttackSpeed(step.speed || 1), fade: step.at ? 110 : (state.fade ?? view.fadeMs),
+        loop: Boolean(step.loop), speed, fade: step.fade ?? (step.at ? 110 : (state.fade ?? view.fadeMs)),
         offset: step.offset || 0, endMs: step.endMs || 0,
       });
+      state.loco = Boolean(step.loco);
     }
+  }
+
+  /** Yol hızı (gövde birimi/sn): koşu klibi oynuyorsa timeScale buna oranlanır (ayak kayması az). */
+  function setLocoSpeed(speed) {
+    state.locoTs = locoTimeScale(speed);
+    if (state.loco && state.current) state.current.setEffectiveTimeScale?.(state.locoTs);
+  }
+
+  /**
+   * Senaryosuz yer değiştirme (zorla bitirilen sahne, raund geçişi, ulti dönüşü): idle'dayken model
+   * kayıyorsa koşu klibine, durunca idle'a geçer (idle pozunda kayma yok).
+   */
+  function autoLocomote(moving) {
+    if (state.disposed || state.name !== 'idle' || !clipByName.has(stateRun)) return;
+    if (moving && !state.loco) { fadeTo(stateRun, {loop: true, speed: state.locoTs, fade: 160}); state.loco = true; }
+    else if (!moving && state.loco) { fadeTo(idleClip, {loop: true, fade: SCENE.idleFadeMs}); state.loco = false; }
   }
 
   /**
@@ -983,6 +1079,8 @@ export function createFighterRig(THREE, asset, {
     state.chain = plan.skills.slice();
     state.chainStrikes = plan.contacts.length;
     state.chainPlan = plan;
+    state.loco = false;
+    state.planTotal = plan.totalMs;
     state.queue = plan.steps.map(s => ({...s}));
     state.fade = opts.fade ?? head.fade;
     advanceQueue();
@@ -1006,16 +1104,14 @@ export function createFighterRig(THREE, asset, {
     const next = chainPlan(merged, {compress, fixed: cur.contacts.map(c => c.ms), notBefore: state.elapsed});
     if (!next) return cur;
     const activeAt = state.elapsed - 8; // bu karede başlamış adımlar yerinde kalır
-    state.queue = state.queue.filter(step => (step.at || 0) > activeAt);
-    for (const step of next.steps) {
-      if ((step.at || 0) <= activeAt) continue;
-      if (state.queue.some(s => s.clip === step.clip && Math.abs((s.at || 0) - step.at) < 1)) continue;
-      state.queue.push({...step});
-    }
+    // İş 1, 3. tur: eski planın gelecekteki adımları (dönüş koşusu, idle) ATILIR — yeni plan yerini alır;
+    // yoksa uzatılan zincirin ortasında eski dönüş/idle adımı oynuyordu (idle pozunda kayma).
+    state.queue = next.steps.filter(step => (step.at || 0) > activeAt).map(step => ({...step}));
     state.queue.sort((a, b) => (a.at || 0) - (b.at || 0));
     state.chain = next.skills.slice();
     state.chainStrikes = next.contacts.length;
     state.chainPlan = next;
+    state.planTotal = next.totalMs;
     state.endMs = 0;
     advanceQueue();
     return next;
@@ -1039,7 +1135,11 @@ export function createFighterRig(THREE, asset, {
       const beforeContact = anim.state.kind === 'attack' && state.elapsed < anim.state.contactMs;
       // Kombo zinciri: toplam süre dolmadan idle'a düşme (son kare tutulur, dönüş yürüyüşü planlıdır).
       const inChain = Boolean(state.chainPlan) && state.elapsed < state.chainPlan.totalMs && anim.state.kind === 'attack';
-      const done = clip && !beforeContact && !inChain && (cur.time * 1000 >= endMs - 1 || !cur.isRunning?.() || state.elapsed >= reactionCap);
+      // İş 1, 3. tur: planlı sahne (yaklaşma + vuruş + dönüş + idle adımı) toplam süresiyle biter; son adım
+      // döngülü idle olduğundan klip sonu beklenmez.
+      const planned = state.planTotal > 0 && anim.state.kind === 'attack';
+      const done = planned ? state.elapsed >= state.planTotal
+        : clip && !beforeContact && !inChain && (cur.time * 1000 >= endMs - 1 || !cur.isRunning?.() || state.elapsed >= reactionCap);
       if (done) finishToIdle(animFadeMs('attack', 'idle'));
     }
     for (let i = 0; i < fading.length; i++) {
@@ -1106,7 +1206,8 @@ export function createFighterRig(THREE, asset, {
   }
 
   function reset() {
-    state.disposed || (mixer.stopAllAction(), state.current = null, anim.reset(), fading.forEach(x => { x.action = null; }), goIdle(0));
+    // İş 1, 3. tur: raund geçişinde poz anında sıfırlanmaz — idle'a crossFade (≥ 250 ms); konum arena'da yumuşak döner.
+    if (!state.disposed) { anim.reset(); pendingBlock = null; goIdle(SCENE.idleFadeMs); }
     setTint();
     state.yaw = 0;
     state.paused = false;
@@ -1138,6 +1239,7 @@ export function createFighterRig(THREE, asset, {
     ultimatePeakMs: ultScene ? Math.round(ultScene.peakMs) : variantReady?.skills?.r?.peakMs || null,
     ultimateDurationMs: ultScene ? Math.round(ultScene.durationMs) : variantReady?.skills?.r ? clipMs(variantReady.skills.r.clip) : null,
     anim, play, plan, sceneDuration, update, setTimeScale, setPaused, setYaw, setTint, setOpacity, boneWorld, reset, dispose,
+    setLocoSpeed, autoLocomote, isLocomoting: () => state.loco,
     /** Görev 4: kombo zinciri — plan(skills,{compress}) / oynat / aktif zincire ekleme. */
     playChain, extendChain, chainPlan: (skills, opts) => chainPlan(skills, opts),
     skillDuration: skill => (choreo[skill] ? skillDuration(choreo[skill]) : 0),
@@ -1151,6 +1253,15 @@ export function createFighterRig(THREE, asset, {
       chainReturnStart: state.chainPlan?.returnStart ?? 0,
       chainMoveIn: state.chainPlan?.moveIn ?? 1,
       chainCompress: Boolean(state.chainPlan?.compress),
+      // Ölçüm: en ağır oynayan klip (crossFade sırasında baskın olan), ağırlığı, etkin hızı ve gövde yönü.
+      ...(() => {
+        let top = null, topW = 0, topTs = 0;
+        for (const [name, a] of Object.entries(actions)) {
+          const w = a?.isRunning?.() ? a.getEffectiveWeight?.() ?? 0 : 0;
+          if (w > topW) { topW = w; top = name; topTs = a.getEffectiveTimeScale?.() ?? 0; }
+        }
+        return {top, topW, topTs, rotY: yawGroup.rotation.y};
+      })(),
     }),
   };
 }

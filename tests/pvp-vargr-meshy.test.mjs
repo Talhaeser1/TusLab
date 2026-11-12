@@ -170,27 +170,36 @@ test('vargr meshy: rig varyant tablolarını, kemik adlarını ve ölçeğini ku
 
 test('vargr meshy: q/e yolculuk+temas; ulti baştan sona doğal hızda', () => {
   const rig = createFighterRig(THREE, meshyAsset(), {fighterId: 'vargr', seat: 1, clone: o => o.clone(true)});
-  // Şerit H: Q/E önce koşu klibi (yolculuk 400 ms), sonra saldırı klibi BAŞTAN (offset yok);
-  // temas = yolculuk + peakMs/hız. Kare kare ilerletip klip zamanını ölçeriz.
+  // İş 1, 3. tur (kullanıcı: "çok hızlı, ne olduğunu anlamıyorum"): telegraf 350 ms (yerinde idle) → koşu
+  // ~1000 ms → saldırı klibi DOĞAL hızda (1,0); hazırlık penceresi en çok 750 ms (ofset = zirve − 750 ms),
+  // temas = klibin ölçülen vuruş karesi. Kare kare ilerletip klip zamanını ölçeriz.
   const run = (name, ms) => { for (let t = 0; t < ms; t += 1000 / 60) rig.update(1 / 60); };
   rig.play('q');
-  assert.equal(rig.stats().clip, 'Run_Charge', 'yolculukta koşu klibi');
+  assert.equal(rig.stats().clip, 'Combat_Stance', 'telegraf: yerinde hazırlık');
   const qPlan = rig.plan('q');
-  assert.equal(qPlan.travelMs, 400);
-  assert.ok(Math.abs(qPlan.hitMs - (400 + 1060 / 1.1)) < 1, `q temas ${qPlan.hitMs}`);
-  assert.ok(qPlan.speed <= 1.2 && qPlan.speed >= 1, 'saldırı klibi hızı 1–1,2');
-  run('q', 400 + 50);
+  const T = qPlan.timing;
+  assert.equal(T.telegraphMs, 350);
+  assert.equal(qPlan.travelMs, 1350, 'telegraf + ~1000 ms koşu');
+  assert.equal(qPlan.speed, 1, 'vuruş klibi doğal hızda');
+  assert.ok(Math.abs(qPlan.hitMs - (T.strikes[0].start + 750)) < 1, `q temas ${qPlan.hitMs}`);
+  run('q', T.telegraphMs + 50);
+  assert.equal(rig.stats().clip, 'Run_Charge', 'gidişte koşu klibi');
+  run('q', T.strikes[0].start - T.telegraphMs + 20);
   assert.equal(rig.stats().clip, 'Attack');
-  assert.ok(rig.actions.Attack.time < 0.12, `q klibi baştan başlar ${rig.actions.Attack.time.toFixed(3)}`);
-  run('q', qPlan.hitMs - 450);
-  assert.ok(Math.abs(rig.actions.Attack.time - 1.060) < 0.05, `q vuruş karesi ${rig.actions.Attack.time.toFixed(3)}`);
-  run('q', qPlan.totalMs); // toparlanma + geri yürüyüş sonrası idle
+  // 1/60 sn adımlar başlangıcı ~40 ms aşar: klip zamanı = 0,31 (ofset) + geçen süre.
+  assert.ok(rig.actions.Attack.time > 0.3 && rig.actions.Attack.time < 0.42, `q klibi hazırlık penceresinden başlar ${rig.actions.Attack.time.toFixed(3)}`);
+  run('q', qPlan.hitMs - T.strikes[0].start - 20);
+  // run() her çağrıda ≤ 1 kare aşar (3 çağrı ≈ 50 ms): temas karesi klibin 1,06 sn zirvesi
+  assert.ok(Math.abs(rig.actions.Attack.time - 1.060) < 0.1, `q vuruş karesi ${rig.actions.Attack.time.toFixed(3)}`);
+  run('q', T.returnStart - qPlan.hitMs + 60);
+  assert.equal(rig.stats().clip, 'Run_Charge', 'dönüşte koşu klibi (idle pozunda kayma yok)');
+  run('q', qPlan.totalMs); // dönüş + rakibe dönüş sonrası idle
   assert.equal(rig.stats().state, 'idle');
   rig.play('e');
   const ePlan = rig.plan('e');
-  run('e', ePlan.travelMs + 50);
-  assert.ok(rig.actions.Axe_Spin_Attack.time < 0.12, 'e klibi baştan');
-  run('e', ePlan.hitMs - ePlan.travelMs - 50);
+  run('e', ePlan.timing.strikes[0].start + 20);
+  assert.equal(rig.stats().clip, 'Axe_Spin_Attack');
+  run('e', ePlan.hitMs - ePlan.timing.strikes[0].start - 20);
   assert.ok(Math.abs(rig.actions.Axe_Spin_Attack.time - 0.900) < 0.05);
   run('e', ePlan.totalMs);
   assert.equal(rig.stats().state, 'idle');

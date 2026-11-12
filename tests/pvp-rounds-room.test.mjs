@@ -39,10 +39,15 @@ async function expire(f,field='endsAt'){
 
 test('room rounds: MATCH_CONFIG is host-only, validated, resets ready and is shown in ROOM_STATE',async()=>{
  const f=await lobby();
- assert.equal(received(f.a,'ROOM_STATE').at(-1).payload.rounds,5);
+ // KESINYAP 11: rounds maçı her zaman 7; eski 5/10 ve roundWords ayarı reddedilir.
+ assert.equal(received(f.a,'ROOM_STATE').at(-1).payload.rounds,7);
  await request(f.room,f.b,'MATCH_CONFIG',{rounds:7});
  assert.equal(received(f.b,'ERROR').at(-1).payload.code,'HOST_ONLY');
  await request(f.room,f.a,'MATCH_CONFIG',{rounds:6});
+ assert.equal(received(f.a,'ERROR').at(-1).payload.code,'INVALID_ROUNDS');
+ await request(f.room,f.a,'MATCH_CONFIG',{rounds:5});
+ assert.equal(received(f.a,'ERROR').at(-1).payload.code,'INVALID_ROUNDS');
+ await request(f.room,f.a,'MATCH_CONFIG',{roundWords:15});
  assert.equal(received(f.a,'ERROR').at(-1).payload.code,'INVALID_ROUNDS');
  await request(f.room,f.a,'MATCH_CONFIG',{rounds:'7'});
  assert.equal(received(f.a,'ERROR').at(-1).payload.code,'INVALID_ROUNDS');
@@ -63,7 +68,8 @@ test('room rounds: both sockets receive the same ROUND_START words after MATCH_S
  const f=await start(await lobby());
  const [ra,rb]=[received(f.a,'ROUND_START'),received(f.b,'ROUND_START')];
  assert.equal(ra.length,1);assert.equal(rb.length,1);
- assert.equal(ra[0].payload.words.length,ROUND_WORDS);assert.deepEqual(ra[0].payload.words,rb[0].payload.words);
+ assert.equal(ra[0].payload.words.length,5);assert.deepEqual(ra[0].payload.words,rb[0].payload.words); // KESINYAP 11: kelime raundu 1. raund 5 kelime
+ assert.equal(ra[0].payload.wordCount,5);assert.equal(ra[0].payload.style,'counted');
  assert.equal(ra[0].payload.round,1);assert.equal(ra[0].payload.roundHp,ROUND_HP);
  assert.deepEqual(ra[0].payload.match.round.words,ra[0].payload.words);
  const order=f.a.messages.map(m=>m.type);assert.ok(order.indexOf('MATCH_START')<order.indexOf('ROUND_START'));
@@ -80,12 +86,12 @@ test('room rounds: words go through round.words; ROUND_END and MATCH_END are del
  assert.equal(ack.correct,true);assert.equal(ack.streak,1);assert.equal(ack.roundWordIndex,1);
  await request(f.room,f.b,'WORD_SUBMIT',{matchId:m.id,wordIndex:0,text:m.round.words[0],round:2});
  assert.equal(received(f.b,'WORD_RESULT').at(-1).payload.code,'ROUND_MISMATCH');
- // Make seat 1 one round away from victory and let the round time out.
- m=await f.ctx.storage.get('match');m.roundsWon={1:2,2:0};m.round.index=3;await f.ctx.storage.put('match',m);
+ // KESINYAP 11: 7. raundda canı fazla olan maçı alır (raund galibiyeti yok). Seat 1 can üstünlüğüyle son raunda gelir.
+ m=await f.ctx.storage.get('match');m.round.index=7;m.participants.find(p=>p.seat===2).hp=3000;await f.ctx.storage.put('match',m);
  await expire(f);
  assert.equal(received(f.a,'ROUND_END').length,1);assert.equal(received(f.b,'ROUND_END').length,1);
  const end=received(f.b,'ROUND_END')[0].payload;
- assert.equal(end.round,3);assert.equal(end.winnerSeat,1);assert.equal(end.reason,'TIME');assert.equal(end.matchOver,true);
+ assert.equal(end.round,7);assert.equal(end.reason,'TIME');assert.equal(end.matchOver,true);assert.deepEqual(end.hp,{1:4000,2:3000});
  assert.equal(received(f.a,'MATCH_END').length,1);assert.equal(received(f.b,'MATCH_END').length,1);
  const stored=await f.ctx.storage.get('match');
  assert.equal(stored.status,'ended');assert.equal(stored.endReason,'ROUNDS');assert.equal(stored.winnerSeat,1);
@@ -113,27 +119,29 @@ test('room rounds: intermission → next round broadcast; late word is rejected 
 test('room rounds: two finishers end the round at once (ALL_DONE) inside the word handler',async()=>{
  const f=await start(await lobby());
  let m=await f.ctx.storage.get('match');
- for(const p of m.participants){p.roundWordIndex=9;p.wordIndex=9;p.currentWord=m.round.words[9];}
+ const last=m.round.words.length-1; // KESINYAP 11: 1. kelime raundu 5 kelime → son indeks 4
+ for(const p of m.participants){p.roundWordIndex=last;p.wordIndex=last;p.currentWord=m.round.words[last];}
  await f.ctx.storage.put('match',m);
- await request(f.room,f.a,'WORD_SUBMIT',{matchId:m.id,wordIndex:9,text:m.round.words[9]});
+ await request(f.room,f.a,'WORD_SUBMIT',{matchId:m.id,wordIndex:last,text:m.round.words[last]});
  assert.equal(received(f.b,'ROUND_LAST_CALL').length,1);assert.equal(received(f.b,'ROUND_LAST_CALL')[0].payload.finishedSeat,1);
  await new Promise(r=>setTimeout(r,60));
- await request(f.room,f.b,'WORD_SUBMIT',{matchId:m.id,wordIndex:9,text:'yanlis'});
+ await request(f.room,f.b,'WORD_SUBMIT',{matchId:m.id,wordIndex:last,text:'yanlis'});
  const end=received(f.a,'ROUND_END');assert.equal(end.length,1);assert.equal(end[0].payload.reason,'ALL_DONE');
 });
 
 test('room rounds: rematch keeps the round count and deals new words with full ROUND_HP',async()=>{
- const f=await lobby();await request(f.room,f.a,'MATCH_CONFIG',{rounds:10});await start(f);
+ // KESINYAP 11: rövanş da 7 raund, tam 4000 can, yeni kelimeler (raund galibiyeti alanı yok).
+ const f=await lobby();await request(f.room,f.a,'MATCH_CONFIG',{rounds:7});await start(f);
  const first=await f.ctx.storage.get('match');
  await request(f.room,f.a,'SURRENDER',{});
  await request(f.room,f.a,'REMATCH_VOTE',{accept:true});await request(f.room,f.b,'REMATCH_VOTE',{accept:true});
  const data=await f.room.roster();data.startAt=Date.now()-1;await f.room.save(data);await f.room.alarm();
  const next=await f.ctx.storage.get('match');
- assert.notEqual(next.id,first.id);assert.equal(next.totalRounds,10);assert.deepEqual(next.roundsWon,{1:0,2:0});
+ assert.notEqual(next.id,first.id);assert.equal(next.totalRounds,7);assert.equal(next.roundsWon,undefined);
  assert.notDeepEqual(next.round.words,first.round.words);
  assert.deepEqual(next.participants.map(p=>p.hp),[ROUND_HP,ROUND_HP]);
  assert.equal(received(f.a,'ROUND_START').length,2);
- assert.equal(received(f.a,'ROOM_STATE').at(-1).payload.rounds,10);
+ assert.equal(received(f.a,'ROOM_STATE').at(-1).payload.rounds,7);
 });
 
 test('room rounds: forged round events from a client are SERVER_ONLY_EVENT',async()=>{
@@ -143,7 +151,7 @@ test('room rounds: forged round events from a client are SERVER_ONLY_EVENT',asyn
   await request(f.room,f.a,type,{round:9,winnerSeat:1});
   assert.equal(received(f.a,'ERROR').at(-1).payload.code,'SERVER_ONLY_EVENT');
  }
- assert.deepEqual((await f.ctx.storage.get('match')).roundsWon,{1:0,2:0});
+ assert.deepEqual((await f.ctx.storage.get('match')).roundHistory,[]); // KESINYAP 11: roundsWon yok; sahte olay geçmişe yazılmaz
  for(const t of ['MATCH_CONFIG','ROUND_START','ROUND_LAST_CALL','ROUND_END','WORD_CLASH','ULTIMATE_PHASE'])assert.equal(MessageType[t],t);
  assert.deepEqual(makeEnvelope(MessageType.MATCH_CONFIG,{rounds:7}).payload,{rounds:7});
  assert.equal(typeof advanceMatch,'function');

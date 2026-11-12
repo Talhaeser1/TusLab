@@ -106,9 +106,9 @@ test('injected damage, match result and skills cannot alter HP',async()=>{
 });
 test('both players receive terminal snapshot exactly once when the last round expires',async()=>{
   const {room,ctx,ws1,ws2}=await startedRoom();
-  // Round mode: final regulation round, 2-2, seat 1 is ahead on round points when time runs out.
+  // KESINYAP 11: son (7.) raund biterken seat 1 can üstünlüğünde → maç ROUNDS ile biter.
   const match=await ctx.storage.get('match');
-  match.round.index=match.totalRounds;match.roundsWon={1:2,2:2};match.participants[0].roundCorrect=1;
+  match.round.index=match.totalRounds;match.participants[1].hp=match.participants[1].maxHp-100;
   match.round.endsAt=Date.now()-1;match.endsAt=match.round.endsAt;
   await ctx.storage.put('match',match);
   await room.alarm();

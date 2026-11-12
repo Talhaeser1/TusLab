@@ -98,7 +98,7 @@ test('countdown alarm produces authoritative initial match with fixed HP',async(
   assert.equal((await room.roster()).phase,'started');
   assert.equal(sent(a,'MATCH_START').length,1);
   assert.equal(sent(b,'MATCH_START')[0].payload.match.status,'running');
-  assert.deepEqual(sent(a,'MATCH_START')[0].payload.match.players.map(p=>p.hp),[1200,1200]); // round mode: ROUND_HP
+  assert.deepEqual(sent(a,'MATCH_START')[0].payload.match.players.map(p=>p.hp),[4000,4000]); // round mode: ROUND_HP (KESINYAP 11: 4000 taşınan can)
   assert.equal(JSON.stringify(await room.roster()).includes('hp'),false); // lobby does not store fake HP
   assert.equal((await ctx.storage.get('match')).sequence,1);
 });

@@ -3,8 +3,8 @@ import test,{beforeEach,afterEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createMatch,publicMatch,submitWord,advanceMatch,nextDeadline,resolveStepMs,
-  ROUND_WORDS,ROUND_WORDS_MIN,ROUND_WORDS_MAX,ROUND_VIEW_AHEAD,roundDurationMs,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,
-  RESOLVE_STEP_MS,RESOLVE_MIN_STEP_MS,RESOLVE_BUDGET_MS,SKILL_THRESHOLDS,STREAK_SKILLS,normalizeRoundStyle,normalizeRoundWords,
+  ROUND_WORDS,ROUND_WORD_PLAN,ROUND_VIEW_AHEAD,roundDurationMs,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,
+  RESOLVE_STEP_MS,RESOLVE_MIN_STEP_MS,RESOLVE_BUDGET_MS,SKILL_THRESHOLDS,STREAK_SKILLS,normalizeRoundStyle,
   roundSkillMs,DEFAULT_ROUND_STYLE} from '../pvp/shared/match.js';
 // KESINYAP mekanik: sayılı raund süresi kelime sayısına bağlı; testlerde "varsayılan raund süresi" = varsayılan sayılı raund (10 kelime → 60 sn).
 const ROUND_DURATION_MS=roundDurationMs({});
@@ -25,22 +25,25 @@ function type(m,seat,at,{wrong=false}={}){
 }
 
 // ── 1. roundStyle / roundWords ────────────────────────────────────────────────
-test('F1: varsayılan timed (Zamana Karşı), roundWords 10; normalize geçersiz değerleri düşürür',()=>{
-  const m=make();
+test('F1: varsayılan timed (Zamana Karşı); roundWords seçeneği yok sayılır, kelime raundu planı sabit',()=>{
+  // KESINYAP 11: 'Kelime sayısı 5/10/15' seçeneği kalktı; plan [5,7,9,10,10,10,15].
+  const m=make({roundWords:15});
   assert.equal(m.roundStyle,'timed');assert.equal(DEFAULT_ROUND_STYLE,'timed');assert.equal(m.round.style,undefined);
-  assert.equal(make({roundStyle:'counted'}).roundStyle,'counted');assert.equal(m.roundWords,ROUND_WORDS);assert.equal(m.round.words.length,10);
+  assert.equal(m.roundWords,undefined);
+  const c=make({roundStyle:'counted',roundWords:15});
+  assert.equal(c.roundStyle,'counted');assert.equal(c.round.words.length,ROUND_WORD_PLAN[0]);
   assert.equal(normalizeRoundStyle('x'),'timed');assert.equal(normalizeRoundStyle('counted'),'counted');assert.equal(normalizeRoundStyle('timed'),'timed');
-  for(const bad of [4,21,10.5,'10',null,undefined,NaN])assert.equal(normalizeRoundWords(bad),10,String(bad));
-  assert.equal(normalizeRoundWords(5),5);assert.equal(normalizeRoundWords(20),20);
-  assert.equal(ROUND_WORDS_MIN,5);assert.equal(ROUND_WORDS_MAX,20);
+  assert.equal(ROUND_WORDS,10,'ani ölüm raundu kelime sayısı');
 });
-test('F1: counted roundWords kelime sayısı kadar kelime verir ve tüm kelimeler bitince raund biter',()=>{
-  for(const n of [5,14,20]){
-    let m=make({roundWords:n,roundStyle:'counted'});
+test('F1: counted planlanan kelime sayısı kadar kelime verir ve tüm kelimeler bitince raund biter',()=>{
+  // KESINYAP 11: 1. raund 5, 2. raund 7 kelime (roundWords seçeneği etkisiz).
+  let m=make({roundWords:20,roundStyle:'counted'});
+  for(const n of ROUND_WORD_PLAN.slice(0,2)){
     assert.equal(m.round.words.length,n);
-    for(let i=0;i<n;i++)m=type(m,1,T0+500+i*100).match;
+    for(let i=0;i<n;i++)m=type(m,1,m.round.startedAt+500+i*100).match;
     assert.equal(seatOf(m,1).roundDone,true,`n=${n}`);
-    assert.equal(publicMatch(m,1).round.words.length,n);
+    assert.equal(publicMatch(m,1).round.words.length,n);assert.equal(publicMatch(m,1).round.wordCount,n);
+    m=advanceMatch(m,m.round.endsAt+ROUND_SETTLE_MS+5000,NO_BLOCK).match;m=advanceMatch(m,m.round.nextRoundAt,NO_BLOCK).match;
   }
 });
 test('F1: timed — kelime sayısıyla bitmez, kuyruk deterministik uzar, ekran boş kalmaz',()=>{
@@ -76,7 +79,10 @@ test('F1: timed anlık görüntü yalnız pencereyi taşır (küçük), words[ro
   assert.equal(view.round.words[me.roundWordIndex],me.currentWord);
   const real=view.round.words.filter(Boolean);
   assert.ok(real.length<=ROUND_VIEW_AHEAD+1+2,'pencere en fazla geri2+mevcut+ileri4');
-  assert.ok(JSON.stringify(view).length<4096*2,'anlık görüntü şişmemeli');
+  // KESINYAP 11: 8+ seride her doğru kelime Q attığı için olay tamponu (en çok 24 olay) dolabilir; tampon sınırı ayrıca doğrulanır,
+  // boyut ölçümü raund/oyuncu bölümleri için yapılır (pencere sabit kalmalı).
+  assert.ok(view.combatEvents.length<=24,'olay tamponu 24 ile sınırlı');
+  assert.ok(JSON.stringify({...view,combatEvents:[]}).length<4096,'anlık görüntü şişmemeli');
   assert.ok(!view.round.words.slice(0,me.roundWordIndex-2).some(Boolean),'geçmiş kelime metni gönderilmez');
   // gerçek kuyruktaki kelimeler sunucuda kalır
   assert.ok(m.round.words.length>view.round.words.length-1);
@@ -105,20 +111,21 @@ const token=i=>`${String(i).repeat(8)}-1234-4123-8123-${String(i).repeat(12)}-12
 const request=(room,ws,type,payload={})=>room.webSocketMessage(ws,JSON.stringify({version:1,type,payload}));
 async function join(room,i){await room.fetch(new Request('https://local.test/connect',{headers:{Upgrade:'websocket'}}));const ws=last;
  await request(room,ws,'JOIN',{name:`Oyuncu ${i}`,character:i===1?'fire':'rune',resumeToken:token(i)});return ws;}
-test('F1: oda MATCH_CONFIG roundStyle/roundWords alanlarını izinli listeyle doğrular ve maça aktarır',async()=>{
+test('F1: oda MATCH_CONFIG roundStyle alanını izinli listeyle doğrular, roundWords artık reddedilir',async()=>{
+  // KESINYAP 11: kelime sayısı ayarı kalktı; roundWords her değerde reddedilir ve maça geçmez.
   const f=fixture();await f.room.fetch(new Request('https://local.test/initialize',{method:'POST'}));
   const a=await join(f.room,1);await join(f.room,2);
-  const errors=()=>a.messages.filter(m=>m.type==='ERROR'&&m.payload.code==='INVALID_MATCH_CONFIG').length;
-  for(const bad of [{roundStyle:'hack'},{roundStyle:1},{roundWords:4},{roundWords:21},{roundWords:'10'},{roundWords:7.5}])
-    await request(f.room,a,'MATCH_CONFIG',bad);
-  assert.equal(errors(),6);
-  await request(f.room,a,'MATCH_CONFIG',{roundStyle:'timed'});
-  await request(f.room,a,'MATCH_CONFIG',{roundWords:12});
+  const errors=code=>a.messages.filter(m=>m.type==='ERROR'&&m.payload.code===code).length;
+  for(const bad of [{roundStyle:'hack'},{roundStyle:1}])await request(f.room,a,'MATCH_CONFIG',bad);
+  assert.equal(errors('INVALID_MATCH_CONFIG'),2);
+  for(const bad of [{roundWords:4},{roundWords:10},{roundWords:12}])await request(f.room,a,'MATCH_CONFIG',bad);
+  assert.equal(errors('INVALID_ROUNDS'),3);
+  await request(f.room,a,'MATCH_CONFIG',{roundStyle:'counted'});
   const data=await f.room.roster();
-  assert.equal(data.roundStyle,'timed');assert.equal(data.roundWords,12);
-  const s=f.room.summary(data);assert.equal(s.roundStyle,'timed');assert.equal(s.roundWords,12);
+  assert.equal(data.roundStyle,'counted');assert.equal(data.roundWords,undefined);
+  const s=f.room.summary(data);assert.equal(s.roundStyle,'counted');assert.equal(s.roundWords,undefined);
   const started=f.room.startMatch(data,Date.now());
-  assert.equal(started.match.roundStyle,'timed');assert.equal(started.match.roundWords,12);
+  assert.equal(started.match.roundStyle,'counted');assert.equal(started.match.round.words.length,5);assert.equal(started.match.totalRounds,7);
 });
 test('F1: timed raund bölümü uzun akışta şişmez (pencere sabit; gelen mesaj sınırı 4096 B değişmedi)',()=>{
   let m=make({roundStyle:'timed',roundWords:20});
@@ -248,15 +255,16 @@ test('F3: can/hasar akışı — saldırılar raund sonunda çözülür, HP azal
   assert.ok(publicMatch(after,2).players[1].hp<hpBefore||after.round.phase==='intermission');
   assert.equal(after.pendingAttacks.length,0);
 });
-test('F3: practice (bot) timed + counted modları baştan sona akar ve roundStyle/roundWords aktarılır',()=>{
+test('F3: practice (bot) timed + counted modları başlar; roundStyle aktarılır, roundWords yok sayılır',()=>{
+  // KESINYAP 11: kelime raundu 1. raund 5 kelime; roundWords seçeneği etkisiz.
   for(const style of ['counted','timed']){
     let time=1_700_000_000_000;const packets=[];
     const s=createPracticeSession({now:()=>time,rng:()=>.5,createId:()=>'f-'+style,onPacket:p=>packets.push(p),rounds:5,
       roundStyle:style,roundWords:6,scheduler:{setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){}}});
     s.start();
-    assert.equal(s.match.roundStyle,style);assert.equal(s.match.roundWords,6);
-    assert.equal(s.match.round.words.length>=6,true);
-    if(style==='counted')assert.equal(s.match.round.words.length,6);
+    assert.equal(s.match.roundStyle,style);assert.equal(s.match.roundWords,undefined);assert.equal(s.match.totalRounds,7);
+    assert.equal(s.match.round.words.length>=5,true);
+    if(style==='counted')assert.equal(s.match.round.words.length,5);
   }
 });
 
@@ -284,30 +292,31 @@ test('F4: timed HUD kelime şeridi pencere öncesi boş girdileri göstermez, sa
   assert.ok(vm.words.some(w=>w.state==='active'));
   assert.equal(vm.sides[0].progress,'Kelime 25');
   const c=roundsViewModel(publicMatch(make({roundStyle:'counted',roundWords:14}),1),'a',T0+500,new Map());
-  assert.equal(c.sides[0].progress,'Kelime 0/14');assert.ok(c.words.length<=ROUND_WORDS);
+  assert.equal(c.sides[0].progress,'Kelime 0/5');assert.ok(c.words.length<=ROUND_WORDS); // KESINYAP 11: 1. raund 5 kelime
 });
 
 // ── 6. lobi roundStyle seçicisi ───────────────────────────────────────────────
-import {roundStylePickDecision,roundStylePickerHTML,syncRoundStylePicker,PRACTICE_ROUND_STYLE_KEY,PRACTICE_ROUND_WORDS_KEY,ROUND_WORD_CHOICES} from '../pvp/rounds-ui.js';
+import {roundStylePickDecision,roundStylePickerHTML,syncRoundStylePicker,PRACTICE_ROUND_STYLE_KEY,DAMAGE_RULE_HINT} from '../pvp/rounds-ui.js';
 test('G1: seçici kararı — practice yerel kaydeder, odada yalnız host/lobi fazında MATCH_CONFIG üretir',()=>{
   assert.deepEqual(roundStylePickDecision({scope:'practice',kind:'style',value:'counted'}),{store:'counted'});
-  assert.deepEqual(roundStylePickDecision({scope:'practice',kind:'words',value:'15'}),{store:15});
+  // KESINYAP 11: kelime sayısı seçimi kalktı; 'words' türü her zaman reddedilir.
+  assert.equal(roundStylePickDecision({scope:'practice',kind:'words',value:'15'}),null);
   assert.equal(roundStylePickDecision({scope:'practice',kind:'style',value:'x'}),null);
-  assert.equal(roundStylePickDecision({scope:'practice',kind:'words',value:12}),null,'yalnız 5/10/15');
-  assert.deepEqual([...ROUND_WORD_CHOICES],[5,10,15]);
+  assert.equal(roundStylePickDecision({scope:'practice',kind:'words',value:10}),null);
   const room={scope:'room',isHost:true,phase:'waiting',current:'timed'};
   assert.deepEqual(roundStylePickDecision({...room,kind:'style',value:'counted'}),{type:'MATCH_CONFIG',payload:{roundStyle:'counted'}});
-  assert.deepEqual(roundStylePickDecision({...room,kind:'words',value:5,current:10}),{type:'MATCH_CONFIG',payload:{roundWords:5}});
+  assert.equal(roundStylePickDecision({...room,kind:'words',value:5,current:10}),null);
   assert.equal(roundStylePickDecision({...room,kind:'style',value:'timed'}),null,'aynı değer gönderilmez');
   assert.equal(roundStylePickDecision({...room,isHost:false,kind:'style',value:'counted'}),null);
   assert.equal(roundStylePickDecision({...room,phase:'started',kind:'style',value:'counted'}),null);
 });
-test('G1: seçici HTML varsayılan olarak Zamana karşı basılı gelir; kelime satırı yalnız Sayılı\'da görünür',()=>{
+test('G1: seçici HTML varsayılan olarak Zamana karşı basılı gelir; kelime sayısı satırı yok, hasar kuralı ipucu var',()=>{
+  // KESINYAP 11: yalnız 'Zamana karşı | Kelime raundu' + tek satır hasar kuralı.
   const html=roundStylePickerHTML('practice');
   assert.match(html,/data-round-style="timed"[^>]*aria-pressed="true"/);
   assert.match(html,/data-round-style="counted"[^>]*aria-pressed="false"/);
-  assert.match(html,/Zamana karşı/);assert.match(html,/Sayılı/);
-  for(const n of [5,10,15])assert.match(html,new RegExp(`data-round-words="${n}"`));
+  assert.match(html,/Zamana karşı/);assert.match(html,/Kelime raundu/);
+  assert.doesNotMatch(html,/data-round-words=/);assert.ok(html.includes(DAMAGE_RULE_HINT));
   const mk=()=>{const els=[];const mkEl=(attrs,sel)=>{const e={dataset:{},attrs:{...attrs},hidden:false,disabled:false,textContent:'',getAttribute(k){return this.attrs[k];},setAttribute(k,v){this.attrs[k]=v;}};Object.assign(e.dataset,sel);return e;};
     const st=[mkEl({'aria-pressed':'true'},{roundStyle:'timed'}),mkEl({'aria-pressed':'false'},{roundStyle:'counted'})];
     const wd=[5,10,15].map(n=>mkEl({'aria-pressed':'false'},{roundWords:String(n)}));
@@ -316,17 +325,17 @@ test('G1: seçici HTML varsayılan olarak Zamana karşı basılı gelir; kelime 
     return {st,wd,lab,grp,note,root:{querySelector:()=>box}};};
   const a=mk();syncRoundStylePicker(a.root,'room',{style:'counted',words:15,editable:false,note:'x'});
   assert.equal(a.st[1].attrs['aria-pressed'],'true');assert.equal(a.st[0].attrs['aria-pressed'],'false');
-  assert.equal(a.wd[2].attrs['aria-pressed'],'true');assert.equal(a.grp.hidden,false);assert.equal(a.st[0].disabled,true);
-  const b=mk();syncRoundStylePicker(b.root,'room',{style:'timed',words:10,editable:true});
-  assert.equal(b.grp.hidden,true);assert.equal(b.st[0].disabled,false);
+  assert.equal(a.st[0].disabled,true);assert.equal(a.note.textContent,'x');
+  const b=mk();syncRoundStylePicker(b.root,'room',{style:'timed',editable:true});
+  assert.equal(b.st[0].attrs['aria-pressed'],'true');assert.equal(b.st[0].disabled,false);
 });
 test('G1: practice tercihi localStorage\'da (try/catch ile) saklanır ve başlangıçta okunur; maça aktarılır',()=>{
-  assert.equal(PRACTICE_ROUND_STYLE_KEY,'tuslab-pvp-practice-round-style');assert.equal(PRACTICE_ROUND_WORDS_KEY,'tuslab-pvp-practice-round-words');
+  assert.equal(PRACTICE_ROUND_STYLE_KEY,'tuslab-pvp-practice-round-style');
   const net=readFileSync(new URL('../pvp/network.js',import.meta.url),'utf8');
   assert.match(net,/safeStore\(localStorage,PRACTICE_ROUND_STYLE_KEY,String\(decision\.store\)\)/);
-  assert.match(net,/safeStore\(localStorage,PRACTICE_ROUND_WORDS_KEY,String\(decision\.store\)\)/);
+  assert.doesNotMatch(net,/PRACTICE_ROUND_WORDS_KEY|practiceRoundWords/); // KESINYAP 11: kelime sayısı tercihi kalktı
   assert.match(net,/this\.practiceRoundStyle=normalizeRoundStyle\(safeStore\(localStorage,PRACTICE_ROUND_STYLE_KEY\)\)/);
-  assert.match(net,/roundStyle:this\.practiceRoundStyle,roundWords:this\.practiceRoundWords/);
+  assert.match(net,/roundStyle:this\.practiceRoundStyle,/);
   assert.match(net,/this\.send\('MATCH_CONFIG',decision\.payload\)/);
   assert.match(net,/p\.roundStyle\?\?p\.summary\?\.roundStyle/);
   assert.match(net,/\$\{roundStylePickerHTML\('practice'\)\}/);assert.match(net,/\$\{roundStylePickerHTML\('room'\)\}/);

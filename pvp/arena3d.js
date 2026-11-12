@@ -6,6 +6,7 @@ import {buildStage} from './stages3d.js';
 import {DEFAULT_STAGE, normalizeStage} from './shared/stages.js';
 import {
   createFighterRig, createSkillFx, contactDistance as contactGap, dashProgress, travelProgress, chainProgress, frameFighters, isKnownFighter, loadFighterModel, fighterModelUrl, rootMotionAt, skillDuration, COMBO,
+  sceneProgress, sceneTurn, SCENE,
   MODEL_VIEW, FIGHTER_MODEL_BASE,
 } from './fighters3d.js';
 
@@ -121,8 +122,14 @@ export const ARENA_ENV_CAPS = Object.freeze({
  * Each phase starts a tween FROM the current pose, so late, bunched or missing
  * phases never snap; a watchdog throws the defender home if phases stop.
  */
-/** İş 1: gövde ileri ofsetinin kare başına en büyük değişimi (dünya birimi; ışınlanma koruması). */
-export const MAX_FWD_STEP = 0.3;
+/** İş 1 (3. tur): model dünya konumunun kare başına en büyük değişimi (ışınlanma koruması; 60 fps'te 0,12). */
+export const MAX_FWD_STEP = 0.12;
+/** Aynı korumanın hız sınırı (dünya birimi/sn): uzun karede adım dt ile sınırlanır. */
+export const MAX_WORLD_SPEED = MAX_FWD_STEP * 60;
+/** Eve dönerken gövde yönü: rakibe bakan yarım profilden eve bakan yarım profile (kameradan geçerek). */
+const TURN_YAW = -(Math.PI - 2 * MODEL_VIEW.yawToCamera);
+/** KO/maç sonu: bekleyen sahnelerin sıralı oynaması için üst süre (sunum; kural süresi değil). */
+export const KO_DRAIN_MS = 6000;
 
 export const ULTIMATE_TIMING = Object.freeze({
   pullMs: 340,        // phase 1: tether yanks the defender to the VS centre (ease-out)
@@ -133,7 +140,7 @@ export const ULTIMATE_TIMING = Object.freeze({
   throwMs: 700,       // phase 3: arc flight back to the defender's seat (İş 1: ≤ 0,35 birim/kare)
   bounceMs: 220,      // landing bounce after the slam
   returnDelayMs: 120, // phase 3: attacker waits, then hops home
-  returnMs: 480,
+  returnMs: 1000,     // İş 1, 3. tur: saldıran eve koşu klibiyle döner (0,12 birim/kare sınırının altında)
   minGapMs: 150,      // bunched phases are spread at least this far apart
   watchdogMs: 700,    // no next phase within this after a segment → auto throw-back
 });
@@ -1817,7 +1824,8 @@ export async function createArena3D({
   const lastReactionAt = new Map();  // Görev 4: seat → son tepki anı (trace penceresi)
   let deferredHpSync = null;
   let replayingUlt = false; // bekletilen ulti olayları girdi başlarken yeniden işleniyor
-  const COMBO_SCENE_MAX_MS = 3000; // tek kombo sahnesinin (yaklaşma + vuruşlar + dönüş) tavanı
+  // İş 1, 3. tur: okunur tempoda tek vuruşlu yakın sahne ~4,5 sn; aynı yaklaşmada en çok 3 vuruş zincirlenir.
+  const COMBO_SCENE_MAX_MS = 7800; // tek kombo sahnesinin (yaklaşma + vuruşlar + dönüş) tavanı
 
   // ---- Şerit H / Görev 4: görsel zaman çizelgesi (sunucu olayları sıraya alınır, temas karesinde gösterilir)
   // Aynı anda tek koltuk; saldıran değişince iki taraf yerleşikken TURN.breathMs (~1,2 sn) ara.
@@ -1841,6 +1849,8 @@ export async function createArena3D({
     stop() { this.on = false; return {frames: this.frames, events: this.events}; },
     mark(type, data) { if (this.on) this.events.push({t: now(), type, ...data}); }} : null;
   const probeMark = (type, data) => { if (animProbe) animProbe.mark(type, data); };
+  /** Sahnesiz hasar teslimi (yalnız sayı/can) — ölçüm için nedeniyle işaretlenir. */
+  const silentDamage = (event, why) => { probeMark('silent', {seat: event?.fromSeat, skill: `${event?.skill}:${why}`}); impactFeel.silent(event); };
   if (probe) safeCall(() => { env.__tuslabAnimProbe = animProbe; });
 
   /** Karaktere özel beceri: klip adımları + kök hareketi izi + zamanlı efektler. false → model yok. */
@@ -1889,7 +1899,19 @@ export async function createArena3D({
       // Kombo zincirinde kök hareket (dönüş/sıçrama) tüm koreografiyi zincir süresine oturtur:
       // tur zincir bitmeden tamamlanır, iz silinirken yaw sıçraması olmaz.
       const r = rootMotionAt(spec, p * (chain ? skillDuration(spec) : dur));
-      if (chain) {
+      const T = chain?.timing || plan?.timing || null;
+      if (T) {
+        // İş 1, 3. tur — telegraf (yerinde hafif eğilme) → koşu → vuruş(lar) → yön çevirip koşarak dönüş.
+        const prog = sceneProgress(elapsed, T, from);
+        o.fwd += (contactDistance * prog - carry0) * m;
+        const tele = elapsed < T.telegraphMs ? Math.sin(Math.PI * elapsed / Math.max(1, T.telegraphMs)) : 0;
+        o.tilt += -0.1 * tele * m;
+        o.squash += 0.05 * tele * m;
+        o.turn = Math.max(o.turn, sceneTurn(elapsed, T));
+        // Kök dönüş/sıçrama klibin kendisinde: koreografi spin'i koşu/dönüş boyunca yayılmasın.
+        o.glow += 0.3 * Math.sin(Math.PI * p);
+        return;
+      } else if (chain) {
         // Görev 4 — kombo izi: TEK yaklaşma, vuruş bandında duruş, son vuruştan sonra TEK dönüş.
         const prog = chainProgress(elapsed, {travelMs: chain.travelMs, returnStart: chain.returnStart, returnMs: chain.returnMs, from});
         o.fwd += (contactDistance * chain.moveIn * prog - carry0) * m;
@@ -2100,7 +2122,10 @@ export async function createArena3D({
     const fighter = fighters.get(entry.seat);
     const rig = fighter?.model;
     if (!rig || entry.dead || entry.ultimate) return false;
-    if (entry.strikes.length >= COMBO.maxStrikes) return false; // süre tavanı: yeni girdi
+    if (entry.strikes.length >= SCENE.maxStrikes) return false; // süre tavanı: yeni girdi
+    // İş 1, 3. tur: menzilli (yerinde atış) ile yakın (koşarak) vuruş aynı sahnede karışmaz — menzilli yerinde kalır.
+    const rangedOf = s => rig.chainPlan?.([s])?.moveIn === 0;
+    if (rangedOf(skill) !== rangedOf(entry.strikes[0].skill)) return false;
     // Sahne tavanı (~3 sn): uzatılmış zincir bunu aşacaksa zincir kapanır; saldırı katlanır ya da yeni girdi açar.
     const skills = [...entry.strikes.map(s => s.skill), skill];
     const probe = entry.started && entry.chain
@@ -2180,11 +2205,13 @@ export async function createArena3D({
       if (i >= 0) fighter.castQueue.splice(i, 1);
       if (entry.track) { const j = fighter.tracks.indexOf(entry.track); if (j >= 0) fighter.tracks.splice(j, 1); }
       if (forced) {
-        for (const event of eventsOf()) impactFeel.silent(event);
+        for (const event of eventsOf()) silentDamage(event, 'forced');
         // Zorla bitirilen girdide kök sıçraması yok: iz o anki ilerlemeye eşitlenir (carry).
         const handle = entry.handle;
         const elapsed = handle && Number.isFinite(handle.elapsed) ? handle.elapsed : entry.chain?.totalMs || 0;
-        if (entry.chain && entry.contactDistance > 0) {
+        if (entry.chain?.timing && entry.contactDistance > 0) {
+          fighter.carry = sceneProgress(elapsed, entry.chain.timing) * entry.contactDistance;
+        } else if (entry.chain && entry.contactDistance > 0) {
           fighter.carry = chainProgress(elapsed, {travelMs: entry.chain.travelMs,
             returnStart: entry.chain.returnStart, returnMs: entry.chain.returnMs}) * entry.contactDistance * entry.chain.moveIn;
         } else fighter.carry = 0;
@@ -2198,8 +2225,8 @@ export async function createArena3D({
     fighter.castQueue.push(entry);
     if (fighter.castQueue.length > 8) {
       const old = fighter.castQueue.shift(); old.dead = true; old.open = false;
-      for (const strike of old.strikes || []) for (const event of strike.events) impactFeel.silent(event);
-      for (const event of old.events) impactFeel.silent(event);
+      for (const strike of old.strikes || []) for (const event of strike.events) silentDamage(event, 'overflow');
+      for (const event of old.events) silentDamage(event, 'overflow');
     }
     const estimate = ultimate
       ? (rig.ultimateDurationMs || Math.max(rig.sceneDuration?.(skill) || 0, rig.ultimatePeakMs || 0))
@@ -2226,7 +2253,8 @@ export async function createArena3D({
           // Girdi süresi = ulti koreografisi (zirve → fırlatma). Klibin toparlanma kuyruğu beklenmez
           // (boş bekleme yok; sahne ~3 sn tavanında), ama fırlatma bitmeden sıradaki saldırı başlamaz.
           const T = ULTIMATE_TIMING;
-          return {contactMs: p.hitMs, durationMs: p.hitMs + T.strikeMs + T.throwMs};
+          // Saldıranın koşarak eve dönüşü de sahnenin içinde (sıradaki saldırı o yerine varmadan başlamaz).
+          return {contactMs: p.hitMs, durationMs: p.hitMs + T.strikeMs + Math.max(T.throwMs, T.returnDelayMs + T.returnMs)};
         }
         return {
           contacts: p.contacts.map((ms, i) => ({ms, fn: () => strikeContact(entry, i)})),
@@ -2252,7 +2280,7 @@ export async function createArena3D({
         if (!forced) fighter.carry = entry.skipReturn ? entry.contactDistance * (entry.chain?.moveIn || 1) : 0;
         if (ultimate && fighter.pendingUltEvents) {
           // Sahnesi hiç başlamayan ulti: bekletilen hasar kaybolmaz, sahnesiz (yalnız sayı/can) teslim edilir.
-          for (const ev of fighter.pendingUltEvents.splice(0)) if (ev.type === 'DAMAGE_APPLIED') impactFeel.silent(ev);
+          for (const ev of fighter.pendingUltEvents.splice(0)) if (ev.type === 'DAMAGE_APPLIED') silentDamage(ev, 'ult-unstarted');
         }
         finishEntry(forced);
         probeMark('end', {seat, skill, forced: Boolean(forced)});
@@ -2500,7 +2528,7 @@ export async function createArena3D({
   // ================================================================ ANIMATION
 
   /** Pose accumulator; every track adds into it. */
-  const emptyPose = () => ({fwd: 0, lift: 0, tilt: 0, squash: 0, weapon: 0, guard: 0, flash: 0, glow: 0, dark: 0, yaw: 0, koTilt: 0});
+  const emptyPose = () => ({fwd: 0, lift: 0, tilt: 0, squash: 0, weapon: 0, guard: 0, flash: 0, glow: 0, dark: 0, yaw: 0, koTilt: 0, turn: 0});
 
   /** Amplitude for gameplay motion (reduced mode keeps a small hint only). */
   const amp = () => (reduced() ? 0 : 1);
@@ -2972,19 +3000,45 @@ export async function createArena3D({
     // değişir. İz silinmesi / zorla bitirme / saat kayması ofseti sıçratsa bile model hedefe kayarak
     // gider (normal koşu/dönüş 60 fps'de bu sınırın altında kalır). Raund sıfırlaması (snapPose) ve
     // azaltılmış hareket anında oturur.
-    const step = MAX_FWD_STEP / (fighter.root.scale.x || 1);
-    if (quiet || fighter.snapPose || !Number.isFinite(fighter.fwdShown)) { fighter.fwdShown = o.fwd; fighter.snapPose = false; }
-    else {
-      const d = o.fwd - fighter.fwdShown;
-      fighter.fwdShown = Math.abs(d) > step ? fighter.fwdShown + Math.sign(d) * step : o.fwd;
-    }
-    o.fwd = fighter.fwdShown;
     fighter.lastPose = o;
     const face = fighter.face;
     // Travel spin pivots around the waist (≈ body centre), tilt around the feet.
     const spin = face * fighter.spin;
     const waist = WAIST_Y;
     fighter.actor.position.set(face * o.fwd + waist * Math.sin(spin), Math.max(0, o.lift) + waist * (1 - Math.cos(spin)), 0);
+    // İş 1, 3. tur — IŞINLANMA SIFIR: modelin DÜNYA konumu (kök + gövde) kare başına en çok MAX_FWD_STEP
+    // ve MAX_WORLD_SPEED×dt kadar değişir: iz silinmesi, zorla bitirme, raund geçişi, KO, ulti çekişi dahil
+    // hiçbir durumda tek karede sıçramaz (uzun karede dt ile sınırlı, sonra yetişir). Yalnız ilk yerleşim
+    // (maç başı) ve azaltılmış hareket anında oturur.
+    const rs = fighter.root.scale.x || 1;
+    const wantX = fighter.root.position.x + fighter.actor.position.x * rs;
+    const wantZ = fighter.root.position.z;
+    const dtPose = clamp(tNow - (fighter.poseT ?? tNow), 0, 1000);
+    fighter.poseT = tNow;
+    if (quiet || !fighter.shown) { fighter.shown = {x: wantX, z: wantZ}; fighter.speed = 0; }
+    else {
+      const cap = Math.min(MAX_FWD_STEP, MAX_WORLD_SPEED * dtPose / 1000);
+      const dx = wantX - fighter.shown.x, dz = wantZ - fighter.shown.z, d = Math.hypot(dx, dz);
+      const k = d > cap ? cap / d : 1;
+      fighter.shown.x += dx * k;
+      fighter.shown.z += dz * k;
+      const v = dtPose > 0 ? (d * k) / (dtPose / 1000) / rs : 0; // gövde birimi/sn
+      fighter.speed = fighter.speed * 0.6 + v * 0.4;
+      fighter.awayFromFoe = dx * k * face < -1e-4;
+    }
+    fighter.actor.position.x = (fighter.shown.x - fighter.root.position.x) / rs;
+    fighter.actor.position.z = (fighter.shown.z - fighter.root.position.z) / rs;
+    // Hareket varsa koşu klibi (idle pozunda kayma yok); eve doğru giderken yüzü eve döner, varınca rakibe.
+    if (fighter.model && !fighter.ko && !fighter.victory) {
+      const rig = fighter.model;
+      safeCall(() => rig.setLocoSpeed?.(fighter.speed));
+      const moving = fighter.speed > (rig.isLocomoting?.() ? 0.35 : 0.8);
+      safeCall(() => rig.autoLocomote?.(moving && !quiet));
+      const autoHome = rig.isLocomoting?.() && !fighter.tracks.length && fighter.awayFromFoe ? 1 : 0;
+      const target = quiet ? 0 : Math.max(clamp(o.turn, 0, 1), autoHome);
+      const rate = dtPose / Math.max(1, SCENE.turnMs);
+      fighter.turnK = (fighter.turnK || 0) + clamp(target - (fighter.turnK || 0), -rate, rate);
+    } else fighter.turnK = 0;
     const hitFlash = fighter.impactFlash;
     const age = hitFlash ? tNow - hitFlash.at : Infinity;
     const white = hitFlash && age < hitFlash.whiteMs ? (quiet ? .15 : 1) : 0;
@@ -2998,7 +3052,7 @@ export async function createArena3D({
       fighter.actor.rotation.z = face * (o.tilt - o.koTilt) * MODEL_VIEW.tiltScale + spin;
       const sq = o.squash * MODEL_VIEW.squashScale;
       fighter.actor.scale.set(1 + sq * 0.5, 1 - sq, 1);
-      fighter.model.setYaw(o.yaw);
+      fighter.model.setYaw(o.yaw + TURN_YAW * (fighter.turnK || 0));
       fighter.model.setTint({flash, red, glow, dark: o.dark});
     } else {
       fighter.actor.rotation.z = face * o.tilt + spin;
@@ -3027,7 +3081,7 @@ export async function createArena3D({
     const rootScale = fighter.root.scale.x || 1;
     const air = clamp(o.lift + fighter.offset.y / rootScale, 0, 1.5);
     fighter.shadow.position.y = 0.012 - fighter.offset.y / rootScale; // stays on the floor while thrown
-    fighter.shadow.position.x = face * o.fwd + (fighter.ko ? -face * 1.1 * clamp(o.tilt / 1.42, 0, 1) : 0);
+    fighter.shadow.position.x = fighter.actor.position.x - waist * Math.sin(spin) + (fighter.ko ? -face * 1.1 * clamp(o.tilt / 1.42, 0, 1) : 0);
     fighter.shadow.scale.set((1 - air * 0.35) * (fighter.ko ? 1.9 : 1), (1 - air * 0.35) * 0.55, 1);
 
     // Bubble: sum of pulses, or the shatter burst.
@@ -3720,8 +3774,14 @@ export async function createArena3D({
       cheer(0.45);
     } else if (type === 'KNOCKOUT') {
       // Client-only event sent by index.js right before onMatchEnd(); seat = loser.
-      drainVisual(1500); // KO/raund sonu: bekleyenler koltuk başına tek sahnede, kuyruk en geç 1,5 s'de boşalır
-      if (isSeat(event.seat)) startKnockout(event.seat);
+      // İş 1, 3. tur: bekleyenler koltuk başına tek sahnede, SIRALI ve animasyonlu oynar (en geç KO_DRAIN_MS);
+      // yenilen ancak son darbe ekranda indikten sonra düşer (öldürücü vuruş sahnesiz kalmaz).
+      drainVisual(KO_DRAIN_MS);
+      if (isSeat(event.seat)) {
+        const seat = event.seat;
+        if (!timeline.isBusy()) startKnockout(seat);
+        else timeline.whenIdle(KO_DRAIN_MS + 500).then(() => { if (!destroyed) startKnockout(seat); });
+      }
     } else if (type === 'SHIELD_BROKEN') {
       if (!isSeat(event.seat)) return;
       shatterBubble(event.seat);
@@ -3793,7 +3853,7 @@ export async function createArena3D({
           // Bağ dinamik: boşaltma sıkıştırması olayı başka sahneye taşıyabilir (compactForDrain).
           impactFeel.queue(event, () => { const b = boundEvents.get(event) || entry; return b.strike.contact && !b.entry.dead; }, 9000);
         } else if (reduced()) impactFeel.hit(event);
-        else impactFeel.silent(event);
+        else silentDamage(event, 'unbound');
         return;
       }
       handleCore(event);
@@ -3832,8 +3892,9 @@ export async function createArena3D({
     if (deferredHpSync) { forwardToPlugins(deferredHpSync); deferredHpSync = null; }
     impactFeel.clear();
     for (const fighter of fighters.values()) {
+      // İş 1, 3. tur: raund geçişinde anında oturtma YOK — kesilen sahnenin modeli dünya konumu sınırlayıcısıyla
+      // (≤ 0,12/kare, koşu klibiyle) yerine yürür; poz idle'a crossFade ile döner (rig.reset).
       fighter.carry = 0;
-      fighter.snapPose = true; // raund sıfırlaması: yerine anında oturur (yumuşak takip yok)
       fighter.castQueue.length = 0;
       fighter.tracks.length = 0;
       fighter.bubblePulses.length = 0;
@@ -4382,6 +4443,8 @@ export async function createArena3D({
           planeVisible: f.core.mesh.visible, fxQueued: f.fxQueue?.length || 0,
           ...(f.model ? f.model.stats() : {}),
           x: f.root.position.x + f.actor.position.x * (f.root.scale.x || 1),
+          z: f.root.position.z + f.actor.position.z * (f.root.scale.z || 1),
+          homeX: f.home.x,
         }];
       })),
       skillFx: () => (skillFx ? skillFx.stats() : {live: 0, kinds: []}),

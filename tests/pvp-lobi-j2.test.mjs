@@ -66,13 +66,15 @@ test('J2: karakterler yalnız ikon; bilgi kartı silah + Q/E/R adı/açıklamas�
   assert.match(css, /@media \(max-width:560px\)\{[^@]*\.j2-chars\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
 });
 
-test('J2: "Maç kuralları" paneli yok; MAÇ AYARLARI bot zorluğu + maç uzunluğu + raund biçimi segment düğmeleri', () => {
+test('J2: "Maç kuralları" paneli yok; MAÇ AYARLARI bot zorluğu + raund biçimi segment düğmeleri + hasar kuralı ipucu', () => {
   assert.doesNotMatch(html, /Maç kuralları/);
   assert.doesNotMatch(html, /data-typing-box|data-typing-key|data-assist-scope/);
   const settings = html.match(/<section class="j2-settings"[\s\S]*?<\/section>/)[0];
   assert.match(settings, /MAÇ AYARLARI/);
   assert.equal((settings.match(/data-lobby-action="difficulty"/g) || []).length, 3);
-  assert.match(settings, /data-rounds-picker="practice"/);
+  // KESINYAP 11: 'Maç uzunluğu' seçeneği kalktı; yerine tek satır hasar kuralı ipucu.
+  assert.doesNotMatch(settings, /data-rounds-picker="practice"/);
+  assert.match(settings, /data-damage-rules/);
   assert.match(settings, /data-style-picker="practice"/);
   assert.doesNotMatch(settings, /<select/);
   const click = read('pvp/network.js');

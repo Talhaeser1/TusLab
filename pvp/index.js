@@ -4,11 +4,11 @@ import {exchangeGate,wordCommit,afterReject,queuedReady} from './word-queue.js';
 import {normalizeTyping} from './shared/typing-rules.js';
 import {createCharacterController,rigMarkup,MOTION_NAMES} from './characters.js';
 import {createCombatFxDirector} from './combat-fx.js';
-import {createPvPAudio,soundForCue,weaponSfx} from './sound.js';
-import {endVoicePlan} from './end-voice.js';
+import {createPvPAudio,soundForCue,weaponSfx,createSceneCues} from './sound.js';
+import {endVoicePlan,endVoiceSteps} from './end-voice.js';
 import {FIGHTERS,isFighterId,normalizeFighter} from './shared/fighters.js';
 import {createComboCounter} from './combo-counter.js';
-import {createAttackCallout,createDisplayedHp} from './attack-callout.js';
+import {createDisplayedHp} from './attack-callout.js';
 import {createDynamicScore} from './music23.js';
 import {createProjectileDirector} from './projectiles.js';
 import {createChoreographyDirector} from './choreography21.js';
@@ -103,11 +103,13 @@ function fx24Create(){
   fx24.hud=createFightHud({root,isReduced:fx24Reduced,getArenaApi:()=>arena3d.instance?.api});
   // Görev 4: kombo sayacı, saldırı bilgi yazısı (+ durum rozeti) ve gösterilen can (temas karesine kadar bekletilir).
   fx24.combo=createComboCounter({root,isReduced:fx24Reduced});
-  fx24.callout=createAttackCallout({root,isReduced:fx24Reduced,getFighterId:fighterOfSeat});
+  // İş 1, 3. tur: saldırı bilgi yazısı ("A → B · SKILL · −N") vuruş sırasında GÖSTERİLMEZ (kullanıcı: yalnız hasar sayısı);
+  // skill adı karakterin sesli repliğiyle duyulur. attack-callout.js duruyor, bağlama kapalı.
+  fx24.callout=null;
   fx24.shownHp=createDisplayedHp({root,getPlayers:()=>network.match?.players||[],
     isBusy:()=>Boolean(arena3d.instance?.visualQueue?.isBusy?.())});
 }
-function fx24Clear(){fx24.shownHp?.model?.release();fx24.shownHp?.sync?.();fx24.hud?.clear();fx24.damage?.clear();fx24.motion?.clear();fx24.particles?.clear();fx24.lowHp?.update(1,false);}
+function fx24Clear(){sceneCues.clear();fx24.shownHp?.model?.release();fx24.shownHp?.sync?.();fx24.hud?.clear();fx24.damage?.clear();fx24.motion?.clear();fx24.particles?.clear();fx24.lowHp?.update(1,false);}
 function fx24Destroy(){fx24.combo?.destroy();fx24.callout?.destroy();fx24.shownHp?.destroy();fx24.combo=fx24.callout=fx24.shownHp=null;fx24.hud?.destroy();fx24.hud=null;fx24.damage?.destroy();fx24.motion?.destroy();fx24.particles?.destroy();fx24.lowHp?.destroy();fx24.damage=fx24.motion=fx24.particles=fx24.lowHp=null;fx24.matchId=null;}
 
 // Paket 26: three.js 3B arena. PvP açılınca tembel yüklenir (three.js ~670 KB).
@@ -212,7 +214,13 @@ function syncCrowd(scene){
   if(on)pvpAudio.startCrowd?.();else pvpAudio.stopCrowd?.();
 }
 // Sahnenin cast anı (arena3d playModelSkill) → karakterin kendi sesiyle skill adı.
-root?.addEventListener('tuslab:pvp-cast',event=>{const d=event.detail||{};if(['q','e','r'].includes(d.skill))speakSeat(d.seat,d.skill,{priority:3,ttlMs:1200});});
+root?.addEventListener('tuslab:pvp-cast',event=>{const d=event.detail||{};sceneCues.fire('cast',d.seat);if(['q','e','r'].includes(d.skill))speakSeat(d.seat,d.skill,{priority:3,ttlMs:1200});});
+// İş 1, 3. tur: arena sesleri (attack-turn, clash, counter, kalkan) sunucu olayı anında değil, sahnenin ilgili karesinde çalar.
+// 3B sahne yoksa / azaltılmış harekette eski anlık davranış.
+const sceneCues=createSceneCues({play:(name,opts)=>pvpAudio.play(name,opts)});
+function soundAtScene(on,seat,name,opts){if(arena3d.instance&&!fx24Reduced())sceneCues.wait(on,seat,name,opts);else pvpAudio.play(name,opts);}
+function shieldAtScene(side,cue){if(cue!=='ward-rise'||!arena3d.instance||fx24Reduced())return false;sceneCues.wait('hitTo',side==='rune'?2:1,'shield',{character:side,gain:1});return true;}
+root?.addEventListener('tuslab:pvp-impact',event=>{const d=event.detail||{};sceneCues.fire('hitTo',d.toSeat);sceneCues.fire('hitFrom',d.fromSeat);});
 // Kombo vuruşunun temas karesi → seri anonsu ("2 KOMBO" …) + jingle + kalabalık.
 root?.addEventListener('tuslab:pvp-strike',event=>{
   const n=Math.min(6,(Number(event.detail?.index)||0)+1);if(n<2)return;
@@ -239,7 +247,7 @@ function roundsUiCreate(){
   roundsUi?.destroy();roundsUi=null;
   const host=root?.querySelector('.pvp2-announce');if(!host)return;
   roundsUi=createRoundsUi(host,{now:()=>network.serverNow(),isReduced:fx24Reduced,send:(type,payload)=>network.send(type,payload),
-    holdTransition:()=>arena3d.instance?.visualQueue?.whenIdle(3000),onLockChange:()=>{textUpdate('fire');textUpdate('rune');}});
+    holdTransition:()=>arena3d.instance?.visualQueue?.whenIdle(4500),onLockChange:()=>{textUpdate('fire');textUpdate('rune');}});
   roundsUi.update(network.match,network.myId);
 }
 // Arena HUD'u .pvp2-announce satırına, hazırlık kartları ve D/Y şeridi üst yazma paneline yerleşir.
@@ -249,7 +257,7 @@ function arenaUiCreate(){
   const hud=root?.querySelector('.pvp2-announce'),stage=root?.querySelector('[data-tt-arena]'),overlay=root?.querySelector('.pvp2-shell');
   if(!hud||!stage)return;
   arenaUi=createArenaUi({hudHost:hud,stageHost:stage,overlayHost:overlay,now:()=>network.serverNow(),isReduced:fx24Reduced,
-    holdTransition:()=>arena3d.instance?.visualQueue?.whenIdle(3000),
+    holdTransition:()=>arena3d.instance?.visualQueue?.whenIdle(4500),
     send:(type,payload)=>{if(type==='ARENA_PICK')network.sendArenaPick(payload?.skill,payload?.item);},
     onLockChange:()=>{textUpdate('fire');textUpdate('rune');}});
   arenaUi.update(network.match,network.myId);
@@ -385,7 +393,7 @@ function arenaLayoutSync(){
   }
   const surrender=root.querySelector('[data-pvp15-action="surrender"]');if(surrender&&surrender.hidden!==!running)surrender.hidden=!running;
 }
-const controllers=Object.fromEntries(['fire','rune'].map(id=>[id,createCharacterController({id,onCue:({cue,action})=>{fxDirectors[id]?.play({cue,action});choreographers[id]?.onCue({cue,action});if(!fighterSkillCue(id,cue,action))pvpAudio.playCue(id,cue,action);},onChange:({state,action})=>{
+const controllers=Object.fromEntries(['fire','rune'].map(id=>[id,createCharacterController({id,onCue:({cue,action})=>{fxDirectors[id]?.play({cue,action});choreographers[id]?.onCue({cue,action});if(!fighterSkillCue(id,cue,action)&&!shieldAtScene(id,cue))pvpAudio.playCue(id,cue,action);},onChange:({state,action})=>{
   const stage=root?.querySelector(`.pvp2-side[data-player="${id}"] .pvp2-stage`);
   if(!stage)return;
   choreographers[id]?.onMotion({state,action});
@@ -672,8 +680,8 @@ let terminalPlayed=null;
 root?.addEventListener('tuslab:pvp-combat',event=>{for(const action of arenaCombatActions(event.detail||{}))playCombat(action);});
 function playCombat(action){
   fx24.hud?.handle(action);
-  if(action.arena&&action.type==='SKILL_CAST')pvpAudio.play('attack-turn',{character:action.fromSeat===2?'rune':'fire',gain:.6});
-  if(action.type==='WORD_CLASH')pvpAudio.play('clash',{character:'center',gain:.78});
+  if(action.arena&&action.type==='SKILL_CAST')soundAtScene('cast',action.fromSeat,'attack-turn',{character:action.fromSeat===2?'rune':'fire',gain:.6});
+  if(action.type==='WORD_CLASH')soundAtScene('cast',null,'clash',{character:'center',gain:.78});
   // Paket 31: partner desteği girişi — yeni ses dosyası yok, mevcut 'counter' örneği kısık çalınır.
   if(action.type==='ASSIST_CAST')pvpAudio.play('counter',{character:action.fromSeat===2?'rune':'fire',gain:.62});
   if(action.type!=='DAMAGE_APPLIED')fx24.damage?.handle(action);
@@ -725,7 +733,7 @@ function playCombat(action){
     controllers[kind]?.trigger('q');
     choreographers[kind]?.onDefense('COUNTERATTACK');
     projectiles?.launch({fromSeat:action.fromSeat,skill:'q',character:kind});
-    pvpAudio.play('counter',{character:kind,gain:.85});
+    soundAtScene('hitFrom',action.fromSeat,'counter',{character:kind,gain:.85});
     pvp13Banner(action.fromSeat,'↯ COUNTER!', 'counter');
   }else if(action.type==='SHIELD_BROKEN'){
     const kind=action.seat===2?'rune':'fire';
@@ -800,7 +808,7 @@ root?.addEventListener('tuslab:pvp-match',()=>{
     if(m.winnerSeat===1||m.winnerSeat===2)arena3d.instance.handle({type:'KNOCKOUT',seat:m.winnerSeat===1?2:1});
     // İş 1: KO anında oynayan sahne yarıda kesilip sıçramasın — bitiş sinematiği kuyruk boşalınca (en geç 1,6 sn).
     const inst=arena3d.instance,end=()=>{if(arena3d.instance===inst&&network.match?.matchId===m.matchId)inst.onMatchEnd({winnerSeat:m.winnerSeat});};
-    const idle=inst.visualQueue?.whenIdle?.(1600);
+    const idle=inst.visualQueue?.whenIdle?.(6500); // İş 1, 3. tur: bekleyen sahneler animasyonla biter (arena KO_DRAIN_MS)
     if(idle&&typeof idle.then==='function')idle.then(end,end);else end();
   }
   for(const seat of [1,2])controllers[seat===1?'fire':'rune']?.trigger(m.winnerSeat===null?'idle':m.winnerSeat===seat?'victory':'defeat');
@@ -811,8 +819,8 @@ root?.addEventListener('tuslab:pvp-match',()=>{
     pvpAudio.playExtra?.('dusme',{gain:.5});pvpAudio.cheer?.(.4);
     // KESINYAP iş 6: zafer repliğini YALNIZ kazanan yerel oyuncunun karakteri söyler (teslim/yenilgi/berabere: söylemez).
     const voicePlan=endVoicePlan({winnerSeat:m.winnerSeat,mySeat:network.seat});
-    if(voicePlan.zaferSeat)speakSeat(voicePlan.zaferSeat,'zafer',{priority:4,ttlMs:2500});
-    if(voicePlan.announce)pvpAudio.announce?.(voicePlan.announce,{priority:3,ttlMs:2500});
+    // İş 1, 3. tur: bekleyen düşük öncelikli replikler atılır → kazananın zafer repliği → bitiş spikeri (bayatlıktan muaf).
+    for(const st of endVoiceSteps(voicePlan)){if(st.kind==='drop')pvpAudio.endOfMatch?.();else if(st.kind==='speak')speakSeat(st.seat,st.key,st.opts);else pvpAudio.announce?.(st.name,st.opts);}
   }
 });
 // Paket 29: dövüş HUD'u (fx24Clear yapan dinleyiciden SONRA kayıtlı olmalı). Maç başı girişi (yeni matchId,
@@ -903,7 +911,7 @@ function focusTypingWhenReady(attempt=0){
 root?.addEventListener('tuslab:pvp-recovered',()=>arena3d.instance?.clear());
 root?.addEventListener('tuslab:pvp-arena',event=>{
   if(['ARENA_ROUND_START','ARENA_PREP_START'].includes(event.detail?.type))arena3d.instance?.clear();
-  if(event.detail?.type==='ARENA_ROUND_END')arena3d.instance?.visualQueue?.drain(2800); // İş 1: bekleyenler sıralı, whenIdle(3000) içinde
+  if(event.detail?.type==='ARENA_ROUND_END')arena3d.instance?.visualQueue?.drain(12000); // İş 1, 3. tur: bekleyenler sıralı ve animasyonlu; gerekirse raund arası kartının arkasında sürer
 });
 root?.addEventListener('tuslab:pvp-round',event=>{
   const type=event.detail?.type;if(type!=='EXCHANGE_START'&&type!=='ROUND_START')return;
@@ -1014,7 +1022,7 @@ root?.addEventListener('tuslab:pvp-match',()=>matchInfo?.update(network.match,ne
 root?.addEventListener('tuslab:pvp-round',event=>{
   const detail=event.detail||{};
   if(detail.type==='ROUND_START')arena3d.instance?.clear();
-  if(detail.type==='ROUND_END')arena3d.instance?.visualQueue?.drain(2800); // İş 1: bekleyenler sıralı, whenIdle(3000) içinde
+  if(detail.type==='ROUND_END')arena3d.instance?.visualQueue?.drain(12000); // İş 1, 3. tur: bekleyenler sıralı ve animasyonlu; gerekirse raund arası kartının arkasında sürer
   if(detail.type==='ROUND_START'){pvpAudio.play('round-start',{character:'center',gain:.6});roundVoice();}
   if(detail.type==='ROUND_END'&&detail.payload?.reason==='TIME')pvpAudio.announce?.('spiker-sure',{priority:2,ttlMs:1800});
   if(detail.type==='ROUND_SKILL_ACK'){

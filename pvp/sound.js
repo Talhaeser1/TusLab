@@ -46,6 +46,29 @@ export const fighterFallbackSfx=(fighterId,key,character)=>{
  if(key==='ko')return 'defeat';
  return SKILL_SFX[side]?.[key]??null;
 };
+/**
+ * İş 1, 3. tur — sahne karesine bağlı ses TETİKLEME (yalnız zamanlama): 3B arenada 'attack-turn', 'clash',
+ * 'counter' ve kalkan ('ward-rise' → 'shield') sesi sunucu olayı anında değil, görsel sahnenin ilgili karesinde
+ * çalar. wait(on, seat, ad, ops) olayı bekletir; fire(on, seat) sahne karesinde (cast / temas) eşleşenleri çalar
+ * (aynı ad bir kez). maxAgeMs'den eski bekleyen ses atılır (sahnesi hiç oynamayan olayın geç sesi yok).
+ */
+export function createSceneCues({play,now=()=>Date.now(),maxAgeMs=12000,max=12}={}){
+ let list=[];
+ return {
+  wait(on,seat,name,opts){list.push({on,seat:seat===1||seat===2?seat:null,name,opts,at:now()});if(list.length>max)list.shift();},
+  fire(on,seat){
+   const t=now(),played=new Set(),keep=[];
+   for(const c of list){
+    if(t-c.at>maxAgeMs)continue;
+    if(c.on===on&&(c.seat===null||c.seat===seat)){if(!played.has(c.name)){played.add(c.name);try{play?.(c.name,c.opts);}catch{}}continue;}
+    keep.push(c);
+   }
+   list=keep;return played.size;
+  },
+  clear(){list=[];},
+  size:()=>list.length
+ };
+}
 export const MAX_VOICES=8;
 export const SKILL_SFX=Object.freeze({fire:{q:'fire-q',e:'fire-e',r:'fire-r'},rune:{q:'rune-q',e:'rune-e',r:'rune-r'}});
 export const soundForCue=(character,cue,action)=>{
@@ -202,9 +225,9 @@ export function createPvPAudio({storage=globalThis.localStorage, AudioContextCla
    return voiceQueue.push({key:k,priority,gain,ttlMs,cooldownMs});
  }
  /** Spiker / seri anonsu — replikle aynı tek kanalı paylaşır (üst üste binmez); aynı anons cooldownMs içinde tekrarlanmaz. */
- function announce(name,{priority=2,gain=.8,ttlMs,cooldownMs=name.startsWith('seri-')?1500:4000}={}){
+ function announce(name,{priority=2,gain=.8,ttlMs,cooldownMs=name.startsWith('seri-')?1500:4000,noStale=false}={}){
    if(!ANNOUNCE_SET.has(name)||disposed||muted||volume<=0)return false;
-   return voiceQueue.push({key:`anons/${name}`,priority,gain,ttlMs,cooldownMs});
+   return voiceQueue.push({key:`anons/${name}`,priority,gain,ttlMs,cooldownMs,noStale});
  }
  // ---- KESINYAP iş 4: doğru kelime serisi — WebAudio ile üretilmiş kısa çınlama (dosya yok → ön yükleme/gecikme yok).
  // Perde basamağı yükseldikçe incelir; konuşma kuyruğundan bağımsızdır (kısa efekt, konuşmayı kesmez).
@@ -304,6 +327,8 @@ export function createPvPAudio({storage=globalThis.localStorage, AudioContextCla
  /** keepCrowd: sessize alma / ses 0 → seyirci isteği hatırlanır, ses açılınca geri gelir. */
  function stop(keepCrowd=false){for(const source of voices){try{source.stop();}catch{}}voices.clear();silenceAssets();if(keepCrowd!==true)crowdWanted=false;}
  async function dispose(){if(disposed)return;disposed=true;stop();if(ctx){try{await ctx.close();}catch{}}ctx=null;}
- return {preload,preloadFighters,preloadVoices,speak,announce,streakHit,streakReset,playExtra,startCrowd,stopCrowd,cheer,unlock,play,playFighter,playCue,combat,keyClick,heartbeat,setMuted,setVolume,setOnPlay,stop,dispose,
+ /** Maç sonu: kuyrukta bekleyen (düşük öncelikli) replikler atılır; çalan biter. */
+ function endOfMatch(){voiceQueue.dropQueued();}
+ return {preload,preloadFighters,preloadVoices,speak,announce,endOfMatch,streakHit,streakReset,playExtra,startCrowd,stopCrowd,cheer,unlock,play,playFighter,playCue,combat,keyClick,heartbeat,setMuted,setVolume,setOnPlay,stop,dispose,
    getState:()=>({muted,volume,voices:voices.size,assets:assets.size,speaking:voiceQueue.state(),streak:streak.count,lastStreakHz:lastStreakPing?.hz??null,crowd:Boolean(crowdEntry),loaded:decoded.size,raw:raw.size,fighters:[...fighterLoads.keys()],unlocked:ctx?.state==='running',supported:Boolean(AudioContextClass),disposed})};
 }

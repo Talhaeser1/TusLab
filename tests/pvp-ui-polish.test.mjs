@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {modePickerHTML} from '../pvp/arena-ui.js';
-import {roundsPickerHTML} from '../pvp/rounds-ui.js';
+import {roundsPickerHTML,roundStylePickerHTML} from '../pvp/rounds-ui.js';
 import {networkConsoleHTML} from '../pvp/network.js';
 
 const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
@@ -24,7 +24,9 @@ test('lobi eylemleri ve durum alanları açıklayıcıdır',()=>{
 });
 
 test('mod ve tur seçenekleri klavye ile erişilen düğmeler ve durum bildirimi kullanır',()=>{
-  for(const html of [modePickerHTML('practice'),roundsPickerHTML('room')]){
+  // KESINYAP 11: maç uzunluğu seçicisi kalktı (roundsPickerHTML boş); erişilebilirlik kuralı raund biçimi seçicisinde aranır.
+  assert.equal(roundsPickerHTML('room'),'');
+  for(const html of [modePickerHTML('practice'),roundStylePickerHTML('room')]){
     assert.match(html,/role="group" aria-labelledby=/);
     assert.match(html,/type="button"/);
     assert.match(html,/aria-pressed=/);

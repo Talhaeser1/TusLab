@@ -40,7 +40,8 @@ test('I1 classic: rakibin canını 0\'a indiren maçı kazanır (KNOCKOUT)',()=>
   assert.equal(publicMatch(m,1).result.winnerSeat,1);
 });
 
-test('I1 rounds: nakavt raundu alır; hasar/RP geride olsa bile; maç sonu skoru raund sayısıdır',()=>{
+test('I1 rounds: nakavt eden maçı alır (can taşınır); hasar/RP geride olsa bile; sonuç kalan canı gösterir',()=>{
+  // KESINYAP 11: raund galibiyeti yok; can 0'a inen maçı kaybeder (NAKAVT).
   let m=make();
   // Ada raund boyunca yanlış yazar (RP düşük), Bora çok doğru yazar → RP Bora'da; ama Ada nakavt eder.
   seatOf(m,2).hp=ROUND_HP;seatOf(m,1).hp=ROUND_HP;
@@ -48,21 +49,24 @@ test('I1 rounds: nakavt raundu alır; hasar/RP geride olsa bile; maç sonu skoru
   seatOf(m,1).hp=ROUND_HP;seatOf(m,2).hp=5;
   m=qHit(m,1,T0+1000);
   const hist=m.roundHistory.at(-1);
-  assert.equal(hist.reason,'KO');assert.equal(hist.winnerSeat,1);assert.deepEqual(m.roundsWon,{1:1,2:0});
-  assert.equal(m.round.phase,'intermission');
+  assert.equal(hist.reason,'KO');assert.equal(hist.winnerSeat,1);assert.equal(m.roundsWon,undefined);
+  assert.equal(m.status,'ended');assert.equal(m.endReason,'KNOCKOUT');assert.equal(m.winnerSeat,1);
+  assert.equal(roundsResultModel(publicMatch(m,1).result,'a').scoreline,`${seatOf(m,1).hp.toLocaleString('tr-TR')} – 0 · NAKAVT`);
 });
 
-test('I1 rounds: 3 raund kazanan maçı alır; sonuç ekranı 3 – 0 skorunu verir',()=>{
+test('I1 rounds: 7 raund sonunda canı fazla olan kazanır; sonuç ekranı kalan canı ve raund hasarlarını verir',()=>{
+  // KESINYAP 11: '3 – 0' raund skoru yerine kalan can; her raundda Ada Q vurur, Bora vurmaz.
   let m=make();let rounds=0;
-  while(m.status==='running'&&rounds++<6){
-    seatOf(m,2).hp=5; // Ada her raundu nakavtla alır
+  while(m.status==='running'&&rounds++<8){
     m=qHit(m,1,m.round.startedAt+500);
+    m=advanceMatch(m,m.round.endsAt+5000,NO_BLOCK).match;
     if(m.status==='running')m=advanceMatch(m,m.round.nextRoundAt,NO_BLOCK).match;
   }
-  assert.equal(m.status,'ended');assert.equal(m.winnerSeat,1);assert.deepEqual(m.roundsWon,{1:3,2:0});
+  assert.equal(m.status,'ended');assert.equal(m.winnerSeat,1);assert.equal(m.endReason,'ROUNDS');assert.equal(m.roundHistory.length,7);
   const view=publicMatch(m,1),model=roundsResultModel(view.result,'a');
-  assert.equal(model.scoreline,'3 – 0');assert.equal(model.mySeat,1);
-  assert.equal(model.rows.filter(r=>r.ko).length,3);
+  const hp2=seatOf(m,2).hp;assert.ok(hp2<4000);
+  assert.equal(model.scoreline,`4.000 – ${hp2.toLocaleString('tr-TR')} · 7 raund`);assert.equal(model.mySeat,1);
+  assert.ok(model.rows.every(r=>/^\d+ – 0$/.test(r.damage)));
 });
 
 const vocab=Array.from({length:80},(_,i)=>`kelime${i}`);
@@ -123,11 +127,12 @@ test('I3 timed: süre bitene kadar kelime gelmeye devam eder; liste bitince oyun
   const end=advanceMatch(m,T0+RT,NO_BLOCK).match;assert.notEqual(end.round.phase,'round');
 });
 
-test('I3 counted: raund başına 10 kelime; 10. kelimede oyuncu tamamlar',()=>{
+test('I3 counted: kelime raundu planı (1. raund 5); son kelimede oyuncu tamamlar',()=>{
+  // KESINYAP 11: plan [5,7,9,10,10,10,15].
   let m=make();
-  assert.equal(m.roundStyle,'counted');assert.equal(m.round.words.length,10);
-  for(let i=0;i<10;i++)m=type(m,1,T0+200+i*100);
-  assert.equal(seatOf(m,1).roundDone,true);assert.equal(seatOf(m,1).roundWordIndex,10);
+  assert.equal(m.roundStyle,'counted');assert.equal(m.round.words.length,5);
+  for(let i=0;i<5;i++)m=type(m,1,T0+200+i*100);
+  assert.equal(seatOf(m,1).roundDone,true);assert.equal(seatOf(m,1).roundWordIndex,5);
   const next=advanceMatch(m,m.round.endsAt,NO_BLOCK).match;
   assert.equal(next.round.phase==='round',false);
 });
@@ -142,8 +147,9 @@ test('I3 zorlaşma: raund ilerledikçe kelime uzunluğu aralığı yükselir (ti
     return out;};
   for(const style of ['counted','timed']){
     const l=lens(style);
-    assert.ok(l.length>=4,style);
-    assert.ok(l[0].min>=3,`${style} r1 min`);assert.ok(l[3].min>=4,`${style} r4 min>=4 (normal)`);
+    // KESINYAP 11: 7 raund → ilk 4 raund kolay (3–7), 5. raunddan itibaren normal (4–9).
+    assert.ok(l.length>=5,style);
+    assert.ok(l[0].min>=3,`${style} r1 min`);assert.ok(l[4].min>=4,`${style} r5 min>=4 (normal)`);
     assert.ok(l.at(-1).avg>=l[0].avg,`${style}: son raund ortalaması ilkinden kısa olmamalı`);
   }
 });
@@ -157,12 +163,14 @@ test('I3 uçtan uca: Donmuş An seçilir, süre +3 sn uygulanır, Q hasarı can�
   assert.ok(dmg>0,'Q hasarı canı düşürmeli');
   assert.equal(seatOf(m,1).hp,ROUND_HP);
   m=advanceMatch(m,m.round.endsAt,NO_BLOCK).match;
-  assert.equal(m.round.phase,'intermission');assert.deepEqual(m.roundsWon,{1:1,2:0});
+  assert.equal(m.round.phase,'intermission');assert.equal(m.roundHistory.at(-1).winnerSeat,1); // KESINYAP 11: bilgi amaçlı (daha çok hasar)
+  const R=roundDurationMs({roundStyle:'counted',roundWords:7}); // 2. kelime raundu 7 kelime → 42 sn
   // Ara: Bora Donmuş An seçer.
   const pick=pickRoundSkill(m,{playerId:'b',skill:'freeze'},m.round.endedAt+100);
   assert.ok(pick.match,pick.error);m=pick.match;
   m=advanceMatch(m,m.round.nextRoundAt,NO_BLOCK).match;
   assert.equal(m.round.index,2);
+  assert.equal(ROUND_HP-seatOf(m,2).hp,dmg,'can 2. raunda taşındı');
   const startedAt=m.round.startedAt;
   assert.equal(seatOf(m,2).roundEndsAt,startedAt+R+ARENA_FREEZE_MS,'Donmuş An: yalnız seçenin süresi +3 sn');
   assert.equal(seatOf(m,1).roundEndsAt,startedAt+R);
@@ -177,16 +185,9 @@ test('I3 uçtan uca: Donmuş An seçilir, süre +3 sn uygulanır, Q hasarı can�
   void bp;
   m=advanceMatch(m,late+2000,NO_BLOCK).match;
   assert.equal(m.roundHistory.at(-1).reason,'KO');assert.equal(m.roundHistory.at(-1).winnerSeat,2);
-  assert.deepEqual(m.roundsWon,{1:1,2:1});
-  // Sonraki raund başlar; Ada iki raund daha alır → 3–1, maç biter.
-  let guard=0;
-  while(m.status==='running'&&guard++<8){
-    m=advanceMatch(m,m.round.nextRoundAt,NO_BLOCK).match;
-    if(m.status!=='running')break;
-    seatOf(m,2).hp=5;m=qHit(m,1,m.round.startedAt+300);
-  }
-  assert.equal(m.status,'ended');assert.equal(m.winnerSeat,1);assert.deepEqual(m.roundsWon,{1:3,2:1});
-  const res=matchResult(m);assert.equal(res.winnerSeat,1);assert.deepEqual(res.roundsWon,{1:3,2:1});
+  // KESINYAP 11: can taşındığı için nakavt maçı bitirir.
+  assert.equal(m.status,'ended');assert.equal(m.winnerSeat,2);assert.equal(m.endReason,'KNOCKOUT');
+  const res=matchResult(m);assert.equal(res.winnerSeat,2);assert.equal(res.finalHp[1],0);
 });
 
 test('I3 HUD: freezeSeats yalnız raund fazında Donmuş An kullananı verir',async()=>{

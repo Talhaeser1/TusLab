@@ -5,7 +5,9 @@
 //   • createDisplayedHp: HUD can barı, sahnenin temas karesine kadar eski değerde tutulur (kuyruk bitince eşitlenir).
 import {FIGHTERS, isFighterId} from './shared/fighters.js';
 
-export const CALLOUT = Object.freeze({showMs: 1000, ultimateMs: 1200, badgeMs: 900, hpHoldMaxMs: 3500, hpPollMs: 100});
+// İş 1, 3. tur: okunur sahne ~4,5 sn ve sıra beklemesi → can, temas karesine kadar en çok 12 sn tutulur
+// (eski 3,5 sn tavanında can sahnesiz düşüyordu). createAttackCallout artık index.js'te bağlı değil.
+export const CALLOUT = Object.freeze({showMs: 1000, ultimateMs: 1200, badgeMs: 900, hpHoldMaxMs: 12000, hpPollMs: 100});
 
 const upper = s => String(s || '').toLocaleUpperCase('tr-TR');
 

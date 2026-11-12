@@ -13,3 +13,15 @@ export function endVoicePlan({winnerSeat = null, mySeat = null} = {}) {
     announce: winner === null ? null : iWon ? 'spiker-zafer' : 'spiker-yenilgi'
   };
 }
+
+/**
+ * İş 1, 3. tur — maç sonu konuşma SIRASI (saf): önce bekleyen düşük öncelikli replikler atılır, sonra
+ * kazananın zafer repliği (varsa, öncelik 4), ardından bitiş spikeri (öncelik 3). Spiker bayatlık (2,5 sn)
+ * kuralından muaftır: zafer repliği uzun sürse de düşmez.
+ */
+export function endVoiceSteps(plan = {}) {
+  const steps = [{kind: 'drop'}];
+  if (plan.zaferSeat) steps.push({kind: 'speak', seat: plan.zaferSeat, key: 'zafer', opts: {priority: 4, ttlMs: 2500}});
+  if (plan.announce) steps.push({kind: 'announce', name: plan.announce, opts: {priority: 3, ttlMs: 12000, noStale: true}});
+  return steps;
+}

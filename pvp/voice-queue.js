@@ -47,8 +47,8 @@ export function createVoiceQueue({now = () => Date.now(), start, maxQueue = VOIC
     if (cooldown > 0 && last.has(item.key) && t - last.get(item.key) < cooldown) return false;
     if (queue.some(q => q.key === item.key) || (busy && current === item.key)) return false;
     last.set(item.key, t);
-    // Bekleme ömrü her durumda bayatlık sınırını (2,5 sn) aşamaz.
-    const ttl = Math.min(Number(item.ttlMs) > 0 ? Number(item.ttlMs) : ttlMs, staleMs);
+    // Bekleme ömrü bayatlık sınırını (2,5 sn) aşamaz — bitiş spikeri (noStale) hariç: maç sonu repliğini bekleyebilir.
+    const ttl = item.noStale && Number(item.ttlMs) > 0 ? Number(item.ttlMs) : Math.min(Number(item.ttlMs) > 0 ? Number(item.ttlMs) : ttlMs, staleMs);
     queue.push({priority: 1, ...item, ttl, at: t, order: order++});
     queue.sort((a, b) => b.priority - a.priority || a.order - b.order);
     if (queue.length > maxQueue) queue.length = maxQueue;
@@ -57,6 +57,8 @@ export function createVoiceQueue({now = () => Date.now(), start, maxQueue = VOIC
   }
 
   function clear() { epoch++; busy = false; current = null; queue = []; last.clear(); }
+  /** Maç sonu: bekleyenler atılır (çalan konuşma kesilmez). */
+  function dropQueued() { queue = []; }
 
-  return {push, clear, state: () => ({busy, current, queued: queue.map(i => i.key)})};
+  return {push, clear, dropQueued, state: () => ({busy, current, queued: queue.map(i => i.key)})};
 }

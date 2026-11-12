@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {contentWords,contentStreamLength} from '../pvp/shared/content-modes.js';
-import {createMatch,submitWord,publicMatch} from '../pvp/shared/match.js';
+import {createMatch,submitWord,publicMatch,advanceMatch,ROUND_WORD_PLAN} from '../pvp/shared/match.js';
 import {createPracticeSession} from '../pvp/practice.js';
 
 const players=[{playerId:'a',seat:1,character:'fire',name:'A'},{playerId:'b',seat:2,character:'rune',name:'B'}];
@@ -32,24 +32,30 @@ test('atasözü/şiir: parça içinde sıralı, hangi parçanın geleceği karı
   }
 });
 
-test('counted: oyuncu başına tam roundWords kelime, sonuncudan sonra oyuncu biter',()=>{
-  for(const roundWords of [5,10,15]){
-    let m=mk({roundStyle:'counted',roundWords,seed:'c'});let at=2000;
-    const words=[...m.round.words];assert.equal(words.length,roundWords);assert.equal(new Set(words).size,roundWords);
-    for(let i=0;i<roundWords;i++){
-      const out=submitWord(m,{matchId:'m1',wordIndex:i,round:1,text:words[i],playerId:'a'},at+=300);
+test('counted: oyuncu başına raund planı kadar kelime (5-7-9-10-10-10-15), sonuncudan sonra oyuncu biter',()=>{
+  // KESINYAP 11: roundWords seçeneği kalktı; kelime raundu planı sabit.
+  let m=mk({roundStyle:'counted',roundWords:15,seed:'c'});
+  m.participants[1].hp=1e9; // 7 raund boyunca nakavt olmasın (can taşınır)
+  for(const [k,n] of ROUND_WORD_PLAN.entries()){
+    assert.equal(m.round.index,k+1);
+    const words=[...m.round.words];assert.equal(words.length,n);assert.equal(new Set(words).size,n);
+    let at=m.round.startedAt;const base=m.participants[0].wordIndex;
+    for(let i=0;i<n;i++){
+      const out=submitWord(m,{matchId:'m1',wordIndex:base+i,round:k+1,text:words[i],playerId:'a'},at+=300);
       assert.ok(!out.error,out.error);m=out.match;
     }
     const me=m.participants.find(p=>p.playerId==='a');
-    assert.equal(me.roundCorrect,roundWords);assert.equal(me.roundDone,true);
-    assert.equal(m.round.words.length,roundWords);
+    assert.equal(me.roundCorrect,n);assert.equal(me.roundDone,true);
+    assert.equal(m.round.words.length,n);
+    m=advanceMatch(m,m.round.endsAt+30_000,()=>0.99).match;
+    if(m.status==='running')m=advanceMatch(m,m.round.nextRoundAt,()=>0.99).match;
   }
 });
 
 test('timed: süre bitene kadar kelime gelir, hiçbiri tekrarlanmaz (maç boyunca)',()=>{
   for(const content of ['kelime','atasozu','siir','osmanlica']){
     let m=mk({content,roundStyle:'timed',seed:`t-${content}`});let at=2000;
-    for(let i=0;i<110;i++){
+    for(let i=0;i<95;i++){ // KESINYAP 11: zamana karşı raund 30 sn → 95 kelime × 300 ms süre içinde
       const w=m.round.words[i];assert.ok(w,`${content}: ${i}. kelime yok`);
       const out=submitWord(m,{matchId:'m1',wordIndex:i,round:1,text:w,playerId:'a'},at+=300);
       assert.ok(!out.error,`${content} ${i}: ${out.error}`);m=out.match;

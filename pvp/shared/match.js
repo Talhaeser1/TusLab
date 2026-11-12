@@ -87,24 +87,25 @@ export const MATCH_WORDS=Object.freeze([
 const wordsOf=text=>text.trim().split(/\s+/u);
 
 // ── Round mode constants (docs/TUR-SISTEMI.md §1) ─────────────────────────
-export const ROUND_OPTIONS=Object.freeze([5,7,10]);
-export const ROUND_WORDS=10;
-// Paket F: raund biçimi. counted = roundWords kelime (varsayılan, eski davranış); timed = süre dolana kadar kelime akar.
+// KESINYAP 11 (12 Kasım 2026): maç her zaman 7 raund; can (ROUND_HP) raundlar arasında TAŞINIR.
+export const ROUND_TOTAL=7;
+export const ROUND_OPTIONS=Object.freeze([ROUND_TOTAL]);
+/** Kelime raundu (counted) planı: iki oyuncuya aynı, raund başına sabit kelime sayısı. */
+export const ROUND_WORD_PLAN=Object.freeze([5,7,9,10,10,10,15]);
+export const ROUND_WORDS=10; // ani ölüm raundunun kelime sayısı (plan dışı raund)
+export const roundWordsFor=index=>ROUND_WORD_PLAN[(Math.trunc(Number(index))||1)-1]??ROUND_WORDS;
+// Raund biçimi: counted = kelime raundu (plan kadar kelime); timed = zamana karşı (süre dolana kadar kelime akar).
 export const ROUND_STYLES=Object.freeze(['counted','timed']);
 export const DEFAULT_ROUND_STYLE='timed';
-export const ROUND_WORDS_MIN=5;
-export const ROUND_WORDS_MAX=20;
 export const ROUND_VIEW_AHEAD=4;   // timed: anlık görüntüye mevcut kelime + 4 ileri
 export const ROUND_VIEW_BEHIND=2;  // timed: tamamlanan son 2 kelime (HUD işaretleri için)
 const ROUND_EXTEND_CHUNK=8;
 export const normalizeRoundStyle=v=>ROUND_STYLES.includes(v)?v:DEFAULT_ROUND_STYLE;
-export const validRoundWords=v=>Number.isInteger(v)&&v>=ROUND_WORDS_MIN&&v<=ROUND_WORDS_MAX;
-export const normalizeRoundWords=v=>validRoundWords(v)?v:ROUND_WORDS;
-export const ROUND_DURATION_MS=40_000;   // paket 30: 30 → 40 sn
-export const ROUND_WORD_BUDGET_MS=6_000; // KESINYAP mekanik: sayılı raundda kelime başına süre bütçesi (~21 WPM yazar için)
-/** Raund yazma süresi: timed → ROUND_DURATION_MS (40 sn); counted → max(40 sn, kelime sayısı × 6 sn) (5→40, 10→60, 15→90). Arena etkilenmez. */
+export const ROUND_DURATION_MS=30_000;   // zamana karşı raund: 30 sn
+export const ROUND_WORD_BUDGET_MS=6_000; // kelime raundu: kelime başına 6 sn (5→30, 7→42, 9→54, 10→60, 15→90)
+/** Raund yazma süresi: timed → 30 sn; counted → kelime sayısı × 6 sn. `m.roundWords` (sayı) yoksa `m.round.index` planından. Arena etkilenmez. */
 export const roundDurationMs=m=>normalizeRoundStyle(m?.roundStyle)==='timed'?ROUND_DURATION_MS
-  :Math.max(ROUND_DURATION_MS,normalizeRoundWords(m?.roundWords)*ROUND_WORD_BUDGET_MS);
+  :(Number.isInteger(m?.roundWords)&&m.roundWords>0?m.roundWords:roundWordsFor(m?.round?.index??m?.index??1))*ROUND_WORD_BUDGET_MS;
 export const ROUND_LAST_CALL_MS=5_000;
 export const ROUND_SETTLE_MS=1_000;
 export const ROUND_SUMMARY_MS=6_000;     // paket 30: tur arası özeti 3 → 6 sn
@@ -121,9 +122,12 @@ export function resolveStepMs(count,extraMs=0){
 }
 // Ultiden sonra kısa toparlanma: ulti sinematiği bitmeden rakibin vuruşu araya girmesin.
 export const ULTIMATE_RECOVERY_MS=800;
-export const ROUND_HP=1200;
+export const ROUND_HP=4000;          // maç canı: 4000, raundlar arasında sıfırlanmaz
+export const ROUND_DAMAGE_CAP=1300;  // tek raundda verilebilecek en çok hasar: 3×1300 < 4000 → nakavt en erken 4. raundda
 export const SUDDEN_DEATH_MAX=3;
 export const STREAK_SKILLS=Object.freeze({3:'q',5:'e',7:'r',8:'q',9:'q',10:'q'});
+/** Seri → beceri: 3 Q, 5 E, 7 R, 8 ve sonrası her doğru kelime Q. */
+export const streakSkill=streak=>STREAK_SKILLS[streak]||(streak>=8?'q':null);
 export const MULTIPLIER_START=7;
 export const MULTIPLIER_STEP=1.2;
 export const MULTIPLIER_CAP=2.5;
@@ -145,7 +149,8 @@ function syncRoundEnds(m){
 }
 const ULTIMATE_MOTIONS=Object.freeze(['pull','strike','return']);
 export const ULTIMATE_RETURN_MS=400;
-export function normalizeRounds(value){return ROUND_OPTIONS.includes(value)?value:ROUND_OPTIONS[0];}
+/** Maç uzunluğu seçeneği kaldırıldı: her rounds maçı 7 raund (eski 5/10 tercihleri sessizce yok sayılır). */
+export function normalizeRounds(){return ROUND_TOTAL;}
 /** M(streak) = streak<7 ? 1 : min(2.5, 1.5 x 1.2^(streak-7)), rounded to 2 decimals. */
 export function streakMultiplier(streak){
   if(!Number.isFinite(streak)||streak<MULTIPLIER_START)return 1;
@@ -156,7 +161,7 @@ export function roundScore(p){
   const correct=p?.roundCorrect??p?.correct??0,best=p?.roundBestStreak??p?.bestStreak??0,damage=p?.roundDamage??p?.damageDealt??0;
   return ROUND_SCORE.correct*correct+ROUND_SCORE.bestStreak*best+Math.floor(damage/ROUND_SCORE.damageDiv);
 }
-const nextSkillOf=p=>p.roundDone?null:(STREAK_SKILLS[p.combo+1]||null);
+const nextSkillOf=p=>p.roundDone?null:streakSkill(p.combo+1);
 function randomSeed(){
   const source=globalThis.crypto?.getRandomValues?()=>globalThis.crypto.getRandomValues(new Uint32Array(1))[0]/4294967296:Math.random;
   return createSeed(source);
@@ -198,8 +203,10 @@ function ensureRoundWords(match,needed){
     r.words.push(...(more.length?more:['tuşlab']));match.usedWords.push(...more);
   }
 }
-function resetForRound(p,words){
-  Object.assign(p,{hp:ROUND_HP,maxHp:ROUND_HP,combo:0,runeEnergy:0,lastSkill:null,parryCharge:false,lastStandUsed:false,
+function resetForRound(p,words,first){
+  // Can yalnız 1. raundda 4000'e kurulur; sonraki raundlara TAŞINIR.
+  if(first)Object.assign(p,{hp:ROUND_HP,maxHp:ROUND_HP});
+  Object.assign(p,{combo:0,runeEnergy:0,lastSkill:null,parryCharge:false,lastStandUsed:false,
     skillCharge:{q:0,e:0,s:0,r:0},cooldownUntil:{q:0,e:0,s:0,r:0},shieldUntil:null,staggerUntil:0,lastWordAt:null,
     lastCorrectAt:null,lastCorrectRoundIndex:null,roundWordIndex:0,roundCorrect:0,roundWrong:0,roundBestStreak:0,
     roundDamage:0,roundDone:false,finishedAt:null,activeText:words.join(' '),currentWord:words[0]});
@@ -213,19 +220,21 @@ function startRound(match,at){
     const prev=match.round;
     const typed=prev?Math.min(prev.words.length,Math.max(0,...match.participants.map(p=>p.roundWordIndex||0))):0;
     const contentStart=prev?(prev.contentStart||0)+typed:0;
-    const c=contentWords(match.content,{start:contentStart,seed:match.seed,round:index,total:match.totalRounds,count:match.roundWords,exclude:match.usedWords});
+    const c=contentWords(match.content,{start:contentStart,seed:match.seed,round:index,total:match.totalRounds,count:roundWordsFor(index),exclude:match.usedWords});
     words=[...c.words];extra={hints:[...c.hints],contentStart};
   }else words=[...(match.roundPlan[index-1]||match.roundPlan.at(-1))];
+  const durationMs=roundDurationMs({roundStyle:match.roundStyle,roundWords:roundWordsFor(index)});
   match.round={index,total:match.totalRounds,suddenDeath:index>match.totalRounds,phase:'round',words,...extra,
-    startedAt:at,endsAt:at+roundDurationMs(match),settleUntil:null,nextRoundAt:null,
+    ...(match.roundStyle==='timed'?{}:{wordCount:words.length}),
+    startedAt:at,endsAt:at+durationMs,settleUntil:null,nextRoundAt:null,
     koSeat:null,koAt:null,allDone:false,lastResolvedAt:null,endedAt:null};
   match.usedWords.push(...words);
   ensureRoundWords(match,ROUND_VIEW_AHEAD+1);
   match.endsAt=match.round.endsAt;match.pendingAttacks=[];
   for(const p of match.participants){
-    resetForRound(p,words);
+    resetForRound(p,words,index===1);
     p.roundSkill=match.roundSkillPicks?.[p.seat]??null;
-    p.roundEndsAt=at+roundDurationMs(match)+(p.roundSkill==='freeze'?timeSkillMs('freeze'):0);
+    p.roundEndsAt=at+durationMs+(p.roundSkill==='freeze'?timeSkillMs('freeze'):0);
   }
   for(const p of match.participants){
     const rival=roundPlayer(match,p.seat===1?2:1);
@@ -238,19 +247,21 @@ export function roundStartPayload(match){
   const r=match?.round;if(!r)return null;
   return {round:r.index,totalRounds:match.totalRounds,suddenDeath:r.suddenDeath,words:[...r.words],
     ...(isContentMatch(match)?{content:match.content,...(match.content!=='atasozu'?{hints:[...r.hints]}:{})}:{}),
-    startedAt:r.startedAt,endsAt:r.endsAt,roundHp:ROUND_HP,
+    startedAt:r.startedAt,endsAt:r.endsAt,roundHp:ROUND_HP,style:normalizeRoundStyle(match.roundStyle),
+    ...(match.roundStyle==='timed'?{}:{wordCount:r.words.length}),damageCap:ROUND_DAMAGE_CAP,
+    hp:Object.fromEntries(match.participants.map(p=>[p.seat,p.hp])),
     skills:Object.fromEntries(match.participants.map(p=>[p.seat,p.roundSkill]))};
 }
 function setupRounds(match,options,at){
-  const total=normalizeRounds(options.rounds);
+  const total=ROUND_TOTAL; // eski options.rounds/roundWords yok sayılır
   const seed=Number.isFinite(options.seed)?Math.trunc(options.seed)>>>0
     :(typeof options.seed==='string'&&options.seed?options.seed:randomSeed());
   const pick=typeof options.pickWords==='function'?options.pickWords:bankPickWords;
-  const roundStyle=normalizeRoundStyle(options.roundStyle),roundWords=normalizeRoundWords(options.roundWords);
+  const roundStyle=normalizeRoundStyle(options.roundStyle);
   const content=normalizeContent(options.content);
   const plan=[],used=[];
-  if(content===DEFAULT_CONTENT)for(let r=1;r<=total+SUDDEN_DEATH_MAX;r++){const words=dealWords(pick,seed,r,total,used,roundWords);plan.push(words);used.push(...words);}
-  Object.assign(match,{mode:'rounds',totalRounds:total,roundStyle,roundWords,seed,roundPlan:plan,...(content===DEFAULT_CONTENT?{}:{content}),usedWords:[],roundsWon:{1:0,2:0},
+  if(content===DEFAULT_CONTENT)for(let r=1;r<=total+SUDDEN_DEATH_MAX;r++){const words=dealWords(pick,seed,r,total,used,roundWordsFor(r));plan.push(words);used.push(...words);}
+  Object.assign(match,{mode:'rounds',totalRounds:total,roundStyle,seed,roundPlan:plan,...(content===DEFAULT_CONTENT?{}:{content}),usedWords:[],
     roundHistory:[],clashes:{},activeMs:0,round:null,roundSkillPicks:{1:null,2:null},roundSkillPickLocked:{1:false,2:false}});
   if(options.resolveAtEnd===true)match.resolveAtEnd=true;
   for(const p of match.participants)p.roundSkillUses={timethief:0,blindclock:0,freeze:0};
@@ -334,7 +345,7 @@ export function publicMatch(match,viewerSeat){
     mode:rounds?'rounds':'classic',...(rounds&&isContentMatch(match)?{content:match.content}:{}),stage:normalizeStage(match.stage),typing:normalizeTyping(match.typing),assistEnabled:match.assistEnabled===true,
     ...(match.exchange?{exchange:{index:match.exchange.index,endsAt:match.exchange.endsAt,phase:match.exchange.phase}}:{}),
     round:rounds&&r?{index:r.index,total:r.total,suddenDeath:r.suddenDeath,phase:r.phase,...publicWords(match,viewer),
-      style:normalizeRoundStyle(match.roundStyle),
+      style:normalizeRoundStyle(match.roundStyle),...(Number.isInteger(r.wordCount)?{wordCount:r.wordCount}:{}),
       startedAt:victim?null:r.startedAt,endsAt:victim?null:r.endsAt,settleUntil:r.settleUntil,nextRoundAt:r.nextRoundAt,
       ...(r.phase==='resolve'||r.phase==='settling'?{resolveEndsAt:resolveEndsAt(match)}:{}),
       ...(viewer?{personalEndsAt:victim?null:Object.fromEntries(match.participants.map(p=>[p.seat,p.roundEndsAt])),
@@ -344,7 +355,7 @@ export function publicMatch(match,viewerSeat){
         roundSkillPick:r.phase==='intermission'?match.roundSkillPicks?.[viewerSeat]??null:null,
         roundSkillPickLocked:r.phase==='intermission'?!!match.roundSkillPickLocked?.[viewerSeat]:false}:{}),
       ...(victim?{endsAt:null}:{})}:{}),
-    ...(rounds?{totalRounds:match.totalRounds,roundsWon:{...match.roundsWon},roundHistory:structuredClone(match.roundHistory||[])}:{}),
+    ...(rounds?{totalRounds:match.totalRounds,damageCap:ROUND_DAMAGE_CAP,roundHistory:structuredClone(match.roundHistory||[])}:{}),
     result: status==='ended'?matchResult(match):null,
     pausedAt:match.pausedAt??null,offlineSeats:match.offlineSeats||[],
     pendingAttackCount:match.pendingAttacks?.length||0,
@@ -513,7 +524,7 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
   if(next.roundStyle==='timed')ensureRoundWords(next,mine.roundWordIndex+ROUND_VIEW_AHEAD+1);
   mine.currentWord=round.words[mine.roundWordIndex]??'';
   let cast=null;
-  const skill=correct?STREAK_SKILLS[mine.combo]:null;
+  const skill=correct?streakSkill(mine.combo):null;
   if(skill&&at>=(mine.staggerUntil||0)){
     mine.combatStats??={damageDealt:0,damageTaken:0,casts:{q:0,e:0,r:0},counterDamage:0};
     mine.combatStats.casts[skill]++;
@@ -551,7 +562,7 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
   }
   next.sequence++;
   const roundEvents=[];
-  if(next.roundStyle!=='timed'&&mine.roundWordIndex>=(next.roundWords||ROUND_WORDS)){
+  if(next.roundStyle!=='timed'&&mine.roundWordIndex>=round.words.length){
     mine.roundDone=true;mine.finishedAt=at;
     if(target.roundDone){round.allDone=true;}
     else{
@@ -599,7 +610,8 @@ export function resolveDueAttacks(match,at=Date.now(),rng=Math.random){
       if(!verdict){
         const blocker=next.participants.find(x=>x.seat===attack.clashBlockerSeat);
         let blockerSeat=null,blockKind=null;
-        if(blocker&&attack.issuedAt>=(blocker.cooldownUntil.s||0)&&rng()<SHIELD_PROBABILITY){
+        // KESINYAP 11: rounds'ta rastgele blok yok; çarpışma yalnız gösterilir (ikisi de vurur).
+        if(!rounds&&blocker&&attack.issuedAt>=(blocker.cooldownUntil.s||0)&&rng()<SHIELD_PROBABILITY){
           const gap=attack.clashInterval;
           const isPerfect=gap<=DEFENSE_RULES.perfectWindowMs+(blocker.rune==='reflex'?25:0);
           const isParry=isPerfect&&gap<=DEFENSE_RULES.parryWindowMs&&rng()<DEFENSE_RULES.parryChance;
@@ -617,7 +629,8 @@ export function resolveDueAttacks(match,at=Date.now(),rng=Math.random){
       const sameWord=!rounds||(attack.roundWordIndex!==undefined&&defender.lastCorrectRoundIndex===attack.roundWordIndex);
       const canReact=(attack.resolve||sameWord)&&!remembered&&!attack.unblockable&&
         (attack.resolve||interval<=SHIELD_WINDOW_MS)&&(attack.resolve?attack.resolveAt:attack.issuedAt)>=(defender.cooldownUntil.s||0);
-      reactive=canReact&&rng()<SHIELD_PROBABILITY;
+      // KESINYAP 11: rounds modunda rastgele kalkan/parry hasarı etkilemez (zar atılmaz); klasik aynen.
+      reactive=!rounds&&canReact&&rng()<SHIELD_PROBABILITY;
       perfect=reactive&&(attack.resolve||interval<=DEFENSE_RULES.perfectWindowMs+(defender.rune==='reflex'?25:0));
       parried=perfect&&(attack.resolve||interval<=DEFENSE_RULES.parryWindowMs)&&rng()<DEFENSE_RULES.parryChance;
     }
@@ -628,7 +641,7 @@ export function resolveDueAttacks(match,at=Date.now(),rng=Math.random){
     let amount=ultimate?phases[attack.phaseIndex].damage+(attack.phaseIndex===phases.length-1?(attack.bonus||0):0):attack.amount;
     // Round-mode streak multiplier: each ultimate phase is rounded separately (spec 4).
     if(ultimate&&Number.isFinite(attack.multiplier))amount=Math.round(amount*attack.multiplier);
-    let blocked=false,blockKind=null;
+    let blocked=false,blockKind=null,capped=false;
     // Subsequent hits of one ultimate reuse the FIRST hit's defense verdict.
     // Otherwise one five-word R could roll three unrelated 30% parries.
     if(remembered){
@@ -674,6 +687,8 @@ export function resolveDueAttacks(match,at=Date.now(),rng=Math.random){
         amount=Math.round(amount*.8);defender.lastStandUsed=true;
         events.push(addEvent(next,'RUNE_TRIGGERED',{seat:defender.seat,rune:'laststand',at:attack.resolveAt}));
       }
+      // Raund hasar tavanı: bir oyuncu tek raundda en çok ROUND_DAMAGE_CAP verir; fazlası verilmez.
+      if(rounds){const room=Math.max(0,ROUND_DAMAGE_CAP-(attacker.roundDamage||0));if(amount>room){amount=room;capped=true;}}
       const before=defender.hp;
       defender.hp=Math.max(0,before-amount);
       const dealt=before-defender.hp;
@@ -697,10 +712,10 @@ export function resolveDueAttacks(match,at=Date.now(),rng=Math.random){
     }
     events.push(addEvent(next,'DAMAGE_APPLIED',{fromSeat:attack.fromSeat,toSeat:defender.seat,
       skill:attack.skill,amount,blocked,blockKind,shieldBreak,counter:Boolean(attack.counter),bonusTags:attack.bonusTags||[],
-      at:attack.issuedAt,hpAfter:defender.hp,...(attack.assist?{assist:true,partner:attack.partner}:{}),
+      at:attack.issuedAt,hpAfter:defender.hp,...(capped?{capped:true}:{}),...(attack.assist?{assist:true,partner:attack.partner}:{}),
       ...(ultimate?{ultimateId:attack.ultimateId,phase:attack.phaseIndex+1,totalPhases:phases.length}: {})}));
     if(defender.hp===0&&rounds){
-      // KO ends only the round; advanceMatch closes it. Nothing carries over.
+      // KO: advanceMatch closes the round and, since HP carries over, the match (NAKAVT).
       next.round.koSeat=attack.fromSeat;next.round.koAt=attack.resolveAt;next.pendingAttacks=[];
     }else if(defender.hp===0){
       next.status='ended';next.endedAt=at;next.winnerSeat=attack.fromSeat;next.endReason='KNOCKOUT';
@@ -727,36 +742,30 @@ export function finishMatch(match,at=Date.now()){
   next.winnerSeat=a.hp===b.hp?null:(a.hp>b.hp?a.seat:b.seat);
   next.endReason='TIME_LIMIT';next.pendingAttacks=[];return next;
 }
-function decideRound(x,y){
-  if(x.rp!==y.rp)return x.rp>y.rp?x.seat:y.seat;
-  if(x.correct!==y.correct)return x.correct>y.correct?x.seat:y.seat;
-  if(x.wrong!==y.wrong)return x.wrong<y.wrong?x.seat:y.seat;
-  if(x.lastCorrectAt!==y.lastCorrectAt){
-    if(x.lastCorrectAt===null)return y.seat;
-    if(y.lastCorrectAt===null)return x.seat;
-    return x.lastCorrectAt<y.lastCorrectAt?x.seat:y.seat;
-  }
-  return null;
-}
+/** KESINYAP 11: raund kazanma/pip yok. Can taşınır; maç NAKAVT'la ya da 7. raund sonunda (canı fazla olan) biter;
+ * eşitse ani ölüm raundu (en çok SUDDEN_DEATH_MAX). Raund `winnerSeat` yalnız bilgi: KO'cu ya da o raund daha çok hasar veren. */
 function closeRound(match,closeAt,reason,roundEvents){
   const m=structuredClone(match);const r=m.round;
   const scores=[...m.participants].sort((a,b)=>a.seat-b.seat).map(p=>({seat:p.seat,correct:p.roundCorrect,wrong:p.roundWrong,
     bestStreak:p.roundBestStreak,damageDealt:p.roundDamage,hpLeft:p.hp,rp:roundScore(p),lastCorrectAt:p.lastCorrectAt}));
-  const winnerSeat=reason==='KO'?r.koSeat:decideRound(scores[0],scores[1]);
-  if(winnerSeat)m.roundsWon[winnerSeat]++;
+  const [a,b]=scores;
+  const winnerSeat=reason==='KO'?r.koSeat:(a.damageDealt===b.damageDealt?null:(a.damageDealt>b.damageDealt?a.seat:b.seat));
   m.pendingAttacks=[];
   m.activeMs=(m.activeMs||0)+Math.max(0,Math.min(closeAt,r.endsAt)-r.startedAt);
-  const won=m.roundsWon;let over=false,matchWinner=null,endReason='ROUNDS';
-  if(r.index<=r.total){
-    const remaining=r.total-r.index;
-    if(won[1]>won[2]+remaining){over=true;matchWinner=1;}
-    else if(won[2]>won[1]+remaining){over=true;matchWinner=2;}
-  }else if(winnerSeat){over=true;matchWinner=winnerSeat;}
-  else if(r.index-r.total>=SUDDEN_DEATH_MAX){over=true;endReason='ROUNDS_DRAW';}
+  const hp=Object.fromEntries(scores.map(s=>[s.seat,s.hpLeft]));
+  let over=false,matchWinner=null,endReason='ROUNDS';
+  if(reason==='KO'){over=true;matchWinner=r.koSeat;endReason='KNOCKOUT';}
+  else if(r.index>=r.total){
+    if(hp[1]!==hp[2]){over=true;matchWinner=hp[1]>hp[2]?1:2;}
+    else if(r.index-r.total>=SUDDEN_DEATH_MAX){over=true;endReason='ROUNDS_DRAW';}
+  }
   r.phase=over?'ended':'intermission';r.endedAt=closeAt;
   r.nextRoundAt=over?null:closeAt+ROUND_SUMMARY_MS+ROUND_INTRO_MS;
   if(over){m.status='ended';m.endedAt=closeAt;m.winnerSeat=matchWinner;m.endReason=endReason;m.offlineSeats=[];}
-  const payload={round:r.index,winnerSeat,reason,scores,roundsWon:{...won},nextRoundAt:r.nextRoundAt,matchOver:over,suddenDeath:r.suddenDeath};
+  const nextIndex=r.index+1;
+  const next=over?null:{round:nextIndex,suddenDeath:nextIndex>r.total,style:normalizeRoundStyle(m.roundStyle),
+    ...(m.roundStyle==='timed'?{seconds:ROUND_DURATION_MS/1000}:{words:roundWordsFor(nextIndex)})};
+  const payload={round:r.index,winnerSeat,reason,scores,hp,nextRoundAt:r.nextRoundAt,matchOver:over,suddenDeath:r.suddenDeath,next};
   m.roundHistory.push(structuredClone(payload));
   m.sequence++;
   roundEvents.push({type:'ROUND_END',payload,sequence:m.sequence});
@@ -870,7 +879,8 @@ export function matchResult(match){
   return {matchId:match.id,winnerSeat:match.winnerSeat,endReason:match.endReason,
     startedAt:match.startedAt,endedAt:match.endedAt,
     durationMs:Math.max(0,(match.endedAt||match.endsAt)-match.startedAt),mvpSeat,players,
-    ...(match.mode==='rounds'?{mode:'rounds',totalRounds:match.totalRounds,roundsWon:{...match.roundsWon},
+    ...(match.mode==='rounds'?{mode:'rounds',totalRounds:match.totalRounds,roundStyle:normalizeRoundStyle(match.roundStyle),
+      finalHp:Object.fromEntries(match.participants.map(p=>[p.seat,p.hp])),
       rounds:structuredClone(match.roundHistory||[])}:{})};
 }
 export function surrenderMatch(match,loserSeat,at=Date.now()){
