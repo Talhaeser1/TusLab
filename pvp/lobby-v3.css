@@ -605,161 +605,302 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
 #pvp-root.pvp4-reduced .pvp6-panel.lb3 button.lb3-stage-card:hover:not(:disabled){transform:none}
 
 /* =====================================================================
-   J2 — PvP LOBİ (yatay mod şeridi · karakter ikonları + bilgi kartı · MAÇ AYARLARI · arena karuseli)
-   Yalnız .j2-* kapsamı (bot antrenmanı yüzeyi); oda içi yüzey ve eski kurallar bozulmaz.
-   Cam efekti / parıltı yok: düz yüzey, 1–2 px çerçeve, tek vurgu rengi (altın). Yazı ≥ 12 px.
+   J2 — PvP LOBİ "SAHNE" (kutusuz, tek ekranlık dövüş-oyunu seçim sahnesi)
+   Kök: #pvp-root .pvp6-panel.lb3.sc (position:fixed; inset:0; 100dvh; dikey kayma yok).
+   Zemin lobi-sahne.webp + koyu degrade. Kart/kutu/panel kenarlığı yok; öğeler doğrudan sahnede durur.
+   Üst şerit (başlık · mod sekmeleri · Arkadaşla oyna) · kahraman (büyük portre + ad + Silah + Q/E/R) · madalyon dock'u ·
+   arena (eğik pencere + eğik şerit yelpazesi) · maç ayarları · SAVAŞA BAŞLA. Oda akışı sağdan çekmecede.
+   Tek dolu vurgu: SAVAŞA BAŞLA. Yazı ≥ 12 px. Hareket yalnız transform/opacity ≤ 300 ms.
    ===================================================================== */
-#pvp-root .lb3 .j2-before{display:grid;gap:12px;min-width:0;grid-template-columns:minmax(0,1fr);
-  grid-template-areas:"modes" "pick" "settings" "arena" "go" "online"}
-#pvp-root .lb3 .j2-modes{grid-area:modes;min-width:0}
-#pvp-root .lb3 .j2-pick{grid-area:pick}
-#pvp-root .lb3 .j2-settings{grid-area:settings}
-#pvp-root .lb3 .j2-arena{grid-area:arena;min-width:0}
-#pvp-root .lb3 .j2-go{grid-area:go;display:grid;gap:8px;align-content:start;min-width:0}
-#pvp-root .lb3 .j2-online{grid-area:online}
-@media (min-width:1100px){
-  #pvp-root .lb3 .j2-before{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);align-items:start;
-    grid-template-areas:"modes modes" "pick arena" "settings online" "go online"}
+#pvp-root .pvp6-panel.lb3.sc{
+  --sc-display:Impact,Haettenschweiler,'Arial Narrow Bold',system-ui,sans-serif;
+  --sc-body:Inter,'Segoe UI',Arial,sans-serif;
+  --sc-gold:#ffb02e;--sc-ink:#f6f3ff;--sc-muted:#d3cdea;--sc-fire:#ffab80;--sc-rune:#8fcbff;
+  --sc-pad:clamp(16px,2.4vw,48px);--sc-top:56px;--sc-med:clamp(64px,5.2vw,80px);
+  position:fixed;inset:0;z-index:150;top:0;right:0;bottom:0;left:0;transform:none;width:auto;height:100dvh;max-width:none;max-height:none;
+  display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:var(--sc-top) minmax(0,1fr);gap:0;padding:0;margin:0;
+  border:0;border-radius:0;box-shadow:none;overflow:hidden;animation:none;background:#07051a;color:var(--sc-ink);
+  font-family:var(--sc-body);font-size:14px;line-height:1.35;overscroll-behavior:contain}
+#pvp-root .pvp6-panel.lb3.sc[hidden]{display:none}
+#pvp-root .lb3.sc button{font-family:inherit}
+#pvp-root .lb3.sc .sc-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+#pvp-root .lb3.sc :is(button,input,a,select):focus-visible{outline:3px solid var(--lb3-focus);outline-offset:3px}
+
+/* Zemin: lobi-sahne.webp + okunurluk degradesi (sol/sağ koyu bant, alt koyu) */
+#pvp-root .lb3.sc .sc-bg{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    linear-gradient(90deg,#06041099 0,#06041066 36%,#06041052 58%,#060410b8 100%),
+    linear-gradient(0deg,#060410d9 0,#06041000 42%),
+    linear-gradient(180deg,#060410a6 0,#06041000 22%),
+    url('../assets/higgsfield/final/lobi-sahne.webp') center/cover no-repeat #07051a}
+
+/* ÜST ŞERİT: solda başlık · ortada mod sekmeleri · sağda Arkadaşla oyna + Kapat */
+#pvp-root .lb3.sc .sc-top{position:relative;z-index:2;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:var(--sc-pad);
+  height:var(--sc-top);padding:0 clamp(220px,22vw,300px) 0 var(--sc-pad);min-width:0}
+#pvp-root .lb3.sc .sc-title{margin:0;font:400 20px/1 var(--sc-display);letter-spacing:.2em;color:#fff;white-space:nowrap}
+#pvp-root .lb3.sc .j2-modes{min-width:0}
+#pvp-root .lb3.sc .j2-modes .rui-picker.aui-modes{display:block;margin:0;min-width:0}
+#pvp-root .lb3.sc .j2-modes .rui-picker-label{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+#pvp-root .lb3.sc .j2-modes .rui-picker-note{display:none}
+#pvp-root .lb3.sc .j2-modes .aui-modes .rui-seg{display:flex!important;grid-template-columns:none;gap:4px;width:100%;padding:0;margin:0;border:0;background:none;
+  overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;touch-action:pan-x pan-y}
+#pvp-root .lb3.sc .j2-modes .aui-modes .rui-seg::-webkit-scrollbar{display:none}
+#pvp-root .pvp6-panel.lb3.sc .j2-modes .aui-modes .rui-seg button{position:relative;flex:0 0 auto;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;
+  width:auto;min-width:0;min-height:var(--sc-top);height:var(--sc-top);padding:0 clamp(10px,1.2vw,18px);margin:0;border:0;border-radius:0;background:none;box-shadow:none;
+  color:var(--sc-muted);text-align:center;white-space:nowrap;transition:color 160ms}
+#pvp-root .pvp6-panel.lb3.sc .j2-modes .aui-modes .rui-seg button::before{content:none!important}
+#pvp-root .pvp6-panel.lb3.sc .j2-modes .aui-modes .rui-seg button::after{content:''!important;position:absolute;left:12px;right:12px;bottom:6px;top:auto;display:block;width:auto;height:3px;border-radius:2px;
+  background:var(--sc-gold);transform:scaleX(0);transition:transform 200ms var(--lb3-ease)}
+#pvp-root .pvp6-panel.lb3.sc .j2-modes .aui-modes .rui-seg button[aria-pressed="true"]::after{transform:scaleX(1)}
+#pvp-root .pvp6-panel.lb3.sc .j2-modes .aui-modes .rui-seg button:hover:not(:disabled):not([aria-pressed="true"]){background:none;color:#fff}
+#pvp-root .pvp6-panel.lb3.sc .j2-modes .aui-modes .rui-seg button[aria-pressed="true"]{background:none;box-shadow:none;color:#fff}
+#pvp-root .pvp6-panel.lb3.sc .j2-modes .aui-modes .rui-seg button:focus-visible{outline-offset:-4px}
+#pvp-root .lb3.sc .j2-modes .aui-modes .rui-seg button b{font-size:15px;font-weight:800;letter-spacing:.02em;margin:0}
+#pvp-root .lb3.sc .j2-modes .aui-modes .rui-seg button small{display:none}
+#pvp-root .lb3.sc .sc-actions{position:absolute;top:0;right:var(--sc-pad);z-index:3;height:var(--sc-top);display:flex;align-items:center;gap:8px}
+#pvp-root .pvp6-panel.lb3.sc .sc-actions button{min-height:40px;padding:0 14px;border-radius:6px;font-size:14px;font-weight:700;color:#fff;background:none;white-space:nowrap}
+#pvp-root .pvp6-panel.lb3.sc .sc-friend{border:1px solid #ffffff8c}
+#pvp-root .pvp6-panel.lb3.sc .sc-friend:hover{background:#ffffff1f}
+#pvp-root .pvp6-panel.lb3.sc .sc-close{border:0;color:var(--sc-muted)}
+#pvp-root .pvp6-panel.lb3.sc .sc-close:hover{color:#fff;background:#ffffff14}
+
+/* SAHNE ızgarası: sol kahraman + dock · sağ arena + ayarlar + başlat */
+#pvp-root .lb3.sc .sc-stage{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) clamp(340px,28vw,440px);
+  grid-template-rows:minmax(0,1fr) auto auto;grid-template-areas:"hero arena" "hero settings" "dock go";
+  column-gap:clamp(24px,4vw,72px);row-gap:clamp(8px,1.6vh,16px);padding:0 var(--sc-pad) clamp(12px,2.4vh,28px);min-height:0;min-width:0}
+#pvp-root .lb3.sc .sc-stage[hidden]{display:none}
+#pvp-root .lb3.sc .sc-hero{grid-area:hero;position:relative;display:flex;align-items:flex-end;gap:clamp(16px,2.4vw,44px);min-height:0;min-width:0}
+#pvp-root .lb3.sc .sc-hero::before{content:'';position:absolute;inset:-4% -3% -2% 18%;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 45% 50%,#060410a6,#06041000 72%)}
+#pvp-root .lb3.sc .sc-dock{grid-area:dock;position:relative;min-width:0;align-self:end}
+#pvp-root .lb3.sc .j2-arena{grid-area:arena;min-width:0;min-height:0}
+#pvp-root .lb3.sc .j2-settings{grid-area:settings;min-width:0}
+#pvp-root .lb3.sc .sc-go{grid-area:go;min-width:0;align-self:end}
+#pvp-root .lb3.sc .sc-phone-tools{display:none}
+
+/* KAHRAMAN: büyük portre (alt kenarı dock'a doğru erir) + ad + unvan/taraf + Silah + Q/E/R */
+#pvp-root .lb3.sc .sc-faces{position:relative;flex:none;align-self:flex-end;height:100%;max-height:68vh;aspect-ratio:3/4;
+  -webkit-mask-image:linear-gradient(180deg,#000 58%,transparent 100%),linear-gradient(90deg,transparent 0,#000 14%,#000 86%,transparent 100%);
+  -webkit-mask-composite:source-in;mask-image:linear-gradient(180deg,#000 58%,transparent 100%),linear-gradient(90deg,transparent 0,#000 14%,#000 86%,transparent 100%);mask-composite:intersect}
+#pvp-root .lb3.sc .sc-face{position:absolute;inset:0;display:block;background:center top/cover no-repeat;opacity:0;transform:translateX(-16px);
+  transition:opacity 200ms ease-out,transform 200ms ease-out;pointer-events:none}
+#pvp-root .lb3.sc .sc-face[data-face="vargr"]{background-image:url('../assets/higgsfield/final/portre-vargr.webp')}
+#pvp-root .lb3.sc .sc-face[data-face="sira"]{background-image:url('../assets/higgsfield/final/portre-sira.webp')}
+#pvp-root .lb3.sc .sc-face[data-face="doran"]{background-image:url('../assets/higgsfield/final/portre-doran.webp')}
+#pvp-root .lb3.sc .sc-face[data-face="nyx"]{background-image:url('../assets/higgsfield/final/portre-nyx.webp')}
+#pvp-root .lb3.sc .sc-face[data-face="konyali"]{background-image:url('../assets/models/konyali/portre-konyali.webp')}
+#pvp-root .lb3.sc[data-fighter="vargr"] .sc-face[data-face="vargr"],#pvp-root .lb3.sc[data-fighter="sira"] .sc-face[data-face="sira"],
+#pvp-root .lb3.sc[data-fighter="doran"] .sc-face[data-face="doran"],#pvp-root .lb3.sc[data-fighter="nyx"] .sc-face[data-face="nyx"],
+#pvp-root .lb3.sc[data-fighter="konyali"] .sc-face[data-face="konyali"]{opacity:1;transform:none}
+#pvp-root .lb3.sc .j2-info{--f-main:#c2412d;--f-accent:#f2a541;flex:1 1 0;align-self:center;display:grid;gap:clamp(8px,1.6vh,16px);align-content:center;min-width:0;min-height:0;
+  padding:0;border:0;background:none;animation:sc-info-in 200ms ease-out both}
+@keyframes sc-info-in{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+#pvp-root .lb3.sc .j2-info>*{min-width:0}
+#pvp-root .lb3.sc .j2-info-head{display:grid;gap:4px}
+#pvp-root .lb3.sc .j2-info-head b{display:block;font:400 clamp(40px,5.4vw,92px)/.95 var(--sc-display);letter-spacing:.02em;text-transform:uppercase;color:#fff;overflow-wrap:anywhere}
+#pvp-root .lb3.sc .j2-info-head span{font-size:clamp(15px,1.3vw,20px);font-weight:700;color:var(--sc-ink)}
+#pvp-root .lb3.sc .j2-info-head em{margin:0;padding:0;font-size:13px;font-style:normal;font-weight:800;letter-spacing:.16em;color:var(--sc-fire);background:none;border:0}
+#pvp-root .lb3.sc .j2-info-head em.rune{color:var(--sc-rune);background:none}
+#pvp-root .lb3.sc .j2-weapon{display:flex;flex-wrap:wrap;gap:2px 8px;margin:0;font-size:15px;color:var(--sc-muted)}
+#pvp-root .lb3.sc .j2-weapon span{font-size:15px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--sc-muted)}
+#pvp-root .lb3.sc .j2-weapon b{font-size:15px;font-weight:800;color:#fff}
+#pvp-root .lb3.sc .j2-skills{display:grid;gap:clamp(6px,1.2vh,12px);margin:0;padding:0;list-style:none}
+#pvp-root .lb3.sc .j2-skill{display:grid;grid-template-columns:32px minmax(0,1fr);align-items:start;gap:12px;min-width:0}
+#pvp-root .lb3.sc .j2-key{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;border:2px solid var(--f-accent);font-size:14px;font-weight:900;color:#fff}
+#pvp-root .lb3.sc .j2-skill-copy{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 10px;min-width:0;padding-top:4px}
+#pvp-root .lb3.sc .j2-skill-copy b{font-size:15px;font-weight:800;color:#fff}
+#pvp-root .lb3.sc .j2-skill-copy small{font-size:13px;color:var(--sc-muted);overflow-wrap:anywhere}
+
+/* KARAKTER DOCK'U: yuvarlak madalyonlar, zemine oturan ince ışık çizgisi */
+#pvp-root .lb3.sc .sc-dock{padding:clamp(6px,1.4vh,14px) 0 34px}
+#pvp-root .lb3.sc .sc-dock::after{content:'';position:absolute;left:0;right:0;bottom:30px;height:1px;background:linear-gradient(90deg,transparent,#ffffffb3 20%,#ffffffb3 80%,transparent)}
+#pvp-root .lb3.sc .j2-chars{display:flex;align-items:flex-end;justify-content:flex-start;gap:clamp(14px,2vw,32px);padding:10px 12px 6px;min-width:0;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#pvp-root .lb3.sc .j2-chars::-webkit-scrollbar{display:none}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter{--ring:var(--sc-fire);position:relative;flex:none;display:block;width:var(--sc-med);height:var(--sc-med);min-height:0;aspect-ratio:auto;padding:0;
+  border:0!important;border-radius:50%;clip-path:none;background:none!important;box-shadow:none!important;overflow:visible;transform:none!important;filter:none!important;isolation:auto}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter.rune{--ring:var(--sc-rune)}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter::before,#pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter::after{content:none!important}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-f-art,#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art{position:absolute;inset:0;display:block;width:100%;height:100%;aspect-ratio:auto;margin:0;
+  border-radius:50%;overflow:hidden;background-color:#0b0820;background-size:cover;background-position:50% 16%;background-repeat:no-repeat;opacity:.78;filter:none;
+  box-shadow:0 0 0 2px #ffffff59;transform:scale(1);transition:transform 200ms var(--lb3-ease),opacity 160ms,box-shadow 160ms}
+/* Hacı Usta madalyonu: visual-enrich.css'in --ve-portrait:none değişkeni konyali portresini siliyordu → doğrudan, daha özgül kural. */
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="vargr"]{background-image:url('../assets/higgsfield/final/portre-vargr.webp')}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="sira"]{background-image:url('../assets/higgsfield/final/portre-sira.webp')}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="doran"]{background-image:url('../assets/higgsfield/final/portre-doran.webp')}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="nyx"]{background-image:url('../assets/higgsfield/final/portre-nyx.webp')}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="konyali"]{background-image:url('../assets/models/konyali/portre-konyali.webp')}
+#pvp-root .lb3.sc .j2-chars .lb3-f-emblem{display:none}
+#pvp-root .lb3.sc .j2-chars button.lb3-fighter:hover .lb3-f-art{opacity:1}
+#pvp-root .lb3.sc .j2-chars button.lb3-fighter[aria-checked="true"] .lb3-f-art{opacity:1;transform:scale(1.2);box-shadow:0 0 0 3px var(--ring)}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter:focus-visible{outline:3px solid var(--lb3-focus);outline-offset:6px}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-f-name{position:absolute;left:50%;top:calc(100% + 14px);transform:translateX(-50%);display:block;padding:0;white-space:nowrap;
+  font-size:14px;font-weight:800;line-height:1.2;color:#fff;background:none;opacity:0;transition:opacity 160ms}
+#pvp-root .lb3.sc .j2-chars button.lb3-fighter[aria-checked="true"] .lb3-f-name,#pvp-root .lb3.sc .j2-chars button.lb3-fighter:hover .lb3-f-name,
+#pvp-root .lb3.sc .j2-chars button.lb3-fighter:focus-visible .lb3-f-name{opacity:1}
+
+/* ARENA (sağ): etiket + büyük ad · eğik pencere (seçili arenanın görseli) · eğik şerit yelpazesi */
+#pvp-root .lb3.sc .j2-arena{display:flex;flex-direction:column;gap:clamp(6px,1.2vh,12px);padding-top:clamp(4px,1vh,12px)}
+#pvp-root .lb3.sc .sc-label{margin:0;font-size:12px;font-weight:800;letter-spacing:.2em;color:var(--sc-muted)}
+#pvp-root .lb3.sc .sc-arena-row{display:flex;align-items:center;gap:8px;min-width:0}
+#pvp-root .lb3.sc .sc-arena-name{display:block;flex:1;min-width:0;font:400 clamp(30px,3.2vw,52px)/1 var(--sc-display);letter-spacing:.02em;text-transform:uppercase;color:#fff;overflow-wrap:anywhere}
+#pvp-root .lb3.sc .sc-arrow{display:none}
+#pvp-root .lb3.sc .sc-win{position:relative;flex:1 1 0;min-height:72px;max-height:clamp(120px,34vh,420px);clip-path:polygon(7% 0,100% 0,93% 100%,0 100%);background:#0b0820}
+#pvp-root .lb3.sc .sc-win-img{position:absolute;inset:0;display:grid;place-items:center;background:center/cover no-repeat #151030;opacity:0;transition:opacity 300ms ease-out}
+#pvp-root .lb3.sc .sc-win-img b{font:400 56px/1 var(--sc-display);color:#fff}
+#pvp-root .lb3.sc .sc-win-img[data-win="colosseum"]{background-image:url('../assets/higgsfield/final/arena-neon-kolezyum.webp')}
+#pvp-root .lb3.sc .sc-win-img[data-win="skyforge"]{background-image:url('../assets/higgsfield/final/arena-gok-demirhanesi.webp')}
+#pvp-root .lb3.sc .sc-win-img[data-win="runegarden"]{background-image:url('../assets/higgsfield/final/arena-run-bahcesi.webp')}
+#pvp-root .lb3.sc .sc-win-img[data-win="harbor"]{background-image:url('../assets/higgsfield/final/arena-firtina-limani.webp')}
+#pvp-root .lb3.sc .sc-win-img[data-win="random"]{background-image:linear-gradient(135deg,#1b1442,#3a2c6a)}
+#pvp-root .lb3.sc[data-stage="colosseum"] .sc-win-img[data-win="colosseum"],#pvp-root .lb3.sc[data-stage="skyforge"] .sc-win-img[data-win="skyforge"],
+#pvp-root .lb3.sc[data-stage="runegarden"] .sc-win-img[data-win="runegarden"],#pvp-root .lb3.sc[data-stage="harbor"] .sc-win-img[data-win="harbor"],
+#pvp-root .lb3.sc[data-stage="random"] .sc-win-img[data-win="random"]{opacity:1}
+#pvp-root .lb3.sc .j2-arena .lb3-stage{display:block;min-width:0;margin:0;padding:0;border:0;border-radius:0;background:none}
+#pvp-root .lb3.sc .j2-arena .lb3-stage legend{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;padding:0}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-blurb{display:none}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-strip{display:flex;gap:6px;height:clamp(56px,9vh,84px);padding:0 10px;perspective:none;overflow:hidden;touch-action:pan-y}
+#pvp-root .pvp6-panel.lb3.sc .j2-arena button.lb3-stage-card{position:relative;left:auto;top:auto;flex:1 1 0;display:block;width:auto;min-width:0;min-height:44px;height:100%;margin:0;padding:0;
+  overflow:hidden;border:0;border-radius:0;background:#0b0820;box-shadow:none;opacity:.6;transform:skewX(-14deg);transition:opacity 200ms,transform 200ms var(--lb3-ease);z-index:auto}
+#pvp-root .pvp6-panel.lb3.sc .j2-arena button.lb3-stage-card:hover:not(:disabled){opacity:.9;transform:skewX(-14deg);border:0}
+#pvp-root .pvp6-panel.lb3.sc .j2-arena button.lb3-stage-card[aria-checked="true"]{flex:3.4 1 0;opacity:1;border:0;box-shadow:none}
+#pvp-root .pvp6-panel.lb3.sc .j2-arena button.lb3-stage-card:focus-visible{outline:3px solid var(--lb3-focus);outline-offset:3px;opacity:1}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-art{position:absolute;inset:0;display:block;width:auto;aspect-ratio:auto;border:0;border-radius:0;background:center/cover no-repeat #151030;transform:skewX(14deg) scale(1.5);transition:transform 200ms var(--lb3-ease)}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-art::after{content:none}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-art[data-stage-art="colosseum"]{background-image:url('../assets/higgsfield/final/arena-neon-kolezyum.webp')}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-art[data-stage-art="skyforge"]{background-image:url('../assets/higgsfield/final/arena-gok-demirhanesi.webp')}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-art[data-stage-art="runegarden"]{background-image:url('../assets/higgsfield/final/arena-run-bahcesi.webp')}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-art[data-stage-art="harbor"]{background-image:url('../assets/higgsfield/final/arena-firtina-limani.webp')}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-art[data-stage-art="random"]{background:linear-gradient(135deg,#1b1442,#3a2c6a);border:0}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-art i{background:none;width:auto;height:auto;font-size:28px;font-weight:400;font-family:var(--sc-display);color:#fff}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-name,#pvp-root .lb3.sc .j2-arena .lb3-stage-description{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+#pvp-root .lb3.sc .j2-arena button.lb3-stage-card[aria-checked="true"]::after{content:'';position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--sc-gold)}
+
+/* MAÇ AYARLARI: kutusuz satırlar, ince segment düğmeler (seçili dolu, diğerleri yalnız yazı) */
+#pvp-root .lb3.sc .j2-settings{display:grid;gap:clamp(6px,1.2vh,12px);padding:0;border:0;border-radius:0;background:none}
+#pvp-root .lb3.sc .j2-settings .sc-sheet-head{display:block}
+#pvp-root .lb3.sc .j2-settings .sc-sheet-close{display:none}
+#pvp-root .lb3.sc .j2-settings .lb3-kicker{margin:0;font-size:12px;font-weight:800;letter-spacing:.2em;color:var(--sc-muted);text-transform:uppercase}
+#pvp-root .lb3.sc .j2-settings .rui-picker{display:grid;grid-template-columns:minmax(72px,auto) minmax(0,1fr);align-items:center;gap:2px 14px;margin:0;min-width:0}
+#pvp-root .lb3.sc .j2-settings .rui-picker-label{font-size:13px;font-weight:700;color:var(--sc-ink)}
+#pvp-root .lb3.sc .j2-settings .rui-seg{display:flex!important;grid-template-columns:none;gap:2px;width:100%;padding:0;border:0;border-radius:0;background:none}
+#pvp-root .pvp6-panel.lb3.sc .j2-settings .rui-seg button{flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;min-height:36px;padding:4px 8px;
+  border:0;border-radius:4px;background:none;box-shadow:none;color:var(--sc-muted);font-size:13px;font-weight:600;line-height:1.2;white-space:nowrap}
+#pvp-root .pvp6-panel.lb3.sc .j2-settings .rui-seg button b{font-size:14px;font-weight:700}
+#pvp-root .pvp6-panel.lb3.sc .j2-settings .rui-seg button small{font-size:12px;color:inherit;opacity:.9}
+#pvp-root .pvp6-panel.lb3.sc .j2-settings .rui-seg button:hover:not(:disabled):not([aria-pressed="true"]){background:#ffffff14;color:#fff}
+#pvp-root .pvp6-panel.lb3.sc .j2-settings .rui-seg button[aria-pressed="true"]{background:#ffffff2e;color:#fff;font-weight:800;box-shadow:none}
+#pvp-root .lb3.sc .j2-settings .rui-rule-hint,#pvp-root .lb3.sc .j2-settings .rui-picker-note{grid-column:1 / -1;margin:0;font-size:12px;line-height:1.4;color:var(--sc-muted)}
+#pvp-root .lb3.sc .j2-settings .rui-picker-note:empty{display:none}
+/* Raund biçimi yalnız "Zamana Karşı"/içerik modlarında anlamlı (mod şeridi artık ayarların dışında) */
+#pvp-root .lb3.sc:has([data-mode-picker="practice"]:not([data-mode="rounds"])) .j2-settings [data-style-picker]{display:none}
+
+/* SAVAŞA BAŞLA: sayfadaki TEK dolu vurgu */
+#pvp-root .lb3.sc .sc-go{display:grid;gap:8px}
+#pvp-root .pvp6-panel.lb3.sc button.sc-start{display:grid;place-items:center;gap:2px;width:100%;min-height:72px;padding:10px 16px;border:0;border-radius:6px;
+  background:var(--sc-gold);color:#1a1000;box-shadow:none;cursor:pointer;transition:transform 160ms var(--lb3-ease)}
+#pvp-root .pvp6-panel.lb3.sc button.sc-start:hover:not(:disabled){transform:translateY(-2px)}
+#pvp-root .pvp6-panel.lb3.sc button.sc-start:active:not(:disabled){transform:none}
+#pvp-root .pvp6-panel.lb3.sc button.sc-start:focus-visible{outline:3px solid #fff;outline-offset:3px}
+#pvp-root .lb3.sc .sc-start-main{font:400 clamp(24px,2.2vw,32px)/1 var(--sc-display);letter-spacing:.12em;text-transform:uppercase}
+#pvp-root .lb3.sc .sc-start-hint{font-size:12px;font-weight:700;color:#3a2600}
+#pvp-root .pvp6-panel.lb3.sc button.sc-stop{min-height:40px;border:0;background:none;color:var(--sc-muted);text-decoration:underline;font-size:13px}
+
+#pvp-root .lb3.sc .sc-layer{position:absolute;inset:0;z-index:4;overflow:hidden;pointer-events:none}
+#pvp-root .lb3.sc .sc-layer>*{pointer-events:auto}
+/* ÇEKMECE: Arkadaşla oyna (sağdan, ≤ 420 px; Esc / dışına tıklama kapatır; kendi içinde kayar) */
+#pvp-root .lb3.sc .sc-scrim{position:absolute;inset:0;z-index:1;display:block;width:100%;height:100%;min-height:0;padding:0;border:0;border-radius:0;background:#04020cb3;
+  opacity:0;visibility:hidden;pointer-events:none;transition:opacity 240ms,visibility 0s linear 240ms}
+#pvp-root .lb3.sc[data-drawer="open"] .sc-scrim:not(.sc-scrim-sheet){opacity:1;visibility:visible;pointer-events:auto;transition:opacity 240ms,visibility 0s}
+#pvp-root .lb3.sc .sc-scrim-sheet{display:none}
+#pvp-root .lb3.sc .sc-drawer{position:absolute;top:0;right:0;bottom:0;z-index:2;width:min(420px,100%);display:flex;flex-direction:column;background:#0d0a26;color:var(--sc-ink);
+  transform:translateX(100%);visibility:hidden;transition:transform 240ms var(--lb3-ease),visibility 0s linear 240ms}
+#pvp-root .lb3.sc[data-drawer="open"] .sc-drawer{transform:none;visibility:visible;transition:transform 240ms var(--lb3-ease),visibility 0s}
+#pvp-root .lb3.sc .sc-drawer-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;border-bottom:1px solid #ffffff2e}
+#pvp-root .lb3.sc .sc-drawer-head h3{margin:0;font:400 22px/1 var(--sc-display);letter-spacing:.1em;text-transform:uppercase;color:#fff}
+#pvp-root .pvp6-panel.lb3.sc .sc-sheet-close{min-height:44px;padding:0 14px;border:1px solid #ffffff59;border-radius:6px;background:none;color:#fff;font-size:14px;font-weight:700}
+#pvp-root .lb3.sc .sc-drawer-body{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;padding:16px 20px 24px;display:grid;gap:16px;align-content:start}
+#pvp-root .lb3.sc .sc-online{display:grid;gap:10px}
+#pvp-root .lb3.sc .sc-or{margin:4px 0 0;font-size:13px;color:var(--sc-muted)}
+#pvp-root .pvp6-panel.lb3.sc button.sc-btn{min-height:48px;padding:0 16px;border:1px solid #ffffff8c;border-radius:6px;background:none;color:#fff;font-size:15px;font-weight:800}
+#pvp-root .pvp6-panel.lb3.sc button.sc-btn:hover:not(:disabled){background:#ffffff1f}
+#pvp-root .lb3.sc .sc-drawer .pvp6-join{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+/* Oda içi görünüm çekmeceye sığar: tek sütun, kutu ölçüleri küçülür */
+#pvp-root .lb3.sc .sc-drawer .pvp6-after{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:16px}
+#pvp-root .lb3.sc .sc-drawer .pvp6-after[hidden]{display:none!important}
+#pvp-root .lb3.sc .sc-drawer .pvp6-slot{min-height:120px}
+#pvp-root .lb3.sc .sc-drawer .pvp6-players{grid-template-columns:minmax(0,1fr);gap:8px}
+#pvp-root .lb3.sc .sc-drawer .lb3-vs{display:none}
+#pvp-root .lb3.sc .sc-drawer .pvp6-log{max-height:96px}
+#pvp-root .lb3.sc .sc-drawer .pvp22-rune-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+#pvp-root .lb3.sc .sc-drawer .lb3-stage-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+#pvp-root .lb3.sc .sc-drawer .aui-modes .rui-seg{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+/* TELEFON (≤ 760): dikey kayma yok. Üstte mod şeridi; ortada portre + ad + tek satır silah; Yetenekler/Ayarlar alt sayfalarda; altta sabit başlat */
+@media (max-width:760px),(max-width:1000px) and (max-aspect-ratio:1/1){
+  #pvp-root .pvp6-panel.lb3.sc{--sc-top:44px;--sc-med:64px;grid-template-rows:88px minmax(0,1fr)}
+  #pvp-root .lb3.sc .sc-top{grid-template-columns:minmax(0,1fr);grid-template-rows:var(--sc-top) var(--sc-top);gap:0;height:88px;padding:0 12px}
+  #pvp-root .lb3.sc .sc-title{align-self:center;justify-self:start;width:max-content;font-size:16px}
+  #pvp-root .lb3.sc .j2-modes .aui-modes .rui-seg button{min-height:var(--sc-top);height:var(--sc-top)}
+  #pvp-root .lb3.sc .sc-actions{right:8px;height:var(--sc-top);gap:4px}
+  #pvp-root .pvp6-panel.lb3.sc .sc-actions button{min-height:44px;padding:0 10px;font-size:13px}
+  #pvp-root .lb3.sc .sc-stage{display:flex;flex-direction:column;gap:8px;padding:0 16px 12px}
+  #pvp-root .lb3.sc .sc-hero{flex:1 1 0;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;text-align:center;min-height:0}
+  #pvp-root .lb3.sc .sc-faces{flex:1 1 0;min-height:96px;height:auto;max-height:none;align-self:center}
+  #pvp-root .lb3.sc .j2-info{flex:none;align-self:stretch;justify-items:center;gap:4px;animation-name:sc-info-in-v}
+  @keyframes sc-info-in-v{from{opacity:0}to{opacity:1}}
+  #pvp-root .lb3.sc .j2-info-head{justify-items:center;gap:0}
+  #pvp-root .lb3.sc .j2-info-head b{font-size:clamp(30px,9vw,44px)}
+  #pvp-root .lb3.sc .j2-info-head span,#pvp-root .lb3.sc .j2-info-head em{display:inline;font-size:14px}
+  #pvp-root .lb3.sc .j2-weapon{justify-content:center;font-size:14px}
+  #pvp-root .lb3.sc .sc-dock{flex:none;width:100%;min-width:0;align-self:stretch;padding:6px 0 30px}
+  #pvp-root .lb3.sc .j2-chars{width:100%}
+  #pvp-root .lb3.sc .sc-dock::after{bottom:26px}
+  #pvp-root .lb3.sc .j2-chars{gap:20px;padding:12px 16px 4px;justify-content:flex-start}
+  #pvp-root .lb3.sc .j2-chars button.lb3-fighter{scroll-snap-align:center}
+  #pvp-root .lb3.sc .j2-arena{flex:none;padding:0}
+  #pvp-root .lb3.sc .sc-label,#pvp-root .lb3.sc .sc-win,#pvp-root .lb3.sc .j2-arena .lb3-stage{display:none}
+  #pvp-root .lb3.sc .sc-arena-row{justify-content:space-between;gap:0;min-height:48px}
+  #pvp-root .lb3.sc .sc-arena-name{flex:1;text-align:center;font-size:24px}
+  #pvp-root .pvp6-panel.lb3.sc .sc-arrow{display:grid;place-items:center;flex:none;width:48px;height:48px;min-height:48px;padding:0;border:1px solid #ffffff59;border-radius:50%;background:none;color:#fff;font-size:28px;line-height:1}
+  #pvp-root .lb3.sc .sc-phone-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #pvp-root .pvp6-panel.lb3.sc button.sc-tool{min-height:48px;border:1px solid #ffffff8c;border-radius:6px;background:none;color:#fff;font-size:14px;font-weight:700}
+  #pvp-root .pvp6-panel.lb3.sc button.sc-tool[aria-expanded="true"]{background:#ffffff2e}
+  #pvp-root .lb3.sc .sc-go{flex:none;align-self:stretch;width:100%}
+  #pvp-root .pvp6-panel.lb3.sc button.sc-start{min-height:60px}
+  /* alt sayfalar */
+  #pvp-root .lb3.sc .sc-scrim-sheet{display:block;position:fixed;z-index:5}
+  #pvp-root .lb3.sc[data-sheet="skills"] .sc-scrim-sheet,#pvp-root .lb3.sc[data-sheet="settings"] .sc-scrim-sheet{opacity:1;visibility:visible;pointer-events:auto;transition:opacity 240ms,visibility 0s}
+  #pvp-root .lb3.sc .j2-skills,#pvp-root .lb3.sc .j2-settings{position:fixed;left:0;right:0;bottom:0;z-index:6;max-height:80dvh;overflow-y:auto;padding:20px 20px 28px;background:#0d0a26;
+    transform:translateY(100%);visibility:hidden;transition:transform 240ms var(--lb3-ease),visibility 0s linear 240ms}
+  #pvp-root .lb3.sc[data-sheet="skills"] .j2-skills,#pvp-root .lb3.sc[data-sheet="settings"] .j2-settings{transform:none;visibility:visible;transition:transform 240ms var(--lb3-ease),visibility 0s}
+  #pvp-root .lb3.sc .j2-skills{text-align:left}
+  #pvp-root .lb3.sc .j2-settings .sc-sheet-head{display:flex;align-items:center;justify-content:space-between}
+  #pvp-root .lb3.sc .j2-settings .sc-sheet-close{display:block}
+  #pvp-root .lb3.sc .j2-settings .rui-picker{grid-template-columns:minmax(0,1fr)}
+  #pvp-root .pvp6-panel.lb3.sc .j2-settings .rui-seg button{min-height:44px}
 }
-
-/* 1) Mod şeridi: yatay kaydırmalı, scroll-snap; ← → ile gezilir (network.js modeKey) */
-#pvp-root .lb3 .j2-modes .rui-picker.aui-modes{display:grid;gap:6px;margin:0}
-#pvp-root .lb3 .j2-modes .aui-modes .rui-seg{display:flex!important;grid-template-columns:none;gap:8px;width:100%;padding:2px 2px 8px;border:0;background:none;
-  overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-padding-inline:2px;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:#5b4aa8 transparent;touch-action:pan-x pan-y}
-#pvp-root .pvp6-panel.lb3 .j2-modes .aui-modes .rui-seg button{flex:0 0 auto;scroll-snap-align:center;display:grid;align-content:center;justify-items:start;gap:1px;
-  width:176px;min-width:0;min-height:60px;padding:8px 34px 8px 42px;text-align:left;border-radius:12px}
-#pvp-root .pvp6-panel.lb3 .j2-modes .aui-modes .rui-seg button::before{top:50%;left:10px;transform:translateY(-50%)}
-#pvp-root .pvp6-panel.lb3 .j2-modes .aui-modes .rui-seg button[aria-pressed="true"]::after{top:50%;transform:translateY(-50%)}
-#pvp-root .lb3 .j2-modes .aui-modes button[data-mode="atasozu"]::before{content:'❝'}
-#pvp-root .lb3 .j2-modes .aui-modes button[data-mode="siir"]::before{content:'✎'}
-#pvp-root .lb3 .j2-modes .aui-modes button[data-mode="osmanlica"]::before{content:'❖'}
-#pvp-root .lb3 .j2-modes .aui-modes .rui-seg button b{font-size:15px;white-space:nowrap}
-#pvp-root .lb3 .j2-modes .aui-modes .rui-seg button small{font-size:12px;line-height:1.25;white-space:nowrap}
-@media (min-width:1100px){#pvp-root .pvp6-panel.lb3 .j2-modes .aui-modes .rui-seg button{width:calc((100% - 40px)/6);min-width:150px}}
-
-/* 2) Karakterler: yalnız portre ikonu + ad; tek satır (≥561 px), telefonda 3 sütun */
-#pvp-root .lb3 .j2-pick.lb3-showcase.lb3-roster{gap:10px;padding:12px;background:var(--lb3-panel);border:1px solid var(--lb3-line2);border-radius:14px}
-#pvp-root .lb3 .j2-chars{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-rows:auto;gap:10px;min-width:0}
-#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter{--f-cut:0px;position:relative;display:block;width:100%;aspect-ratio:1/1;min-height:0;height:auto;padding:0;overflow:hidden;
-  border:2px solid color-mix(in srgb,var(--f-main) 70%,#fff 8%);border-radius:12px;clip-path:none;background:#0b0820;isolation:isolate;transition:border-color 150ms,transform 150ms var(--lb3-ease)}
-#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter::before{content:none}
-#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter:hover:not(:disabled){filter:none;border-color:var(--f-accent);transform:translateY(-2px)}
-#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter:focus-visible{outline:3px solid var(--lb3-focus);outline-offset:2px;background:#0b0820;border-color:var(--lb3-focus)}
-#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter:focus-visible::before{content:none}
-#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter[aria-checked="true"]{transform:none;border-color:var(--f-accent);background:#0b0820;box-shadow:0 0 0 3px var(--f-accent)}
-#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter[aria-checked="true"]::before{content:none}
-#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter[aria-checked="true"]::after{content:'✓';top:6px;right:6px;display:grid;place-items:center;width:24px;height:24px;padding:0;border-radius:50%;
-  font-size:14px;letter-spacing:0;line-height:1;color:#14091f;background:var(--f-accent);box-shadow:none}
-#pvp-root .lb3 .j2-chars .lb3-f-art{position:absolute;inset:0;z-index:0;width:100%;height:100%;aspect-ratio:auto;background-position:50% 12%;background-size:cover;opacity:1;filter:none}
-#pvp-root .lb3 .j2-chars .lb3-f-name{position:absolute;left:0;right:0;bottom:0;z-index:1;display:block;padding:14px 6px 6px;text-align:center;font-size:14px;font-weight:900;line-height:1.2;color:#fff;
-  background:linear-gradient(180deg,transparent,#0b0820e6 70%)}
-
-/* Bilgi kartı: silah + Q/E/R (pvp/shared/fighters.js'ten) */
-#pvp-root .lb3 .j2-info{--f-main:#c2412d;--f-accent:#f2a541;display:grid;gap:8px;align-content:start;min-width:0;min-height:176px;padding:10px 12px;border-radius:12px;
-  border:1px solid color-mix(in srgb,var(--f-accent) 55%,transparent);border-left:4px solid var(--f-accent);background:#0e0a28}
-#pvp-root .lb3 .j2-info-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;min-width:0}
-#pvp-root .lb3 .j2-info-head b{font-size:18px;font-weight:900;color:#fff;line-height:1.2}
-#pvp-root .lb3 .j2-info-head span{font-size:13px;font-weight:700;color:color-mix(in srgb,var(--f-accent) 70%,#fff)}
-#pvp-root .lb3 .j2-info-head em{margin-left:auto;padding:2px 8px;border-radius:999px;font-size:12px;font-style:normal;font-weight:900;letter-spacing:.08em;color:#ffd8c2;background:#ff6a2b26;border:1px solid #ff6a2b80}
-#pvp-root .lb3 .j2-info-head em.rune{color:#cfeaff;background:#3d9dff26;border-color:#3d9dff80}
-#pvp-root .lb3 .j2-weapon{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;margin:0;font-size:13px;color:var(--lb3-muted)}
-#pvp-root .lb3 .j2-weapon span{font-size:12px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--lb3-gold)}
-#pvp-root .lb3 .j2-weapon b{font-size:14px;font-weight:800;color:#fff}
-#pvp-root .lb3 .j2-skills{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin:0;padding:0;list-style:none}
-#pvp-root .lb3 .j2-skill{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:8px;min-width:0}
-@media (min-width:1100px){#pvp-root .lb3 .j2-skills{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}#pvp-root .lb3 .j2-skill{grid-template-columns:minmax(0,1fr)}}
-
-/* 3) MAÇ AYARLARI: bot zorluğu · maç uzunluğu · raund biçimi (segment düğmeler) */
-#pvp-root .lb3 .j2-settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 12px;align-items:start;min-width:0;padding:12px;border-radius:14px;
-  border:1px solid var(--lb3-line2);background:var(--lb3-panel)}
-#pvp-root .lb3 .j2-settings .lb3-kicker{grid-column:1 / -1}
-#pvp-root .lb3 .j2-settings .rui-picker{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin:0;min-width:0}
-#pvp-root .lb3 .j2-settings .rui-picker-label{font-size:13px;font-weight:800;color:#d8d1f5}
-#pvp-root .lb3 .j2-settings .rui-seg,#pvp-root .lb3 .j2-settings [data-rounds-picker] .rui-seg{display:grid!important;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);grid-template-columns:none;gap:4px;width:100%;padding:3px;
-  border-radius:10px;background:#0d0a2a;border:1px solid #6b52aa}
-#pvp-root .pvp6-panel.lb3 .j2-settings .rui-seg button,#pvp-root .pvp6-panel.lb3 .j2-settings [data-rounds-picker] .rui-seg button{display:grid;place-content:center;gap:0;min-width:0;min-height:44px;padding:4px 6px;
-  border-radius:7px;text-align:center;line-height:1.2;white-space:normal;font-size:13px}
-#pvp-root .lb3 .j2-settings .rui-seg button b{font-size:14px}
-#pvp-root .lb3 .j2-settings .rui-seg button small{font-size:12px;color:inherit;opacity:.85}
-#pvp-root .pvp6-panel.lb3 .j2-settings .rui-seg button[aria-pressed="true"]{background:#4a2da8;color:#fff;box-shadow:inset 0 0 0 2px var(--lb3-gold)}
-#pvp-root .lb3 .j2-settings .rui-picker [data-words-group]:not([hidden]){margin-top:2px}
-/* Süre/sayı raundu yalnız "Zamana Karşı" ve içerik modlarında anlamlı (mod kartı data-mode="rounds"); Klasik/Arena'da gizlenir. */
-#pvp-root .lb3 .j2-before:has([data-mode-picker="practice"]:not([data-mode="rounds"])) .j2-settings :is([data-rounds-picker],[data-style-picker]){display:none}
-
-/* 4) Arena karuseli (CSS 3B coverflow): seçili öndeki büyük, komşular yana yatık; ← → / kaydırma / tıklama */
-#pvp-root .lb3 .j2-arena .lb3-stage{gap:8px;padding:10px 12px 12px;border-radius:14px;background:var(--lb3-panel);border:1px solid var(--lb3-line2)}
-#pvp-root .lb3 .j2-arena .lb3-stage legend{font-size:13px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--lb3-muted)}
-#pvp-root .lb3 .j2-arena .lb3-stage-strip{position:relative;display:block;height:clamp(190px,24vw,260px);perspective:900px;perspective-origin:50% 45%;overflow:hidden;touch-action:pan-y}
-#pvp-root .pvp6-panel.lb3 .j2-arena button.lb3-stage-card{position:absolute;left:50%;top:6px;width:min(58%,300px);height:auto;min-height:0;padding:5px 5px 8px;z-index:calc(10 - var(--a,0));
-  opacity:calc(1 - var(--a,0)*.3);transform:translateX(calc(-50% + var(--o,0)*44%)) translateZ(calc(var(--a,0)*-110px)) rotateY(calc(var(--o,0)*-34deg));
-  transition:transform 320ms var(--lb3-ease),opacity 320ms,border-color 150ms}
-#pvp-root .pvp6-panel.lb3 .j2-arena button.lb3-stage-card:hover:not(:disabled){transform:translateX(calc(-50% + var(--o,0)*44%)) translateZ(calc(var(--a,0)*-110px)) rotateY(calc(var(--o,0)*-34deg))}
-#pvp-root .pvp6-panel.lb3 .j2-arena button.lb3-stage-card[aria-checked="true"]{border-color:var(--st-accent);box-shadow:none}
-#pvp-root .lb3 .j2-arena .lb3-stage-art{aspect-ratio:16/10}
-#pvp-root .lb3 .j2-arena .lb3-stage-description{display:none}
-#pvp-root .lb3 .j2-arena .lb3-stage-name{font-size:14px;font-weight:800}
-#pvp-root .lb3 .j2-arena .lb3-stage-blurb{min-height:34px;font-size:12px}
-
-/* 5) Başlat + çevrimiçi kart: düz yüzey, parıltı yok */
-#pvp-root .pvp6-panel.lb3 .j2-go button.lb3-fight{box-shadow:none;text-shadow:none}
-#pvp-root .pvp6-panel.lb3 .j2-go button.lb3-fight::after{display:none}
-#pvp-root .pvp6-panel.lb3 .j2-go button.lb3-fight:hover:not(:disabled){transform:none}
-#pvp-root .lb3 .j2-go .pvp6-help{margin:0}
-#pvp-root .lb3 .j2-online{align-content:start}
-
-/* Geniş ekran: mod başlığı görsel olarak gizli (şerit kendini anlatır; etiket erişilebilirlik için kalır), çevrimiçi kart iki sütun */
-@media (min-width:1100px){
-  #pvp-root .lb3 .j2-modes .rui-picker-label{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-  #pvp-root .lb3 .j2-modes .aui-modes .rui-seg{padding-bottom:6px}
-  #pvp-root .lb3 .j2-online{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:14px;row-gap:6px;align-content:start}
-  #pvp-root .lb3 .j2-online>.lb-card-head{grid-column:1 / -1}
-  #pvp-root .lb3 .j2-online>.lb-divider,#pvp-root .lb3 .j2-online>.pvp6-help{display:none}
-  #pvp-root .lb3 .j2-online>label[for="pvp6-name"],#pvp-root .lb3 .j2-online>#pvp6-name,#pvp-root .lb3 .j2-online>.pvp6-startrow{grid-column:1}
-  #pvp-root .lb3 .j2-online>label[for="lb3-join-code"],#pvp-root .lb3 .j2-online>.pvp6-join{grid-column:2}
-  #pvp-root .lb3 .j2-online>label[for="lb3-join-code"]{grid-row:2}
-  #pvp-root .lb3 .j2-online>.pvp6-join{grid-row:3;margin-top:0}
+/* Düşük yükseklik (1366×650 gibi): sıkıştır, kaymasın */
+@media (min-width:761px) and (max-height:720px){
+  #pvp-root .pvp6-panel.lb3.sc{--sc-top:48px;--sc-med:60px}
+  #pvp-root .lb3.sc .sc-stage{row-gap:8px}
+  #pvp-root .lb3.sc .j2-info-head b{font-size:clamp(34px,4.6vw,64px)}
+  #pvp-root .lb3.sc .j2-skill-copy small{font-size:12px}
+  #pvp-root .lb3.sc .j2-arena .lb3-stage-strip{height:52px}
+  #pvp-root .lb3.sc .sc-win{min-height:56px}
+  #pvp-root .pvp6-panel.lb3.sc .j2-settings .rui-seg button{min-height:32px}
+  #pvp-root .pvp6-panel.lb3.sc button.sc-start{min-height:60px}
+  #pvp-root .lb3.sc .sc-arena-name{font-size:clamp(26px,2.6vw,36px)}
 }
-@media (min-width:1100px) and (max-height:820px){
-  #pvp-root .lb3 .j2-chars{gap:8px}
-  #pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter{aspect-ratio:6/5}
-  #pvp-root .lb3 .j2-pick.lb3-showcase.lb3-roster{padding:10px 12px;gap:8px}
-  #pvp-root .lb3 .j2-info{min-height:0;gap:6px;padding:8px 12px}
-  #pvp-root .lb3 .j2-settings{padding:8px 12px 10px;gap:6px 12px}
-  #pvp-root .pvp6-panel.lb3 .j2-settings .rui-seg button,#pvp-root .pvp6-panel.lb3 .j2-settings [data-rounds-picker] .rui-seg button{min-height:38px}
-  #pvp-root .lb3 .j2-arena .lb3-stage-strip{height:clamp(180px,22vw,210px)}
-  #pvp-root .pvp6-panel.lb3 .j2-modes .aui-modes .rui-seg button{min-height:52px;padding-block:5px}
-  #pvp-root .lb3 .j2-before{gap:10px}
-  #pvp-root .pvp6-panel.lb3 .j2-go button.lb3-fight{min-height:50px!important}
-  #pvp-root .pvp6-panel.lb3{padding:12px 18px 12px;gap:8px}
-  #pvp-root .lb3-head{padding-bottom:8px}
-  #pvp-root .lb3-head h2{font-size:21px;margin:0}
-  #pvp-root .lb3-head p{display:none}
-  #pvp-root .lb3 .j2-info{grid-template-columns:minmax(0,1fr) auto;align-items:baseline}
-  #pvp-root .lb3 .j2-info-head{grid-column:1}
-  #pvp-root .lb3 .j2-weapon{grid-column:2;grid-row:1;justify-content:flex-end}
-  #pvp-root .lb3 .j2-skills{grid-column:1 / -1}
-  #pvp-root .lb3 .j2-go .pvp6-help{display:none}
+@media (min-width:761px) and (max-height:560px){
+  #pvp-root .lb3.sc .j2-weapon,#pvp-root .lb3.sc .j2-skill-copy small{display:none}
+  #pvp-root .lb3.sc .sc-win{display:none}
 }
-
-/* 6) Telefon (≤560): 5 karakter 3 sütunlu ızgara; mod şeridi bir sonraki kartı gösterir */
-@media (max-width:560px){
-  #pvp-root .lb3 .j2-chars{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-  #pvp-root .lb3 .j2-settings{grid-template-columns:minmax(0,1fr)}
-  #pvp-root .pvp6-panel.lb3 .j2-modes .aui-modes .rui-seg button{width:156px}
-  #pvp-root .lb3 .j2-info{min-height:0}
-  #pvp-root .lb3 .j2-arena .lb3-stage-strip{height:210px}
-}
-/* ≥2200 px CSS (≈ %80 yakınlaştırma): yazılar ekranda ≥12 px kalsın */
+/* ≥ 2200 px CSS (≈ %80 yakınlaştırma): yazılar ekranda ≥ 12 px kalsın */
 @media (min-width:2200px){
-  #pvp-root .lb3 .j2-info-head em,#pvp-root .lb3 .j2-weapon span,#pvp-root .lb3 .j2-settings .rui-seg button small,#pvp-root .lb3 .j2-modes .aui-modes .rui-seg button small,#pvp-root .lb3 .j2-arena .lb3-stage-blurb{font-size:15px}
-  #pvp-root .lb3 .j2-info-head span,#pvp-root .lb3 .j2-weapon,#pvp-root .lb3 .j2-settings .rui-picker-label,#pvp-root .lb3 .j2-arena .lb3-stage legend{font-size:16px}
-  #pvp-root .lb3 .j2-info-head b{font-size:22px}
-  #pvp-root .lb3 .j2-chars .lb3-f-name,#pvp-root .lb3 .j2-modes .aui-modes .rui-seg button b,#pvp-root .lb3 .j2-arena .lb3-stage-name{font-size:17px}
+  #pvp-root .lb3.sc .sc-label,#pvp-root .lb3.sc .j2-settings .lb3-kicker,#pvp-root .lb3.sc .j2-info-head em,#pvp-root .lb3.sc .j2-settings .rui-rule-hint,#pvp-root .lb3.sc .sc-start-hint{font-size:15px}
+  #pvp-root .lb3.sc .j2-skill-copy small,#pvp-root .lb3.sc .j2-settings .rui-picker-label,#pvp-root .pvp6-panel.lb3.sc .j2-settings .rui-seg button{font-size:16px}
 }
 @media (prefers-reduced-motion:reduce){
-  #pvp-root .pvp6-panel.lb3 .j2-arena button.lb3-stage-card,#pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter{transition:none}
-  #pvp-root .pvp6-panel.lb3 .j2-chars button.lb3-fighter:hover:not(:disabled){transform:none}
-  #pvp-root .lb3 .j2-modes .aui-modes .rui-seg{scroll-behavior:auto}
+  #pvp-root .lb3.sc *,#pvp-root .lb3.sc *::before,#pvp-root .lb3.sc *::after{transition:none!important;animation:none!important}
 }
-#pvp-root.pvp4-reduced .pvp6-panel.lb3 .j2-arena button.lb3-stage-card,#pvp-root.pvp4-reduced .pvp6-panel.lb3 .j2-chars button.lb3-fighter{transition:none}
-#pvp-root.pvp4-reduced .pvp6-panel.lb3 .j2-chars button.lb3-fighter:hover:not(:disabled){transform:none}
+#pvp-root.pvp4-reduced .lb3.sc *,#pvp-root.pvp4-reduced .lb3.sc *::before,#pvp-root.pvp4-reduced .lb3.sc *::after{transition:none!important;animation:none!important}

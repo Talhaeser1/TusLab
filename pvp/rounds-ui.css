@@ -417,3 +417,9 @@
 #pvp-root .m33-player:not(.is-winner) .m33-portrait{filter:saturate(.75)}
 #pvp-root .m33-player.has-portrait>h3,#pvp-root .m33-player.has-portrait>.m33-stats{grid-column:2}
 @media(max-width:900px){#pvp-root .m33-player.has-portrait>.m33-portrait{width:44px;height:44px;min-width:44px;min-height:44px;grid-row:1;align-self:center}#pvp-root .m33-player.has-portrait{grid-template-columns:44px minmax(0,1fr);align-items:center}}
+
+/* KESINYAP 8: raund arası kartında zemin görseli görünür (koyu örtü azaltıldı; metin kontrastı ölçümle >= 4.5:1 doğrulanır). */
+#pvp-root .m33-result::before{background:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--rui-win) 30%,transparent),transparent 62%),linear-gradient(180deg,#0a0a1c59,#0a0a1c80 60%,#0a0a1ca6),var(--rui-art) center/cover no-repeat}
+/* Metin satırlarının ARKASINA yerel koyu bant: zemin görseli bantların arasında net görünür, yazı kontrastı >= 4.5:1 kalır. */
+#pvp-root .m33-result :is(header,.m33-winner,.m33-hpline,.m33-footer,.m33-player){background:#0a0a1ce6}
+#pvp-root .m33-result .m33-player h3{color:color-mix(in srgb,var(--m33-player) 55%,#fff)}

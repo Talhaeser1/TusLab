@@ -185,3 +185,25 @@
 /* Arena odağında karakterler büyür: atılışa yer kalsın diye merkezden biraz dışarıda dururlar. */
 #pvp-root.stage-focus .pvp2-side.pvp2-fire .pvp3-rig{left:40%}
 #pvp-root.stage-focus .pvp2-side:not(.pvp2-fire) .pvp3-rig{left:60%}
+
+/* =====================================================================
+   VS EKRANI (KESINYAP 7): zemin = vs-zemin.webp (sol ateş kırmızısı, sağ buz mavisi); üstünde iki oyuncunun KENDİ karakter portresi
+   (portraits.js tek eşleme) ve portrelere oturan ad kartı. Portre kare kutu değil: alt/yan kenarları zemine erir.
+   ===================================================================== */
+#pvp-root .cin-vs{background:linear-gradient(180deg,#05020f59 0,#05020f00 26%,#05020f00 58%,#05020fa6 100%),url('../assets/higgsfield/final/vs-zemin.webp') center/cover no-repeat #05020f}
+#pvp-root .cin-half{width:50%;flex-direction:column;align-items:center;justify-content:flex-end;gap:clamp(4px,1vh,12px);padding:0 2% clamp(30px,6vh,64px);overflow:visible}
+#pvp-root .cin-half.cin-seat-1,#pvp-root .cin-half.cin-seat-2{clip-path:none;background:none}
+#pvp-root .cin-half::after{content:none}
+#pvp-root .cin-half .cin-fighter{position:relative;inset:auto;flex:none;display:block;width:100%;height:auto;max-width:calc(62vh*.75);max-height:62%;aspect-ratio:3/4;object-fit:cover;object-position:50% 14%;
+  -webkit-mask-image:linear-gradient(180deg,#000 68%,transparent 100%),linear-gradient(90deg,transparent 0,#000 12%,#000 88%,transparent 100%);-webkit-mask-composite:source-in;
+  mask-image:linear-gradient(180deg,#000 68%,transparent 100%),linear-gradient(90deg,transparent 0,#000 12%,#000 88%,transparent 100%);mask-composite:intersect}
+#pvp-root .cin-half .cin-tag{margin:calc(clamp(14px,3vh,32px)*-1) 0 0;padding:8px 20px 10px;min-width:min(86%,320px);max-width:100%;text-align:center;border:0;border-top:3px solid var(--cin-accent,#fff);border-radius:0;background:#07031ad1}
+#pvp-root .cin-half .cin-name{font:400 clamp(28px,4.4vw,60px)/1 Impact,Haettenschweiler,'Arial Narrow Bold',system-ui,sans-serif;font-style:normal;letter-spacing:.04em;text-transform:uppercase;overflow-wrap:anywhere}
+#pvp-root .cin-half .cin-char,#pvp-root .cin-half .cin-fighter-title{font-size:clamp(13px,1.2vw,18px)}
+@media(max-width:700px){
+  #pvp-root .cin-half{width:50%;padding:0 1% 14%}
+  #pvp-root .cin-half .cin-tag{min-width:0;width:100%;padding:6px 6px 8px}
+  #pvp-root .cin-half .cin-name{font-size:clamp(20px,6vw,28px)}
+  #pvp-root .cin-half .cin-fighter{max-height:54%}
+}
+.cin-boxed.cin-vs .cin-half .cin-fighter{max-height:58%}

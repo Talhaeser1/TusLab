@@ -46,6 +46,7 @@ test('J2: içerik modu seçimi bot oturumuna içerik olarak geçer (lobi seçimi
   assert.match(read('pvp/network.js'), /content:this\.practiceMode==='rounds'\?this\.practiceContent:'kelime'/);
 });
 
+const info0 = () => fighterInfoHTML('konyali');
 test('J2: karakterler yalnız ikon; bilgi kartı silah + Q/E/R adı/açıklaması fighters.js\'ten gelir', () => {
   const roster = fighterRosterHTML('sira');
   assert.deepEqual([...roster.matchAll(/data-fighter="(\w+)" data-side/g)].map(m => m[1]), ['vargr', 'sira', 'doran', 'nyx', 'konyali']);
@@ -61,9 +62,13 @@ test('J2: karakterler yalnız ikon; bilgi kartı silah + Q/E/R adı/açıklamas�
   const css = read('pvp/lobby-v3.css');
   for (const id of ['vargr', 'sira', 'doran', 'nyx']) assert.match(css, new RegExp(`portre-${id}\\.webp`));
   assert.match(css, /assets\/models\/konyali\/portre-konyali\.webp/);
-  // Tek satır / telefonda 3 sütun
-  assert.match(css, /\.j2-chars\{display:grid;grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
-  assert.match(css, /@media \(max-width:560px\)\{[^@]*\.j2-chars\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  // SAHNE: dock tek sıra yuvarlak madalyon (kare kart değil); telefonda yatay kayar. Q/E/R satırında boş kutu yok: rozet yalnız harf taşır.
+  assert.match(css, /\.j2-chars\{display:flex;[^}]*overflow-x:auto/);
+  assert.match(css, /button\.lb3-fighter\{[^}]*border-radius:50%/);
+  assert.match(info0(), /<b class="j2-key" aria-hidden="true">Q<\/b><span class="j2-skill-copy">/);
+  assert.doesNotMatch(info0(), /<i>|lb3-f-key/, 'rozetin yanında boş/simge kutusu yok');
+  // Hacı Usta madalyonu: visual-enrich.css --ve-portrait:none ile konyali portresini siliyordu; lobi doğrudan, daha özgül kuralla yükler.
+  assert.match(css, /\.lb3-fighter\[data-fighter\] \.lb3-f-art\[data-fighter-portrait="konyali"\]\{background-image:url\('\.\.\/assets\/models\/konyali\/portre-konyali\.webp'\)\}/);
 });
 
 test('J2: "Maç kuralları" paneli yok; MAÇ AYARLARI bot zorluğu + raund biçimi segment düğmeleri + hasar kuralı ipucu', () => {
@@ -81,17 +86,24 @@ test('J2: "Maç kuralları" paneli yok; MAÇ AYARLARI bot zorluğu + raund biçi
   assert.match(click, /action==='difficulty'/);
 });
 
-test('J2: arena karuseli CSS 3B (perspective + rotateY/translateZ), seçili önde; hareket azaltma uyumlu; cam efekti yok', () => {
+test('J2 SAHNE: tam ekran sahne (lobi-sahne.webp), eğik arena yelpazesi + paralelkenar pencere, çekmece, telefon alt sayfaları; cam/parıltı yok', () => {
   const css = read('pvp/lobby-v3.css'), j2 = css.slice(css.indexOf('J2 — PvP LOBİ'));
-  assert.match(j2, /\.j2-arena \.lb3-stage-strip\{[^}]*perspective:900px/s);
-  assert.match(j2, /rotateY\(calc\(var\(--o,0\)\*-34deg\)\)/);
-  assert.match(j2, /translateZ\(calc\(var\(--a,0\)\*-110px\)\)/);
+  assert.match(j2, /\.pvp6-panel\.lb3\.sc\{[^}]*position:fixed;inset:0[^}]*height:100dvh/s);
+  assert.match(j2, /\.sc-bg\{[^}]*lobi-sahne\.webp/s);
+  assert.match(j2, /\.sc-win\{[^}]*clip-path:polygon/s, 'seçili arena görseli paralelkenar pencere');
+  assert.match(j2, /\.sc-win-img\{[^}]*transition:opacity 300ms/s, 'arena değişince 300 ms crossfade');
+  assert.match(j2, /button\.lb3-stage-card\{[^}]*skewX\(-14deg\)/s, 'eğik ince şeritler');
+  assert.match(j2, /\.sc-drawer\{[^}]*width:min\(420px,100%\)/s);
+  assert.match(j2, /@media \(max-width:760px\)/);
   assert.match(j2, /prefers-reduced-motion:reduce/);
-  assert.doesNotMatch(j2, /backdrop-filter|blur\(|drop-shadow\(/);
+  assert.doesNotMatch(j2, /backdrop-filter|blur\(|drop-shadow\(|background-clip:text/);
   for (const m of j2.matchAll(/font-size:(\d+(?:\.\d+)?)px/g)) assert.ok(Number(m[1]) >= 12, `yazı ≥ 12 px: ${m[0]}`);
   const net = read('pvp/network.js');
-  assert.match(net, /style\?\.setProperty\?\.\('--o'/);
   assert.match(net, /stepStage\(scope,dir\)/);
+  assert.match(net, /addEventListener\('wheel'/);
+  assert.match(net, /sceneKey\(e\)/);
+  // Çevrimiçi oda sahnede yer kaplamaz: çekmecede; Tab/Esc/odak geri dönüşü network.js'te.
+  assert.ok(html.indexOf('data-sc-drawer') < html.indexOf('data-lobby-after') && html.indexOf('data-lobby-action="create"') > html.indexOf('data-sc-drawer'));
 });
 
 test('J2: ok tuşları belge yakalayıcısı sonrası lobi yönlendiricisinden geçer (kök dinleyicisine ulaşmaz)', () => {

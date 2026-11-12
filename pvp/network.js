@@ -45,28 +45,34 @@ const CHARACTERS={fire:'Alev Celladı',rune:'Rün Muhafızı'};
 // Paket 32 — karakter kadrosu: seçim localStorage'da tutulur; bot maçına ve odaya (FIGHTER_SELECT) gider.
 export const FIGHTER_KEY='tuslab-pvp-fighter';
 const SIDE_LABEL={fire:'ATEŞ',rune:'RÜN'};
-const FX_ICON={'axe-chop':'🪓',spin:'🌀','blood-storm':'🩸','projectile-spear':'🗡','dual-stab':'⚔','shadow-volley':'🌑',
-  'sword-chop':'⚔','shield-bash':'🛡','wall-crash':'🏰','projectile-rune':'✴',pillar:'🔆',meteor:'☄','projectile-bread':'🥖','ney-shockwave':'🎶'};
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fighterStyle=f=>`--f-main:${f.palette.main};--f-accent:${f.palette.accent}`;
 /** Bilgi kartı içeriği (silah + Q/E/R adları ve kısa açıklamaları) — yalnız pvp/shared/fighters.js'ten okunur. */
 export function fighterInfoHTML(id){
   const f=FIGHTERS[isFighterId(id)?id:defaultFighter('fire')];
   const skills=['q','e','r'].map(k=>{const sk=f.skills[k];
-    return `<li class="j2-skill"><span class="lb3-f-key" aria-hidden="true"><i>${FX_ICON[sk.fx]||'✦'}</i>${k.toUpperCase()}</span><span class="lb3-f-skill-copy"><b>${esc(sk.name)}</b><small>${esc(sk.desc)}</small></span></li>`;}).join('');
-  return `<div class="j2-info-head"><b>${esc(f.name)}</b><span>${esc(f.title)}</span><em class="${f.archetype}">${SIDE_LABEL[f.archetype]}</em></div>`
-    +`<p class="j2-weapon"><span>Silah</span><b>${esc(f.weapon||f.skills.q.short)}</b></p><ul class="j2-skills">${skills}</ul>`;
+    // Tuş rozeti + ad + açıklama tek satır öbeği (boş kutu yok: rozet yalnız harf taşır).
+    return `<li class="j2-skill"><b class="j2-key" aria-hidden="true">${k.toUpperCase()}</b><span class="j2-skill-copy"><b>${esc(sk.name)}</b><small>${esc(sk.desc)}</small></span></li>`;}).join('');
+  return `<div class="j2-info-head"><b lang="tr">${esc(f.name)}</b><span>${esc(f.title)}</span><em class="${f.archetype}">${SIDE_LABEL[f.archetype]}</em></div>`
+    +`<p class="j2-weapon"><span>Silah:</span><b>${esc(f.weapon||f.skills.q.short)}</b></p><ul class="j2-skills">${skills}</ul>`;
 }
-/** Lobi vitrini: yalnız portre ikonları (radyo grubu; ok tuşlarıyla gezilir). Silah + Q/E/R bilgi kartı `<template>`'ten tek kutuya yazılır. */
-export function fighterRosterHTML(selected=defaultFighter('fire')){
+/** Karakter dock'u: yuvarlak madalyonlar (radyo grubu; ok tuşlarıyla gezilir) + bilgi kartı `<template>`'leri. */
+export function fighterDockHTML(selected=defaultFighter('fire')){
   const cards=FIGHTER_IDS.map(id=>{const f=FIGHTERS[id],on=id===selected;
     return `<button type="button" role="radio" aria-checked="${on}" tabindex="${on?0:-1}" class="lb3-fighter ${f.archetype}" data-lobby-action="fighter" data-fighter="${id}" data-side="${f.archetype}" style="${fighterStyle(f)}" aria-label="${esc(`${f.name} · ${f.title} · ${f.archetype==='fire'?'Ateş':'Rün'}`)}">`
       +`<span class="lb3-f-art" data-fighter-portrait="${id}" aria-hidden="true"><span class="lb3-f-emblem">${esc(f.name[0])}</span></span>`
       +`<b class="lb3-f-name">${esc(f.name)}</b></button>`
       +`<template data-fighter-card="${id}">${fighterInfoHTML(id)}</template>`;}).join('');
-  return `<div class="lb3-fighters j2-chars" role="radiogroup" aria-labelledby="lb3-hero-title" data-fighter-group="lobby">${cards}</div>`
-    +`<div class="j2-info" data-fighter-info aria-live="polite"></div>`;
+  return `<div class="lb3-fighters j2-chars" role="radiogroup" aria-labelledby="lb3-hero-title" data-fighter-group="lobby">${cards}</div>`;
 }
+/** Bilgi kartı kutusu: seçili karakterin adı, unvanı, silahı ve Q/E/R satırları (`showFighterInfo` doldurur). */
+export const fighterInfoBoxHTML=()=>`<div class="j2-info" data-fighter-info aria-live="polite"></div>`;
+/** Lobi vitrini (dock + bilgi kartı); `networkConsoleHTML` ikisini sahnede ayrı yerlere koyar. */
+export function fighterRosterHTML(selected=defaultFighter('fire')){return fighterDockHTML(selected)+fighterInfoBoxHTML();}
+/** Seçili karakterin büyük portresi: tüm yüzler üst üste, panelin data-fighter değeri görünür olanı belirler (CSS). */
+const fighterFacesHTML=()=>`<div class="sc-faces" aria-hidden="true">${FIGHTER_IDS.map(id=>`<i class="sc-face" data-face="${id}"></i>`).join('')}</div>`;
+/** Arena penceresi: seçili arenanın görseli (paralelkenar, 300 ms crossfade); katmanlar panelin data-stage değerine göre açılır. */
+const arenaWindowHTML=()=>`<div class="sc-win" aria-hidden="true">${[...STAGES.map(s=>s.id),RANDOM_STAGE].map(id=>`<i class="sc-win-img" data-win="${id}">${id===RANDOM_STAGE?'<b>?</b>':''}</i>`).join('')}</div>`;
 /** Oda içi kısa seçim: 4 karakter, ad + arketip (radyo grubu). */
 function roomFighterChoicesHTML(selected=defaultFighter('fire')){
   return `<div class="pvp6-choices lb3-room-fighters" role="radiogroup" aria-labelledby="lb3-room-fighter-label" data-fighter-group="room">${FIGHTER_IDS.map(id=>{const f=FIGHTERS[id],on=id===selected;
@@ -252,12 +258,25 @@ export class PvPNetworkConsole {
     // Not: PvP açıkken index.js belge düzeyinde yakalama aşamasında keydown'ı durdurur (stopImmediatePropagation) → ok tuşları
     // bu kökteki dinleyiciye hiç ulaşmaz; bu yüzden index.js merkezi yönlendiricisi `lobbyKey`'i çağırır.
     root.addEventListener('keydown',e=>{this.lobbyKey(e);});
-    // Karakter bilgi kartı: üzerine gelince/odaklanınca o karakter; ayrılınca seçili karakter (dokunmatikte dokunma = seçim → kart seçiliyi gösterir).
-    const infoTarget=e=>e.target.closest?.('[data-fighter-group="lobby"] [data-fighter]');
-    root.addEventListener('pointerover',e=>{const b=infoTarget(e);if(b&&e.pointerType!=='touch')this.showFighterInfo(b.dataset.fighter);});
-    root.addEventListener('pointerout',e=>{if(infoTarget(e)&&!infoTarget({target:e.relatedTarget||{}}))this.showFighterInfo();});
-    root.addEventListener('focusin',e=>{const b=infoTarget(e);if(b)this.showFighterInfo(b.dataset.fighter);});
-    root.addEventListener('focusout',e=>{if(infoTarget(e))this.showFighterInfo();});
+    // Sahne: çekmece (Arkadaşla oyna), alt sayfalar (Yetenekler / Ayarlar), telefonda arena okları. Karakter bilgisi hep SEÇİLİ karakteri gösterir
+    // (büyük portre ile aynı kaynak); hover yalnız madalyonun adını açar (CSS).
+    root.addEventListener('click',e=>{
+      const b=e.target.closest?.('[data-sc-action]');if(!b)return;
+      const a=b.dataset.scAction;
+      if(a==='drawer')this.setDrawer(!this.drawerOpen);
+      else if(a==='drawer-close')this.setDrawer(false);
+      else if(a==='sheet')this.setSheet(this.sheet===b.dataset.sheet?'':b.dataset.sheet);
+      else if(a==='sheet-close')this.setSheet('');
+      else if(a==='stage-prev')this.stepStage('practice',-1);
+      else if(a==='stage-next')this.stepStage('practice',1);
+    });
+    // Arena yelpazesi: tekerlek komşu arenaya geçer (sahne kaymaz; 220 ms kısıtlı).
+    let wheelAt=0;
+    root.addEventListener('wheel',e=>{
+      if(!e.target.closest?.('[data-sc-arena]')||Math.abs(e.deltaY)+Math.abs(e.deltaX)<4)return;
+      e.preventDefault();const now=Date.now();if(now-wheelAt<220)return;wheelAt=now;
+      this.stepStage('practice',(Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY)>0?1:-1);
+    },{passive:false});
     // Arena kaydırmalı karusel: yatay kaydırma (dokunmatik/fare) komşu sahneyi seçer.
     let swipe=null;
     root.addEventListener('pointerdown',e=>{const g=e.target.closest?.('[data-stage-group="practice"]');swipe=g?{x:e.clientX,y:e.clientY,id:e.pointerId}:null;});
@@ -299,9 +318,50 @@ export class PvPNetworkConsole {
   /** Lobi ok tuşları (karakter ikonları · arena karuseli · mod şeridi). İşlediyse true döner. */
   lobbyKey(e){
     if(e.defaultPrevented)return true;
+    this.sceneKey(e);if(e.defaultPrevented)return true;
     this.fighterKey(e);if(e.defaultPrevented)return true;
     this.stageKey(e);if(e.defaultPrevented)return true;
     this.modeKey(e);return Boolean(e.defaultPrevented);
+  }
+  /** Sahne kısayolları (yalnız lobi açıkken): Esc çekmeceyi/alt sayfayı kapatır, çekmecede Tab odağı içeride tutar, Enter bot maçını başlatır. */
+  sceneKey(e){
+    const panel=this.root?.querySelector?.('[data-lobby-panel]');if(!panel||panel.hidden||!e.key)return;
+    if(this.drawerOpen||this.sheet){
+      if(e.key==='Escape'){e.preventDefault();if(this.drawerOpen)this.setDrawer(false);else this.setSheet('');return;}
+      if(e.key==='Tab'&&this.drawerOpen){
+        const box=panel.querySelector('[data-sc-drawer]');
+        const items=[...box.querySelectorAll('button,input,a[href],select,textarea')].filter(x=>!x.disabled&&x.getClientRects().length);
+        if(!items.length)return;
+        const first=items[0],last=items.at(-1),inside=box.contains(document.activeElement);
+        if(!inside||(e.shiftKey&&document.activeElement===first)){e.preventDefault();last.focus();}
+        else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+      }
+      return;
+    }
+    if(e.key==='Enter'&&!this.myId&&!this.practice&&!e.repeat){
+      const t=e.target,tag=t?.tagName;
+      if(['INPUT','TEXTAREA','SELECT','A'].includes(tag))return;
+      if(tag==='BUTTON'&&t.getAttribute('role')!=='radio')return; // düğmenin kendi Enter'ı kalır
+      e.preventDefault();this.startPractice();
+    }
+  }
+  /** Arkadaşla oyna çekmecesi: açılınca odak içeri girer, kapanınca açan düğmeye döner. */
+  setDrawer(open){
+    open=Boolean(open);if(open===Boolean(this.drawerOpen))return;
+    this.drawerOpen=open;
+    const panel=this.panel();
+    if(open){this.drawerOpener=document.activeElement;this.sheet='';this.render();
+      (panel?.querySelector('[data-sc-drawer] [data-sc-action="drawer-close"]'))?.focus?.({preventScroll:true});}
+    else{this.render();const o=this.drawerOpener;this.drawerOpener=null;
+      if(o?.isConnected&&o.getClientRects().length)o.focus?.({preventScroll:true});else panel?.querySelector('[data-sc-action="drawer"]')?.focus?.({preventScroll:true});}
+  }
+  /** Telefon alt sayfaları: '' | 'skills' | 'settings'. */
+  setSheet(name){
+    const next=['skills','settings'].includes(name)?name:'';if(next===(this.sheet||''))return;
+    this.sheet=next;this.render();
+    const panel=this.panel();
+    if(next)panel?.querySelector(`[data-sc-sheet="${next}"] [data-sc-action="sheet-close"]`)?.focus?.({preventScroll:true});
+    else panel?.querySelector('[data-sc-action="sheet"]')?.focus?.({preventScroll:true});
   }
   /** Radyo grubu: ok tuşları seçimi ve odağı birlikte taşır (Home/End uçlara gider). */
   fighterKey(e){
@@ -776,7 +836,7 @@ export class PvPNetworkConsole {
     const joined=Boolean(this.myId)&&!this.practice;
     const chip=this.root.querySelector('[data-practice-chip]');if(chip)chip.hidden=!this.practice;
     panel.querySelector('[data-lobby-action="practice-stop"]')?.toggleAttribute('hidden',!this.practice);
-    put('[data-practice-main]',this.practice?'Yeniden savaş':'Savaşa gir');put('[data-practice-sub]',this.practice?'↻ Yeni bot maçı başlat':'🤖 Seçili modda bot maçını başlat');
+    put('[data-practice-main]',this.practice?'Yeniden savaş':'Savaşa başla');
     panel.querySelectorAll('[data-difficulty]').forEach(b=>{const on=String(b.dataset.difficulty===this.practiceDifficulty);if(b.getAttribute('aria-pressed')!==on)b.setAttribute('aria-pressed',on);});
     const charSelect=panel.querySelector('[data-practice-character]');if(charSelect&&document.activeElement!==charSelect)charSelect.value=this.character;
     panel.dataset.hero=this.character;
@@ -787,7 +847,20 @@ export class PvPNetworkConsole {
       const on=b.dataset.fighter===shownFighter;b.setAttribute('aria-checked',String(on));b.tabIndex=on?0:-1;
       if(b.closest('[data-fighter-group="room"]'))b.disabled=!(Boolean(this.myId)&&!this.practice)||this.phase!=='waiting';
     });
-    this.showFighterInfo(panel.querySelector('[data-fighter-group="lobby"] [data-fighter]:is(:hover,:focus-visible)')?.dataset.fighter||shownFighter);
+    this.showFighterInfo(shownFighter);
+    // Sahne: büyük portre (data-fighter), arena penceresi + adı (data-stage), çekmece ve alt sayfa durumu.
+    if(!joined){panel.dataset.fighter=shownFighter;}
+    // Telefonda dock yatay kayar: seçili madalyon görünür alana gelsin (sayfa/sahne kaymadan, yalnız dock'un kendi scrollLeft'i).
+    const dockSel=panel.querySelector('.j2-chars [aria-checked="true"]'),dockBox=dockSel?.parentElement;
+    if(dockSel&&dockBox&&dockBox.scrollWidth>dockBox.clientWidth+1&&dockBox.dataset.centered!==shownFighter){dockBox.dataset.centered=shownFighter;dockBox.scrollLeft=dockSel.offsetLeft-(dockBox.clientWidth-dockSel.offsetWidth)/2;}
+    const stageId=normalizeStageChoice(this.practiceStage),stageName=STAGE_CHOICES.find(x=>x.id===stageId)?.name||'';
+    if(panel.dataset.stage!==stageId)panel.dataset.stage=stageId;
+    panel.querySelectorAll('[data-sc-arena-name]').forEach(n=>{if(n.textContent!==stageName)n.textContent=stageName;});
+    if(joined&&!this.drawerOpen){this.drawerOpen=true;this.drawerOpener=this.drawerOpener||null;}
+    const dr=this.drawerOpen?'open':'closed';if(panel.dataset.drawer!==dr)panel.dataset.drawer=dr;
+    const sh=this.sheet||'';if((panel.dataset.sheet||'')!==sh)panel.dataset.sheet=sh;
+    (this.root.querySelectorAll?.('[data-sc-action="drawer"]')||[]).forEach(x=>x.setAttribute('aria-expanded',String(Boolean(this.drawerOpen))));
+    (this.root.querySelectorAll?.('[data-sc-action="sheet"]')||[]).forEach(x=>x.setAttribute('aria-expanded',String(x.dataset.sheet===sh)));
     const host=joined&&this.hostPlayerId===this.myId;
     const roomEditable=host&&['waiting','countdown'].includes(this.phase);
     syncRoundsPicker(panel,'room',{value:this.roomRounds,editable:roomEditable,note:roomEditable?'Değiştirmek iki oyuncunun hazır durumunu sıfırlar.':host?'Maç başladı; rövanş aynı uzunlukta oynanır.':'Maç uzunluğunu oda sahibi belirler.'});
@@ -805,7 +878,7 @@ export class PvPNetworkConsole {
     const hostBox=panel.querySelector('[data-pvp17-host]');if(hostBox)hostBox.hidden=!host||!['waiting','countdown'].includes(this.phase);
     const kickButton=panel.querySelector('[data-lobby-action="kick"]');const opponent=this.players.find(p=>p.playerId!==this.myId);
     if(kickButton){kickButton.hidden=!opponent;kickButton.dataset.target=opponent?.playerId||'';}
-    panel.querySelector('[data-lobby-before]')?.toggleAttribute('hidden',joined);
+    panel.querySelectorAll('[data-lobby-before]').forEach(x=>x.toggleAttribute('hidden',joined));
     panel.querySelector('[data-lobby-after]')?.toggleAttribute('hidden',!joined);
     for(const seat of [1,2]){
       const slot=panel.querySelector(`[data-lobby-slot="${seat}"]`);
@@ -837,36 +910,59 @@ export class PvPNetworkConsole {
 }
 export function networkConsoleHTML(){
   return `<div class="pvp5-network-controls"><button type="button" class="pvp5-net-button ui-button-secondary" data-lobby-action="toggle" aria-controls="pvp-lobby-panel" title="Oda kur, katıl veya bot maçını başlat">⚔ Lobiyi aç</button><button type="button" class="pvp5-net-button pvp16-open ui-button-ghost" data-pvp16-action="toggle" title="Oyuncu profilini aç">🏆 Profil</button><button type="button" class="pvp5-net-button ui-button-ghost" data-social-action="toggle" title="Arkadaş listesini aç">👥 Arkadaşlar</button><span class="pvp5-connect-status" data-net-status data-online="false">Bağlı değil</span><span class="pvp24-chip" data-practice-chip hidden title="Bota karşı yerel maç; sunucu, profil ve puan kullanılmaz">🤖 ANTRENMAN · çevrimdışı</span></div>
-    <section class="pvp6-panel lb3" id="pvp-lobby-panel" data-lobby-panel data-hero="fire" aria-label="PvP lobisi ve bot antrenmanı" role="region">
-      <header class="pvp6-head lb3-head"><div class="lb3-head-copy"><span class="pvp6-eyebrow">1v1 · YAZARAK DÖVÜŞ</span><h2>RUH DÜELLOSU</h2><p data-lobby-state>Bağlı değil</p></div><span class="pvp6-label">PvP</span><button type="button" class="lb3-close" data-lobby-action="toggle" aria-label="Lobiyi kapat" title="Lobiyi kapat">Kapat <span aria-hidden="true">✕</span></button></header>
-      <div class="pvp6-before j2-before" data-lobby-before>
+    <section class="pvp6-panel lb3 sc" id="pvp-lobby-panel" data-lobby-panel data-hero="fire" data-fighter="vargr" data-stage="colosseum" data-drawer="closed" data-sheet="" aria-label="PvP lobisi ve bot antrenmanı" role="region">
+      <div class="sc-bg" aria-hidden="true"></div>
+      <header class="sc-top">
+        <h2 class="sc-title">PvP ARENA</h2>
         <section class="j2-modes" aria-label="Oyun modu">${modePickerHTML('practice')}</section>
-        <section class="lb3-showcase lb3-roster j2-pick" aria-labelledby="lb3-hero-title">
-          <h3 class="lb3-kicker" id="lb3-hero-title">Savaşçını seç</h3>
-          ${fighterRosterHTML()}
+        <p class="sc-state" data-lobby-state>Bağlı değil</p>
+      </header>
+      <div class="sc-stage j2-before" data-lobby-before>
+        <section class="sc-hero" aria-label="Seçili savaşçı">
+          ${fighterFacesHTML()}
+          <h3 class="sc-sr" id="lb3-hero-title">Savaşçını seç</h3>
+          ${fighterInfoBoxHTML()}
         </section>
-        <section class="j2-settings" data-j2-settings data-practice-box aria-labelledby="j2-settings-title">
-          <h3 class="lb3-kicker" id="j2-settings-title">MAÇ AYARLARI</h3>
+        <section class="sc-dock" aria-label="Savaşçı seçimi">${fighterDockHTML()}</section>
+        <section class="j2-arena sc-arena" data-sc-arena aria-label="Arena seçimi">
+          <p class="sc-label">ARENA</p>
+          <div class="sc-arena-row"><button type="button" class="sc-arrow sc-arrow-prev" data-sc-action="stage-prev" aria-label="Önceki arena"><span aria-hidden="true">‹</span></button><b class="sc-arena-name" data-sc-arena-name aria-live="polite">Arena</b><button type="button" class="sc-arrow sc-arrow-next" data-sc-action="stage-next" aria-label="Sonraki arena"><span aria-hidden="true">›</span></button></div>
+          ${arenaWindowHTML()}
+          ${stagePickerHTML('practice')}
+        </section>
+        <div class="sc-phone-tools">
+          <button type="button" class="sc-tool" data-sc-action="sheet" data-sheet="skills" aria-expanded="false" aria-controls="sc-sheet-skills">Yetenekler</button>
+          <button type="button" class="sc-tool" data-sc-action="sheet" data-sheet="settings" aria-expanded="false" aria-controls="sc-sheet-settings">Ayarlar</button>
+        </div>
+        <section class="j2-settings" data-j2-settings data-practice-box data-sc-sheet="settings" id="sc-sheet-settings" aria-labelledby="j2-settings-title">
+          <div class="sc-sheet-head"><h3 class="lb3-kicker" id="j2-settings-title">MAÇ AYARLARI</h3><button type="button" class="sc-sheet-close" data-sc-action="sheet-close">Kapat</button></div>
           ${difficultyPickerHTML()}
           ${roundsPickerHTML('practice')}
           ${roundStylePickerHTML('practice')}
         </section>
-        <section class="j2-arena" aria-label="Arena seçimi">${stagePickerHTML('practice')}</section>
-        <div class="j2-go">
-          <button type="button" class="pvp24-practice-start ui-button-primary lb3-fight" data-lobby-action="practice"><span class="lb3-fight-main" data-practice-main>Savaşa gir</span><span class="lb3-fight-sub" data-practice-sub>🤖 Seçili modda bot maçını başlat</span></button>
-          <button type="button" class="pvp24-practice-stop ui-button-ghost" data-lobby-action="practice-stop" hidden>Bot maçını bitir</button>
-          <p class="pvp6-help">Çevrimdışı bot maçı · profil ve puan değişmez.</p>
+        <div class="j2-go sc-go">
+          <button type="button" class="sc-start" data-lobby-action="practice" title="Seçili modda bot maçını başlat"><span class="sc-start-main" data-practice-main>Savaşa başla</span><small class="sc-start-hint">Enter ile de başlar</small></button>
+          <button type="button" class="sc-stop" data-lobby-action="practice-stop" hidden>Bot maçını bitir</button>
         </div>
-        <section class="lb-card lb-online lb3-online j2-online" aria-labelledby="lb-online-title">
-          <header class="lb-card-head"><h3 id="lb-online-title"><span class="lb3-step" aria-hidden="true">2</span>Arkadaşınla düello</h3><span class="lb-tag">Çevrimiçi</span></header>
+        <button type="button" class="sc-scrim sc-scrim-sheet" data-sc-action="sheet-close" tabindex="-1" aria-label="Alt sayfayı kapat"></button>
+      </div>
+      <div class="sc-actions">
+        <button type="button" class="sc-friend" data-sc-action="drawer" aria-expanded="false" aria-controls="sc-drawer">Arkadaşla oyna</button>
+        <button type="button" class="lb3-close sc-close" data-lobby-action="toggle" aria-label="Lobiyi kapat" title="Lobiyi kapat">Kapat</button>
+      </div>
+      <div class="sc-layer">
+      <button type="button" class="sc-scrim" data-sc-action="drawer-close" tabindex="-1" aria-label="Çekmeceyi kapat"></button>
+      <aside class="sc-drawer" id="sc-drawer" data-sc-drawer role="dialog" aria-modal="true" aria-labelledby="sc-drawer-title">
+        <header class="sc-drawer-head"><h3 id="sc-drawer-title">Arkadaşla oyna</h3><button type="button" class="sc-sheet-close" data-sc-action="drawer-close">Kapat</button></header>
+        <div class="sc-drawer-body">
+        <section class="sc-online" data-lobby-before aria-label="Çevrimiçi oda">
           <label for="pvp6-name">Oyuncu adın</label><input id="pvp6-name" data-lobby-name maxlength="20" value="Savaşçı" autocomplete="nickname" />
-          <div class="pvp6-startrow"><button type="button" class="pvp6-primary ui-button-secondary" data-lobby-action="create">✦ Oda oluştur ve davet et</button></div>
-          <div class="lb-divider" role="separator"><span>veya arkadaşının koduyla katıl</span></div>
+          <button type="button" class="sc-btn" data-lobby-action="create">Oda oluştur ve davet et</button>
+          <p class="sc-or">veya arkadaşının koduyla katıl</p>
           <label for="lb3-join-code">Oda kodu</label>
-          <div class="pvp6-join"><input id="lb3-join-code" data-lobby-join-code maxlength="16" autocomplete="off" spellcheck="false" placeholder="16 karakter" aria-describedby="lb3-join-hint"/><button type="button" class="ui-button-secondary" data-lobby-action="join">Odaya katıl</button></div>
+          <div class="pvp6-join"><input id="lb3-join-code" data-lobby-join-code maxlength="16" autocomplete="off" spellcheck="false" placeholder="16 karakter" aria-describedby="lb3-join-hint"/><button type="button" class="sc-btn" data-lobby-action="join">Odaya katıl</button></div>
           <p class="pvp6-help" id="lb3-join-hint">Kodu arkadaşının davet bağlantısının sonunda bulursun.</p>
         </section>
-      </div>
       <div class="pvp6-after" data-lobby-after hidden>
         <div class="lb3-room-stage">
           <div class="lb3-ticket">
@@ -891,5 +987,8 @@ export function networkConsoleHTML(){
         </div>
       </div>
       <div class="pvp6-log" data-lobby-log role="log" aria-live="polite"></div>
+        </div>
+      </aside>
+      </div>
     </section>${profilePanelHTML()}${friendPanelHTML()}`;
 }

@@ -53,3 +53,97 @@
 #pvp-root .pvp15-player:not(.pvp15-winner) .pvp15-portrait{filter:saturate(.8)}
 @media(max-height:820px){#pvp-root .pvp15-head{gap:10px;margin-bottom:6px}#pvp-root .pvp15-portrait{width:72px;height:72px}}
 @media(max-width:650px){#pvp-root .pvp15-portrait{width:72px;height:72px}}
+
+/* =====================================================================
+   SONUÇ SAHNESİ (KESINYAP 8): tam ekran, görsel NET. Zafer = sonuc-zafer.webp, yenilgi = sonuc-yenilgi.webp,
+   berabere/iptal = ekran-raund-banner.webp (src phase15-results.js RESULT_BG). Yalnız üst başlık bandı ve alt yarı
+   okunurluk için degrade alır; ekran karartılmaz. Üstte ZAFER/YENİLGİ + kalan can, ortada iki karakter portresi (kazanan
+   büyük ve renkli, kaybeden küçük ve soluk), altında sade istatistik satırları, en altta Rövanşa başla / Odadan çık.
+   Kaydırma yok; kutu yığını yok. (rounds-ui.js / arena-ui.js'in eklediği .rui-result / .aui-result blokları CSS ile biçimlenir.)
+   ===================================================================== */
+#pvp-root .pvp15-backdrop.pvp15-scene{position:absolute;inset:0;z-index:80;display:block;padding:0;overflow:hidden;background:#05071d;backdrop-filter:none;color:#fff}
+#pvp-root .pvp15-backdrop.pvp15-scene[hidden]{display:none!important}
+#pvp-root .pvp15-scene .pvp15-bgimg{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;object-position:50% 40%;pointer-events:none;user-select:none}
+#pvp-root .pvp15-scene::before{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(180deg,#05071de0 0,#05071dd9 13%,#05071d99 24%,#05071d00 38%,#05071d00 48%,#05071dbf 60%,#05071deb 72%,#05071df5 100%)}
+#pvp-root .pvp15-scene .pvp15-card{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;width:100%;max-width:none;height:100%;max-height:none;overflow:hidden;
+  gap:clamp(4px,1vh,10px);padding:clamp(10px,2.2vh,26px) clamp(12px,3vw,48px) clamp(10px,2vh,24px);border:0;border-radius:0;background:none;box-shadow:none;text-align:center}
+#pvp-root .pvp15-scene .pvp15-eyebrow{display:none}
+#pvp-root .pvp15-scene .pvp15-title{margin:0!important;font-family:Impact,Haettenschweiler,'Arial Narrow Bold',system-ui,sans-serif!important;font-size:clamp(52px,11vh,132px)!important;font-style:normal!important;
+  font-weight:400!important;line-height:1!important;letter-spacing:.1em!important;text-indent:.1em;text-shadow:0 3px 0 #0009,0 0 22px #000a!important}
+#pvp-root .pvp15-scene .pvp15-title[data-outcome='victory']{color:#fff4d6!important}
+#pvp-root .pvp15-scene .pvp15-title[data-outcome='defeat']{color:#ffd9cf!important}
+#pvp-root .pvp15-scene .pvp15-title[data-outcome='draw'],#pvp-root .pvp15-scene .pvp15-title[data-outcome='cancelled']{color:#e4f6ff!important}
+#pvp-root .pvp15-scene .pvp15-reason{margin:0;font-size:13px;font-weight:800;letter-spacing:.2em;color:#fff;text-shadow:0 1px 0 #000a,0 0 10px #000c}
+/* kalan can (rounds-ui.js .rui-result) */
+#pvp-root .pvp15-scene .rui-result,#pvp-root .pvp15-scene .aui-result{width:min(900px,100%);margin:0;padding:6px 14px;gap:4px;justify-items:center;background:linear-gradient(90deg,#05071d00,#05071ddd 14%,#05071ddd 86%,#05071d00)}
+#pvp-root .pvp15-scene .rui-res-len,#pvp-root .pvp15-scene .aui-res-len{font-size:12px;color:#e9e4ff;text-shadow:0 1px 0 #000a,0 0 8px #000b}
+#pvp-root .pvp15-scene .rui-res-score{gap:clamp(10px,2vw,24px)}
+#pvp-root .pvp15-scene .rui-res-name{font-size:14px;color:#fff;text-shadow:0 1px 0 #000a,0 0 8px #000b}
+#pvp-root .pvp15-scene .rui-res-line{font-size:clamp(26px,5vh,48px);color:#fff3d6;text-shadow:0 2px 0 #000a,0 0 14px #000b}
+/* raund dökümü: tek satırlık ince şerit (yatay kayar) */
+#pvp-root .pvp15-scene .rui-res-rounds{display:flex;flex-wrap:nowrap;justify-content:flex-start;gap:6px;width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;padding:2px 0}
+#pvp-root .pvp15-scene .rui-res-rounds::-webkit-scrollbar{display:none}
+#pvp-root .pvp15-scene .rui-res-round{flex:0 0 auto;gap:6px;padding:4px 10px;border-radius:0;border:0;border-bottom:3px solid #ffffff59;background:#05071dcc;font-size:12px;color:#fff}
+#pvp-root .pvp15-scene .rui-res-round.is-seat-1{border-bottom-color:#ff9a63}
+#pvp-root .pvp15-scene .rui-res-round.is-seat-2{border-bottom-color:#6fd3ff}
+#pvp-root .pvp15-scene .rui-res-label{color:#e0daf7}
+@media(min-width:900px){#pvp-root .pvp15-scene .rui-res-rounds{justify-content:center}}
+/* arena bloğu: MVP + kalan can satırı; döküm tablosu 'Raund dökümü' düğmesiyle açılır */
+#pvp-root .pvp15-scene .aui-res-mvp{font-size:14px;color:#ffe3a6;text-shadow:0 1px 0 #000a,0 0 8px #000b}
+#pvp-root .pvp15-scene .aui-res-players{display:flex;justify-content:center;gap:clamp(16px,4vw,48px);width:100%}
+#pvp-root .pvp15-scene .aui-res-player{display:flex;align-items:baseline;gap:10px;padding:0;border:0;background:none;box-shadow:none;color:#fff}
+#pvp-root .pvp15-scene .aui-res-player small{display:none}
+#pvp-root .pvp15-scene .aui-res-hp{font-size:clamp(18px,3vh,28px);font-weight:900;color:#ffe3a6}
+#pvp-root .pvp15-scene .aui-res-table-wrap{display:none}
+#pvp-root .pvp15-scene.is-breakdown .aui-res-table-wrap{display:block;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;width:min(760px,94vw);max-height:70%;overflow:auto;padding:14px 16px;background:#0b0f22;color:#fff}
+/* oyuncular: büyük portre + ad + karakter + sade istatistik satırı */
+#pvp-root .pvp15-scene .pvp15-scorecards{flex:1 1 0;min-height:0;width:100%;display:flex;justify-content:center;align-items:flex-end;gap:clamp(20px,9vw,160px);grid-template-columns:none}
+#pvp-root .pvp15-scene .pvp15-player{--sz:40vh;flex:0 1 auto;display:flex;flex-direction:column;align-items:center;gap:6px;width:min(46vw,calc(var(--sz)*.75));min-width:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;text-align:center;
+  transition:transform 200ms ease-out,opacity 200ms ease-out}
+#pvp-root .pvp15-scene .pvp15-player.pvp15-winner{--sz:46vh;z-index:1}
+#pvp-root .pvp15-scene .pvp15-scorecards:has(.pvp15-winner) .pvp15-player:not(.pvp15-winner){--sz:34vh;opacity:.78;filter:saturate(.5) brightness(.85)}
+#pvp-root .pvp15-scene .pvp15-head{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;margin:0;min-width:0}
+#pvp-root .pvp15-scene .pvp15-portrait{width:100%;height:auto;aspect-ratio:3/4;object-fit:cover;object-position:50% 14%;border:0;border-radius:0;background:#0a0f22;box-shadow:none;filter:none;
+  -webkit-mask-image:linear-gradient(180deg,#000 66%,transparent 100%),linear-gradient(90deg,transparent 0,#000 12%,#000 88%,transparent 100%);-webkit-mask-composite:source-in;
+  mask-image:linear-gradient(180deg,#000 66%,transparent 100%),linear-gradient(90deg,transparent 0,#000 12%,#000 88%,transparent 100%);mask-composite:intersect}
+#pvp-root .pvp15-scene .pvp15-winner .pvp15-portrait{box-shadow:none}
+#pvp-root .pvp15-scene .pvp15-player:not(.pvp15-winner) .pvp15-portrait{filter:none}
+#pvp-root .pvp15-scene .pvp15-player-name{display:grid;gap:2px;margin:0;margin-top:calc(clamp(8px,2vh,24px)*-1)}
+#pvp-root .pvp15-scene .pvp15-player-name span{font:400 clamp(22px,4vh,40px)/1 Impact,Haettenschweiler,'Arial Narrow Bold',system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:#fff;text-shadow:0 2px 0 #000a,0 0 12px #000c;white-space:normal;overflow:visible;overflow-wrap:anywhere}
+#pvp-root .pvp15-scene .pvp15-winner .pvp15-player-name span{color:#ffe3a6}
+#pvp-root .pvp15-scene .pvp15-player-name small{font-size:12px;font-weight:800;letter-spacing:.14em;color:#f1ecff;text-shadow:0 1px 0 #000a,0 0 8px #000c}
+#pvp-root .pvp15-scene .pvp15-figures{display:flex;justify-content:center;gap:clamp(14px,2.4vw,36px);margin:0}
+#pvp-root .pvp15-scene .pvp15-figures>div{padding:0;border:0;border-radius:0;background:none;text-align:center}
+#pvp-root .pvp15-scene .pvp15-figures strong{font-size:clamp(18px,3.2vh,30px);font-weight:900;color:#fff;text-shadow:0 1px 0 #000a,0 0 8px #000c}
+#pvp-root .pvp15-scene .pvp15-figures small{font-size:12px;font-weight:800;letter-spacing:.1em;color:#e7e1fa;text-shadow:0 1px 0 #000a,0 0 8px #000c}
+#pvp-root .pvp15-scene .pvp15-detail{display:none}
+#pvp-root .pvp15-scene .pvp15-meta,#pvp-root .pvp15-scene .pvp15-votes{margin:0;font-size:12px;color:#f1ecff;text-shadow:0 1px 0 #000a,0 0 8px #000c}
+#pvp-root .pvp15-scene .pvp15-votes{font-weight:800;color:#ffe3a6}
+#pvp-root .pvp15-scene .pvp15-votes:empty,#pvp-root .pvp15-scene .pvp15-meta:empty{display:none}
+#pvp-root .pvp15-scene .pvp15-buttons,#pvp-root .pvp15-card .pvp15-buttons{position:static;display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin:0;padding:0;background:none}
+#pvp-root .pvp15-scene .pvp15-buttons button{min-height:48px;min-width:160px;padding:0 24px;border-radius:6px;font-size:16px;font-weight:800;box-shadow:none}
+#pvp-root .pvp15-scene .pvp15-rematch{order:1;background:#ffb02e;border:0;color:#1a1000;font-size:18px;letter-spacing:.04em}
+#pvp-root .pvp15-scene .pvp15-exit{order:2;background:none;border:1px solid #ffffffb3;color:#fff}
+#pvp-root .pvp15-scene .pvp15-breakdown{order:3;display:none;background:none;border:0;color:#fff;text-decoration:underline;min-width:0}
+#pvp-root .pvp15-scene .pvp15-card:has(.aui-res-table-wrap) .pvp15-breakdown{display:inline-flex;align-items:center}
+@media(max-height:760px) and (min-width:761px){
+  #pvp-root .pvp15-scene .pvp15-player{--sz:34vh}
+  #pvp-root .pvp15-scene .pvp15-player.pvp15-winner{--sz:40vh}
+  #pvp-root .pvp15-scene .pvp15-scorecards:has(.pvp15-winner) .pvp15-player:not(.pvp15-winner){--sz:28vh}
+  #pvp-root .pvp15-scene .pvp15-buttons button{min-height:44px}
+}
+@media(max-width:760px){
+  #pvp-root .pvp15-backdrop.pvp15-scene{position:fixed;z-index:900}
+  #pvp-root .pvp15-scene .pvp15-title{font-size:clamp(40px,13vw,72px)!important;letter-spacing:.06em!important;text-indent:.06em}
+  #pvp-root .pvp15-scene .pvp15-scorecards{gap:12px}
+  #pvp-root .pvp15-scene .pvp15-portrait{aspect-ratio:3/5;object-position:50% 12%}
+  #pvp-root .pvp15-scene .pvp15-player{--sz:34vh;width:min(46vw,calc(var(--sz)*.75))}
+  #pvp-root .pvp15-scene .pvp15-player.pvp15-winner{--sz:36vh}
+  #pvp-root .pvp15-scene .pvp15-scorecards:has(.pvp15-winner) .pvp15-player:not(.pvp15-winner){--sz:28vh}
+  #pvp-root .pvp15-scene .pvp15-figures{gap:10px}
+  #pvp-root .pvp15-scene .pvp15-figures strong{font-size:18px}
+  #pvp-root .pvp15-scene .pvp15-buttons button{min-width:0;flex:1 1 140px}
+}
+@media(prefers-reduced-motion:reduce){#pvp-root .pvp15-scene .pvp15-player{transition:none}}
+#pvp-root.pvp4-reduced .pvp15-scene .pvp15-player{transition:none}

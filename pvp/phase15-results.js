@@ -5,7 +5,10 @@ const BOT_ID='practice-bot';
 const escapeHTML=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=n=>Number(n||0).toLocaleString('tr-TR');
 export const END_LABELS=Object.freeze({KNOCKOUT:'NAKAVT',TIME_LIMIT:'SÜRE DOLDU',DISCONNECT_FORFEIT:'BAĞLANTI HÜKMEN YENİLGİ',SURRENDER:'TESLİM OLMA',BOTH_DISCONNECTED:'MAÇ İPTALİ'});
-export function resultPanelHTML(){return `<div class="pvp15-backdrop" data-pvp15-results hidden>
+/** Sonuç sahnesinin arka planı (tam ekran, net): zafer / yenilgi / berabere-iptal. */
+export const RESULT_BG=Object.freeze({victory:'./assets/higgsfield/final/sonuc-zafer.webp',defeat:'./assets/higgsfield/final/sonuc-yenilgi.webp',draw:'./assets/higgsfield/final/ekran-raund-banner.webp',cancelled:'./assets/higgsfield/final/ekran-raund-banner.webp'});
+export function resultPanelHTML(){return `<div class="pvp15-backdrop pvp15-scene" data-pvp15-results hidden>
+  <img class="pvp15-bgimg" data-pvp15-bg alt="" decoding="async" draggable="false">
   <section class="pvp15-card" role="dialog" aria-modal="true" aria-label="Ruh Düellosu maç sonucu">
     <div class="pvp15-eyebrow">✧ TUŞLAB · RUH DÜELLOSU ✧</div>
     <h2 class="pvp15-title" data-pvp15-title>MAÇ SONA ERDİ</h2>
@@ -13,7 +16,7 @@ export function resultPanelHTML(){return `<div class="pvp15-backdrop" data-pvp15
     <div class="pvp15-scorecards" data-pvp15-scores></div>
     <div class="pvp15-meta" data-pvp15-meta></div>
     <div class="pvp15-votes" data-pvp15-votes aria-live="polite"></div>
-    <div class="pvp15-buttons"><button class="pvp15-rematch" type="button" data-pvp15-action="rematch">⚔ Rövanş iste</button><button class="pvp15-exit" type="button" data-pvp15-action="leave">Odadan çık</button></div>
+    <div class="pvp15-buttons"><button class="pvp15-breakdown" type="button" data-pvp15-toggle="breakdown" aria-expanded="false">Raund dökümü</button><button class="pvp15-rematch" type="button" data-pvp15-action="rematch">Rövanşa başla</button><button class="pvp15-exit" type="button" data-pvp15-action="leave">Odadan çık</button></div>
   </section>
 </div>`;}
 /* Kart alt başlığı: seçilen dövüşçünün özgün adı ("Vargr · Kızıl Balta"); eski kayıtlar arketipten varsayılana düşer. */
@@ -25,8 +28,8 @@ export function resultCardHTML(player,winnerSeat,mvpSeat){
   const winner=player.seat===winnerSeat;
   const d=player.defense||{};const cast=player.skillCasts||{};
   return `<article class="pvp15-player pvp15-${player.character==='rune'?'rune':'fire'} ${winner?'pvp15-winner':''}">
-    <div class="pvp15-head"><img class="pvp15-portrait" src="${escapeHTML(portraitFor(player).url)}" alt="" width="84" height="84" decoding="async" draggable="false" data-portrait="${escapeHTML(portraitFor(player).id)}" data-fallback="${escapeHTML(portraitFor(player).fallback)}">
-    <div class="pvp15-player-name"><span>${winner?'👑 ':''}${escapeHTML(player.name)}</span><small>${fighterLabel(player)}${player.seat===mvpSeat?' · MVP':''}</small></div></div>
+    <div class="pvp15-head"><img class="pvp15-portrait" src="${escapeHTML(portraitFor(player).url)}" alt="" width="768" height="1024" decoding="async" draggable="false" data-portrait="${escapeHTML(portraitFor(player).id)}" data-fallback="${escapeHTML(portraitFor(player).fallback)}">
+    <div class="pvp15-player-name"><span>${escapeHTML(player.name)}</span><small>${fighterLabel(player)}${player.seat===mvpSeat?' · MVP':''}</small></div></div>
     <div class="pvp15-figures"><div><strong>${num(player.wpm)}</strong><small>WPM</small></div><div><strong>%${num(player.accuracy)}</strong><small>DOĞRULUK</small></div><div><strong>${num(player.damageDealt)}</strong><small>HASAR</small></div></div>
     <div class="pvp15-detail"><span>🔥 Q / E / R: ${num(cast.q)} / ${num(cast.e)} / ${num(cast.r)}</span><span>🛡 ${num(d.normalBlocks)} blok · ${num(d.perfectBlocks)} kusursuz blok · ${num(d.parries)} savuşturma</span><span>⚔ ${num(d.counters)} karşı saldırı · ${num(d.shieldBreaks)} kalkan kırma</span><span>⌨ ${num(player.correctWords)} doğru / ${num(player.wrongWords)} yanlış · ${num(player.maxCombo)} en yüksek kombo</span></div>
   </article>`;
@@ -39,9 +42,15 @@ export function renderResult(root,match,network){
   const isCancelled=result.endReason==='BOTH_DISCONNECTED';
   const title=overlay.querySelector('[data-pvp15-title]');
   const myWon=result.winnerSeat!==null&&result.players.find(p=>p.seat===result.winnerSeat)?.playerId===network.myId;
-  const text=isCancelled?'MAÇ İPTAL':result.winnerSeat===null?'BERABERE':myWon?'ZAFER!':'YENİLGİ';
+  const text=isCancelled?'MAÇ İPTAL':result.winnerSeat===null?'BERABERE':myWon?'ZAFER':'YENİLGİ';
   title.textContent=text;title.dataset.outcome=isCancelled?'cancelled':result.winnerSeat===null?'draw':myWon?'victory':'defeat';
   overlay.dataset.outcome=title.dataset.outcome;
+  const bg=overlay.querySelector('[data-pvp15-bg]'),bgUrl=RESULT_BG[title.dataset.outcome]||RESULT_BG.draw;
+  if(bg&&bg.getAttribute('src')!==bgUrl)bg.setAttribute('src',bgUrl);
+  if(!overlay.dataset.bound){overlay.dataset.bound='1';
+    overlay.addEventListener('click',e=>{const t=e.target.closest?.('[data-pvp15-toggle="breakdown"]');if(!t)return;const on=!overlay.classList.contains('is-breakdown');overlay.classList.toggle('is-breakdown',on);t.setAttribute('aria-expanded',String(on));});
+    overlay.addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay.classList.contains('is-breakdown')){e.preventDefault();e.stopPropagation();overlay.classList.remove('is-breakdown');overlay.querySelector('[data-pvp15-toggle]')?.setAttribute('aria-expanded','false');}});
+  }
   overlay.querySelector('[data-pvp15-reason]').textContent=END_LABELS[result.endReason]||'MAÇ SONUCU';
   overlay.querySelector('[data-pvp15-scores]').innerHTML=result.players.map(p=>resultCardHTML(p,result.winnerSeat,result.mvpSeat)).join('');
   for(const img of overlay.querySelectorAll('.pvp15-portrait'))img.addEventListener('error',()=>{const fb=img.dataset.fallback;if(fb&&!img.src.endsWith(fb.slice(1)))img.src=fb;},{once:true});
@@ -51,7 +60,7 @@ export function renderResult(root,match,network){
   const duration=Math.floor(result.durationMs/1000);overlay.querySelector('[data-pvp15-meta]').textContent=`Savaş süresi ${Math.floor(duration/60)}:${String(duration%60).padStart(2,'0')} · ${vsBot?'Bot maçı · sonuçlar bu cihazda hesaplandı':'İki oyuncunun sunucuda doğrulanmış sonuçları'}`;
   const button=overlay.querySelector('[data-pvp15-action="rematch"]');
   button.disabled=!network.myId||network.phase==='rematch_countdown';
-  button.textContent=network.phase==='rematch_countdown'?'⏳ Rövanş hazırlanıyor…':mine?'✕ Rövanş isteğini geri çek':vsBot?'⚔ Rövanşa başla':'⚔ Rövanş iste';
+  button.textContent=network.phase==='rematch_countdown'?'Rövanş hazırlanıyor…':mine?'Rövanş isteğini geri çek':vsBot?'Rövanşa başla':'Rövanş iste';
   const votesText=overlay.querySelector('[data-pvp15-votes]');
   votesText.textContent=network.phase==='rematch_countdown'&&network.startAt?`RÖVANŞ: ${Math.max(0,Math.ceil((network.startAt-network.serverNow())/1000))} · Yeni maç başlıyor`:vsBot?'Bot rövanşa hazır · tek tıkla yeni maç başlar':`Rövanş onayı: ${votes.length} / 2 · İki oyuncu da kabul etmeli`;
 }
