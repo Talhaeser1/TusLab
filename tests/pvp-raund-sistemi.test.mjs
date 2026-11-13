@@ -77,8 +77,9 @@ test('can 4000 ile başlar ve raundlar arasında taşınır', () => {
   assert.equal('roundsWon' in publicMatch(m,1),false,'raund galibiyeti/pip yok');
 });
 
-test('seri → beceri: 3 Q, 5 E, 7 R, 8 ve sonrası her doğru kelime Q', () => {
-  assert.deepEqual([1,2,3,4,5,6,7,8,9,12,20].map(streakSkill),[null,null,'q',null,'e',null,'r','q','q','q','q']);
+// KESINYAP 21 (kullanıcı kuralı "ulti yalnız 10 üst üste"): 3 Q, 5 W (motor 'e'), 7 E (can, motor 'h'), 10 R; 11+ her doğru Q.
+test('seri → beceri: 3 Q, 5 W, 7 E (can), 10 R, 11 ve sonrası her doğru kelime Q', () => {
+  assert.deepEqual([1,2,3,4,5,6,7,8,9,10,11,12,20].map(streakSkill),[null,null,'q',null,'e',null,'h',null,null,'r','q','q','q']);
 });
 
 function perfectMatch({resolveAtEnd}){
@@ -200,6 +201,7 @@ test('arayüz: üst etiket, raund arası kartı ve lobi kural ipucu', () => {
   const html=roundStylePickerHTML('practice');
   assert.match(html,/Zamana karşı/);assert.match(html,/Kelime raundu/);assert.doesNotMatch(html,/data-round-words/);
   assert.ok(html.includes(DAMAGE_RULE_HINT));
-  assert.match(DAMAGE_RULE_HINT,/Seri 3 → Q · 5 → E · 7 → R · sonra her doğru kelime vurur · 7\. seriden sonra hasar çarpanı artar · yanlış kelime serinin yarısını götürür · raund başına en çok 1300 hasar/);
+  // KESINYAP 21: lobi ipucu dört yetenek eşiğini ve can tavanını söyler.
+  assert.match(DAMAGE_RULE_HINT,/Seri 3 → Q · 5 → W · 7 → E \(can\) · 10 → R · sonra her doğru kelime Q · 10\. seriden sonra hasar çarpanı artar · yanlış kelime serinin yarısını götürür · raund başına en çok 1300 hasar, 400 can/);
   assert.equal(roundsPickerHTML('practice'),'');
 });

@@ -17,7 +17,7 @@ function roundMatch(over={}){
     roundHistory:[],
     players:[
       {playerId:'me',seat:1,name:'Ayşe',character:'fire',hp:1200,maxHp:1200,combo:4,streak:4,multiplier:1,nextSkill:'e',roundWordIndex:6,roundCorrect:5,roundWrong:1,roundBestStreak:4,roundDamage:105,roundDone:false,finishedAt:null,wordIndex:16,currentWord:'yıldız'},
-      {playerId:'op',seat:2,name:'<img src=x onerror=alert(1)>',character:'rune',hp:900,maxHp:1200,combo:7,streak:7,multiplier:1.5,nextSkill:'q',roundWordIndex:7,roundCorrect:7,roundWrong:0,roundBestStreak:7,roundDamage:738,roundDone:false,finishedAt:null,wordIndex:17,currentWord:'gölge'}
+      {playerId:'op',seat:2,name:'<img src=x onerror=alert(1)>',character:'rune',hp:900,maxHp:1200,combo:10,streak:10,multiplier:1.5,nextSkill:'q',roundWordIndex:7,roundCorrect:7,roundWrong:0,roundBestStreak:10,roundDamage:738,roundDone:false,finishedAt:null,wordIndex:17,currentWord:'gölge'}
     ]};
   return {...base,...over,round:{...base.round,...(over.round||{})},players:over.players||base.players};
 }
@@ -221,26 +221,30 @@ test('rounds: single option 7; every stored value normalises to 7',()=>{
   for(const v of [7,'10',5,0,3,6,'x',null,undefined,11])assert.equal(normalizeRounds(v),7);
   assert.equal(PRACTICE_ROUNDS_KEY,'tuslab-pvp-practice-rounds');
 });
-test('rounds: streak multiplier and label mapping (×1.5 → ×2.5 cap, none below 7)',()=>{
-  for(const s of [0,1,3,5,6])assert.equal(streakMultiplier(s),1);
-  assert.equal(streakMultiplier(7),1.5);assert.equal(streakMultiplier(8),1.8);
-  assert.equal(streakMultiplier(9),2.16);assert.equal(streakMultiplier(10),2.5);assert.equal(streakMultiplier(14),2.5);
+test('rounds: streak multiplier and label mapping (×1.5 → ×2.5 cap, none below 10)',()=>{
+  // KESINYAP 21 (kullanıcı kuralı: dört yetenek, ulti yalnız 10 seride): çarpan eşiği 7 → 10.
+  for(const s of [0,1,3,5,6,7,9])assert.equal(streakMultiplier(s),1);
+  assert.equal(streakMultiplier(10),1.5);assert.equal(streakMultiplier(11),1.8);
+  assert.equal(streakMultiplier(12),2.16);assert.equal(streakMultiplier(13),2.5);assert.equal(streakMultiplier(17),2.5);
   assert.equal(multiplierLabel(1),null);
-  assert.deepEqual([7,8,9,10].map(s=>multiplierLabel(streakMultiplier(s))),['×1.5','×1.8','×2.16','×2.5']);
+  assert.deepEqual([10,11,12,13].map(s=>multiplierLabel(streakMultiplier(s))),['×1.5','×1.8','×2.16','×2.5']);
 });
-test('rounds: streak meter thresholds 3 Q / 5 E / 7 R and next skill',()=>{
-  assert.deepEqual(STREAK_SKILLS,{3:'q',5:'e',7:'r',8:'q',9:'q',10:'q'});
+test('rounds: streak meter thresholds 3 Q / 5 W / 7 E / 10 R and next skill',()=>{
+  // KESINYAP 21 (kullanıcı kuralı: dört yetenek, ulti yalnız 10 seride): eşik tablosu 3/5/7/10; motor anahtarı e → W, h → E.
+  assert.deepEqual(STREAK_SKILLS,{3:'q',5:'e',7:'h',10:'r'});
   const four=streakModel(4);
-  assert.deepEqual(four.ticks.map(t=>[t.at,t.key,t.reached]),[[3,'Q',true],[5,'E',false],[7,'R',false]]);
-  assert.equal(four.nextSkill,'E');assert.equal(four.multiplierLabel,null);assert.equal(four.cells,10);assert.equal(four.filled,4);
-  assert.equal(streakModel(2).nextSkill,'Q');assert.equal(streakModel(6).nextSkill,'R');
-  const seven=streakModel(7);assert.equal(seven.multiplierLabel,'×1.5');assert.equal(seven.nextSkill,'Q');
-  assert.equal(streakModel(10).nextSkill,'Q'); // KESINYAP 11: 8 ve sonrası her doğru kelime Q
+  assert.deepEqual(four.ticks.map(t=>[t.at,t.key,t.reached]),[[3,'Q',true],[5,'W',false],[7,'E',false],[10,'R',false]]);
+  assert.equal(four.nextSkill,'W');assert.equal(four.multiplierLabel,null);assert.equal(four.cells,10);assert.equal(four.filled,4);
+  assert.equal(streakModel(2).nextSkill,'Q');assert.equal(streakModel(6).nextSkill,'E');assert.equal(streakModel(9).nextSkill,'R');
+  const ten=streakModel(10);assert.equal(ten.multiplierLabel,'×1.5');assert.equal(ten.nextSkill,'Q');
+  assert.equal(streakModel(7).nextSkill,null);assert.equal(streakModel(12).nextSkill,'Q'); // 11 ve sonrası her doğru kelime Q
   assert.equal(streakModel(-3).filled,0);
 });
 test('rounds: predicted skill uses streak table in round mode, cyclic Q2/E4/R5 in classic',()=>{
   assert.equal(predictedSkill({combo:2,streak:2},{mode:'rounds',round:{}}),'Q');
-  assert.equal(predictedSkill({combo:6,streak:6},{mode:'rounds',round:{}}),'R');
+  assert.equal(predictedSkill({combo:6,streak:6},{mode:'rounds',round:{}}),'E'); // KESINYAP 21: 7 → E (can)
+  assert.equal(predictedSkill({combo:9,streak:9},{mode:'rounds',round:{}}),'R');
+  assert.equal(predictedSkill({combo:4,streak:4},{mode:'rounds',round:{}}),'W');
   assert.equal(predictedSkill({combo:3,streak:3},{mode:'rounds',round:{}}),null);
   assert.equal(predictedSkill({combo:1},classicMatch),'Q');
   assert.equal(predictedSkill({combo:3},classicMatch),'E');

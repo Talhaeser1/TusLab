@@ -91,7 +91,7 @@ test('fighters3d: every fighter defines Q/E/R with its own, different clips', ()
     }
     // Shared contract: the main clip of every skill comes from pvp/shared/fighters.js.
     for (const s of SKILLS) {
-      const shared = FIGHTERS[id].skills[s];
+      const shared = FIGHTERS[id].skills[s === 'e' ? 'w' : s]; // KESINYAP 21: motor 'e' (yakın vuruş) = karakter alanı W
       const clips = c[s].steps.map(step => step.clip);
       assert.ok(clips.includes(shared.clip), `${id}.${s} uses shared clip ${shared.clip}`);
     }

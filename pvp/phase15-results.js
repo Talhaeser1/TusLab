@@ -33,10 +33,10 @@ export function resultCardHTML(player,winnerSeat,mvpSeat){
     <div class="pvp15-head"><img class="pvp15-portrait" src="${escapeHTML(portraitFor(player).url)}" alt="" width="768" height="1024" decoding="async" draggable="false" data-portrait="${escapeHTML(portraitFor(player).id)}" data-fallback="${escapeHTML(portraitFor(player).fallback)}">
     <div class="pvp15-player-name"><span>${escapeHTML(player.name)}</span><small>${fighterLabel(player)}${player.seat===mvpSeat?' · MVP':''}</small></div></div>
     <div class="pvp15-figures"><div><strong>${num(player.wpm)}</strong><small>WPM</small></div><div><strong>%${num(player.accuracy)}</strong><small>DOĞRULUK</small></div><div><strong>${num(player.damageDealt)}</strong><small>HASAR</small></div></div>
-    <div class="pvp15-detail">${castTotal(cast)>0?`<span>Q / E / R: ${num(cast.q)} / ${num(cast.e)} / ${num(cast.r)}</span>`:''}<span>${num(player.correctWords)} doğru / ${num(player.wrongWords)} yanlış</span><span>En yüksek seri: ${num(player.maxCombo)}</span></div>
+    <div class="pvp15-detail">${castTotal(cast)>0?(cast.h!==undefined?`<span>Q / W / E / R: ${num(cast.q)} / ${num(cast.e)} / ${num(cast.h)} / ${num(cast.r)}</span><span>Toplam iyileşme: +${num(player.healDone)}</span>`:`<span>Q / W / R: ${num(cast.q)} / ${num(cast.e)} / ${num(cast.r)}</span>`):''}<span>${num(player.correctWords)} doğru / ${num(player.wrongWords)} yanlış</span><span>En yüksek seri: ${num(player.maxCombo)}</span></div>
   </article>`;
 }
-const castTotal=c=>(Number(c?.q)||0)+(Number(c?.e)||0)+(Number(c?.r)||0);
+const castTotal=c=>(Number(c?.q)||0)+(Number(c?.e)||0)+(Number(c?.h)||0)+(Number(c?.r)||0); // KESINYAP 21: e = W (motor), h = E (can)
 /** Raund raund hasar şeridi + "en iyi an" satırı modeli (saf; test edilir). Veri yoksa null. */
 export function resultHighlights(result){
   const rounds=Array.isArray(result?.rounds)?result.rounds.filter(r=>Array.isArray(r?.scores)):[];

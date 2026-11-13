@@ -9,20 +9,21 @@
 import {FIGHTERS,normalizeFighter} from './shared/fighters.js';
 import {portraitImg} from './portraits.js';
 import {ROUND_DURATION_MS,ROUND_CAP_WARN_MS,roundDurationMs,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,RESOLVE_BUDGET_MS,roundSkillMs,
-  ROUND_STYLES,DEFAULT_ROUND_STYLE,normalizeRoundStyle,ROUND_TOTAL,ROUND_HP,ROUND_DAMAGE_CAP,roundWordsFor,streakSkill,STREAK_SKILLS} from './shared/match.js';
+  ROUND_STYLES,DEFAULT_ROUND_STYLE,normalizeRoundStyle,ROUND_TOTAL,ROUND_HP,ROUND_DAMAGE_CAP,roundWordsFor,streakSkill,STREAK_SKILLS,ROUND_HEAL_CAP,MULTIPLIER_START} from './shared/match.js';
+import {SKILL_KEY} from './shared/fighters.js';
 export {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,STREAK_SKILLS};
 // KESINYAP 11: maç uzunluğu ve kelime sayısı seçeneği yok; her rounds maçı 7 raund, 4000 taşınan can.
 export const ROUND_OPTIONS=Object.freeze([ROUND_TOTAL]);
 export const DEFAULT_ROUNDS=ROUND_TOTAL;
 export const ROUND_WORDS=10; // seri göstergesi hücre sayısı ve kelime şeridi penceresi
 export const ROUND_LAST_CALL_MS=5_000;
-export const STREAK_TICKS=Object.freeze([{at:3,key:'Q'},{at:5,key:'E'},{at:7,key:'R'}]);
+export const STREAK_TICKS=Object.freeze([{at:3,key:'Q'},{at:5,key:'W'},{at:7,key:'E'},{at:10,key:'R'}]);
 export const PRACTICE_ROUNDS_KEY='tuslab-pvp-practice-rounds';
 export const PRACTICE_ROUND_STYLE_KEY='tuslab-pvp-practice-round-style';
 export const ROUND_STYLE_LABELS=Object.freeze({timed:'Zamana karşı',counted:'Kelime raundu'});
 export const ROUND_STYLE_TITLES=Object.freeze({timed:'ZAMANA KARŞI',counted:'KELİME RAUNDU'});
 /** Tek satırlık hasar kuralı ipucu (lobi MAÇ AYARLARI). */
-export const DAMAGE_RULE_HINT=`Seri 3 → Q · 5 → E · 7 → R · sonra her doğru kelime vurur · 7. seriden sonra hasar çarpanı artar · yanlış kelime serinin yarısını götürür · raund başına en çok ${ROUND_DAMAGE_CAP} hasar`;
+export const DAMAGE_RULE_HINT=`Seri 3 → Q · 5 → W · 7 → E (can) · 10 → R · sonra her doğru kelime Q · 10. seriden sonra hasar çarpanı artar · yanlış kelime serinin yarısını götürür · raund başına en çok ${ROUND_DAMAGE_CAP} hasar, ${ROUND_HEAL_CAP} can`;
 export {DEFAULT_ROUND_STYLE,normalizeRoundStyle,ROUND_HP,ROUND_DAMAGE_CAP};
 const START_FLASH_MS=900;
 /** Raund arası: "RAUND X" yazısı önce tek başına bu kadar görünür; sonra kompakt özet/seçim paneli açılır. */
@@ -73,11 +74,11 @@ export function nextRoundText(next,style,total=ROUND_TOTAL){
   return `Sıradaki: ${idx>total?'ANİ ÖLÜM':`RAUND ${idx}`} · ${tail}`;
 }
 
-/** M(seri) = seri<7 ? 1 : min(2.5, 1.5 × 1.2^(seri−7)) — 2 ondalığa yuvarlanmış gösterim değeri. */
+/** M(seri) = seri<10 ? 1 : min(2.5, 1.5 × 1.2^(seri−10)) — 2 ondalığa yuvarlanmış gösterim değeri (KESINYAP 21: eşik 7 → 10). */
 export function streakMultiplier(streak){
   const s=Math.max(0,Math.floor(Number(streak)||0));
-  if(s<7)return 1;
-  return Math.min(2.5,Math.round(1.5*1.2**(s-7)*100)/100);
+  if(s<MULTIPLIER_START)return 1;
+  return Math.min(2.5,Math.round(1.5*1.2**(s-MULTIPLIER_START)*100)/100);
 }
 export function multiplierLabel(multiplier){
   const m=Number(multiplier)||1;
@@ -92,12 +93,12 @@ export function streakModel(streak,serverNextSkill){
   const next=serverNextSkill===undefined?derived:serverNextSkill;
   return {streak:s,cells:ROUND_WORDS,filled:Math.min(s,ROUND_WORDS),
     ticks:STREAK_TICKS.map(t=>({...t,reached:s>=t.at})),
-    nextSkill:next?String(next).toUpperCase():null,multiplier,multiplierLabel:multiplierLabel(multiplier),hot:s>=7};
+    nextSkill:next?(SKILL_KEY[next]||String(next).toUpperCase()):null,multiplier,multiplierLabel:multiplierLabel(multiplier),hot:s>=MULTIPLIER_START};
 }
 
 /** Sonraki doğru kelimede tetiklenecek büyü (tahmin yalnızca bekleme metni içindir). */
 export function predictedSkill(player,match){
-  if(match?.mode==='rounds'){const k=streakSkill(streakOf(player)+1);return k?k.toUpperCase():null;}
+  if(match?.mode==='rounds'){const k=streakSkill(streakOf(player)+1);return k?SKILL_KEY[k]:null;}
   const future=(Number(player?.combo)||0)+1;
   return future%5===2?'Q':future%5===4?'E':future%5===0?'R':null;
 }

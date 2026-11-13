@@ -25,6 +25,7 @@ export {
   // Round mode (docs/TUR-SISTEMI.md)
   ROUND_OPTIONS, ROUND_WORDS, ROUND_DURATION_MS, ROUND_COUNTED_CAP_MS, ROUND_CAP_WARN_MS, roundDurationMs, ROUND_LAST_CALL_MS, ROUND_SETTLE_MS, ROUND_SUMMARY_MS,
   ROUND_INTRO_MS, ROUND_HP, ROUND_DAMAGE_CAP, ROUND_TOTAL, ROUND_WORD_PLAN, roundWordsFor, streakSkill, SUDDEN_DEATH_MAX, STREAK_SKILLS, MULTIPLIER_START, MULTIPLIER_STEP, MULTIPLIER_CAP,
+  ROUND_HEAL_CAP, HEAL_RATIO, healAmount,
   ROUND_SCORE, ULTIMATE_RETURN_MS, normalizeRounds, streakMultiplier, roundScore, roundStartPayload,
   advanceMatch, nextDeadline,
   // Protocol guard: message types only the server may emit

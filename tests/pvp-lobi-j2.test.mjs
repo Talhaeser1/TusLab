@@ -174,7 +174,7 @@ test('J2: HUD etiketi ile 3B model aynı kaynaktan (match.players[].fighter); UR
   assert.match(idx, /if\(isFighterId\(forced\)&&\(!p\|\|FIGHTERS\[forced\]\.archetype===side\)\)return forced;/);
   assert.match(idx, /return normalizeFighter\(p\?\.fighter,side\);/);
   // Beceri çubuğu adları da aynı alandan: applyFighterNames(section, player.fighter)
-  assert.match(read('pvp/skillbar.js'), /applyFighterNames\(section,player\.fighter\)/);
+  assert.match(read('pvp/skillbar.js'), /applyFighterNames\(section,player\.fighter(,\{rounds\})?\)/); // KESINYAP 21: mod bilgisi (klasik E kartı = W adı)
 });
 
 test('J2: maça girişte 2B/eski model parlaması yok — yükleniyor sınıfı + 2B rig gizli + gösterge', () => {

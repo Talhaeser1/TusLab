@@ -14,7 +14,8 @@ export const FIGHTERS=freezeDeep({
   blurb:'Kuzey buzullarında kor yakıp kışı deviren balta ustası; her yenilgiyi bir sonraki savuruşa öfke olarak saklar.',
   skills:{
    q:{name:'Balta Savuruşu',short:'Tepeden balta darbesi',desc:'İki elle tepeden balta indirir; hızlı, net vuruş.',clip:'2H_Melee_Attack_Chop',fx:'axe-chop'},
-   e:{name:'Kasırga',short:'Dönerek çoklu vuruş',desc:'Baltayla dönerek art arda vurur; çok vuruşlu darbe.',clip:'2H_Melee_Attack_Spin',fx:'spin'},
+   w:{name:'Kasırga',short:'Koşup dönerek çoklu vuruş',desc:'Rakibe koşar, baltayla dönerek art arda vurur; yakın dövüş.',clip:'2H_Melee_Attack_Spin',fx:'spin'},
+   e:{name:'Kan Nabzı',short:'Kızıl nabızla can toplar',desc:'Baltayı yere dayayıp yaralarını korla dağlar; kan-kızıl bir nabız göğsünden dalga dalga yayılır, can toplar.',fx:'heal-pulse',heal:true,motif:'pulse'},
    r:{name:'Kan Fırtınası',short:'Üç evreli kızıl girdap',desc:'Sıçrayıp dönen kızıl bir girdaba dönüşür; üç evreli ulti.',clip:'2H_Melee_Attack_Spinning',clips:['Jump_Start','2H_Melee_Attack_Spinning','Jump_Land'],fx:'blood-storm'},
    s:{name:'Demir Duruş',short:'Eş kelimede %30 blok',desc:'Baltayı siper alır; gelen darbeyi azaltır, tam zamanlamada savuşturur.',clip:'Blocking',fx:'guard'}
   }
@@ -26,7 +27,8 @@ export const FIGHTERS=freezeDeep({
   blurb:'Çöl kervanlarının izini gölgelerden süren iz sürücü; mızrağını ancak hedefi ışığa çıktığında fırlatır.',
   skills:{
    q:{name:'Mızrak Atışı',short:'Mızrak mermisi fırlatır',desc:'Sağ elini kaldırıp mızrak fırlatır; mermi rakibe uçar.',clip:'Throw',fx:'projectile-spear'},
-   e:{name:'Çifte Hançer',short:'Atılıp çifte saplar',desc:'İleri atılıp iki hançerle saplar.',clip:'Dualwield_Melee_Attack_Stab',clips:['Dodge_Forward','Dualwield_Melee_Attack_Stab'],fx:'dual-stab'},
+   e:{name:'Gölge Sisi',short:'Sisin içinde yarasını sarar',desc:'Gölge sisine bürünür; mor sis ayaklarından yükselirken yaralarını sessizce sarar, can toplar.',fx:'heal-mist',heal:true,motif:'mist'},
+   w:{name:'Çifte Hançer',short:'Atılıp çifte saplar',desc:'Rakibe atılıp iki hançerle saplar; yakın dövüş.',clip:'Dualwield_Melee_Attack_Stab',clips:['Dodge_Forward','Dualwield_Melee_Attack_Stab'],fx:'dual-stab'},
    r:{name:'Gölge Yağmuru',short:'Üç gölge mızrağı',desc:'Yana kayıp art arda üç gölge mızrağı yağdırır; üç evreli ulti.',clip:'Throw',clips:['Dodge_Left','Throw','Throw','Throw'],fx:'shadow-volley'},
    s:{name:'Gölge Adımı',short:'Eş kelimede %30 blok',desc:'Geri kayarak darbeyi karşılar; tam zamanlamada savuşturur.',clip:'Blocking',fx:'guard'}
   }
@@ -38,7 +40,8 @@ export const FIGHTERS=freezeDeep({
   blurb:'Yıkılan kale kentinin son muhafızı; surları yeniden örene dek kalkanını kimseye indirmeyeceğine ant içti.',
   skills:{
    q:{name:'Kılıç Darbesi',short:'Dengeli kılıç vuruşu',desc:'Tek elle tepeden kılıç indirir; dengeli vuruş.',clip:'1H_Melee_Attack_Chop',fx:'sword-chop'},
-   e:{name:'Kalkan Ezici',short:'Kalkanla ezer, sarsar',desc:'Kalkanla ezer; rakibin siperini sarsar.',clip:'Block_Attack',fx:'shield-bash'},
+   w:{name:'Kalkan Ezici',short:'Koşup kalkanla ezer',desc:'Rakibe yürüyüp kalkanla ezer; siperini sarsar. Yakın dövüş.',clip:'Block_Attack',fx:'shield-bash'},
+   e:{name:'Sur Andı',short:'Kalkan parıltısıyla can toplar',desc:'Kalkanını göğsüne bastırıp surların andını okur; altın kalkan parıltısı bedenini sarar, can toplar.',fx:'heal-aegis',heal:true,motif:'aegis'},
    r:{name:'Sur Çöküşü',short:'Sıçrayıp yere çakılır',desc:'Havaya sıçrayıp yere çakılır, ardından yatay keser; üç evreli ulti.',clip:'1H_Melee_Attack_Slice_Horizontal',clips:['Jump_Start','Jump_Land','1H_Melee_Attack_Slice_Horizontal'],fx:'wall-crash'},
    s:{name:'Kale Kalkanı',short:'Eş kelimede %30 blok',desc:'Kalkanı kaldırır; gelen darbeyi azaltır, tam zamanlamada savuşturur.',clip:'Blocking',fx:'guard'}
   }
@@ -50,7 +53,8 @@ export const FIGHTERS=freezeDeep({
   blurb:'Gece gökyüzündeki takımyıldızları rün diye okuyan kâhin; her savaşı yıldızlarda önceden görmüş gibi dövüşür.',
   skills:{
    q:{name:'Rün Oku',short:'Rün mermisi fırlatır',desc:'Avucundan parlayan bir rün mermisi fırlatır.',clip:'Spellcast_Shoot',fx:'projectile-rune'},
-   e:{name:'Rün Sütunu',short:'Yerden ışık sütunu',desc:'Rakibin altından ışık sütunu yükseltir.',clip:'Spellcast_Raise',fx:'pillar'},
+   w:{name:'Rün Sütunu',short:'Yakından ışık sütunu',desc:'Rakibin dibine yürüyüp altından ışık sütunu yükseltir.',clip:'Spellcast_Raise',fx:'pillar'},
+   e:{name:'Şifa Rünü',short:'Rün halkası can verir',desc:'Ayaklarının altına dönen bir şifa rünü çizer; halkadan yükselen ışık yaralarını kapatır, can toplar.',fx:'heal-runes',heal:true,motif:'runes'},
    r:{name:'Yıldız Çöküşü',short:'Gökten meteor indirir',desc:'Uzun bir büyüyle gökten meteor indirir; üç evreli ulti.',clip:'Spellcast_Long',fx:'meteor'},
    s:{name:'Rün Perdesi',short:'Eş kelimede %30 blok',desc:'Önüne rün perdesi örer; tam zamanlamada savuşturur.',clip:'Blocking',fx:'guard'}
   }
@@ -62,8 +66,9 @@ export const FIGHTERS=freezeDeep({
   blurb:'Konya pazarının fırınından çıkıp meydanlara düşen usta; etli ekmeği fırlatır, neyini üfleyince meydan susar.',
   skills:{
    q:{name:'Etli Ekmek Fırlatışı',short:'Sıcak etli ekmek fırlatır',desc:'Omuz üstünden sıcak etli ekmeği rakibe fırlatır; menzilli vuruş.',clip:'Over_Shoulder_Throw',fx:'projectile-bread'},
-   e:{name:'Sema Dönüşü',short:'Dönerek alan hasarı',desc:'Sema dönüşüyle sıçrayıp çevresine dönerek alan hasarı verir.',clip:'360_Power_Spin_Jump',fx:'spin'},
-   r:{name:'Ney Feryadı',short:'Ses dalgasıyla ulti',desc:'Neyi öyle bir üfler ki ses dalgası rakibin kulaklarını patlatır; sinematik ulti.',clip:'Ney_Ulti',fx:'ney-shockwave'},
+   w:{name:'Sema Dönüşü',short:'Koşup dönerek vurur',desc:'Rakibe koşar, sema dönüşüyle sıçrayıp dönerek vurur; yakın dövüş.',clip:'360_Power_Spin_Jump',fx:'spin'},
+   e:{name:'Şerbet Molası',short:'Buharlı şerbetle can toplar',desc:'Bir bardak sıcak şerbet içer; yeşil-altın buhar sarmalı bedenini sarar, can toplar.',fx:'heal-steam',heal:true,motif:'steam'},
+   r:{name:'Ney Feryadı',short:'Alan hasarlı ses dalgası',desc:'Neyi öyle bir üfler ki ses dalgası meydanı yarar, yer göçer; alan hasarlı ulti.',clip:'Ney_Ulti',fx:'ney-shockwave'},
    s:{name:'Hacı Duruşu',short:'Eş kelimede %30 blok',desc:'Yere sağlam basıp darbeyi karşılar; tam zamanlamada savuşturur.',clip:'Block1',fx:'guard'}
   }
  }
@@ -85,4 +90,10 @@ export function normalizeFighter(id,archetype){
 }
 export function fighterSide(id){return isFighterId(id)?FIGHTERS[id].archetype:'fire';}
 export function getFighter(id,archetype){return FIGHTERS[normalizeFighter(id,archetype)];}
-export function fighterSkillName(id,skill,archetype){return getFighter(id,archetype).skills[skill]?.name||'';}
+/** KESINYAP 21 — dört yetenek. Karakter alanları TUŞ adıyla: q (Q menzilli), w (W yakın dövüş), e (E kendine can), r (R ulti), s (klasik savunma).
+ * Motor (match.js) anahtarları geriye uyumludur: 'e' = yakın vuruş (W), 'h' = can (E). Motor anahtarı → karakter alanı / tuş: */
+export const SKILL_FIELD=Object.freeze({q:'q',e:'w',w:'w',h:'e',r:'r',s:'s'});
+export const SKILL_KEY=Object.freeze({q:'Q',e:'W',w:'W',h:'E',r:'R',s:'S'});
+/** Motor anahtarına göre yetenek verisi (ör. SKILL_CAST.skill 'e' → skills.w). */
+export function fighterSkill(id,engineKey,archetype){return getFighter(id,archetype).skills[SKILL_FIELD[engineKey]||engineKey]||null;}
+export function fighterSkillName(id,skill,archetype){return fighterSkill(id,skill,archetype)?.name||'';}

@@ -43,7 +43,7 @@ export function practiceFighters(o={}){
 /** Protocol version used by the real server envelope (room.js VERSION). */
 const VERSION=1;
 /** Combat event types the server broadcasts one-by-one (room.broadcastCombat). */
-const COMBAT_TYPES=new Set(['SKILL_CAST','SHIELD_TRIGGERED','PARRY_TRIGGERED','COUNTERATTACK_CAST','SHIELD_BROKEN','ULTIMATE_PHASE','DAMAGE_APPLIED','RUNE_TRIGGERED','WORD_CLASH','ASSIST_CAST']);
+const COMBAT_TYPES=new Set(['SKILL_CAST','SHIELD_TRIGGERED','PARRY_TRIGGERED','COUNTERATTACK_CAST','SHIELD_BROKEN','ULTIMATE_PHASE','DAMAGE_APPLIED','RUNE_TRIGGERED','WORD_CLASH','ASSIST_CAST','HEAL_APPLIED']);
 /** Snapshot carrying message types (forwarded to onMatch). */
 const MATCH_TYPES=new Set(['MATCH_START','STATE_UPDATE','MATCH_END']);
 

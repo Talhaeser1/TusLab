@@ -359,8 +359,22 @@
 .fhud2 .fhud2-hp{padding:0 22px;font:900 italic 15px/1 system-ui,sans-serif;letter-spacing:.04em;text-shadow:0 1px 2px #000,0 0 6px rgba(0,0,0,.9)}
 .fhud2-side.is-low .fhud2-fill{background:linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,.04) 42%,rgba(0,0,0,.28)),linear-gradient(90deg,#7a0d20,#ff4d63)}
 .fhud2-bar.is-hit .fhud2-clip::after{box-shadow:inset 0 0 0 2px rgba(255,246,207,.95)}
+/* KESINYAP 21: E (kendine can) — basin ustunde yesil "+120" (yalniz transform/opacity) */
+#pvp-root .fhud-heal{position:fixed;z-index:70;pointer-events:none;transform:translate(-50%,-50%);
+  font:900 italic 34px/1 system-ui,sans-serif;letter-spacing:.02em;color:#8dffaa;
+  text-shadow:0 2px 0 #0b3a1a,0 0 12px rgba(80,255,140,.75),0 0 2px #000;animation:fhud-heal 1.2s cubic-bezier(.2,.8,.3,1) forwards}
+#pvp-root .fhud-heal-1{left:22%;top:26%}
+#pvp-root .fhud-heal-2{left:78%;top:26%}
+#pvp-root .fhud-heal.fhud-reduced{animation:fhud-heal-r 1.2s linear forwards}
+@keyframes fhud-heal{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}30%{transform:translate(-50%,-60%) scale(1)}100%{opacity:0;transform:translate(-50%,-160%) scale(1)}}
+@keyframes fhud-heal-r{0%,80%{opacity:1}100%{opacity:0}}
+/* KESINYAP 21: E (kendine can) — bar yukari dolar, yesil parilti */
+.fhud2 .fhud2-fill{transition:transform .55s cubic-bezier(.2,.9,.3,1)}
+.fhud2-bar.is-heal .fhud2-clip::after{box-shadow:inset 0 0 0 2px rgba(120,255,160,.95),0 0 14px rgba(90,255,140,.55)}
+.fhud2-bar.is-heal .fhud2-hp{color:#9dffb8}
+.fhud2 .fhud2-sk-e[data-state="ready"] .hx-prog{stroke:#6dff9c}
 
-/* Seri: bara bitisik parcali gosterge; sayi buyuk, etiket kucuk */
+/* Seri:bara bitisik parcali gosterge; sayi buyuk, etiket kucuk */
 .fhud2 .fhud2-series{height:24px;margin-top:9px;gap:10px}
 .fhud2 .fhud2-ser-n{font:900 italic 24px/1 system-ui,sans-serif;color:rgba(255,255,255,.55)}
 .fhud2 .fhud2-ser-n small{font:800 12px/1 system-ui,sans-serif;letter-spacing:.16em;color:var(--v3-mute)}
@@ -368,6 +382,7 @@
 .fhud2 .fhud2-pips{gap:2px}
 .fhud2 .fhud2-pip{width:19px;height:6px;background:rgba(255,255,255,.2);transform:skewX(-34deg)}
 .fhud2-seat-2 .fhud2-pip{transform:skewX(34deg)}
+.fhud2[data-mode="rounds"] .fhud2-pip{width:12px} /* KESINYAP 21: 10 pip (3 Q · 5 W · 7 E · 10 R) */
 .fhud2 .fhud2-pip.is-mark{height:12px;box-shadow:none;background:rgba(246,196,96,.34)}
 .fhud2 .fhud2-pip.is-on{background:var(--fhud-a)}
 .fhud2 .fhud2-pip.is-on.is-mark{background:var(--v3-gold)}

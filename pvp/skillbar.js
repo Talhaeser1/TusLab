@@ -4,9 +4,11 @@
  * Bu modül yalnız görünümü üretir/günceller; hiçbir maç verisini değiştirmez.
  * Hareket: yalnız transform/opacity, tek seferlik (WAAPI); sonsuz animasyon yok.
  */
-import {FIGHTERS,isFighterId} from './shared/fighters.js';
+import {FIGHTERS,isFighterId,SKILL_FIELD} from './shared/fighters.js';
 import {SKILL_THRESHOLDS as ENGINE_THRESHOLDS} from './shared/match.js';
-export const SKILL_ORDER=Object.freeze(['Q','E','S','R']);
+export const SKILL_ORDER=Object.freeze(['Q','E','S','R']); // eski (klasik) kart satırı: E kartı = motor 'e' (yakın vuruş)
+/** KESINYAP 21 — tuş → motor anahtarı. W = motor 'e' (yakın vuruş); E rounds'ta motor 'h' (kendine can), klasikte eski 'e'. */
+export const engineKeyOf=(key,rounds=false)=>key==='W'?'e':key==='E'?(rounds?'h':'e'):String(key).toLowerCase();
 // Eşikler tek kaynaktan (pvp/shared/match.js) gelir; burada kopya sabit tutulmaz.
 export const SKILL_THRESHOLDS=ENGINE_THRESHOLDS;
 
@@ -15,12 +17,16 @@ const svg=body=>`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" f
 export const SKILL_INFO=Object.freeze({
   fire:Object.freeze({
     Q:{name:'Alev Kesişi',effect:'Hızlı alev kesiği',icon:svg('<path d="M5 19C10 15.5 14 10.5 18 4"/><path d="M9.5 20.5c4-2.6 7.2-6 9.5-10.5"/><path d="M4 13.5c2.5-1.2 4.6-3 6.2-5.5"/>')},
+    H:{name:'Kor Nefesi',effect:'Kendine can verir',icon:svg('<path d="M12 20s-7-4.4-7-9.6A4 4 0 0 1 12 8a4 4 0 0 1 7 2.4C19 15.6 12 20 12 20z"/><path d="M12 11v5"/><path d="M9.5 13.5h5"/>')},
+    W:{name:'Yer Yaran Darbe',effect:'Ağır darbe, yeri yarar',icon:svg('<path d="M12 3v8"/><path d="M8.5 7.5 12 11l3.5-3.5"/><path d="M3 16h5.5l1.6 2.4 1.9-3 1.9 3 1.6-2.4H21"/><path d="M12 15.4V21"/>')},
     E:{name:'Yer Yaran Darbe',effect:'Ağır darbe, yeri yarar',icon:svg('<path d="M12 3v8"/><path d="M8.5 7.5 12 11l3.5-3.5"/><path d="M3 16h5.5l1.6 2.4 1.9-3 1.9 3 1.6-2.4H21"/><path d="M12 15.4V21"/>')},
     S:{name:'Kor Kalkanı',effect:'Eş kelimede %30 blok',icon:svg('<path d="M12 3 19 6v5c0 4.8-3.2 8.3-7 10-3.8-1.7-7-5.2-7-10V6z"/><path d="M12 9.2c1.6 1.4 2.3 2.6 2.3 3.7a2.3 2.3 0 0 1-4.6 0c0-.9.5-1.6 1-2.2.2.8.6 1.1 1.3 1.1z"/>')},
     R:{name:'Kızıl Fırtına',effect:'Üç vuruşlu final',icon:svg('<path d="M12 12a1.6 1.6 0 1 1 1.6-1.6 3.6 3.6 0 1 1-3.6-3.6 5.8 5.8 0 1 1-5.8 5.8"/><path d="M20 4.5 17.6 7"/><path d="M21 9h-2.4"/>')}
   }),
   rune:Object.freeze({
     Q:{name:'Rün Kesişi',effect:'Hızlı rün kesiği',icon:svg('<path d="M12 3.5 17.5 12 12 20.5 6.5 12z"/><path d="M4 19.5 20 4.5"/>')},
+    H:{name:'Mühür Şifası',effect:'Kendine can verir',icon:svg('<path d="M12 20s-7-4.4-7-9.6A4 4 0 0 1 12 8a4 4 0 0 1 7 2.4C19 15.6 12 20 12 20z"/><path d="M12 11v5"/><path d="M9.5 13.5h5"/>')},
+    W:{name:'Sarsıcı Darbe',effect:'Ağır darbe, sarsar',icon:svg('<circle cx="12" cy="12" r="2"/><path d="M8 8a5.7 5.7 0 0 0 0 8"/><path d="M16 8a5.7 5.7 0 0 1 0 8"/><path d="M5 5a9.9 9.9 0 0 0 0 14"/><path d="M19 5a9.9 9.9 0 0 1 0 14"/>')},
     E:{name:'Sarsıcı Darbe',effect:'Ağır darbe, sarsar',icon:svg('<circle cx="12" cy="12" r="2"/><path d="M8 8a5.7 5.7 0 0 0 0 8"/><path d="M16 8a5.7 5.7 0 0 1 0 8"/><path d="M5 5a9.9 9.9 0 0 0 0 14"/><path d="M19 5a9.9 9.9 0 0 1 0 14"/>')},
     S:{name:'Mavi Mühür',effect:'Eş kelimede %30 blok',icon:svg('<path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"/><path d="M12 8.2v7.6"/><path d="M9.2 10.6 12 8.2l2.8 2.4"/>')},
     R:{name:'Sonsuz Mühür',effect:'Üç vuruşlu mühür',icon:svg('<path d="M12 12c-1.9-2.6-3.5-3.8-5.3-3.8a3.8 3.8 0 0 0 0 7.6c1.8 0 3.4-1.2 5.3-3.8s3.5-3.8 5.3-3.8a3.8 3.8 0 0 1 0 7.6c-1.8 0-3.4-1.2-5.3-3.8z"/>')}
@@ -52,7 +58,7 @@ export function skillCardHTML(kind,key,label,threshold){
 
 /** Sunucu oyuncu görüntüsünden tek yeteneğin ham durumu. */
 export function readSkillState(player,key,{rounds=false,now=Date.now()}={}){
-  const k=key.toLowerCase();
+  const k=engineKeyOf(key,rounds);
   const threshold=(rounds?SKILL_THRESHOLDS.rounds:SKILL_THRESHOLDS.classic)[key]??0;
   const energy=key==='S'?0:rounds
     ?Math.min(threshold,Math.max(0,Number(player?.streak??player?.combo)||0))
@@ -136,7 +142,7 @@ export function paintSkillCard(el,info,{reduced=false,live=true}={}){
 /** Canlı maç: sunucu oyuncusundan dört kartı güncelle. Arena modunda satır gizlidir; yine de zararsız. */
 export function applySkillRow(section,{player,rounds=false,now=Date.now(),reduced=false}={}){
   if(!section||!player)return;
-  applyFighterNames(section,player.fighter);
+  applyFighterNames(section,player.fighter,{rounds});
   for(const key of SKILL_ORDER)paintSkillCard(section.querySelector(`[data-skill="${key}"]`),readSkillState(player,key,{rounds,now}),{reduced,live:true});
 }
 
@@ -155,12 +161,15 @@ export function applySkillPreview(section,{chain=0,reduced=false}={}){
 export function fighterSkillLabels(fighterId){
   if(!isFighterId(fighterId))return null;
   const f=FIGHTERS[fighterId];
-  return Object.fromEntries(SKILL_ORDER.map(key=>{const sk=f.skills[key.toLowerCase()];return [key,{name:sk.name,effect:sk.short||sk.desc}];}));
+  return Object.fromEntries(['Q','W','E','S','R'].map(key=>{const sk=f.skills[key.toLowerCase()];return [key,{name:sk.name,effect:sk.short||sk.desc}];}));
 }
-export function applyFighterNames(section,fighterId){
-  if(!section||section.dataset?.skFighter===(fighterId||''))return;
-  const labels=fighterSkillLabels(fighterId);if(!labels)return;
-  if(section.dataset)section.dataset.skFighter=fighterId;
+export function applyFighterNames(section,fighterId,{rounds=false}={}){
+  const tag=(fighterId||'')+(rounds?'|r':'');
+  if(!section||section.dataset?.skFighter===tag)return;
+  const all=fighterSkillLabels(fighterId);if(!all)return;
+  if(section.dataset)section.dataset.skFighter=tag;
+  // Eski kart satırı motor anahtarıyla: klasik E kartı = W (yakın vuruş) adı, rounds E kartı = E (can) adı.
+  const labels=Object.fromEntries(SKILL_ORDER.map(key=>[key,all[SKILL_FIELD[engineKeyOf(key,rounds)].toUpperCase()]]));
   for(const key of SKILL_ORDER){
     const card=section.querySelector(`[data-skill="${key}"]`);if(!card)continue;
     const strong=card.querySelector('.sk-copy strong'),fx=card.querySelector('.sk-fx');

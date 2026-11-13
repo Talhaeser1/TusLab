@@ -3,7 +3,7 @@
 //   • createAttackCallout: temas anında "VARGR → NYX · BALTA SAVURUŞU · −120" (tek şerit, yığılmaz).
 //   • createStatusBadge: hedefin üstünde kısa durum rozeti (BLOK, KALKAN, SİPER SARSILDI).
 //   • createDisplayedHp: HUD can barı, sahnenin temas karesine kadar eski değerde tutulur (kuyruk bitince eşitlenir).
-import {FIGHTERS, isFighterId} from './shared/fighters.js';
+import {FIGHTERS, isFighterId, fighterSkill} from './shared/fighters.js';
 
 // İş 1, 3. tur: okunur sahne ~4,5 sn ve sıra beklemesi → can, temas karesine kadar en çok 12 sn tutulur
 // (eski 3,5 sn tavanında can sahnesiz düşüyordu). createAttackCallout artık index.js'te bağlı değil.
@@ -13,7 +13,7 @@ const upper = s => String(s || '').toLocaleUpperCase('tr-TR');
 
 /** Saf: "A → B · AD · −N" (blokta "· BLOK −N" / tamamen engellenmişse "BLOK"). */
 export function calloutText({attacker, defender, skill, amount = 0, blocked = false, blockKind = ''} = {}) {
-  const skillName = isFighterId(attacker) ? FIGHTERS[attacker].skills[skill]?.name || '' : '';
+  const skillName = isFighterId(attacker) ? fighterSkill(attacker, skill)?.name || '' : ''; // motor 'e' → W alanı (KESINYAP 21)
   const a = isFighterId(attacker) ? FIGHTERS[attacker].name : 'Rakip';
   const d = isFighterId(defender) ? FIGHTERS[defender].name : 'Rakip';
   const dmg = Math.max(0, Math.round(Number(amount) || 0));

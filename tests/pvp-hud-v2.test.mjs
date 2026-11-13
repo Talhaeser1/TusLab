@@ -6,12 +6,15 @@ import {resultHighlights, resultCardHTML} from '../pvp/phase15-results.js';
 
 const P = (extra = {}) => ({seat: 1, fighter: 'vargr', character: 'fire', hp: 4000, maxHp: 4000, ...extra});
 
-test('KESINYAP 14: rounds seri modeli — 7 pip, Q/E/R eşikleri 3/5/7, çarpan 7. seriden', () => {
+test('KESINYAP 14/21: rounds seri modeli — 10 pip, Q/W/E/R eşikleri 3/5/7/10, çarpan 10. seriden', () => {
+  // KESINYAP 21 (kullanıcı kuralı: dört yetenek, ulti yalnız 10 seride): 7 pip → 10, eşikler 3/5/7 → 3/5/7/10.
   const m = seriesModel({mode: 'rounds'}, P({streak: 2}));
-  assert.equal(m.total, 7); assert.equal(m.lit, 2); assert.equal(m.mult, null);
-  assert.deepEqual(m.marks, {3: 'Q', 5: 'E', 7: 'R'});
+  assert.equal(m.total, 10); assert.equal(m.lit, 2); assert.equal(m.mult, null);
+  assert.deepEqual(m.marks, {3: 'Q', 5: 'W', 7: 'E', 10: 'R'});
   assert.deepEqual(m.next, {key: 'Q', steps: 1});
-  const hi = seriesModel({mode: 'rounds'}, P({streak: 8}));
+  assert.deepEqual(seriesModel({mode: 'rounds'}, P({streak: 6})).next, {key: 'E', steps: 1});
+  assert.deepEqual(seriesModel({mode: 'rounds'}, P({streak: 7})).next, {key: 'R', steps: 3});
+  const hi = seriesModel({mode: 'rounds'}, P({streak: 11}));
   assert.equal(hi.mult, 1.8); assert.equal(fmtMult(hi.mult), '×1,8');
 });
 
@@ -20,9 +23,11 @@ test('KESINYAP 14: classic seri modeli sıradaki yeteneğe kalan adımı verir',
   assert.equal(m.mult, null); assert.ok(m.next && m.next.steps >= 1);
 });
 
-test('KESINYAP 14: yetenek rayı — rounds Q/E/R, classic Q/E/S/R, arena boş', () => {
-  assert.deepEqual(railModel({mode: 'rounds'}, P({streak: 0})).map(r => r.key), ['Q', 'E', 'R']);
-  assert.deepEqual(railModel({mode: 'classic'}, P()).map(r => r.key), ['Q', 'E', 'S', 'R']);
+test('KESINYAP 14/21: yetenek rayı — rounds Q/W/E/R, classic Q/W/S/R, arena boş', () => {
+  // KESINYAP 21 (kullanıcı kuralı: dört yetenek, ulti yalnız 10 seride): rounds dört ikon; klasikte eski E vuruşu W adıyla (kural aynı).
+  assert.deepEqual(railModel({mode: 'rounds'}, P({streak: 0})).map(r => r.key), ['Q', 'W', 'E', 'R']);
+  assert.deepEqual(railModel({mode: 'rounds'}, P({streak: 0})).map(r => r.threshold), [3, 5, 7, 10]);
+  assert.deepEqual(railModel({mode: 'classic'}, P()).map(r => r.key), ['Q', 'W', 'S', 'R']);
   assert.deepEqual(railModel({mode: 'arena'}, P()), []);
   const q = railModel({mode: 'rounds'}, P({streak: 2})).find(r => r.key === 'Q');
   assert.ok(q.fill > 0 && q.fill < 1, 'halka seriyle dolar');

@@ -127,17 +127,23 @@ export const ULTIMATE_RECOVERY_MS=800;
 export const ROUND_HP=4000;          // maç canı: 4000, raundlar arasında sıfırlanmaz
 export const ROUND_DAMAGE_CAP=1300;  // tek raundda verilebilecek en çok hasar: 3×1300 < 4000 → nakavt en erken 4. raundda
 export const SUDDEN_DEATH_MAX=3;
-export const STREAK_SKILLS=Object.freeze({3:'q',5:'e',7:'r',8:'q',9:'q',10:'q'});
-/** Seri → beceri: 3 Q, 5 E, 7 R, 8 ve sonrası her doğru kelime Q. */
-export const streakSkill=streak=>STREAK_SKILLS[streak]||(streak>=8?'q':null);
-export const MULTIPLIER_START=7;
+// KESINYAP 21 — dört yetenek (rounds). MOTOR ANAHTARLARI: q = Q (menzilli), e = W (yakın dövüş; klasikteki eski E vuruşu,
+// görsel/ses hattı bu anahtarla çalışır), h = E (kendine can), r = R (ulti). Tuş ↔ motor eşlemesi: shared/fighters.js SKILL_KEY.
+export const STREAK_SKILLS=Object.freeze({3:'q',5:'e',7:'h',10:'r'});
+/** Seri → beceri: 3 Q, 5 W, 7 E (can), 10 R; 11 ve sonrası her doğru kelime Q. */
+export const streakSkill=streak=>STREAK_SKILLS[streak]||(streak>10?'q':null);
+export const MULTIPLIER_START=10;
 export const MULTIPLIER_STEP=1.2;
 export const MULTIPLIER_CAP=2.5;
-// Yetenek eşikleri tek kaynak: rounds eşikleri STREAK_SKILLS'ten türetilir; skillbar.js buradan okur.
+/** E (kendine can): eski E temel hasarının %80'i, çarpansız; can azami cana kadar, raund başına en çok ROUND_HEAL_CAP. */
+export const HEAL_RATIO=0.8;
+export const ROUND_HEAL_CAP=400;
+export const healAmount=character=>Math.round(DAMAGE[character==='rune'?'rune':'fire'].e*HEAL_RATIO);
+// Yetenek eşikleri tek kaynak: rounds eşikleri STREAK_SKILLS'ten türetilir; skillbar.js buradan okur (anahtarlar TUŞ harfidir).
 const firstStreakAt=k=>Number(Object.entries(STREAK_SKILLS).find(([,v])=>v===k)[0]);
 export const SKILL_THRESHOLDS=Object.freeze({
-  classic:Object.freeze({Q:2,E:4,S:0,R:5}),
-  rounds:Object.freeze({Q:firstStreakAt('q'),E:firstStreakAt('e'),S:0,R:firstStreakAt('r')})
+  classic:Object.freeze({Q:2,W:4,E:4,S:0,R:5}), // klasik kural aynı: 4. doğru = yakın vuruş (W; eski kart 'E')
+  rounds:Object.freeze({Q:firstStreakAt('q'),W:firstStreakAt('e'),E:firstStreakAt('h'),S:0,R:firstStreakAt('r')})
 });
 export const ROUND_SCORE=Object.freeze({correct:100,bestStreak:50,damageDiv:10});
 export const ROUND_TIME_SKILLS=Object.freeze(['timethief','blindclock','freeze']);
@@ -153,7 +159,7 @@ const ULTIMATE_MOTIONS=Object.freeze(['pull','strike','return']);
 export const ULTIMATE_RETURN_MS=400;
 /** Maç uzunluğu seçeneği kaldırıldı: her rounds maçı 7 raund (eski 5/10 tercihleri sessizce yok sayılır). */
 export function normalizeRounds(){return ROUND_TOTAL;}
-/** M(streak) = streak<7 ? 1 : min(2.5, 1.5 x 1.2^(streak-7)), rounded to 2 decimals. */
+/** M(streak) = streak<10 ? 1 : min(2.5, 1.5 x 1.2^(streak-10)), rounded to 2 decimals. */
 export function streakMultiplier(streak){
   if(!Number.isFinite(streak)||streak<MULTIPLIER_START)return 1;
   return Math.min(MULTIPLIER_CAP,Math.round(1.5*MULTIPLIER_STEP**(streak-MULTIPLIER_START)*100)/100);
@@ -209,9 +215,9 @@ function resetForRound(p,words,first){
   // Can yalnız 1. raundda 4000'e kurulur; sonraki raundlara TAŞINIR.
   if(first)Object.assign(p,{hp:ROUND_HP,maxHp:ROUND_HP});
   Object.assign(p,{combo:0,runeEnergy:0,lastSkill:null,parryCharge:false,lastStandUsed:false,
-    skillCharge:{q:0,e:0,s:0,r:0},cooldownUntil:{q:0,e:0,s:0,r:0},shieldUntil:null,staggerUntil:0,lastWordAt:null,
+    skillCharge:{q:0,e:0,h:0,s:0,r:0},cooldownUntil:{q:0,e:0,s:0,r:0},shieldUntil:null,staggerUntil:0,lastWordAt:null,
     lastCorrectAt:null,lastCorrectRoundIndex:null,roundWordIndex:0,roundCorrect:0,roundWrong:0,roundBestStreak:0,
-    roundDamage:0,roundDone:false,finishedAt:null,activeText:words.join(' '),currentWord:words[0]});
+    roundDamage:0,roundHeal:0,roundDone:false,finishedAt:null,activeText:words.join(' '),currentWord:words[0]});
 }
 /** Mutates `match`: opens the next round at `at`. */
 function startRound(match,at){
@@ -373,7 +379,7 @@ export function publicMatch(match,viewerSeat){
       staggerUntil:p.staggerUntil||0,combatStats:{...(p.combatStats||{})},defenseStats:{...(p.defenseStats||{})},
       ...(match.assistEnabled===true?{assist:publicAssist(p)}:{}),
       ...(rounds?{streak:p.combo,multiplier:streakMultiplier(p.combo),nextSkill:nextSkillOf(p),roundWordIndex:p.roundWordIndex,
-        roundCorrect:p.roundCorrect,roundWrong:p.roundWrong,roundBestStreak:p.roundBestStreak,roundDamage:p.roundDamage,
+        roundCorrect:p.roundCorrect,roundWrong:p.roundWrong,roundBestStreak:p.roundBestStreak,roundDamage:p.roundDamage,roundHeal:p.roundHeal||0,
         roundDone:p.roundDone,finishedAt:p.finishedAt,...(viewer?{roundEndsAt:victim?null:p.roundEndsAt}:{})}:{})}))};
 }
 /** Tohumlu klasik maç: oyuncunun sıradaki cümlesi (iki oyuncu farklı, hiçbir cümle tekrarlanmaz). */
@@ -525,7 +531,7 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
   const streakBefore=mine.combo;
   mine.combo=correct?mine.combo+1:wrongStreak(mine.combo);if(mine.rune!=='none')mine.runeEnergy=correct?Math.min(5,(mine.runeEnergy||0)+1):0;
   mine.maxCombo=Math.max(mine.maxCombo||0,mine.combo);mine.roundBestStreak=Math.max(mine.roundBestStreak||0,mine.combo);
-  mine.skillCharge.q=Math.min(3,mine.combo);mine.skillCharge.e=Math.min(5,mine.combo);mine.skillCharge.r=Math.min(7,mine.combo);
+  mine.skillCharge.q=Math.min(3,mine.combo);mine.skillCharge.e=Math.min(5,mine.combo);mine.skillCharge.h=Math.min(7,mine.combo);mine.skillCharge.r=Math.min(10,mine.combo);
   mine.accuracy=Math.round(mine.correctChars/Math.max(1,mine.submittedChars)*100);
   const activeMinutes=Math.max(((next.activeMs||0)+Math.max(0,at-round.startedAt))/60_000,1/60);
   mine.wpm=Math.round(mine.correctChars/5/activeMinutes);
@@ -536,9 +542,21 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
   mine.currentWord=round.words[mine.roundWordIndex]??'';
   let cast=null;
   const skill=correct?streakSkill(mine.combo):null;
-  if(skill&&at>=(mine.staggerUntil||0)){
-    mine.combatStats??={damageDealt:0,damageTaken:0,casts:{q:0,e:0,r:0},counterDamage:0};
-    mine.combatStats.casts[skill]++;
+  if(skill==='h'){
+    // E (kendine can): hemen uygulanır (sahne kuyruğuna girmez; vuruş sırası/çözüm planı değişmez). Çarpan yok;
+    // can azami canı ve raund iyileşme tavanını (ROUND_HEAL_CAP) aşamaz → hasar tavanı/4. raund nakavt sınırı korunur.
+    mine.combatStats??={damageDealt:0,damageTaken:0,casts:{q:0,e:0,h:0,r:0},counterDamage:0};
+    mine.combatStats.casts.h=(mine.combatStats.casts.h||0)+1;
+    const base=healAmount(mine.character);
+    const room=Math.max(0,Math.min((mine.maxHp||ROUND_HP)-mine.hp,ROUND_HEAL_CAP-(mine.roundHeal||0)));
+    const amount=mine.hp>0?Math.min(base,room):0;
+    mine.hp+=amount;mine.roundHeal=(mine.roundHeal||0)+amount;
+    mine.combatStats.healDone=(mine.combatStats.healDone||0)+amount;
+    cast=addEvent(next,'HEAL_APPLIED',{seat:mine.seat,fromSeat:mine.seat,toSeat:mine.seat,skill:'h',character:mine.character,
+      fighter:mine.fighter,amount,base,capped:amount<base,hpAfter:mine.hp,round:round.index,streak:mine.combo,at});
+  }else if(skill&&at>=(mine.staggerUntil||0)){
+    mine.combatStats??={damageDealt:0,damageTaken:0,casts:{q:0,e:0,h:0,r:0},counterDamage:0};
+    mine.combatStats.casts[skill]=(mine.combatStats.casts[skill]||0)+1;
     const empowered=computeSkillBonus(mine,skill,at);
     if(skill==='q'&&mine.parryCharge)mine.parryCharge=false;
     if(skill==='e'&&mine.character==='rune'&&mine.rune!=='none'&&mine.runeEnergy>=4)mine.runeEnergy=0;
@@ -548,7 +566,7 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
       :Math.round((DAMAGE[mine.character][skill]+empowered.bonus)*multiplier);
     const attack={fromSeat:mine.seat,toSeat:target.seat,skill,character:mine.character,amount,
       bonus:empowered.bonus,bonusTags:empowered.tags,issuedAt:at,resolveAt:at+SHIELD_WINDOW_MS,
-      multiplier,streak:mine.combo,round:round.index,roundWordIndex:index,chain:mine.combo>=8,
+      multiplier,streak:mine.combo,round:round.index,roundWordIndex:index,chain:mine.combo>10,
       // İş 12: resolveAtEnd'de yazarken olay üretilmez → nextCombatId artmaz → aynı raunttaki iki ulti aynı kimliği alıyordu;
       // istemci ikincisini "bitmiş ultinin kopyası" sayıp atlıyor, hasarı sahnesiz düşüyordu. Kimlik burada tüketilir (yalnız kimlik).
       ...(skill==='r'?{ultimateId:next.resolveAtEnd?next.nextCombatId++:next.nextCombatId,phaseIndex:0}: {})};
@@ -891,7 +909,9 @@ export function matchResult(match){
     hp:p.hp,maxHp:p.maxHp,wpm:p.wpm,accuracy:p.accuracy,combo:p.combo,maxCombo:p.maxCombo||0,
     correctWords:p.correctWords,wrongWords:p.wrongWords,
     damageDealt:p.combatStats?.damageDealt||0,damageTaken:p.combatStats?.damageTaken||0,
-    skillCasts:{q:p.combatStats?.casts?.q||0,e:p.combatStats?.casts?.e||0,r:p.combatStats?.casts?.r||0},
+    skillCasts:{q:p.combatStats?.casts?.q||0,e:p.combatStats?.casts?.e||0,r:p.combatStats?.casts?.r||0,
+      ...(match.mode==='rounds'?{h:p.combatStats?.casts?.h||0}:{})},
+    ...(match.mode==='rounds'?{healDone:p.combatStats?.healDone||0}:{}),
     counterDamage:p.combatStats?.counterDamage||0,
     defense:{...(p.defenseStats||{})}
   }));
@@ -912,7 +932,7 @@ export function surrenderMatch(match,loserSeat,at=Date.now()){
   next.pendingAttacks=[];next.offlineSeats=[];next.sequence++;return next;
 }
 export const SERVER_ONLY_EVENTS=new Set(['MATCH_START','STATE_UPDATE','MATCH_END','WORD_RESULT','DAMAGE_APPLIED','SKILL_CAST','SHIELD_TRIGGERED','PARRY_TRIGGERED','COUNTERATTACK_CAST','SHIELD_BROKEN','ULTIMATE_PHASE','MATCH_PAUSED','MATCH_RESUMED','REMATCH_STATUS','REMATCH_COUNTDOWN','REMATCH_CANCELLED','MATCH_HISTORY',
-  'ROUND_START','ROUND_LAST_CALL','ROUND_END','ROUND_RESOLVE','EXCHANGE_START','EXCHANGE_RESOLVE','ROUND_SKILL_ACK','WORD_CLASH','ASSIST_CAST']);
+  'ROUND_START','ROUND_LAST_CALL','ROUND_END','ROUND_RESOLVE','EXCHANGE_START','EXCHANGE_RESOLVE','ROUND_SKILL_ACK','WORD_CLASH','ASSIST_CAST','HEAL_APPLIED']);
 
 /** Package 11: server-authoritative pause/recovery. Never advance combat clocks
  * while both peers cannot play. Pauses are persisted in DO storage. */

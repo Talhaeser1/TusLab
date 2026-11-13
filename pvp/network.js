@@ -47,10 +47,10 @@ export const FIGHTER_KEY='tuslab-pvp-fighter';
 const SIDE_LABEL={fire:'ATEŞ',rune:'RÜN'};
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fighterStyle=f=>`--f-main:${f.palette.main};--f-accent:${f.palette.accent}`;
-/** Bilgi kartı içeriği (silah + Q/E/R adları ve kısa açıklamaları) — yalnız pvp/shared/fighters.js'ten okunur. */
+/** Bilgi kartı içeriği (silah + Q/W/E/R adları ve kısa açıklamaları) — yalnız pvp/shared/fighters.js'ten okunur. */
 export function fighterInfoHTML(id){
   const f=FIGHTERS[isFighterId(id)?id:defaultFighter('fire')];
-  const skills=['q','e','r'].map(k=>{const sk=f.skills[k];
+  const skills=['q','w','e','r'].map(k=>{const sk=f.skills[k];
     // Tuş rozeti + ad + açıklama tek satır öbeği (boş kutu yok: rozet yalnız harf taşır).
     return `<li class="j2-skill"><b class="j2-key" aria-hidden="true">${k.toUpperCase()}</b><span class="j2-skill-copy"><b>${esc(sk.name)}</b><small>${esc(sk.desc)}</small></span></li>`;}).join('');
   return `<div class="j2-info-head"><b lang="tr">${esc(f.name)}</b><span>${esc(f.title)}</span><em class="${f.archetype}">${SIDE_LABEL[f.archetype]}</em></div>`

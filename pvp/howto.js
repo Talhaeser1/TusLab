@@ -8,7 +8,7 @@ const fighterItems = () => [
   ...FIGHTER_IDS.map(id => {
     const f = FIGHTERS[id], k = f.skills;
     return [`${f.name} · ${f.title} (${f.archetype === 'fire' ? 'Ateş' : 'Rün'})`,
-      `Q ${k.q.name} · E ${k.e.name} · R ${k.r.name} · S ${k.s.name}. ${f.blurb}`];
+      `Q ${k.q.name} · W ${k.w.name} · E ${k.e.name} (can) · R ${k.r.name} · S ${k.s.name}. ${f.blurb}`]; // KESINYAP 21
   }),
   ['Denge', 'Hasar ve süreler tarafa göre aynıdır: Ateş karakterleri saldırgan, Rün karakterleri savunmacı arketipi kullanır. Karakter; görünüş, animasyon, efekt ve beceri adlarını değiştirir.']
 ];

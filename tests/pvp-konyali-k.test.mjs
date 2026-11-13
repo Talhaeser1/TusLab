@@ -23,7 +23,8 @@ test('K: beş karakterin hepsi için klip tablosu GLB ile eksiksiz', () => {
     assert.ok(SKILL_PROFILES[id], `${id} parçacık profili`);
     const json = readGlb(readFileSync(resolve(ROOT, 'assets/models', id, `${id}.glb`))).json;
     assert.deepEqual(variantMissingClips(json.animations, MODEL_VARIANTS[id].meshy), [], `${id} eksik klip yok`);
-    if (id === 'konyali') for (const k of ['q', 'e', 'r']) assert.ok(json.animations.some(a => a.name === FIGHTERS[id].skills[k].clip), `${id}.${k} klibi GLB'de`);
+    // KESINYAP 21: yakın vuruş klibi W alanında; E (can) klipsiz.
+    if (id === 'konyali') for (const k of ['q', 'w', 'r']) assert.ok(json.animations.some(a => a.name === FIGHTERS[id].skills[k].clip), `${id}.${k} klibi GLB'de`);
   }
   const v = MODEL_VARIANTS.konyali.meshy;
   assert.deepEqual([v.skills.q.clip, v.skills.e.clip, v.skills.r.clip], ['Over_Shoulder_Throw', '360_Power_Spin_Jump', 'Ney_Ulti']);
@@ -35,7 +36,8 @@ test('K: kimlik, silah, yetenek adları ve arketip (denge ortalama bandında)', 
   const f = FIGHTERS.konyali;
   assert.equal(f.name, 'Hacı Usta');
   assert.equal(f.weapon, 'Etli ekmek & ney');
-  assert.deepEqual(['q', 'e', 'r'].map(k => f.skills[k].name), ['Etli Ekmek Fırlatışı', 'Sema Dönüşü', 'Ney Feryadı']);
+  // KESINYAP 21: dört yetenek (kullanıcı örneği: Q etli ekmek, W sema, E şerbet molası, R ney).
+  assert.deepEqual(['q', 'w', 'e', 'r'].map(k => f.skills[k].name), ['Etli Ekmek Fırlatışı', 'Sema Dönüşü', 'Şerbet Molası', 'Ney Feryadı']);
   assert.equal(f.archetype, 'rune'); // hasar/can/bekleme arketipten gelir → mevcut dört karakterin sayıları değişmez
   assert.equal(normalizeFighter('konyali', 'rune'), 'konyali');
   assert.equal(normalizeFighter('konyali', 'fire'), 'vargr');

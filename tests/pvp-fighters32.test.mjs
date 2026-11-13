@@ -20,7 +20,9 @@ test('kadro sözleşmesi: 5 karakter, arketip, varsayılanlar ve normalizeFighte
     assert.equal(f.model,`./assets/models/${id}/${id}.glb`);
     assert.match(f.palette.main,/^#[0-9a-f]{6}$/);assert.equal(typeof f.palette.hex,'number');
     assert.ok(f.blurb.length>20);
-    for(const k of ['q','e','r','s']){assert.ok(f.skills[k].name&&f.skills[k].desc&&f.skills[k].clip&&f.skills[k].fx,`${id}.${k}`);}
+    // KESINYAP 21: Q menzilli, W yakın (eski E klibi), R ulti, S savunma klip taşır; E kendine can (klipsiz, karaktere özel motif).
+    for(const k of ['q','w','r','s']){assert.ok(f.skills[k].name&&f.skills[k].desc&&f.skills[k].clip&&f.skills[k].fx,`${id}.${k}`);}
+    assert.ok(f.skills.e.name&&f.skills.e.desc&&f.skills.e.heal===true&&/^heal-/.test(f.skills.e.fx)&&f.skills.e.motif,`${id}.e (can)`);
     assert.ok(Object.isFrozen(f)&&Object.isFrozen(f.skills.q));
   }
   assert.equal(FIGHTERS.sira.skills.q.name,'Mızrak Atışı');assert.equal(FIGHTERS.sira.skills.q.clip,'Throw');
@@ -164,6 +166,7 @@ test('maç içi adlar: beceri kartları, ULTİ anonsu ve Nasıl oynanır',()=>{
   applyFighterNames(section,'vargr');
   assert.equal(nodes.R.strong.textContent,'Kan Fırtınası');assert.equal(nodes.Q.strong.textContent,'Balta Savuruşu');
   assert.equal(section.dataset.skFighter,'vargr');
+  assert.equal(nodes.E.strong.textContent,'Kasırga','klasik eski E kartı = W (yakın vuruş) adı'); // KESINYAP 21
   assert.equal(ultimateCall('vargr'),'KAN FIRTINASI!');assert.equal(ultimateCall('nyx'),'YILDIZ ÇÖKÜŞÜ!');
   assert.equal(ultimateCall(null),CALLS.ultimate);
   assert.deepEqual(callFor({type:'SKILL_CAST',skill:'r',fromSeat:1},seat=>seat===1?'sira':null),{text:'GÖLGE YAĞMURU!',seat:1});

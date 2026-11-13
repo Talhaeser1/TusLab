@@ -222,18 +222,19 @@ test('F3: raund 2+ kelime indeksi tutarlı (wordIndex raund boyunca artar, round
   const ok=submitWord(m,{playerId:'a',matchId:m.id,wordIndex:p.wordIndex,text:m.round.words[0],round:2},m.round.startedAt+400);
   assert.equal(ok.result.correct,true);
 });
-test('F3: Q/E/R seri eşikleri 3/5/7 sunucuda tetiklenir ve skillbar eşikleriyle aynıdır',()=>{
+test('F3: Q/W/E/R seri eşikleri 3/5/7/10 sunucuda tetiklenir ve skillbar eşikleriyle aynıdır',()=>{
+  // KESINYAP 21 (kullanıcı kuralı: dört yetenek, ulti yalnız 10 seride): 7 → E (can, motor 'h'), R 10'da.
   let m=make();const skills=[];
-  for(let i=1;i<=7;i++){
+  for(let i=1;i<=10;i++){
     const out=type(m,1,T0+300+i*120);m=out.match;
     if(out.result.cast)skills.push([i,out.result.cast.skill]);
     const sp=publicMatch(m,1).players[0];
     assert.equal(sp.streak,i);
   }
-  assert.deepEqual(skills,[[3,'q'],[5,'e'],[7,'r']]);
-  assert.deepEqual({...SKILL_THRESHOLDS.rounds},{Q:3,E:5,S:0,R:7});
+  assert.deepEqual(skills,[[3,'q'],[5,'e'],[7,'h'],[10,'r']]);
+  assert.deepEqual({...SKILL_THRESHOLDS.rounds},{Q:3,W:5,E:7,S:0,R:10});
   assert.equal(SKILLBAR_THRESHOLDS,SKILL_THRESHOLDS,'skillbar.js eşikleri match.js ile aynı nesne');
-  for(const [n,k] of Object.entries(STREAK_SKILLS).slice(0,3))assert.equal(SKILL_THRESHOLDS.rounds[k.toUpperCase()]<=Number(n),true);
+  for(const [n,k] of Object.entries(STREAK_SKILLS))assert.equal(SKILL_THRESHOLDS.rounds[{q:'Q',e:'W',h:'E',r:'R'}[k]],Number(n));
 });
 test('F3: skillbar "Hazır" durumu eşikte tamamlanır; yanlış kelime seriyi yarıya indirir',()=>{
   let m=make();

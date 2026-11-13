@@ -6,9 +6,10 @@ import {SKILL_THRESHOLDS,SKILL_INFO,skillCardHTML,readSkillState,skillMeter,skil
 const css=readFileSync(new URL('../pvp/skillbar.css',import.meta.url),'utf8');
 const indexJs=readFileSync(new URL('../pvp/index.js',import.meta.url),'utf8');
 
-test('eşikler: klasik 2/4/5, tur modu 3/5/7, S eşiksiz',()=>{
-  assert.deepEqual(SKILL_THRESHOLDS.classic,{Q:2,E:4,S:0,R:5});
-  assert.deepEqual(SKILL_THRESHOLDS.rounds,{Q:3,E:5,S:0,R:7});
+test('eşikler: klasik 2/4/5, tur modu 3/5/7/10, S eşiksiz',()=>{
+  // KESINYAP 21 (dört yetenek, ulti yalnız 10 seride): klasik kural aynı (W = eski E kartı, 4); rounds Q3 W5 E7 R10.
+  assert.deepEqual(SKILL_THRESHOLDS.classic,{Q:2,W:4,E:4,S:0,R:5});
+  assert.deepEqual(SKILL_THRESHOLDS.rounds,{Q:3,W:5,E:7,S:0,R:10});
 });
 
 test('her iki karakter için dört yetenek adı ve kısa etkisi var',()=>{
@@ -54,11 +55,14 @@ test('klasik canlı durum: enerji skillCharge, bekleme cooldownUntil',()=>{
   assert.equal(skillMeter(q).fill,0.5);
 });
 
-test('tur modu: enerji seri (streak) ile, eşik 7 R için',()=>{
-  const player={streak:9,combo:9,skillCharge:{},cooldownUntil:{},combatStats:{casts:{}}};
+test('tur modu: enerji seri (streak) ile, eşik 10 R, 7 E (can) için',()=>{
+  // KESINYAP 21: R eşiği 7 → 10; E kartı rounds'ta can (motor 'h') sayar, W kartı motor 'e'.
+  const player={streak:9,combo:9,skillCharge:{},cooldownUntil:{},combatStats:{casts:{h:2,e:1}}};
   const r=readSkillState(player,'R',{rounds:true,now:0});
-  assert.equal(r.threshold,7);assert.equal(r.energy,7);
-  assert.deepEqual(skillMeter(r),{state:'ready',fill:1});
+  assert.equal(r.threshold,10);assert.equal(r.energy,9);
+  assert.deepEqual(skillMeter(r),{state:'charging',fill:0.9});
+  const e=readSkillState(player,'E',{rounds:true,now:0});assert.equal(e.threshold,7);assert.equal(e.casts,2);
+  const w=readSkillState(player,'W',{rounds:true,now:0});assert.equal(w.threshold,5);assert.equal(w.casts,1);
 });
 
 test('S: kalkan aktif / bekleme / hazır',()=>{

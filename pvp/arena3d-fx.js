@@ -110,7 +110,19 @@ const SIG_PALETTE_HEX = Object.freeze({
   konyali: {hot: [0xfff3d6, 0xffe0a0, 0xf2c46a], cool: [0xe0a93a, 0xb8512f, 0x8a3a1c], core: 0xfff6e0, glow: 0xe0a93a, ring: 0xf2b84a, light: 0xffb84a, flash: 0xe8a53a},
   flour: {hot: [0xffffff, 0xfffaf0, 0xf5efe4], cool: [0xd8d0c4, 0xc9bfae, 0xe8e0d0], core: 0xffffff, glow: 0xfff6e8, ring: 0xfff6e8, light: 0xfff1d6, flash: 0xfff1d6},
   crumb: {hot: [0xd9a441, 0xc58a3a, 0xe8b84a], cool: [0x8a4a1c, 0x6b3a18, 0x9c5a24], core: 0xf2c46a, glow: 0xc58a3a, ring: 0xd9a441, light: 0xffb84a, flash: 0xd9a441},
+  // KESINYAP 21 — E (kendine can) motifleri: her karakterde farklı renk + biçim (yalnız ışık değil).
+  healSteam: {hot: [0xf2fff4, 0xbfffd0, 0xffe7a8], cool: [0x5fe88a, 0xe6b84a, 0x3fbf6a], core: 0xf6fff0, glow: 0x7dff9a, ring: 0x9dffb4, light: 0x8cff9e, flash: 0x7dff9a},
+  healRunes: {hot: [0xf0fffd, 0xb8fff4, 0xd8ffe8], cool: [0x2ee6c8, 0x5effa8, 0x22b8d6], core: 0xf0fffd, glow: 0x46f0c8, ring: 0x6effd8, light: 0x5effc0, flash: 0x46f0c8},
+  healPulse: {hot: [0xffe2e2, 0xff9a9a, 0xb8ffc8], cool: [0xd01030, 0xff3048, 0x60e080], core: 0xffeef0, glow: 0xff3048, ring: 0xff4a5e, light: 0xff5060, flash: 0xff3048},
+  healMist: {hot: [0xf2e8ff, 0xd8c0ff, 0xc8ffe0], cool: [0x7a3ccf, 0x4a1d8a, 0x5fd09a], core: 0xf6efff, glow: 0x9a5cff, ring: 0xb07cff, light: 0x9a6cff, flash: 0x9a5cff},
+  healAegis: {hot: [0xfffbe6, 0xfff0b0, 0xd8ffd8], cool: [0xffcf4a, 0xe8b030, 0x78e08a], core: 0xfffbe6, glow: 0xffd76a, ring: 0xffe08a, light: 0xffe08a, flash: 0xffd76a},
 });
+/** KESINYAP 21 — karakter → E (can) motifi (pvp/shared/fighters.js skills.e.motif ile aynı). */
+export const HEAL_MOTIF = Object.freeze({konyali: 'steam', nyx: 'runes', vargr: 'pulse', sira: 'mist', doran: 'aegis'});
+/** KESINYAP 21 — zemin hasarı havuzları: Q/W iz (6 sn), R krater (maç sonuna dek; en çok 4 canlı + 1 solan), krater başına moloz. */
+/** 13 Kas 2026 (kullanici): zeminde yarik/krater YOK; buyuk sari dalga/halka efektleri YOK — sahneyi karakterin kendi animasyonu tasir. */
+export const GROUND_DAMAGE_ON = false, BIG_WAVES_ON = false;
+export const GROUND_POOLS = Object.freeze({scars: 8, craters: 5, maxCraters: 4, debris: 6, scarLife: 6});
 
 /**
  * İş 15 — karakter başına imza yapılandırması: pal (ana), ultPal (R), castDecal (telegraf zemini),
@@ -1510,6 +1522,7 @@ export function createArena3DFx(api) {
     decals.push({mesh, m, active: false, age: 0, life: 1, s0: 1, s1: 1, a0: 1, spin: 0, seat: 0, name: ''});
   }
   function sigDecal(x, y, z, type, color, s0, s1, life, {a0 = 0.95, spin = 0, normal = false, seat = 0} = {}) {
+    if (type === "crack" && !GROUND_DAMAGE_ON) return;
     let rec = null;
     for (const d of decals) { if (!d.active) { rec = d; break; } if (!rec || d.age / d.life > rec.age / rec.life) rec = d; }
     const tex = TEX[type] || null;
@@ -1537,6 +1550,213 @@ export function createArena3DFx(api) {
     }
   }
 
+  // --- (a2) KESINYAP 21 — zemin hasarı: Q/W küçük çatlak/yanık (6 sn'de solar), R göçük/krater (maç sonuna dek).
+  //     Koyu (normal karışım) desenler; tüm düzlemler/malzemeler/moloz örnekleri burada BİR KEZ kurulur.
+  const scarTex = canvasTex(256, 256, (ctx, w, h, r) => {
+    const cx = w / 2, cy = h / 2, g = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * 0.42);
+    g.addColorStop(0, 'rgba(18,10,6,0.85)'); g.addColorStop(0.45, 'rgba(34,20,12,0.55)'); g.addColorStop(1, 'rgba(30,20,14,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, w * 0.42, 0, TAU); ctx.fill();
+    ctx.strokeStyle = 'rgba(6,3,2,0.95)'; ctx.lineCap = 'round';
+    for (let i = 0; i < 7; i++) {
+      let a = (i / 7) * TAU + r() * 0.6, x = cx, y = cy; const len = w * (0.22 + r() * 0.18);
+      ctx.lineWidth = 2 + r() * 3; ctx.beginPath(); ctx.moveTo(x, y);
+      for (let s = 0; s < 5; s++) { a += (r() - 0.5) * 0.9; x += Math.cos(a) * len / 5; y += Math.sin(a) * len / 5; ctx.lineTo(x, y); }
+      ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(255,140,60,0.55)';
+    for (let i = 0; i < 14; i++) { const a = r() * TAU, d = r() * w * 0.2; ctx.fillRect(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 2, 2); }
+  }, 211);
+  const craterTex = canvasTex(256, 256, (ctx, w, h, r) => {
+    const cx = w / 2, cy = h / 2;
+    const rim = ctx.createRadialGradient(cx, cy, w * 0.2, cx, cy, w * 0.48);
+    rim.addColorStop(0, 'rgba(10,7,5,0.96)'); rim.addColorStop(0.45, 'rgba(58,42,30,0.95)'); rim.addColorStop(0.62, 'rgba(92,72,52,0.7)'); rim.addColorStop(1, 'rgba(60,46,34,0)');
+    ctx.fillStyle = rim; ctx.beginPath(); ctx.arc(cx, cy, w * 0.48, 0, TAU); ctx.fill();
+    const pit = ctx.createRadialGradient(cx - w * 0.03, cy - w * 0.03, 0, cx, cy, w * 0.26);
+    pit.addColorStop(0, 'rgba(0,0,0,1)'); pit.addColorStop(0.7, 'rgba(8,5,3,0.98)'); pit.addColorStop(1, 'rgba(24,16,10,0.9)');
+    ctx.fillStyle = pit; ctx.beginPath(); ctx.arc(cx, cy, w * 0.26, 0, TAU); ctx.fill();
+    ctx.strokeStyle = 'rgba(4,2,1,0.95)'; ctx.lineCap = 'round';
+    for (let i = 0; i < 14; i++) { // radyal çatlaklar (çukurdan dışa)
+      let a = (i / 14) * TAU + r() * 0.3, x = cx + Math.cos(a) * w * 0.22, y = cy + Math.sin(a) * w * 0.22;
+      const len = w * (0.14 + r() * 0.14); ctx.lineWidth = 2.5 + r() * 3; ctx.beginPath(); ctx.moveTo(x, y);
+      for (let s = 0; s < 4; s++) { a += (r() - 0.5) * 0.5; x += Math.cos(a) * len / 4; y += Math.sin(a) * len / 4; ctx.lineTo(x, y); }
+      ctx.stroke();
+    }
+    for (let i = 0; i < 46; i++) { // kenar molozu
+      const a = r() * TAU, d = w * (0.3 + r() * 0.15), s = 2 + r() * 5;
+      ctx.fillStyle = r() < 0.5 ? 'rgba(40,30,22,0.95)' : 'rgba(120,98,74,0.9)';
+      ctx.fillRect(cx + Math.cos(a) * d, cy + Math.sin(a) * d, s, s * (0.6 + r() * 0.6));
+    }
+  }, 223);
+  const groundMat = map => mat(new THREE.MeshBasicMaterial({color: 0xffffff, map, transparent: true, opacity: 0, depthWrite: false,
+    toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1}));
+  const scars = [];
+  for (let k = 0; k < GROUND_POOLS.scars; k++) {
+    const m = groundMat(scarTex), mesh = new THREE.Mesh(SG.decal, m);
+    mesh.name = 'arena3d-fx-ground-scar'; mesh.visible = false; mesh.renderOrder = 7; mesh.frustumCulled = false;
+    root.add(mesh); scars.push({mesh, m, active: false, age: 0});
+  }
+  const craters = [];
+  for (let k = 0; k < GROUND_POOLS.craters; k++) {
+    const m = groundMat(craterTex), mesh = new THREE.Mesh(SG.decal, m);
+    mesh.name = 'arena3d-fx-ground-crater'; mesh.visible = false; mesh.renderOrder = 6; mesh.frustumCulled = false;
+    root.add(mesh); craters.push({mesh, m, active: false, fading: 0, age: 0, born: 0, size: 1, x: 0, y: 0, z: 0, U: 1});
+  }
+  const DEBRIS = GROUND_POOLS.craters * GROUND_POOLS.debris;
+  const debrisMesh = new THREE.InstancedMesh(SG.chunk, mat(new THREE.MeshStandardMaterial({color: 0x5a4636, roughness: 0.95, metalness: 0, flatShading: true})), DEBRIS);
+  debrisMesh.name = 'arena3d-fx-ground-debris'; debrisMesh.frustumCulled = false;
+  const zeroM = new THREE.Matrix4().makeScale(0, 0, 0);
+  const debrisTint = new THREE.Color(0xffffff);
+  // örnek rengi baştan var → parça (chunk) ile aynı gölgelendirici programı; ilk kraterde derleme yok
+  for (let k = 0; k < DEBRIS; k++) { debrisMesh.setMatrixAt(k, zeroM); debrisMesh.setColorAt(k, debrisTint); }
+  if (!GROUND_DAMAGE_ON) debrisMesh.count = 0;
+  root.add(debrisMesh);
+  const groundTotals = {scars: 0, craters: 0, heals: 0};
+  let craterSerial = 0;
+  function groundScar(x, y, z, U, size) {
+    let rec = null;
+    for (const s of scars) { if (!s.active) { rec = s; break; } if (!rec || s.age > rec.age) rec = s; }
+    Object.assign(rec, {active: true, age: 0});
+    rec.mesh.position.set(x, y + 0.012 * U, z); rec.mesh.rotation.set(0, Math.random() * TAU, 0);
+    rec.mesh.scale.setScalar(size * U); rec.mesh.visible = true; rec.m.opacity = 0.9;
+    groundTotals.scars++;
+  }
+  function placeDebris(k, c, scale) {
+    for (let i = 0; i < GROUND_POOLS.debris; i++) {
+      const a = (i / GROUND_POOLS.debris) * TAU + (k * 0.7), dd = c.size * c.U * (0.36 + (i % 3) * 0.05), s = c.U * (0.07 + (i % 2) * 0.05) * scale;
+      tmpE.set(i * 0.9, a, i * 0.5); tmpQ.setFromEuler(tmpE);
+      tmpA.set(c.x + Math.cos(a) * dd, c.y + s * 0.4, c.z + Math.sin(a) * dd); tmpS.set(s * 1.3, s, s);
+      tmpM.compose(tmpA, tmpQ, tmpS); debrisMesh.setMatrixAt(k * GROUND_POOLS.debris + i, tmpM);
+    }
+    debrisMesh.instanceMatrix.needsUpdate = true;
+  }
+  function groundCrater(x, y, z, U, size, pal) {
+    const live = craters.filter(c => c.active && !c.fading);
+    if (live.length >= GROUND_POOLS.maxCraters) { // en eski krater solar (yer açılır)
+      const old = live.reduce((a, b) => (a.born <= b.born ? a : b));
+      old.fading = 1.2;
+    }
+    let k = craters.findIndex(c => !c.active);
+    if (k < 0) { k = craters.findIndex(c => c.fading); craters[k].active = false; }
+    const c = craters[k];
+    Object.assign(c, {active: true, fading: 0, age: 0, born: ++craterSerial, size, x, y: y + 0.008 * U, z, U});
+    c.mesh.position.set(x, c.y, z); c.mesh.rotation.set(0, Math.random() * TAU, 0);
+    c.mesh.scale.setScalar(0.3 * size * U); c.mesh.visible = true; c.m.opacity = 1;
+    placeDebris(k, c, 1);
+    // göçük anı: yerden fırlayan taş parçaları + toz
+    for (let n = 0; n < Math.round(10 * countScale()); n++) {
+      const a = Math.random() * TAU;
+      sigChunk(x, y + 0.1 * U, z, Math.cos(a) * rand(1.2, 3) * U, rand(2.5, 5) * U, Math.sin(a) * rand(1.2, 3) * U,
+        rand(0.06, 0.13) * U, rand(0.05, 0.1) * U, rand(0.06, 0.12) * U, PAL.crumb.cool[1], rand(0.9, 1.4), y, U);
+    }
+    burst(x, y + 0.15 * U, z, {n: 24, speed: [0.6 * U, 2.2 * U], life: [0.8, 1.3], size: [0.25 * U, 0.45 * U], end: 1.6,
+      grav: -0.25 * U, drag: 2.6, alpha: 0.35, pal: PAL.flour});
+    if (pal) spawnRing(x, y + 0.02 * U, z, 'floor', 'thin', pal.ring, 0.3 * U, size * 0.9 * U, 0.45, 1);
+    groundTotals.craters++;
+  }
+  function resetCraters() {
+    for (const c of craters) { c.active = false; c.fading = 0; c.mesh.visible = false; c.m.opacity = 0; }
+    for (let k = 0; k < DEBRIS; k++) debrisMesh.setMatrixAt(k, zeroM);
+    debrisMesh.instanceMatrix.needsUpdate = true;
+  }
+  function updateGround(dt) {
+    const life = GROUND_POOLS.scarLife;
+    for (const s of scars) {
+      if (!s.active) continue;
+      s.age += dt;
+      if (s.age >= life) { s.active = false; s.mesh.visible = false; s.m.opacity = 0; continue; }
+      s.m.opacity = 0.9 * (s.age < life - 2 ? 1 : (life - s.age) / 2);
+    }
+    craters.forEach((c, k) => {
+      if (!c.active) return;
+      c.age += dt;
+      if (c.age < 0.25) c.mesh.scale.setScalar((0.3 + 0.7 * easeOut3(c.age / 0.25)) * c.size * c.U);
+      else if (c.mesh.scale.x !== c.size * c.U && !c.fading) c.mesh.scale.setScalar(c.size * c.U);
+      if (c.fading) {
+        c.fading = Math.max(0, c.fading - dt);
+        const t = c.fading / 1.2;
+        c.m.opacity = t; placeDebris(k, c, t);
+        if (c.fading <= 0) { c.active = false; c.mesh.visible = false; for (let i = 0; i < GROUND_POOLS.debris; i++) debrisMesh.setMatrixAt(k * GROUND_POOLS.debris + i, zeroM); debrisMesh.instanceMatrix.needsUpdate = true; }
+      }
+    });
+  }
+  /** Temas karesi: Q/W → küçük iz; R son faz → krater (savunanın ayağının altında). */
+  function groundDamage(ev) {
+    if (!GROUND_DAMAGE_ON) return; // 13 Kas: kullanici zemindeki yarik/krateri istemedi
+    if (ev.blocked || !(Number(ev.amount) > 0)) return;
+    const d = seatInfo(ev.toSeat);
+    if (!d) return;
+    const U = unitScale(), g = d.ground;
+    if (ev.skill === 'r') {
+      const last = Number(ev.totalPhases) || 3;
+      if (Number(ev.phase) === last || !ev.phase) groundCrater(g.x, g.y, g.z, U, 2.6, PAL[SIG_CONFIG[fighterOf(ev.fromSeat)?.fighterId]?.pal] || null);
+    } else if (ev.skill === 'q' || ev.skill === 'e') groundScar(g.x + (Math.random() - 0.5) * 0.3 * U, g.y, g.z + (Math.random() - 0.5) * 0.3 * U, U, ev.skill === 'e' ? 1.35 : 1.0);
+  }
+  /** E (kendine can): karakterin kendi çevresinde, her karakterde farklı biçim (buhar sarmalı, rün halkası, kızıl nabız, gölge sisi, kalkan parıltısı). */
+  function onHeal(ev) {
+    const seat = ev.seat ?? ev.fromSeat;
+    const d = seatInfo(seat);
+    if (!d) return;
+    const id = fighterOf(seat)?.fighterId || ev.fighter;
+    const motif = HEAL_MOTIF[id] || 'steam';
+    const pal = PAL[{steam: 'healSteam', runes: 'healRunes', pulse: 'healPulse', mist: 'healMist', aegis: 'healAegis'}[motif]];
+    const U = unitScale(), c = d.anchor, g = d.ground, f = d.facing;
+    groundTotals.heals++;
+    flashLight(c.x, c.y, c.z, pal.light, 0.9, 0.7, U);
+    if (motif === 'steam') {
+      // buharlı bardak: elin önünden yükselen buhar + bedeni saran yeşil-altın sarmal
+      const hx = c.x + f * 0.35 * U, hy = c.y + 0.1 * U;
+      burst(hx, hy, c.z, {n: 18, speed: [0.2 * U, 0.6 * U], life: [0.9, 1.4], size: [0.18 * U, 0.34 * U], end: 2.2, grav: -1.1 * U, drag: 2.4, alpha: 0.45, pal: PAL.flour});
+      for (let n = 0; n < 34; n++) {
+        const a = n * 0.5, r = 0.55 * U, t = n / 34;
+        spawn(g.x + Math.cos(a) * r, g.y + (0.1 + t * 2.1) * U, g.z + Math.sin(a) * r, -Math.sin(a) * 0.9 * U, 0.7 * U, Math.cos(a) * 0.9 * U,
+          rand(0.7, 1.1), rand(0.07, 0.11) * U, 0.02 * U, 1, n % 2 ? pal.hot[2] : pal.hot[1], n % 2 ? pal.cool[1] : pal.cool[0], -0.4 * U, 1.2);
+      }
+      sigDecal(g.x, g.y + 0.017 * U, g.z, 'seljuk', pal.ring, 0.5 * U, 1.7 * U, 1.3, {spin: 1.2, a0: 0.8});
+    } else if (motif === 'runes') {
+      sigDecal(g.x, g.y + 0.017 * U, g.z, 'rune', pal.ring, 0.6 * U, 2.0 * U, 1.5, {spin: 2.2, a0: 0.95});
+      for (let n = 0; n < 8; n++) {
+        const a = (n / 8) * TAU;
+        sigGlyph(g.x + Math.cos(a) * 0.8 * U, g.y + 0.2 * U, g.z + Math.sin(a) * 0.8 * U, 0, rand(1.0, 1.6) * U, 0, n % 2 ? GLYPH.runeA : GLYPH.runeB,
+          pal.ring, 0.26 * U, 1.1, {drag: 1.2, spin: rand(-2, 2)});
+      }
+      SV.a.set(g.x, g.y + 0.1 * U, g.z); SV.b.set(g.x, g.y + 2.2 * U, g.z);
+      sigWave(SV.a, 0, 1, 0, pal.ring, 0.8 * U, 0.8 * U, 0.9, {to: SV.b, thick: 0.8});
+    } else if (motif === 'pulse') {
+      // kan-kızıl nabız: göğüsten üç dalga (kalp atışı), yere vuran halkalar
+      SV.a.set(c.x, c.y, c.z);
+      sigWave(SV.a, f, 0, 0, pal.ring, 0.2 * U, 1.3 * U, 0.45, {thick: 1.6});
+      sigWave(SV.a, f, 0, 0, pal.core, 0.15 * U, 1.9 * U, 0.65, {thick: 1.1});
+      sigWave(SV.a, 0, 1, 0, pal.ring, 0.3 * U, 2.4 * U, 0.85, {thick: 1.3, a0: 0.7});
+      burst(c.x, c.y, c.z, {n: 26, speed: [0.5 * U, 1.6 * U], life: [0.6, 1.0], size: [0.06 * U, 0.12 * U], end: 0.3, grav: -1.4 * U, drag: 2, pal});
+      sigDecal(g.x, g.y + 0.017 * U, g.z, 'ember', pal.ring, 0.5 * U, 1.6 * U, 1.0, {a0: 0.75});
+    } else if (motif === 'mist') {
+      // gölge sis: ayaklardan yükselen mor sis bulutu (normal karışım) + sis içinde yeşil kıvılcımlar
+      burst(g.x, g.y + 0.3 * U, g.z, {n: 30, speed: [0.3 * U, 1.0 * U], life: [1.1, 1.7], size: [0.35 * U, 0.6 * U], end: 1.8, grav: -0.35 * U, drag: 2.2, alpha: 0.32, pal});
+      burst(c.x, c.y, c.z, {n: 14, speed: [0.3 * U, 0.9 * U], life: [0.7, 1.1], size: [0.05 * U, 0.08 * U], end: 0.2, grav: -1 * U, drag: 1.5, pal: PAL.healSteam});
+      sigDecal(g.x, g.y + 0.017 * U, g.z, 'shadow', pal.ring, 0.7 * U, 2.0 * U, 1.4, {a0: 0.85});
+    } else {
+      // kalkan parıltısı: göğüs önünde altıgen kalkan + ayaktan başa yükselen altın halka
+      spawnRing(c.x + f * 0.4 * U, c.y, c.z, 'face', 'hex', pal.ring, 0.6 * U, 1.3 * U, 0.7, 1, 3);
+      SV.a.set(g.x, g.y + 0.1 * U, g.z); SV.b.set(g.x, g.y + 2.3 * U, g.z);
+      sigWave(SV.a, 0, 1, 0, pal.ring, 0.75 * U, 0.75 * U, 0.8, {to: SV.b, thick: 1.4});
+      for (let n = 0; n < 10; n++) sigGlyph(c.x + rand(-0.5, 0.5) * U, c.y + rand(-0.6, 0.6) * U, c.z, 0, rand(0.5, 1) * U, 0, GLYPH.sparkle, pal.core, 0.2 * U, 0.9, {drag: 1.5});
+    }
+    spawnRing(g.x, g.y + 0.02 * U, g.z, 'floor', 'thin', pal.ring, 0.4 * U, 1.6 * U, 0.6, 0.8);
+  }
+  const hpSeen = new Map();
+  /** Yeni maç sezgisi: can bir anda raund iyileşme tavanından fazla artarsa (ya da azami can değişirse) kraterler silinir. */
+  function watchHp(ev) {
+    for (const p of Array.isArray(ev.players) ? ev.players : []) {
+      const prev = hpSeen.get(p.seat);
+      if (prev && (p.maxHp !== prev.maxHp || p.hp - prev.hp > 450)) resetCraters();
+      hpSeen.set(p.seat, {hp: p.hp, maxHp: p.maxHp});
+    }
+  }
+  function groundStats() {
+    return {scars: scars.filter(s => s.active).length, craters: craters.filter(c => c.active && !c.fading).length,
+      cratersFading: craters.filter(c => c.fading).length, totals: {...groundTotals}};
+  }
+
   // --- (b) kalın dalga halkaları (ses dalgası, sema halkası, şok halkası): 12 torus
   const waves = [];
   for (let k = 0; k < SIG_POOLS.waves; k++) {
@@ -1548,6 +1768,7 @@ export function createArena3DFx(api) {
   }
   /** Dalga halkası: (dx,dy,dz) halkanın ekseni; to verilirse halka from→to ilerler (koni). */
   function sigWave(from, dx, dy, dz, color, s0, s1, life, {a0 = 0.95, to = null, thick = 1} = {}) {
+    if (!BIG_WAVES_ON) return;
     let rec = null;
     for (const w of waves) { if (!w.active) { rec = w; break; } if (!rec || w.age / w.life > rec.age / rec.life) rec = w; }
     rec.from.copy(from); rec.moving = Boolean(to);
@@ -2120,7 +2341,7 @@ export function createArena3DFx(api) {
     flashLight(tmpA.x + from.facing * 0.3 * U, tmpA.y, tmpA.z, pal.light, R ? 0.9 : 0.45, R ? 0.5 : 0.32, U);
     if (R) {
       edgePulse(pal.flashHex, 0.22, 420);
-      spawnRing(g.x, g.y + 0.02 * U, g.z, 'floor', 'thin', pal.ring, 2.4 * U, 0.4 * U, 0.55, 0.9);
+      if (BIG_WAVES_ON) spawnRing(g.x, g.y + 0.02 * U, g.z, 'floor', 'thin', pal.ring, 2.4 * U, 0.4 * U, 0.55, 0.9);
     }
     if (id === 'nyx' && (a.skill === 'e' || R)) {
       // hedef telegrafı: rakibin altında açılan rün halkası
@@ -2179,7 +2400,7 @@ export function createArena3DFx(api) {
     }
     if (kind === 'shockring') {
       sigEmitter('ney', a.seat, a.def, Math.min(0.5, (Number(a.ms) || 900) / 1000 * 0.5), 34, pal, U, id);
-      spawnRing(from.ground.x, from.ground.y + 0.02 * U, from.ground.z, 'floor', 'circle', pal.ring, 0.4 * U, 2.6 * U, 0.6, 0.8);
+      if (BIG_WAVES_ON) spawnRing(from.ground.x, from.ground.y + 0.02 * U, from.ground.z, 'floor', 'circle', pal.ring, 0.4 * U, 2.6 * U, 0.6, 0.8);
       const cb = a.onArrive;
       sigAfter(0.08, () => { cb?.(); });
       return true;
@@ -2246,7 +2467,7 @@ export function createArena3DFx(api) {
         SV.a.set(from.anchor.x, from.anchor.y - 0.55 * U, from.anchor.z);
         SV.b.set(to.anchor.x, to.anchor.y - 0.4 * U, to.anchor.z);
         sigWave(SV.a, 0, 1, 0, pal.ring, 0.8 * U, 1.6 * U, 0.22, {to: SV.b, thick: 1.6});
-        spawnRing(to.anchor.x, to.anchor.y, to.anchor.z, 'face', 'thin', pal.core, 0.3 * U, 2 * U, 0.35, 1);
+        if (BIG_WAVES_ON) spawnRing(to.anchor.x, to.anchor.y, to.anchor.z, 'face', 'thin', pal.core, 0.3 * U, 2 * U, 0.35, 1);
       } else if (a.skill === 'r') {
         groundWave(g, pal, U, 1);
       }
@@ -2255,6 +2476,7 @@ export function createArena3DFx(api) {
 
   /** Zemin dalgası: geniş kalın halka + toz + çatlak (R son darbe). */
   function groundWave(g, pal, U, power) {
+    if (!BIG_WAVES_ON) return;
     SV.a.set(g.x, g.y + 0.08 * U, g.z);
     sigWave(SV.a, 0, 1, 0, pal.ring, 0.4 * U, 4.6 * U * power, 0.7, {thick: 1.8});
     spawnRing(g.x, g.y + 0.03 * U, g.z, 'floor', 'circle', pal.core, 0.3 * U, 3.6 * U * power, 0.6, 0.9);
@@ -2283,7 +2505,7 @@ export function createArena3DFx(api) {
       grav: 8 * U, drag: 2.2, up: 1.2 * U, pal});
     burst(c.x, c.y, c.z, {n: 12 * k, speed: [0.4 * U, 1.4 * U], life: [0.6, 1.0], size: [0.1 * U, 0.2 * U], end: 0.3,
       grav: -0.8 * U, drag: 1.5, alpha: 0.7, pal});
-    spawnRing(g.x, g.y + 0.02 * U, g.z, 'floor', 'circle', pal.ring, 0.3 * U, (1.5 + 0.5 * k) * U, 0.5);
+    if (BIG_WAVES_ON) spawnRing(g.x, g.y + 0.02 * U, g.z, 'floor', 'circle', pal.ring, 0.3 * U, (1.5 + 0.5 * k) * U, 0.5);
     flashLight(c.x, c.y, c.z, pal.light, 0.7 + 0.4 * k, 0.24, U);
     const decalLife = R ? 1.0 : 0.75;
     if (id === 'vargr') {
@@ -2320,7 +2542,7 @@ export function createArena3DFx(api) {
           grav: 9 * U, drag: 1.2, up: 1.4 * U, pal: PAL.crumb});
         sigDecal(g.x, g.y + 0.015 * U, g.z, 'flour', PAL.flour.core, 0.6 * U, 2 * U, 1.0, {a0: 0.75, normal: true});
       } else if (skill === 'e') {
-        spawnRing(c.x, c.y, c.z, 'face', 'thin', pal.core, 0.35 * U, 2.1 * U, 0.35, 1);
+        if (BIG_WAVES_ON) spawnRing(c.x, c.y, c.z, 'face', 'thin', pal.core, 0.35 * U, 2.1 * U, 0.35, 1);
         SV.a.set(c.x, c.y - 0.3 * U, c.z);
         sigWave(SV.a, 0, 1, 0, pal.ring, 0.5 * U, 1.8 * U, 0.4, {thick: 1.5});
         sigDecal(g.x, g.y + 0.015 * U, g.z, 'seljuk', pal.ring, 0.6 * U, 1.9 * U, decalLife, {spin: -3});
@@ -2386,6 +2608,7 @@ export function createArena3DFx(api) {
     updateSigProjectiles(dt);
     updateSigEmitters(dt);
     updateDecals(dt);
+    updateGround(dt);
     updateWaves(dt);
     updateGlyphs(dt);
     updateChunks(dt);
@@ -2399,6 +2622,7 @@ export function createArena3DFx(api) {
     for (const r of sigProjectiles) releaseSigProjectile(r, false);
     for (const e of sigEmitters) e.active = false;
     for (const d of decals) { d.active = false; d.mesh.visible = false; }
+    for (const s of scars) { s.active = false; s.mesh.visible = false; } // kraterler raund geçişinde KALIR (maç sonuna dek)
     for (const w of waves) { w.active = false; w.mesh.visible = false; }
     for (const g of ghosts) { g.active = false; g.mesh.visible = false; }
     for (const r of ribbons) { r.active = false; r.mesh.visible = false; }
@@ -2599,12 +2823,15 @@ export function createArena3DFx(api) {
   function handle(event) {
     if (dead || !event || typeof event.type !== 'string') return;
     totals.events++;
+    if (event.type === 'HP_SYNC') watchHp(event);
     if (reduced()) { reducedFlash(event); return; }
     switch (event.type) {
+      case 'HEAL_APPLIED': if (Number(event.amount) > 0 || event.base) onHeal(event); break; // KESINYAP 21
       case 'SKILL_CAST': onSkillCast(event); break;
       case 'COUNTERATTACK_CAST': onCounter(event); break;
       case 'ULTIMATE_PHASE': onUltimatePhase(event); break;
       case 'DAMAGE_APPLIED': {
+        if (event.impactContact) groundDamage(event); // KESINYAP 21: zemin hasarı temas karesinde
         if (!event.impactContact && (event.resolve === true || event.arena === true) && resolveBeats.length < 8) {
           resolveBeats.push({event, remaining: 0.235});
           break;
@@ -2705,9 +2932,10 @@ export function createArena3DFx(api) {
     if (edgeQuad.parent) edgeQuad.parent.remove(edgeQuad);
     ownedGeometries.add(edgeQuad.geometry);
     ownedMaterials.add(edgeMat);
-    for (const t of [...Object.values(TEX), glyphTex, breadTex]) t?.dispose?.();
+    for (const t of [...Object.values(TEX), glyphTex, breadTex, scarTex, craterTex]) t?.dispose?.();
     glyphMesh.dispose?.();
     chunkMesh.dispose?.();
+    debrisMesh.dispose?.();
     // Ağaçta bulunan her geometri/malzemeyi de topla (havuzdan sonradan eklenenler dahil).
     root.traverse((o) => {
       if (o.geometry) ownedGeometries.add(o.geometry);
@@ -2738,7 +2966,7 @@ export function createArena3DFx(api) {
       particles: P.count, projectiles: proj, rings: ringCount, shards: S.count,
       lights: lightCount, emitters: emitterCount, pillars: pillarCount, tethers: tether.active ? 1 : 0,
       quality: qualityKey(), reduced: reduced(), disposed: dead,
-      caps: {...caps()}, totals: {...totals}, signature: signatureStats()
+      caps: {...caps()}, totals: {...totals}, signature: signatureStats(), ground: groundStats()
     };
   }
 

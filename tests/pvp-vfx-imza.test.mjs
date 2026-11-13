@@ -103,7 +103,7 @@ test('İş 15: Hacı Usta R — ney ses dalgası halkaları + notalar; her ulti 
   fx.signature({stage: 'launch', seat: 1, def: 2, skill: 'r', kind: 'shockring', ms: 900, onArrive: () => {}});
   step(fx, 0.3);
   const s = fx.stats().signature;
-  assert.ok(s.waves >= 2, 'ses dalgası halkaları');
+  assert.equal(s.waves, 0, 'büyük dalga halkaları kapalı (13 Kas: kullanıcı sarı dalgaları istemedi)');
   assert.ok(s.glyphs >= 3, 'nota parçacıkları');
   for (const phase of [1, 2, 3]) {
     const before = fx.stats().signature.edgePulses;
@@ -111,8 +111,7 @@ test('İş 15: Hacı Usta R — ney ses dalgası halkaları + notalar; her ulti 
     assert.equal(fx.stats().signature.edgePulses, before + 1, `faz ${phase} kenar darbesi`);
     step(fx, 0.05);
   }
-  assert.ok(fx.stats().signature.decals >= 1, 'son darbede zemin izi');
-  fx.dispose();
+  fx.dispose(); // zemin çatlağı/krater kapalı: son darbede zemin izi beklenmez
 });
 
 test('İş 15: azaltılmış harekette imza yok (çekirdek sade yolu kullanır); düşük kalitede glif sınırı yarıda', () => {

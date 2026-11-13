@@ -1,7 +1,7 @@
 // Maç HUD'u v2 (KESINYAP 14): eğik can barları + hayalet can, seri göstergesi, yetenek rayı.
 // Yalnız görsel katman: sunucu maç görüntüsünü okur (fight-hud.js update() çağırır), oyuna dokunmaz.
 // Performans: yalnız değer değişince DOM yazılır; hareket transform/opacity (+ halka stroke-dasharray) ile; kare başına okuma yok.
-import {getFighter} from './shared/fighters.js';
+import {getFighter, SKILL_KEY} from './shared/fighters.js';
 import {SKILL_THRESHOLDS, streakSkill, streakMultiplier} from './shared/match.js';
 import {SKILL_INFO, readSkillState, skillMeter, fighterSkillLabels} from './skillbar.js';
 import {portraitFor} from './portraits.js';
@@ -19,9 +19,10 @@ export function seriesModel(match, p) {
   if (mode === 'rounds') {
     const t = SKILL_THRESHOLDS.rounds;
     let next = null;
-    for (let s = combo + 1; s <= combo + 9; s++) { const k = streakSkill(s); if (k) { next = {key: k.toUpperCase(), steps: s - combo}; break; } }
+    for (let s = combo + 1; s <= combo + 11; s++) { const k = streakSkill(s); if (k) { next = {key: SKILL_KEY[k] || k.toUpperCase(), steps: s - combo}; break; } }
     const mult = streakMultiplier(combo);
-    return {mode, count: combo, total: 7, lit: Math.min(7, combo), marks: {[t.Q]: 'Q', [t.E]: 'E', [t.R]: 'R'}, mult: mult > 1 ? mult : null, next};
+    // KESINYAP 21: seri pipleri 10'a göre (3 Q · 5 W · 7 E · 10 R).
+    return {mode, count: combo, total: t.R, lit: Math.min(t.R, combo), marks: {[t.Q]: 'Q', [t.W]: 'W', [t.E]: 'E', [t.R]: 'R'}, mult: mult > 1 ? mult : null, next};
   }
   if (mode === 'arena') {
     const mult = combo >= 5 ? 2 : combo >= 4 ? 1.5 : null;
@@ -32,22 +33,22 @@ export function seriesModel(match, p) {
   const charge = Number(p?.skillCharge?.r);
   const lit = Math.min(5, Math.max(0, Number.isFinite(charge) ? charge : combo));
   let next = null;
-  for (const [key, thr] of [['Q', t.Q], ['E', t.E], ['R', t.R]]) if (lit < thr) { next = {key, steps: thr - lit}; break; }
-  return {mode, count: combo, total: 5, lit, marks: {[t.Q]: 'Q', [t.E]: 'E', [t.R]: 'R'}, mult: null, next};
+  for (const [key, thr] of [['Q', t.Q], ['W', t.W], ['R', t.R]]) if (lit < thr) { next = {key, steps: thr - lit}; break; }
+  return {mode, count: combo, total: 5, lit, marks: {[t.Q]: 'Q', [t.W]: 'W', [t.R]: 'R'}, mult: null, next};
 }
 
-/** Yetenek rayı modeli: arena'da boş; rounds Q/E/R; classic Q/E/S/R. */
+/** Yetenek rayı modeli: arena'da boş; rounds Q/W/E/R (E = kendine can); classic Q/W/S/R (W = eski E vuruşu, kural aynı). */
 export function railModel(match, p, now = Date.now()) {
   const mode = modeOf(match);
   if (mode === 'arena' || !p) return [];
   const rounds = mode === 'rounds';
   const labels = fighterSkillLabels(p.fighter);
   const kind = p.character === 'rune' ? 'rune' : 'fire';
-  return (rounds ? ['Q', 'E', 'R'] : ['Q', 'E', 'S', 'R']).map(key => {
+  return (rounds ? ['Q', 'W', 'E', 'R'] : ['Q', 'W', 'S', 'R']).map(key => {
     const st = readSkillState(p, key, {rounds, now});
     const {state, fill} = skillMeter(st);
     const name = labels?.[key]?.name || SKILL_INFO[kind]?.[key]?.name || key;
-    return {key, name, fill, state, threshold: st.threshold, energy: st.energy, casts: st.casts, icon: SKILL_INFO[kind]?.[key]?.icon || '',
+    return {key, name, fill, state, threshold: st.threshold, energy: st.energy, casts: st.casts, icon: SKILL_INFO[kind]?.[rounds && key === 'E' ? 'H' : key]?.icon || '',
       sub: key === 'S' ? '' : (state === 'cooldown' && st.cooldownMs > 0 ? `${Math.ceil(st.cooldownMs / 1000)} sn` : `seri ${st.threshold}`), wait: Math.max(st.cooldownMs, st.shieldMs || 0)};
   });
 }
@@ -88,6 +89,9 @@ export function createHudV2({root, doc = root?.ownerDocument || globalThis.docum
     if (s.ratio !== ratio) {
       const scale = `scaleX(${Math.round(ratio * 1000) / 1000})`;
       s.fill.style.transform = scale; s.ghost.style.transform = scale; // hayalet: CSS gecikmeli erir (400 ms)
+      if (s.ratio !== null && ratio > s.ratio) { // E (kendine can): bar yukarı dolar, yeşil parıltı
+        s.bar.classList.add('is-heal'); later(() => s.bar.classList.remove('is-heal'), 900);
+      }
       if (s.ratio !== null && ratio < s.ratio) {
         s.bar.classList.add('is-hit');
         play(s.bar, [{transform: 'translateX(0)'}, {transform: `translateX(${seat === 1 ? -6 : 6}px)`, offset: .25}, {transform: `translateX(${seat === 1 ? 4 : -4}px)`, offset: .55}, {transform: 'translateX(0)'}], {duration: 240, easing: 'ease-out'});

@@ -118,9 +118,9 @@ test('sunucu (cloudflare/src/match.js) ile istemci aynı sonucu üretir',()=>{
 test('resolveAtEnd: aynı raunttaki ultilerin kimliği benzersiz (istemci kopya sanıp sahnesiz göstermesin)',()=>{
   let m=createMatch(players(),T0,'ul1',{rounds:true,roundStyle:'timed',resolveAtEnd:true,seed:'k12'});
   let at=m.round.startedAt+100;
-  // Seri 7 → r (STREAK_SKILLS); 8. kelime yanlış (seri kırılır) → ikinci 7'lik seri ikinci ultiyi atar.
+  // KESINYAP 21 (kullanıcı kuralı: dört yetenek, ulti yalnız 10 seride): seri 10 → r; 11. kelime yanlış (10→5) → 5 doğru daha → seri 10 → ikinci ulti.
   for(let i=0;i<16;i++){
-    const p=seatOf(m,1);const w=i===7?'yanlışxx':publicMatch(m,1).round?.words?.[p.roundWordIndex];
+    const p=seatOf(m,1);const w=i===10?'yanlışxx':publicMatch(m,1).round?.words?.[p.roundWordIndex];
     const out=submitWord(m,{playerId:p.playerId,matchId:m.id,wordIndex:p.wordIndex,text:w,round:m.round.index},at);
     if(out.match)m=out.match;at+=400;
   }

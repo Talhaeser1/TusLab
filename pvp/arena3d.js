@@ -3557,6 +3557,18 @@ export async function createArena3D({
       }
       return out;
     },
+    /** KESINYAP 21: karakterin başının üstünün ekran (client px) konumu — HUD'daki "+120" can sayısı için; yoksa null. */
+    seatScreen(seat) {
+      const fighter = fighters.get(seat);
+      const el = renderer?.domElement;
+      if (!fighter || !el?.getBoundingClientRect) return null;
+      const p = api.seatAnchor(seat);
+      p.y += 0.95 * (fighter.root.scale.x || 1);
+      p.project(camera);
+      const r = el.getBoundingClientRect();
+      if (!(r.width > 0) || p.z > 1) return null;
+      return {x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height};
+    },
     /** World position on the floor under the character (new vector each call). */
     seatGround(seat) {
       const fighter = fighters.get(seat);
@@ -3787,6 +3799,10 @@ export async function createArena3D({
         });
         api.flash(fighters.get(seat).palette.main, 0.14, 260);
       }
+    } else if (type === 'HEAL_APPLIED') {
+      // KESINYAP 21 — E (kendine can): yazma anında, yerinde; sahne kuyruğuna girmez (vuruş sırası değişmez).
+      const seat = isSeat(event.seat) ? event.seat : event.fromSeat;
+      if (isSeat(seat) && !reduced()) addTrack(fighters.get(seat), 760, (p, o, m) => { o.glow += 0.9 * bump(p); o.squash -= 0.05 * bump(p) * m; }, {replace: false});
     } else if (type === 'ASSIST_CAST' && event.resolve && Number(event.sceneSlot) === 0) {
       // İş 12: yalnız destek vuruşu olan sahne — sahnesiz hasar kalmasın diye koltuk kendi q sahnesini oynar.
       if (isSeat(event.fromSeat)) enqueueMeleeSkill(event.fromSeat, 'q', {fx: false});

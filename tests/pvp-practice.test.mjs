@@ -59,7 +59,8 @@ test('practice: cloudflare/src/match.js still exports everything it did before (
   for(const name of ORIGINAL_EXPORTS)assert.ok(name in serverEngine,`eksik ihracat: ${name}`);
   const extra=Object.keys(serverEngine).filter(k=>!ORIGINAL_EXPORTS.includes(k));
   // KESINYAP 11: raund sistemi sabitleri (tavan, 7 raund, kelime planı, seri→beceri) sunucuya da aynı kaynaktan verilir.
-  const ROUND_RULE_EXPORTS=['ROUND_DAMAGE_CAP','ROUND_TOTAL','ROUND_WORD_PLAN','roundWordsFor','streakSkill'];
+  // KESINYAP 21: E (kendine can) kuralı sunucu ve istemcide aynı sabitlerden (tavan 400, oran %80).
+  const ROUND_RULE_EXPORTS=['ROUND_DAMAGE_CAP','ROUND_TOTAL','ROUND_WORD_PLAN','roundWordsFor','streakSkill','ROUND_HEAL_CAP','HEAL_RATIO','healAmount'];
   for(const name of extra)assert.ok(/arena/i.test(name)||ROUND_RULE_EXPORTS.includes(name),`beklenmeyen ek ihracat: ${name}`);
   for(const name of ROUND_RULE_EXPORTS)assert.equal(serverEngine[name],sharedEngine[name],name);
   for(const name of ORIGINAL_EXPORTS)assert.equal(serverEngine[name],sharedEngine[name],name);

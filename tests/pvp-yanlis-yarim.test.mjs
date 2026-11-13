@@ -23,12 +23,13 @@ test('yarıya inme tablosu: 8→4, 7→3, 5→2, 3→1, 1→0, 0→0',()=>{
   }
 });
 
-test('çarpan yeni seriye göre: 8 (×1,8) → yanlış → 4 (×1)',()=>{
-  const out=type(withStreak(make(),8),T0+500,true);
-  assert.equal(streakMultiplier(8),1.8);
-  assert.equal(out.result.multiplier,streakMultiplier(4));assert.equal(out.result.multiplier,1);
-  const high=type(withStreak(make(),16),T0+500,true); // 16→8: hâlâ çarpanlı
-  assert.equal(high.result.multiplier,streakMultiplier(8));
+test('çarpan yeni seriye göre: 11 (×1,8) → yanlış → 5 (×1)',()=>{
+  // KESINYAP 21: çarpan eşiği 7 → 10 (eskiden 8 = ×1,8).
+  const out=type(withStreak(make(),11),T0+500,true);
+  assert.equal(streakMultiplier(11),1.8);
+  assert.equal(out.result.multiplier,streakMultiplier(5));assert.equal(out.result.multiplier,1);
+  const high=type(withStreak(make(),22),T0+500,true); // 22→11: hâlâ çarpanlı
+  assert.equal(high.result.multiplier,streakMultiplier(11));assert.equal(high.result.multiplier,1.8);
 });
 
 test('eşik yeniden geçilince yetenek yeniden atılır: 3 → yanlış (1) → 2 → 3 = Q',()=>{

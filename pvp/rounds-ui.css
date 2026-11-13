@@ -583,3 +583,165 @@
   #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy strong{font-size:15px}
 }
 @media(prefers-reduced-motion:reduce){#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card{transition:none;transform:none!important}}
+
+/* ===== BANT · FANTASTIK ===== (13 Kas 2026) — lobi "sahne" diliyle ayni aile: pahli (egik kesimli) levha, iki oyuncu renginden
+   gelen isik + altin kenar, ekran-raund-banner.webp koyu ortu altinda; uc sure becerisi madalyonlu tilsim kartlari
+   (Zaman Hirsizi kor, Karanlik Saat mor, Donmus An buz; CSS ile cizilmis run halkasi + beceri muhru). Secilen kart yukselir/parlar,
+   digerleri geri cekilir, hakki biten sonuk. Yalniz rounds bandi (arena .aui-summary etkilenmez). Hareket yalniz transform/opacity, tek sefer. */
+#pvp-root .rui-inter.rui-band.is-dock{--bf-cut:20px;--bf-gold:#f6c460;isolation:isolate;border:0;border-radius:0;background:none;box-shadow:none;
+  gap:9px;padding:14px 28px 13px;filter:drop-shadow(0 18px 30px rgba(0,0,0,.55))}
+/* kenar: a1 → altin → a2 (1.5 px gorunur), ici: koyu ortu altinda sahne gorseli + iki rengin kose isigi */
+#pvp-root .rui-inter.rui-band.is-dock::before,#pvp-root .rui-inter.rui-band.is-dock::after{content:"";position:absolute;z-index:-1;pointer-events:none;border-radius:0;height:auto;
+  clip-path:polygon(var(--bf-cut) 0,100% 0,100% calc(100% - var(--bf-cut)),calc(100% - var(--bf-cut)) 100%,0 100%,0 var(--bf-cut))}
+#pvp-root .rui-inter.rui-band.is-dock::before{inset:0;left:0;right:0;top:0;
+  background:linear-gradient(100deg,var(--fhud-a1,#ff8a4c),color-mix(in srgb,var(--bf-gold) 80%,#3a2a10) 34%,#5a4a2a 50%,color-mix(in srgb,var(--bf-gold) 80%,#3a2a10) 66%,var(--fhud-a2,#5ccbff))}
+#pvp-root .rui-inter.rui-band.is-dock::after{inset:1.5px;
+  background:
+    radial-gradient(60% 120% at 0% 100%,color-mix(in srgb,var(--fhud-a1,#ff8a4c) 26%,transparent),transparent 70%),
+    radial-gradient(60% 120% at 100% 100%,color-mix(in srgb,var(--fhud-a2,#5ccbff) 24%,transparent),transparent 70%),
+    radial-gradient(40% 70% at 50% 0%,rgba(246,196,96,.13),transparent 75%),
+    linear-gradient(180deg,rgba(11,8,26,.84),rgba(7,5,17,.92)),
+    url('../assets/higgsfield/final/bant-zemin.webp') center/cover no-repeat #0a0718}
+/* baslik: iki yanda altin cizgi + kucuk run elmasi */
+#pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-head{gap:12px}
+#pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-head::before,#pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-head::after{content:"";flex:0 1 120px;height:7px;
+  background:linear-gradient(45deg,transparent 35%,var(--bf-gold) 36% 64%,transparent 65%) right center/7px 7px no-repeat,linear-gradient(90deg,transparent,var(--bf-gold)) left center/calc(100% - 9px) 1px no-repeat}
+#pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-head::after{transform:scaleX(-1)}
+#pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-title{font:400 15px/1.1 Impact,Haettenschweiler,'Arial Narrow Bold',system-ui,sans-serif;letter-spacing:.24em;color:var(--bf-gold);text-shadow:0 0 14px rgba(246,196,96,.35)}
+/* hasar ozeti: kucuk, net; portre madalyonu altin halkali */
+#pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-dmg{font-size:clamp(22px,2.1vw,28px)}
+#pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-players::after{width:1px;background:linear-gradient(180deg,transparent,rgba(246,196,96,.55),transparent)}
+#pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-player.has-portrait>.m33-portrait{width:40px;height:40px;min-width:40px;min-height:40px;border:2px solid var(--m33-player);
+  box-shadow:0 0 0 2px #0b0718,0 0 0 3px var(--bf-gold),0 0 14px color-mix(in srgb,var(--m33-player) 50%,transparent)}
+#pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-player.has-portrait{grid-template-columns:40px minmax(0,1fr)}
+#pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-player.has-portrait:last-child{grid-template-columns:minmax(0,1fr) 40px}
+#pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-pip.is-won{background:linear-gradient(90deg,#ffdf8f,var(--bf-gold));box-shadow:0 0 6px rgba(246,196,96,.5)}
+
+/* --- TILSIM KARTLARI --- */
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards{gap:14px}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card{--cc:14px;isolation:isolate;background:none;box-shadow:none;border:0;border-radius:0;
+  min-height:82px;padding:11px 14px 11px 12px;gap:13px;animation:bf-card-in .32s cubic-bezier(.2,.8,.2,1) backwards;
+  transition:transform .16s ease-out,opacity .16s ease-out}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card:nth-child(2){animation-delay:.06s}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card:nth-child(3){animation-delay:.12s}
+@keyframes bf-card-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[data-round-skill="timethief"]{--sk:#ff8a4c}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[data-round-skill="blindclock"]{--sk:#b48cff}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[data-round-skill="freeze"]{--sk:#6fd8ff}
+/* kart kenari (::before) + ici (::after), lobi kartlari gibi iki kosesi pahli */
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card::before,
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card::after{content:"";position:absolute;z-index:-1;pointer-events:none;
+  clip-path:polygon(var(--cc) 0,100% 0,100% calc(100% - var(--cc)),calc(100% - var(--cc)) 100%,0 100%,0 var(--cc))}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card::before{inset:0;
+  background:linear-gradient(135deg,var(--sk),color-mix(in srgb,var(--sk) 30%,#1a1230) 45%,color-mix(in srgb,var(--sk) 55%,#1a1230))}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card::after{inset:1.5px;
+  background:radial-gradient(70px 70px at 42px 50%,color-mix(in srgb,var(--sk) 34%,transparent),transparent 100%),
+    repeating-linear-gradient(115deg,rgba(255,255,255,.025) 0 2px,transparent 2px 9px),
+    linear-gradient(135deg,color-mix(in srgb,var(--sk) 22%,#120c24),#0e0a1e 72%)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card:hover{transform:translateY(-3px)}
+/* madalyon: altin halka + beceri renginde cekirdek; ::before run halkasi, ::after beceri muhru; emoji ustte */
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon{position:relative;isolation:isolate;width:58px;height:58px;border-radius:50%;
+  font-size:24px;text-shadow:0 0 10px color-mix(in srgb,var(--sk) 80%,transparent),0 1px 2px #000;
+  background:radial-gradient(circle at 50% 42%,color-mix(in srgb,var(--sk) 60%,#fff) 0 6%,color-mix(in srgb,var(--sk) 72%,#1a0f2e) 30%,#130b24 68%);
+  box-shadow:0 0 0 2px var(--bf-gold,#f6c460),0 0 0 4px #120b22,0 0 0 5px color-mix(in srgb,var(--sk) 75%,transparent),0 0 18px color-mix(in srgb,var(--sk) 45%,transparent)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon::before,
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon::after{content:"";position:absolute;inset:3px;z-index:-1;border-radius:50%;pointer-events:none}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon::before{
+  background:repeating-conic-gradient(color-mix(in srgb,var(--sk) 55%,#fff) 0 2deg,transparent 2deg 12deg);
+  -webkit-mask:radial-gradient(circle closest-side,transparent 80%,#000 82% 94%,transparent 96%);mask:radial-gradient(circle closest-side,transparent 80%,#000 82% 94%,transparent 96%)}
+/* Zaman Hirsizi: saat kertikleri + calinan dilim */
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[data-round-skill="timethief"] .aui-card-icon::before{
+  background:repeating-conic-gradient(#ffd9c2 0 3deg,transparent 3deg 30deg)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[data-round-skill="timethief"] .aui-card-icon::after{
+  background:conic-gradient(from -20deg,rgba(255,170,110,.55) 0 72deg,transparent 72deg);-webkit-mask:radial-gradient(circle closest-side,#000 0 78%,transparent 80%);mask:radial-gradient(circle closest-side,#000 0 78%,transparent 80%)}
+/* Karanlik Saat: tutulma hilali */
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[data-round-skill="blindclock"] .aui-card-icon::after{
+  background:radial-gradient(circle at 64% 36%,transparent 0 38%,rgba(222,200,255,.75) 40% 43%,transparent 45%),radial-gradient(circle at 64% 36%,rgba(10,4,24,.7) 0 39%,transparent 40%)}
+/* Donmus An: alti kollu buz yildizi */
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[data-round-skill="freeze"] .aui-card-icon::after{
+  background:repeating-conic-gradient(from 30deg,rgba(220,248,255,.8) 0 2deg,transparent 2deg 60deg);
+  -webkit-mask:radial-gradient(circle closest-side,transparent 0 22%,#000 24% 74%,transparent 76%);mask:radial-gradient(circle closest-side,transparent 0 22%,#000 24% 74%,transparent 76%)}
+/* tus: altigen altin muhur (HUD altigen rayi ile ayni aile) */
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-key{left:-7px;top:-9px;min-width:26px;width:26px;height:28px;padding:0;border:0;border-radius:0;
+  clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:linear-gradient(180deg,#ffe29a,var(--bf-gold,#f6c460) 55%,#c98d2a);
+  color:#1c1204;font:900 14px/28px system-ui,sans-serif;text-align:center;box-shadow:none}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy strong{text-shadow:0 1px 2px rgba(0,0,0,.8)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy small{color:color-mix(in srgb,var(--sk) 45%,#fff)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-uses{border-radius:0;background:#160f2c;
+  clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);padding:2px 10px;box-shadow:none;
+  outline:1px solid color-mix(in srgb,var(--sk) 60%,transparent);outline-offset:-1px}
+/* secilen: yukselir, altin kenar, madalyon parlar, run halkasi bir kez doner */
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[aria-pressed="true"]{transform:translateY(-8px);background:none;box-shadow:none;
+  filter:drop-shadow(0 0 10px color-mix(in srgb,var(--sk) 55%,transparent)) drop-shadow(0 10px 14px rgba(0,0,0,.5))}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[aria-pressed="true"]::before{inset:0;
+  background:linear-gradient(135deg,#ffe8a8,var(--bf-gold,#f6c460) 40%,var(--sk) 100%)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[aria-pressed="true"]::after{inset:2px;
+  background:radial-gradient(90px 90px at 42px 50%,color-mix(in srgb,var(--sk) 50%,transparent),transparent 100%),
+    linear-gradient(135deg,color-mix(in srgb,var(--sk) 34%,#140d28),#120c24 78%)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[aria-pressed="true"] .aui-card-icon{
+  box-shadow:0 0 0 2px #ffe29a,0 0 0 4px #120b22,0 0 0 6px var(--sk),0 0 26px var(--sk)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[aria-pressed="true"] .aui-card-icon::before{animation:bf-rune-turn .7s cubic-bezier(.2,.8,.2,1) 1}
+@keyframes bf-rune-turn{from{transform:rotate(-90deg);opacity:.3}to{transform:none;opacity:1}}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards:has(.aui-card[aria-pressed="true"]) .aui-card[aria-pressed="false"]{opacity:.62;transform:scale(.96)}
+/* hakki biten: sonuk, gri */
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card.is-empty{opacity:.6;filter:grayscale(1) brightness(.85);background:none;box-shadow:none;cursor:not-allowed}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card.is-empty::before{background:#4a4560}
+/* kilitle: pahli altin dugme; clip-path disariyi kestigi icin odak halkasi iceride */
+#pvp-root .rui-inter.rui-band.is-dock .rui-pick-lock{border-radius:0;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+  background:linear-gradient(180deg,#ffe29a,var(--bf-gold) 55%,#d39a38);color:#1c1204;font:400 16px/1.1 Impact,Haettenschweiler,'Arial Narrow Bold',system-ui,sans-serif;letter-spacing:.08em}
+#pvp-root .rui-inter.rui-band.is-dock .rui-pick-lock:focus-visible{outline:0;box-shadow:inset 0 0 0 3px #1c1204,inset 0 0 0 5px #fff}
+#pvp-root .rui-inter.rui-band.is-dock .rui-pick-skip{border-radius:0;clip-path:polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%);border:0;background:rgba(255,255,255,.08);color:#d6cff0}
+#pvp-root .rui-inter.rui-band.is-dock .rui-pick-skip:focus-visible{outline:0;box-shadow:inset 0 0 0 2px #fff}
+/* masaustu: bant raylar arasinda dar kalabilir (1366'da ~680 px) → kartlar dikey tilsim: madalyon ustte, ad + etki altta ortali */
+@media(min-width:721px){
+  /* baslik sola yaslanir, altin cizgi geri sayima kadar uzanir; geri sayim baslik satirinin sagina (ayri satir yok → bant kisalir) */
+  #pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-head{justify-content:flex-start;padding-right:210px;min-height:26px}
+  #pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-head::before{display:none}
+  #pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-head::after{flex:1 1 auto;transform:none;
+    background:linear-gradient(45deg,transparent 35%,var(--bf-gold) 36% 64%,transparent 65%) right center/7px 7px no-repeat,linear-gradient(90deg,var(--bf-gold),rgba(246,196,96,.3)) left center/calc(100% - 9px) 1px no-repeat}
+  #pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-countdown{position:absolute;top:14px;right:28px;height:26px;align-items:center}
+  #pvp-root .rui-inter.rui-band.is-dock>.rui-skill-picker{flex-direction:column;gap:10px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-pick-actions{flex-direction:row;justify-content:flex-end;align-items:center;gap:10px;min-width:0}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-pick-status{flex:1 1 auto;text-align:left}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-pick-lock{flex:none;min-height:36px;height:36px;padding:0 22px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-pick-skip{flex:none;height:36px;padding:0 16px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card{flex-direction:column;justify-content:flex-start;align-items:center;gap:7px;min-height:0;padding:13px 10px 10px;text-align:center}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon{flex:none;width:52px;height:52px;font-size:22px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy{justify-items:center;text-align:center;gap:2px;width:100%}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy strong{font-size:16px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-copy small{font-size:12.5px;white-space:normal;text-wrap:balance}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card::after{background:radial-gradient(80px 64px at 50% 36px,color-mix(in srgb,var(--sk) 36%,transparent),transparent 100%),
+    repeating-linear-gradient(115deg,rgba(255,255,255,.025) 0 2px,transparent 2px 9px),linear-gradient(180deg,color-mix(in srgb,var(--sk) 22%,#120c24),#0e0a1e 78%)}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[aria-pressed="true"]::after{background:radial-gradient(100px 80px at 50% 36px,color-mix(in srgb,var(--sk) 52%,transparent),transparent 100%),
+    linear-gradient(180deg,color-mix(in srgb,var(--sk) 34%,#140d28),#120c24 80%)}
+}
+@media(max-width:720px){
+  #pvp-root .rui-inter.rui-band.is-dock{--bf-cut:12px;padding:11px 14px 10px}
+  #pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-head::before,#pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-head::after{flex-basis:40px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards{gap:9px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card{--cc:10px;min-height:58px;padding:8px 12px 8px 10px;gap:12px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon{width:42px;height:42px;font-size:19px}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[aria-pressed="true"]{transform:translateX(4px)}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards:has(.aui-card[aria-pressed="true"]) .aui-card[aria-pressed="false"]{transform:none}
+}
+@media(prefers-reduced-motion:reduce){
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card,
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon::before{animation:none!important;transition:none!important}
+  #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card{transform:none!important}
+}
+#pvp-root.pvp4-reduced .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card,
+#pvp-root.pvp4-reduced .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon::before{animation:none!important;transition:none!important;transform:none!important}
+
+/* ===== BANT · TILSIM GORSELLERI (13 Kas 2026) — CSS madalyon yerine uretilmis tilsim resimleri (assets/higgsfield/final/beceri-*.webp) ===== */
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon{width:74px;height:74px;font-size:0;color:transparent;border:0;border-radius:50%;
+  background:center/cover no-repeat;box-shadow:0 6px 16px rgba(0,0,0,.6)}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon::before,
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon::after{display:none!important}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[data-round-skill="timethief"] .aui-card-icon{background-image:url('../assets/higgsfield/final/beceri-zaman-hirsizi.webp')}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[data-round-skill="blindclock"] .aui-card-icon{background-image:url('../assets/higgsfield/final/beceri-karanlik-saat.webp')}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card[data-round-skill="freeze"] .aui-card-icon{background-image:url('../assets/higgsfield/final/beceri-donmus-an.webp')}
+#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card.is-empty .aui-card-icon{filter:grayscale(1) brightness(.6)}
+@media(max-width:1100px){#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon{width:60px;height:60px}}
+@media(max-width:720px){#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon{width:46px;height:46px}}
+@media(max-width:720px){#pvp-root .rui-inter.rui-band.is-dock .m33-result.m33-band .m33-detail{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #pvp-root .rui-inter.rui-band.is-dock{max-height:calc(100dvh - var(--rui-dock-bottom,64px) - 170px)}}
