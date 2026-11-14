@@ -139,13 +139,14 @@ async function arena3dCreate(){
   // (arena3d.css). 3B açılamazsa (catch) sınıf kalkar ve bugünkü CSS arena aynen görünür.
   root.classList.add('pvp-models-pending');
   try{
-    const [{createArena3D},{createArena3DFx},{createArena3DHpBars},{createArena3DAssist}]=await Promise.all([import('./arena3d.js'),import('./arena3d-fx.js'),import('./arena3d-hpbars.js'),import('./arena3d-assist.js')]);
+    const [{createArena3D},{createArena3DFx},{createArena3DHpBars,WORLD_HPBARS_ON},{createArena3DAssist}]=await Promise.all([import('./arena3d.js'),import('./arena3d-fx.js'),import('./arena3d-hpbars.js'),import('./arena3d-assist.js')]);
     if(token!==arena3d.token||root.hidden)return;
     const instance=await createArena3D({root,isReduced:fx24Reduced,onImpact:playImpactFeedback});
     if(!instance){arena3dButtonSync();return;}
     if(token!==arena3d.token||root.hidden){instance.destroy();return;}
     instance.registerPlugin(createArena3DFx(instance.api));
-    instance.registerPlugin(createArena3DHpBars(instance.api));
+    // Kullanıcı (14 Kas 2026): "ulti atarken can barları çıkıyor, barlar çıkmasın" → baş üstü 3B can barı kapalı (üstteki HUD barı yeterli).
+    if(WORLD_HPBARS_ON)instance.registerPlugin(createArena3DHpBars(instance.api));
     instance.registerPlugin(createArena3DAssist(instance.api)); // paket 31: partner desteği silueti
     arena3d.instance=instance;
     lastFighterKey='';arena3dSyncFighters(); // paket 32: yalnız seçili iki karakterin modeli tembel yüklenir

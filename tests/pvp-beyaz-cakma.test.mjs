@@ -19,3 +19,10 @@ test('üst üste vuruşlarda çakma 260 ms\'de en çok bir kez yenilenir', () =>
   const src = read('../pvp/arena3d.js');
   assert.match(src, /lastImpactFlashAt > now\(\) - 260/);
 });
+
+test('ulti sırasında sahnede can barı gibi görünen şey yok: baş üstü 3B bar kapalı, sütun halkaları gizlenir', async () => {
+  const {WORLD_HPBARS_ON} = await import('../pvp/arena3d-hpbars.js');
+  assert.equal(WORLD_HPBARS_ON, false);
+  assert.match(read('../pvp/index.js'), /if\(WORLD_HPBARS_ON\)instance\.registerPlugin\(createArena3DHpBars/);
+  assert.match(read('../pvp/arena3d.js'), /const bandsOn = !ult;/);
+});

@@ -944,6 +944,7 @@ export async function createArena3D({
       {x: -6.6, z: -5.4, h: 3.2, color: PALETTE.fire.main, hq: false},
       {x: 6.7, z: -5.2, h: 3.4, color: PALETTE.rune.accent, hq: false},
     ];
+    const pillarBands = []; // ulti kamerasında gizlenir (aşağıda: can barı sanılıyordu)
     for (const [i, def] of pillarDefs.entries()) {
       const pillar = new THREE.Group();
       const stone = new THREE.Mesh(pillarGeo, stoneMat);
@@ -955,6 +956,8 @@ export async function createArena3D({
         const band = new THREE.Mesh(bandGeo, bandMat);
         band.rotation.x = Math.PI / 2;
         band.position.y = def.h * fr;
+        band.name = 'pvp-pillar-band';
+        pillarBands.push(band);
         pillar.add(band);
       }
       pillar.position.set(def.x, 0.2, def.z);
@@ -981,7 +984,7 @@ export async function createArena3D({
     const colosseum = buildColosseum(group);
     // Ambient lights dimmed by the super freeze (base intensities kept here).
     const ambient = [hemi, key, backRim].map(light => ({light, base: light.intensity}));
-    return {group, hq, floaters, stars, floorMaterial, halo, blobTexture, starCount, colosseum, sky, ambient};
+    return {group, hq, floaters, pillarBands, stars, floorMaterial, halo, blobTexture, starCount, colosseum, sky, ambient};
   }
 
   function wrapColosseum() {
@@ -3518,6 +3521,10 @@ export async function createArena3D({
     cameraOffset.y += impactFrame.shakeY;
     cameraOffset.z -= impactFrame.zoom;
     if (ult && !quiet) cameraOffset.z += 2.5;
+    // Kullanıcı: "ulti atarken sahne büyüyor ama can barları çıkıyor": ulti kamerasında sütun gövdesi karanlıkta
+    // kayboluyor, turuncu/mavi ışık halkaları dövüşçülerin üstünde asılı can barı gibi okunuyordu → ulti boyunca gizli.
+    const bandsOn = !ult;
+    if (env3d?.pillarBands && env3d.pillarBandsOn !== bandsOn) { env3d.pillarBandsOn = bandsOn; for (const band of env3d.pillarBands) band.visible = bandsOn; }
 
     // An ultimate can throw one fighter above the normal two-person frame.
     // Widen around the midpoint immediately; damped tracking alone lags that arc.
@@ -4749,6 +4756,13 @@ export async function createArena3D({
         fov: camera.fov,
       }),
       readyState: () => readyState,
+      /** Tanı: ekranda görünen ağların ekran kutuları (ad, x, y, g, y) — "bu şerit ne?" sorusu için. */
+      screenMeshes: () => { const out = []; const box = new THREE.Box3(), v = new THREE.Vector3();
+        scene.traverse(o => { if (!o.isMesh || !o.visible || !o.geometry) return; let p = o, vis = true; while (p) { if (!p.visible) { vis = false; break; } p = p.parent; } if (!vis) return;
+          if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); box.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);
+          let x0 = 9, x1 = -9, y0 = 9, y1 = -9; for (let i = 0; i < 8; i++) { v.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).project(camera); if (v.z > 1) return; x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
+          const W = layoutState.width, H = layoutState.height; out.push([o.name || o.parent?.name || o.geometry.type, Math.round((x0 + 1) / 2 * W), Math.round((1 - y1) / 2 * H), Math.round((x1 - x0) / 2 * W), Math.round((y1 - y0) / 2 * H), o.material?.color?.getHexString?.() || '', o.material?.opacity ?? 1]); });
+        return out; },
       warmup: () => ({queued:warmQueue.length,pendingCompiles,models:[...fighters.values()].map(f=>Boolean(f.modelJob))}),
       models: () => Object.fromEntries(SEATS.map(seat => {
         const f = fighters.get(seat);

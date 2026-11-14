@@ -22,6 +22,8 @@ export const HPBAR_TIMING = Object.freeze({
   shakeMs: 240,
 });
 export const LOW_HP_RATIO = 0.3;
+/** Baş üstü 3B can barı oyunda kapalı (kullanıcı kararı: ulti sırasında bar çıkmasın). index.js bu bayrağa bakar. */
+export const WORLD_HPBARS_ON = false;
 
 const PALETTE = Object.freeze({
   1: Object.freeze({fill: 0xff6a3d, ghost: 0xffe2a4, edge: 0xffb27a}),
