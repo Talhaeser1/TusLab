@@ -12,19 +12,21 @@ Oyuncu klavyeyle doğru yazar; doğru kelime saldırı üretir. Üç mod var.
 |---|---|---|---|
 | Can | 2000 | 4000 (raundlar arası taşınır) | 3000 |
 | Süre | 120 sn maç, 10 sn pencereler | 7 raund | 6 raund, 40 sn |
-| Yetenek | seriyle 5'li döngü | seriyle: 3→Q, 5→E, 7→R | eşya ve beceri seçimi |
-| Çarpan | yok | seri 7'den ×1,5 | seri çarpanı (kombo) |
+| Yetenek | seriyle 5'li döngü | seriyle: 3→Q, 5→W, 7→E (kendine can), 10→R | eşya ve beceri seçimi |
+| Çarpan | yok | seri 10'dan ×1,5 | seri çarpanı (kombo) |
 | Rastgelelik | %30 kalkan, parry | yok | yok |
 
 ### Raund modu
 - **Zamana karşı:** her raund 30 sn, kelime tükenmez.
 - **Kelime raundu:** kelime sayıları 5-7-9-10-10-10-15; süre yok, ilk bitiren raundu bitirir (gizli 120 sn sınır).
-- **Çarpan:** seri 7 → ×1,5; 8 → ×1,8; 9 → ×2,16; 10 ve sonrası ×2,5 (üst sınır).
+- **Yetenekler (KESINYAP 21):** seri 3 → Q, 5 → W (yakın; motor anahtarı `e`), 7 → E (kendine can; anahtar `h`), 10 → R (ulti); 11 ve sonrası her doğru kelime → Q. E: eski E hasarının %80'i kadar can, azami canı ve raund başına 400'ü aşamaz, çarpan almaz, sahne kuyruğuna girmez (yazıldığı an yerinde kısa can pozu). Ayrıntı ve klipler: 03.
+- **Çarpan:** seri 10 → ×1,5; 11 → ×1,8; 12 → ×2,16; 13 ve sonrası ×2,5 (üst sınır).
+- **Sahne:** zemin yarığı/krater ve büyük sarı dalga efektleri kapalı. Rounds çözümünde "SALDIRI SIRASI", "RAUND SONU · Sen · Rakip" hapı, havada yüzen efekt adları ve "DESTEK" çubukları gösterilmez (KESINYAP 22).
 - **Yanlış kelime:** seri yarıya iner (8→4, 7→3, 5→2, 3→1, 1→0). Eşik altına inince yetenek yeniden atılır. Yalnız raund modunda; klasik ve arena sıfırlar.
 - **Hasar tavanı:** bir oyuncu tek raundda en çok 1300 verir. 3 x 1300 < 4000, nakavt en erken 4. raundda.
 - **Kazanma:** can 0 = NAKAVT. 7. raundun sonunda canı fazla olan kazanır. Eşitse en çok 3 ani ölüm raundu (10 kelime); hâlâ eşitse berabere.
 - **Süre becerileri** (Zaman Hırsızı, Donmuş An, Karanlık Saat) yalnız zamana karşıda çalışır.
-- **Örnek hesap (Ateş, kusursuz 10 kelime):** 3. kelime Q 105; 5. kelime E 175 (toplam 280); 7. R x1,5 = 458 (738); 8. Q 189 (927); 9. Q 227 (1154); 10. Q 263 ama tavan sadece 146'ya izin verir. Raund hasarı = 1300.
+- **Örnek hesap (Ateş, kusursuz 13 kelime):** 3. kelime Q 105; 5. W 175 (toplam 280); 7. E +140 can (hasar değil); 10. R ×1,5 = 458 (738); 11. Q ×1,8 = 189 (927); 12. Q ×2,16 = 227 (1154); 13. Q ×2,5 = 263 ama tavan yalnız 146'ya izin verir. Raund hasarı = 1300.
 
 ### Klasik
 - Can 2000, süre biterse canı fazla olan kazanır. Savunma rastgele: savunanın aynı anda doğru kelimesi varsa %30 kalkan, kusursuz blokta %45 parry (65 karşı vuruş).

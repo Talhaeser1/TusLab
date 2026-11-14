@@ -55,24 +55,37 @@ Savunma (S): eş kelimede %30 blok; tam zamanlamada savuşturma. Rounds'ta rastg
 
 **Ses:** her karakterin q/e/r sesi var (bkz. 10).
 
-**Raund modunda seri → yetenek (şu an):** seri 3 → Q, 5 → E, 7 → R, 8 ve sonrası her doğru kelime → Q.
+## Raund modu: dört yetenek Q/W/E/R (KESINYAP 21 — kodda, 13 Kasım 2026)
+Yalnız raund modunda; klasik ve arena kuralları aynı kaldı. Kaynak: `pvp/shared/match.js` `STREAK_SKILLS`.
 
-## Planlanan / sırada (henüz kodda yok)
-Dört yetenek, yalnız raund modunda (klasik ve arena kuralları aynı kalır):
+| Seri | Tuş | Motor anahtarı | Rol | Kural |
+|---|---|---|---|---|
+| 3 | Q | `q` | menzilli/ilk vuruş | tablodaki Q hasarı |
+| 5 | W | `e` | yakın dövüş | klasikteki eski E vuruşu (aynı hasar/klip/ses) |
+| 7 | E | `h` | kendine can | eski E hasarının %80'i; azami canı ve raund başına 400'ü aşamaz; çarpan yok |
+| 10 | R | `r` | ulti | yalnız 10 üst üste doğruda; 3 evre |
 
-| Seri | Tuş | Rol | Kural |
-|---|---|---|---|
-| 3 | Q | menzilli hasar | mevcut Q |
-| 5 | W | yakın dövüş | yeni |
-| 7 | E | kendine can | eski E hasarının %80'i, raund başına en çok 400 |
-| 10 | R | ulti | yalnız 10 üst üste doğruda |
+11 ve sonrası her doğru kelime → Q. Yanlış kelimede seri yarıya iner (8→4, 5→2). Çarpan seri 10'dan başlar.
 
-- Yanlış kelimede seri yarıya iner (8→4, 5→2) — bu kod'da VAR (bkz. 04).
-- Zemin hasarı: Q/W küçük çatlak/yanık (solar), ulti kalıcı göçük/krater (en çok 4) — kodda yok.
-- Karaktere özel efektler (Hacı Usta: etli ekmek fırlatışı, sema dönüşü, ney feryadı) — KESINYAP 15, yapılmadı.
+E adları: Vargr **Kan Nabzı**, Sira **Gölge Sisi**, Doran **Sur Andı**, Nyx **Şifa Rünü**, Hacı Usta **Şerbet Molası**.
+
+**Sahnede (her yetenek karakterin kendi klibiyle):**
+
+| Karakter | Q klibi | W klibi | E (can) klibi | R klibi |
+|---|---|---|---|---|
+| Vargr | Attack | Axe_Spin_Attack | Victory_Cheer (ilk 1,5 sn) | Charged_Axe_Chop |
+| Sira | Thrust_Slash | Double_Blade_Spin | Victory_Cheer (ilk 1,5 sn) | Triple_Combo_Attack |
+| Doran | Right_Hand_Sword_Slash | Shield_Push_Left | Victory_Fist_Pump | Sword_Judgment |
+| Nyx | mage_soell_cast | Charged_Spell_Cast | victory (ilk 1,5 sn) | Charged_Ground_Slam |
+| Hacı Usta | Over_Shoulder_Throw | 360_Power_Spin_Jump | Victory_Cheer (ilk 1,5 sn) | Ney_Ulti |
+
+- E (can) yazıldığı an, karakter boştaysa yerinde oynar (`fighters3d.js` `HEAL_SCENE`, tablo `clips.heal`) + karakterin çevresinde kendi can efekti (`arena3d-fx.js` onHeal); sahne kuyruğuna girmez, vuruş sırası ve çözüm süresi değişmez. GLB'lerde kullanılmayan uygun klip olmadığı için zafer klibinin kısa hali kullanıldı (yeni animasyon üretilmedi).
+- W katlanmaz: motor 20 sn bütçesi için W'yi Q sahnesine katlasa da W ya zincire eklenir ya da (menzilli Q + yakın W, ör. Hacı Usta) kendi yaklaşmasında oynar; görsel birikim tavanı aşılırsa katlanır.
+- Zemin yarığı/krater (`GROUND_DAMAGE_ON=false`) ve büyük sarı dalga/halka (`BIG_WAVES_ON=false`) KAPALI — kullanıcı istemedi.
+- Karaktere özel Q/W/R efektleri KESINYAP 15'te yapıldı (Hacı Usta: dönen etli ekmek + un bulutu, sema girdabı, ney ses dalgaları).
 
 ## Yeni bir şey eklerken uyulacaklar
-- [ ] Her karakter Q (menzilli), W (yakın), E (kendine can), R (ulti) alır; planlanan sistem koda girene dek mevcut Q/E/R/S doldurulur.
+- [ ] Her karakter Q, W (yakın), E (kendine can), R (ulti) alır; `MODEL_VARIANTS` tablosunda q/e/r klibi ve `clips.heal` tanımlı olmalı (Q, W, R klipleri birbirinden farklı).
 - [ ] Hasar tabloda tanımlı sayıdan sapmaz; denge `docs/HASAR-KURALLARI.md`'ye göre.
 - [ ] Ulti üç evreli; hasarlar toplamı 305.
 - [ ] Her yetenek için klip, efekt anahtarı ve ses tarifi yaz.

@@ -378,7 +378,9 @@ test('assist hud: assistValue is null unless enabled; ASSIST_CAST announces "DES
   assert.equal(assistValue({mode:'arena',assistEnabled:true},p),null);
   assert.equal(assistValue({mode:'classic',assistEnabled:true},{character:'fire'}),null);
   assert.deepEqual(assistValue({mode:'classic',assistEnabled:true},p),{value:0.48,ready:false,partner:'rune'});
-  assert.deepEqual(assistValue({mode:'rounds',assistEnabled:true},{character:'rune',assist:{meter:140,ready:true}}),{value:1,ready:true,partner:'fire'});
+  assert.deepEqual(assistValue({mode:'classic',assistEnabled:true},{character:'rune',assist:{meter:140,ready:true}}),{value:1,ready:true,partner:'fire'});
+  // KESINYAP 22: rounds 1v1'de DESTEK çubuğu gizli.
+  assert.equal(assistValue({mode:'rounds',assistEnabled:true},{character:'rune',assist:{meter:140,ready:true}}),null);
   assert.equal(CALLS.assist,'DESTEK!');
   assert.deepEqual(callFor({type:'ASSIST_CAST',fromSeat:2,toSeat:1,partner:'fire'}),{text:'DESTEK!',seat:2});
 });

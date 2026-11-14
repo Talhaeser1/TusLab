@@ -6,10 +6,11 @@ export const ANIM_KIND = Object.freeze({
   idle: 'idle', q: 'attack', e: 'attack', r: 'attack',
   hit: 'hit', block: 'block', blockHit: 'block',
   walkBack: 'return',   // Görev 4: kombo sonu eve dönüş yürüyüşü
+  heal: 'heal',         // KESINYAP 21: E (kendine can) — yerinde kısa poz, saldırı/isabet keser
   ko: 'knockdown', defeat: 'knockdown', win: 'victory', victory: 'victory',
 });
 
-export const ANIM_PRIORITY = Object.freeze({idle: 0, attack: 1, return: 1, block: 2, hit: 3, victory: 4, knockdown: 5});
+export const ANIM_PRIORITY = Object.freeze({idle: 0, attack: 1, return: 1, heal: 1, block: 2, hit: 3, victory: 4, knockdown: 5});
 
 /** Crossfade süreleri (ms). */
 export const FADE_MS = Object.freeze({

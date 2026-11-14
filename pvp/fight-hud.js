@@ -49,7 +49,8 @@ export function superValue(match, player) {
 
 /** Paket 31 — destek barı: {value 0..1, ready, partner} ya da gösterilmeyecekse null (saf; test edilir). */
 export function assistValue(match, player) {
-  if (!match || !player || match.assistEnabled !== true || match.mode === 'arena') return null;
+  // KESINYAP 22: rounds 1v1'de partner yok → iki yandaki "DESTEK" çubukları gösterilmez (yalnız klasik).
+  if (!match || !player || match.assistEnabled !== true || match.mode === 'arena' || match.mode === 'rounds') return null;
   const a = player.assist;
   const meter = Number(a?.meter);
   if (!a || !Number.isFinite(meter)) return null;

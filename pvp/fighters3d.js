@@ -46,6 +46,8 @@ export const MODEL_VARIANTS = Object.freeze({
         hit: Object.freeze(['Hit_Reaction']),
         ko: 'Knock_Down',
         win: 'Victory_Cheer',
+        // KESINYAP 21: E (kendine can) — kendi zafer klibinin ilk HEAL_SCENE.ms'si (GLB'lerde kullanılmayan klip yok).
+        heal: 'Victory_Cheer',
         // Şerit H: yolculuk klipleri (vargr.glb'ye scripts/merge-vargr-clips.py ekler).
         run: 'Run_Charge',
         walkBack: 'Walk_Back',
@@ -62,23 +64,23 @@ export const MODEL_VARIANTS = Object.freeze({
   }),
   sira: Object.freeze({meshy: Object.freeze({
     url: modelUrl('sira'),
-    clips: Object.freeze({idle:'Combat_Stance',idleHeavy:'Combat_Stance',run:'Standard_Forward_Charge_inplace',walkBack:'Standard_Forward_Charge_inplace',block:'Sword_Parry',blockHit:'Sword_Parry',hit:Object.freeze(['Hit_Reaction']),ko:'Knock_Down',win:'Victory_Cheer'}),
+    clips: Object.freeze({idle:'Combat_Stance',idleHeavy:'Combat_Stance',run:'Standard_Forward_Charge_inplace',walkBack:'Standard_Forward_Charge_inplace',block:'Sword_Parry',blockHit:'Sword_Parry',hit:Object.freeze(['Hit_Reaction']),ko:'Knock_Down',win:'Victory_Cheer',heal:'Victory_Cheer'}),
     skills: Object.freeze({q:Object.freeze({clip:'Thrust_Slash',peakMs:1200,speed:1.1,recoverMs:380}),e:Object.freeze({clip:'Double_Blade_Spin',peakMs:2550,speed:1.1,recoverMs:360}),r:Object.freeze({clip:'Triple_Combo_Attack',peakMs:2450})}),
   })}),
   doran: Object.freeze({meshy: Object.freeze({
     url: modelUrl('doran'),
-    clips: Object.freeze({idle:'Combat_Stance',idleHeavy:'Combat_Stance',run:'Standard_Forward_Charge_inplace',walkBack:'Standard_Forward_Charge_inplace',block:'Block1',blockHit:'Block1',hit:Object.freeze(['Hit_Reaction_1']),ko:'Knock_Down_1',win:'Victory_Fist_Pump'}),
+    clips: Object.freeze({idle:'Combat_Stance',idleHeavy:'Combat_Stance',run:'Standard_Forward_Charge_inplace',walkBack:'Standard_Forward_Charge_inplace',block:'Block1',blockHit:'Block1',hit:Object.freeze(['Hit_Reaction_1']),ko:'Knock_Down_1',win:'Victory_Fist_Pump',heal:'Victory_Fist_Pump'}),
     skills: Object.freeze({q:Object.freeze({clip:'Right_Hand_Sword_Slash',peakMs:600,speed:1.1,recoverMs:380}),e:Object.freeze({clip:'Shield_Push_Left',peakMs:1065,speed:1.1,recoverMs:360}),r:Object.freeze({clip:'Sword_Judgment',peakMs:2450})}),
   })}),
   nyx: Object.freeze({meshy: Object.freeze({
     url: modelUrl('nyx'),
-    clips: Object.freeze({idle:'Combat_Stance',idleHeavy:'Combat_Stance',run:'Standard_Forward_Charge_inplace',walkBack:'Standard_Forward_Charge_inplace',block:'Block3',blockHit:'Block3',hit:Object.freeze(['Hit_Reaction']),ko:'dying_backwards',win:'victory'}),
+    clips: Object.freeze({idle:'Combat_Stance',idleHeavy:'Combat_Stance',run:'Standard_Forward_Charge_inplace',walkBack:'Standard_Forward_Charge_inplace',block:'Block3',blockHit:'Block3',hit:Object.freeze(['Hit_Reaction']),ko:'dying_backwards',win:'victory',heal:'victory'}),
     skills: Object.freeze({q:Object.freeze({clip:'mage_soell_cast',peakMs:900}),e:Object.freeze({clip:'Charged_Spell_Cast',peakMs:1200}),r:Object.freeze({clip:'Charged_Ground_Slam',peakMs:1700})}),
   })}),
   // Hacı Usta: peakMs = klibin ölçülen el/kol hız zirvesi (Over_Shoulder_Throw sağ kol bırakışı ≈1,95 sn; spin sıçrama ≈1,3 sn; ney ulti orta kare).
   konyali: Object.freeze({meshy: Object.freeze({
     url: modelUrl('konyali'),
-    clips: Object.freeze({idle:'Combat_Stance',idleHeavy:'Combat_Stance',run:'Standard_Forward_Charge_inplace',walkBack:'Standard_Forward_Charge_inplace',block:'Block1',blockHit:'Block1',hit:Object.freeze(['Hit_Reaction']),ko:'Knock_Down',win:'Victory_Cheer'}),
+    clips: Object.freeze({idle:'Combat_Stance',idleHeavy:'Combat_Stance',run:'Standard_Forward_Charge_inplace',walkBack:'Standard_Forward_Charge_inplace',block:'Block1',blockHit:'Block1',hit:Object.freeze(['Hit_Reaction']),ko:'Knock_Down',win:'Victory_Cheer',heal:'Victory_Cheer'}),
     skills: Object.freeze({q:Object.freeze({clip:'Over_Shoulder_Throw',peakMs:1950,speed:1.2,recoverMs:380}),e:Object.freeze({clip:'360_Power_Spin_Jump',peakMs:1300,speed:1.2,recoverMs:360}),r:Object.freeze({clip:'Ney_Ulti',peakMs:2000})}),
   })}),
 });
@@ -123,6 +125,9 @@ export async function loadFighterModel(THREE, fighterId, {loader = null} = {}) {
   asset.variant = 'meshy';
   return asset;
 }
+
+/** KESINYAP 21 — E (kendine can) sahnesi: karakterin `clips.heal` klibinin ilk `ms`'si yerinde oynar, sonra idle. */
+export const HEAL_SCENE = Object.freeze({ms: 1500, fadeMs: 160});
 
 /** Görünüm: koltuk yönüne bakan yarı profil; kameraya hafif dönük. */
 export const MODEL_VIEW = Object.freeze({
@@ -410,8 +415,14 @@ export function sceneTiming(strikes, {compress = false, fixed = null, notBefore 
   const k = compress ? SCENE.speedMax : 1;
   const ranged = list.every(s => s.ranged);
   const telegraphMs = SCENE.telegraphMs / k;
+  // KESINYAP 21 — karma zincir: baştaki menzilli vuruş(lar) EVDE atılır, sonra koşup yakın vuruş(lar), tek dönüş
+  // (Hacı Usta/Sira: Q fırlatış + W yakın). prefix = baştaki menzilli vuruş sayısı (yalnız "menzilli → yakın" sırası).
+  let prefix = 0;
+  if (!ranged) while (prefix < list.length && list[prefix].ranged) prefix++;
+  const mixed = prefix > 0 && list.slice(prefix).every(s => !s.ranged);
   // Gidiş/dönüş baskıda da hızlanmaz (okunur yürüyüş); yalnız telegraf, vuruş ve duruş ×k.
-  const arrive = ranged ? telegraphMs : telegraphMs + SCENE.approachMs;
+  let departMs = telegraphMs;
+  let arrive = ranged ? telegraphMs : telegraphMs + SCENE.approachMs;
   const out = [];
   for (let i = 0; i < list.length; i++) {
     const s = list[i];
@@ -420,7 +431,9 @@ export function sceneTiming(strikes, {compress = false, fixed = null, notBefore 
     const windup = Math.min(peak, SCENE.windupMaxMs);
     const follow = Math.min(clip - peak, SCENE.followMaxMs);
     const flight = s.ranged ? SCENE.projectileMs / k : 0;
-    let start = i === 0 ? (ranged ? telegraphMs : arrive - SCENE.strikeLeadMs / k) : out[i - 1].end - SCENE.overlapMs / k;
+    if (mixed && i === prefix) { departMs = out[i - 1].end; arrive = departMs + SCENE.approachMs; }
+    let start = i === 0 ? (ranged || mixed ? telegraphMs : arrive - SCENE.strikeLeadMs / k)
+      : mixed && i === prefix ? arrive - SCENE.strikeLeadMs / k : out[i - 1].end - SCENE.overlapMs / k;
     if (fixed && i < fixed.length && Number.isFinite(fixed[i])) start = fixed[i] - flight - windup / k;
     else if (notBefore > 0 && start < notBefore) start = notBefore;
     const release = start + windup / k;
@@ -439,16 +452,17 @@ export function sceneTiming(strikes, {compress = false, fixed = null, notBefore 
   const moveStart = returnStart + turn * 0.6; // yön çevirmenin sonuna doğru yürümeye başlar
   const homeAt = moveStart + SCENE.returnMs;
   const totalMs = Math.max(homeAt + turn, lastContact + SCENE.reactMs / k);
-  return {k, telegraphMs, arrive, strikes: out, contacts: out.map(o => o.contact), returnStart, moveStart, homeAt, totalMs, turnMs: turn, moveIn: 1};
+  return {k, telegraphMs, departMs, arrive, strikes: out, contacts: out.map(o => o.contact), returnStart, moveStart, homeAt, totalMs, turnMs: turn, moveIn: 1};
 }
 
 /** Saf: sahne konumu (0 = ev, 1 = temas noktası). Sürekli eğri; menzillide hep 0. */
 export function sceneProgress(elapsedMs, T, from = 0) {
   if (!T || !T.moveIn) return from ? from * (1 - easeInOutSine(window01(elapsedMs, 0, SCENE.returnMs))) : 0;
   const e = Number(elapsedMs) || 0;
-  const goMs = Math.max(1, T.arrive - T.telegraphMs);
-  const out = from + (1 - from) * travelEase((e - T.telegraphMs) / goMs);
-  if (e < T.moveStart) return e <= T.telegraphMs ? from : out;
+  const dep = T.departMs ?? T.telegraphMs; // karma zincirde menzilli atıştan sonra yola çıkar
+  const goMs = Math.max(1, T.arrive - dep);
+  const out = from + (1 - from) * travelEase((e - dep) / goMs);
+  if (e < T.moveStart) return e <= dep ? from : out;
   return out * (1 - easeInOutSine(window01(e, T.moveStart, T.homeAt - T.moveStart)));
 }
 
@@ -885,7 +899,7 @@ export function createFighterRig(THREE, asset, {
     const hasRun = clipByName.has(stateRun);
     const steps = [];
     // Koşu klibi, hareket başlamadan crossFade'ini bitirir (idle pozunda kayma olmasın).
-    if (T.moveIn && hasRun) steps.push({clip: stateRun, at: Math.max(0, T.telegraphMs - 180), loop: true, loco: true, fade: 180});
+    if (T.moveIn && hasRun) steps.push({clip: stateRun, at: Math.max(0, (T.departMs ?? T.telegraphMs) - 180), loop: true, loco: true, fade: 180});
     const contacts = [];
     const fx = [];
     T.strikes.forEach((st, i) => {
@@ -902,6 +916,8 @@ export function createFighterRig(THREE, asset, {
     if (T.moveIn && hasRun) steps.push({clip: stateRun, at: T.returnStart, loop: true, loco: true, fade: 120});
     // Idle: yerine VARINCA (hız ~0) başlar, crossFade ≥ 250 ms.
     steps.push({clip: idleClip, at: T.moveIn ? T.homeAt + 60 : T.homeAt, loop: true, fade: SCENE.idleFadeMs});
+    // Karma zincirde koşu adımı menzilli atıştan SONRA gelir: adımlar zamana göre sıralı oynar.
+    steps.sort((a, b) => a.at - b.at);
     const last = contacts[contacts.length - 1].ms;
     return {skills: specs.map(s => s.skill), steps, contacts, fx, timing: T,
       travelMs: T.arrive, holdMs: Math.max(0, T.returnStart - last), returnStart: T.returnStart, returnMs: T.homeAt - T.moveStart,
@@ -981,6 +997,8 @@ export function createFighterRig(THREE, asset, {
    */
   function play(next, opts = {}) {
     if (state.disposed) return false;
+    // Can pozu yalnız boşta oynar: sahne/isabet/dönüş koşusu kesilmez (vuruş sırası değişmez).
+    if (next === 'heal' && (anim.state.kind !== 'idle' || state.name !== 'idle' || state.loco)) return false;
     const melee = baseChoreo[next] ? plan(next, opts) : null;
     const contactMs = SKILLS.includes(next) ? (melee?.hitMs || variantReady?.skills?.[next]?.contactMs || choreo[next]?.hitMs || 0) : 0;
     const d = anim.request(next, {contactMs, force: opts.force});
@@ -1017,6 +1035,7 @@ export function createFighterRig(THREE, asset, {
     state.name = next;
     if (next === 'ko') return fadeTo(stateClips.ko, {loop: false, clamp: true, fade: opts.fade});
     if (next === 'win') return fadeTo(stateClips.win, {loop: true, fade: opts.fade});
+    if (next === 'heal') return fadeTo(stateClips.heal || stateClips.win, {loop: false, clamp: true, fade: opts.fade ?? HEAL_SCENE.fadeMs, endMs: HEAL_SCENE.ms});
     if (next === 'block') return fadeTo(stateClips.block, {loop: false, speed: 1.4, fade: opts.fade});
     if (next === 'blockHit') return fadeTo(stateClips.blockHit, {loop: false, speed: 1.2, fade: opts.fade});
     if (next === 'hit') {

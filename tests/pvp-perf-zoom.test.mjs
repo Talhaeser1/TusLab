@@ -59,6 +59,21 @@ test('kare valisi: ısınma ve duraklamalar sayılmaz, kademeler tek yönlü ine
   assert.equal(g.step, 0);
 });
 
+test('kare valisi: 48/50 Hz ekranın düzgün kareleri (≈20,8 ms) kaliteyi düşürmez; düzensiz ya da 30 FPS düşürür', () => {
+  const steady = createFrameGovernor({slowMs: 20, warmupFrames: 5, windowFrames: 10, maxStep: 3});
+  for (let i = 0; i < 400; i++) steady.sample(20.8 + (i % 3) * 0.2); // 48 Hz, ±0,4 ms titreme
+  assert.equal(steady.step, 0, '48 Hz ekran yavaşlık sayılmaz');
+  const fifty = createFrameGovernor({slowMs: 20, warmupFrames: 5, windowFrames: 10, maxStep: 3});
+  for (let i = 0; i < 400; i++) fifty.sample(20);
+  assert.equal(fifty.step, 0, '50 Hz ekran yavaşlık sayılmaz');
+  const jitter = createFrameGovernor({slowMs: 20, warmupFrames: 5, windowFrames: 10, maxStep: 3});
+  for (let i = 0; i < 400; i++) jitter.sample(i % 2 ? 16.7 : 33.3); // 60 Hz ekranda kare kaçırma
+  assert.equal(jitter.step, 3, 'düzensiz kareler kademe düşürür');
+  const thirty = createFrameGovernor({slowMs: 20, warmupFrames: 5, windowFrames: 10, maxStep: 3});
+  for (let i = 0; i < 400; i++) thirty.sample(33.3);
+  assert.equal(thirty.step, 3, 'sabit 30 FPS yavaştır');
+});
+
 test('arena3d: otomatik kalite eşikleri hızlı tepki verir (≈1.5 sn) ve mutlak bütçe kullanır', () => {
   assert.equal(AUTO_QUALITY.slowMs, 20);
   assert.ok(AUTO_QUALITY.warmupFrames + AUTO_QUALITY.windowFrames <= 90, 'eski 90 karelik ısınmadan hızlı');

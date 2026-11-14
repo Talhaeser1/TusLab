@@ -126,6 +126,8 @@ export const ARENA_ENV_CAPS = Object.freeze({
 export const MAX_FWD_STEP = 0.12;
 /** Aynı korumanın hız sınırı (dünya birimi/sn): uzun karede adım dt ile sınırlanır. */
 export const MAX_WORLD_SPEED = MAX_FWD_STEP * 60;
+/** Konum sınırında sayılan en uzun kare (ms): 20 fps'e kadar hız korunur, daha uzun karede adım ≤ 0,36. */
+export const MAX_POSE_DT_MS = 50;
 /** Eve dönerken gövde yönü: rakibe bakan yarım profilden eve bakan yarım profile (kameradan geçerek). */
 const TURN_YAW = -(Math.PI - 2 * MODEL_VIEW.yawToCamera);
 /** KO/maç sonu: bekleyen sahnelerin sıralı oynaması için üst süre (sunum; kural süresi değil). */
@@ -2175,7 +2177,10 @@ export async function createArena3D({
     if (entry.strikes.length >= SCENE.maxStrikes) return false; // süre tavanı: yeni girdi
     // İş 1, 3. tur: menzilli (yerinde atış) ile yakın (koşarak) vuruş aynı sahnede karışmaz — menzilli yerinde kalır.
     const rangedOf = s => rig.chainPlan?.([s])?.moveIn === 0;
-    if (rangedOf(skill) !== rangedOf(entry.strikes[0].skill)) return false;
+    // KESINYAP 21: istisna "karma zincir" — sahne henüz başlamadıysa menzilli vuruş(lar)ın ARDINA yakın vuruş eklenir
+    // (evde atış → koşu → yakın vuruş → tek dönüş; sceneTiming prefix). Ayrı yaklaşmadan ~5 sn kısa.
+    const mixOk = !entry.started && !rangedOf(skill) && entry.strikes.every(s => rangedOf(s.skill));
+    if (rangedOf(skill) !== rangedOf(entry.strikes[0].skill) && !mixOk) return false;
     // Sahne tavanı (~3 sn): uzatılmış zincir bunu aşacaksa zincir kapanır; saldırı katlanır ya da yeni girdi açar.
     const skills = [...entry.strikes.map(s => s.skill), skill];
     const probe = entry.started && entry.chain
@@ -2238,19 +2243,34 @@ export async function createArena3D({
    * bekletilir ki ulti başka bir saldırıyla üst üste binmesin (ulti korunumu).
    * Döner: true = kuyruğa alındı (çağıran ayrıca oynatmaz). Modelsiz/azaltılmış harekette false.
    */
-  function enqueueMeleeSkill(seat, skill, {fx = true, ultimate = false, join = false, fold = false} = {}) {
+  function enqueueMeleeSkill(seat, skill, {fx = true, ultimate = false, join = false, fold = false, pre = []} = {}) {
     if (reduced() || (skill !== 'q' && skill !== 'e' && !ultimate)) return false;
     const fighter = fighters.get(seat);
     const rig = fighter?.model;
     if (!rig || fighter.ko || !rig.choreo?.[skill]) return false;
+    // KESINYAP 21 — her yetenek kendi klibiyle görünür: katlanacak/eklenecek vuruşun becerisi koltuğun sahnesinde
+    // henüz yoksa önce zincire eklenir; menzil türü uyuşmuyorsa (Hacı Usta: menzilli Q + yakın W) katlanmaz, kendi
+    // sahnesini açar (görsel birikim tavanı altındaysa). Eskiden W, Q'nun temasına katlanıp hiç oynamıyordu.
+    const rangedSkill = s => rig.chainPlan?.([s])?.moveIn === 0;
+    const ownClip = target => !ultimate && target && !target.entry.strikes.some(s => s.skill === skill)
+      && (target.entry.open && extendMeleeEntry(target.entry, skill) ? 'chained'
+        : rangedSkill(skill) !== rangedSkill(target.entry.strikes[0].skill)
+          && timeline.remainingMs() <= timeline.VISUAL_QUEUE.maxBacklogMs ? 'own' : null);
     // İş 12: toplu vuruş sahnesi — hasar koltuğun açık sahnesinin son vuruşunda (tek temas karesi) gösterilir.
-    if (fold && foldTarget(seat)) { probeMark('fold', {seat, skill}); return true; }
+    if (fold) {
+      const target = foldTarget(seat);
+      const how = target ? ownClip(target) : null;
+      if (how === 'chained') return true;
+      if (target && how !== 'own') { probeMark('fold', {seat, skill}); return true; }
+    }
     // Aynı koltuğun açık kombo girdisi varsa: yeni saldırı ZİNCİRE EKLENİR (yaklaşma tek kalır).
     if (!ultimate) {
       const open = fighter.castQueue.find(e => e.open && !e.dead && !e.ultimate);
       if (open && extendMeleeEntry(open, skill)) return true;
-      // Motor bu vuruşu açık sahneye yerleştirdi: zincir dolu/menzil uyuşmuyorsa yeni sahne açmak yerine katlanır.
-      if (join && foldTarget(seat)) { probeMark('fold', {seat, skill, join: true}); return true; }
+      // Motor bu vuruşu açık sahneye yerleştirdi: zincir doluysa yeni sahne açmak yerine katlanır (menzil uyuşmazlığı hariç).
+      const target = join ? foldTarget(seat) : null;
+      if (target && !(rangedSkill(skill) !== rangedSkill(target.entry.strikes[0].skill) && !target.entry.strikes.some(s => s.skill === skill)
+        && timeline.remainingMs() <= timeline.VISUAL_QUEUE.maxBacklogMs)) { probeMark('fold', {seat, skill, join: true}); return true; }
       // Süre tavanı (madde 6): kuyruk tavanı aşmışsa yeni sahne AÇILMAZ; bu saldırının hasarı koltuğun
       // henüz temas etmemiş son vuruşunda toplu gösterilir (bindCastEntry yedeği). Işınlanma/hızlandırma yok.
       if (timeline.remainingMs() > timeline.VISUAL_QUEUE.maxBacklogMs && foldTarget(seat)) return true;
@@ -2295,9 +2315,12 @@ export async function createArena3D({
       for (const strike of old.strikes || []) for (const event of strike.events) silentDamage(event, 'overflow');
       for (const event of old.events) silentDamage(event, 'overflow');
     }
+    // KESINYAP 21: aynı sahnenin tamponlanmış sonraki yuvaları (pre) girdi BAŞLAMADAN zincire eklenir (karma zincir
+    // dahil); eklenen olaylar __inScene ile işaretlenir, handleCore onları ikinci kez sıraya koymaz.
+    if (!ultimate) for (const ev of pre) { if (!extendMeleeEntry(entry, ev.skill)) break; ev.__inScene = true; }
     const estimate = ultimate
       ? (rig.ultimateDurationMs || Math.max(rig.sceneDuration?.(skill) || 0, rig.ultimatePeakMs || 0))
-      : rig.chainPlan?.([skill])?.totalMs || rig.plan?.(skill)?.totalMs || rig.sceneDuration(skill);
+      : rig.chainPlan?.(entry.strikes.map(s => s.skill))?.totalMs || rig.plan?.(skill)?.totalMs || rig.sceneDuration(skill);
     // keep: saldırı sahnesi birikim yüzünden DÜŞÜRÜLMEZ (düşen sahnenin hasarı sahnesiz görünürdü);
     // birikim, zaman çizelgesinin sıkıştırması (ctx.compress) ve aynı koltuk zincirlemesiyle emilir.
     entry.handle = timeline.enqueue({
@@ -3091,7 +3114,10 @@ export async function createArena3D({
     fighter.poseT = tNow;
     if (quiet || !fighter.shown) { fighter.shown = {x: wantX, z: wantZ}; fighter.speed = 0; }
     else {
-      const cap = Math.min(MAX_FWD_STEP, MAX_WORLD_SPEED * dtPose / 1000);
+      // KESINYAP 22: sınır HIZ tabanlı (60 fps'te kare başına 0,12, eskisiyle aynı); düşük kare hızında (zayıf GPU) kare
+      // başı 0,12 sınırı dövüşçüyü planlı dönüşün gerisinde bırakıyor, sahne bitince eve sırtı dönük yürüyordu.
+      // Uzun kare (sekme/takılma) en çok MAX_POSE_DT_MS sayılır → tek karede ışınlanma yine yok (≤ 0,36).
+      const cap = MAX_WORLD_SPEED * Math.min(dtPose, MAX_POSE_DT_MS) / 1000;
       const dx = wantX - fighter.shown.x, dz = wantZ - fighter.shown.z, d = Math.hypot(dx, dz);
       const k = d > cap ? cap / d : 1;
       fighter.shown.x += dx * k;
@@ -3448,7 +3474,11 @@ export async function createArena3D({
     }
     if (d.k > 0 && isSeat(d.seat)) {
       const s = layoutState.seats.get(d.seat);
-      const sx = s ? s.position.x : -facingOf(d.seat) * 2.5;
+      // KESINYAP 22: dolly koltuğun EVİNE değil, iki dövüşçünün o anki ortasıyla koltuk arasına (½) yaklaşır →
+      // R sırasında saldıran (menzilli ulti evinde kalır) kadraj dışına düşmez.
+      const fa = fighters.get(1), fb = fighters.get(2);
+      const mid = fa && fb ? ((fa.root.position.x + fa.actor.position.x * (fa.root.scale.x || 1)) + (fb.root.position.x + fb.actor.position.x * (fb.root.scale.x || 1))) / 2 : 0;
+      const sx = ((s ? s.position.x : -facingOf(d.seat) * 2.5) + mid) / 2;
       cameraOffset.x += sx * 0.32 * d.k;
       cameraOffset.y += 0.15 * d.k;
       cameraOffset.z += -1.25 * d.k;
@@ -3779,7 +3809,8 @@ export async function createArena3D({
       if (!isSeat(seat)) return;
       // İş 12: motor planındaki sahne yuvası — yuva > 0 yeni sahne AÇMAZ (aynı yaklaşmaya eklenir ya da son vuruşa katlanır).
       const join = event.skill !== 'r' && (Number(event.sceneSlot) > 0 || event.fold === true);
-      if (enqueueMeleeSkill(seat, event.skill, {ultimate: event.skill === 'r', join, fold: event.fold === true})) {
+      if (event.__inScene) return; // tampondan girdinin zincirine önceden eklendi (holdSceneEvent)
+      if (enqueueMeleeSkill(seat, event.skill, {ultimate: event.skill === 'r', join, fold: event.fold === true, pre: event.__pre || []})) {
         /* görsel kuyruk: sırası gelince oynar (q/e kombo zinciri; r ulti girdisi) */
       } else if (playModelSkill(seat, event.skill)) {
         if (event.skill === 'r') {
@@ -3802,7 +3833,12 @@ export async function createArena3D({
     } else if (type === 'HEAL_APPLIED') {
       // KESINYAP 21 — E (kendine can): yazma anında, yerinde; sahne kuyruğuna girmez (vuruş sırası değişmez).
       const seat = isSeat(event.seat) ? event.seat : event.fromSeat;
-      if (isSeat(seat) && !reduced()) addTrack(fighters.get(seat), 760, (p, o, m) => { o.glow += 0.9 * bump(p); o.squash -= 0.05 * bump(p) * m; }, {replace: false});
+      if (isSeat(seat) && !reduced()) {
+        const f = fighters.get(seat);
+        addTrack(f, 760, (p, o, m) => { o.glow += 0.9 * bump(p); o.squash -= 0.05 * bump(p) * m; }, {replace: false});
+        // Karakterin kendi "kendine can" klibi (clips.heal): yalnız boştayken, sırada sahnesi yokken (sahne kesilmez).
+        if (f?.model && !f.ko && !f.victory && !f.castQueue.some(e => !e.dead)) safeCall(() => f.model.play('heal'));
+      }
     } else if (type === 'ASSIST_CAST' && event.resolve && Number(event.sceneSlot) === 0) {
       // İş 12: yalnız destek vuruşu olan sahne — sahnesiz hasar kalmasın diye koltuk kendi q sahnesini oynar.
       if (isSeat(event.fromSeat)) enqueueMeleeSkill(event.fromSeat, 'q', {fx: false});
@@ -3929,8 +3965,32 @@ export async function createArena3D({
     return true;
   }
 
-  function handle(event) {
+  // KESINYAP 21: motor bir sahnenin tüm vuruşlarını ~aynı anda (yuva başına +1 ms) yollar. Görsel kuyruk boştayken
+  // ilk vuruş (yuva 0) anında başlarsa sonraki yuva (ör. menzilli Q'nun ardındaki yakın W) karma zincire katılamaz.
+  // Bu yüzden boş kuyrukta sahne olayları koltuk başına SCENE_HOLD_MS tamponlanıp sırayla işlenir (göze görünmez).
+  const SCENE_HOLD_MS = 40;
+  const sceneHold = new Map(); // seat -> olay listesi
+  function holdSceneEvent(event) {
+    if (reduced() || event.resolve !== true || event.skill === 'r' || typeof env?.setTimeout !== 'function') return false;
+    if (event.type !== 'SKILL_CAST' && event.type !== 'DAMAGE_APPLIED') return false;
+    const seat = event.fromSeat;
+    const held = sceneHold.get(seat);
+    if (held) { held.push(event); return true; }
+    if (event.type !== 'SKILL_CAST' || Number(event.sceneSlot) !== 0 || timeline.isBusy() || !isSeat(seat)) return false;
+    sceneHold.set(seat, [event]);
+    env?.setTimeout?.(() => {
+      const list = sceneHold.get(seat) || [];
+      sceneHold.delete(seat);
+      const casts = list.filter(e => e.type === 'SKILL_CAST' && (e.skill === 'q' || e.skill === 'e'));
+      if (casts.length > 1) casts[0].__pre = casts.slice(1);
+      for (const e of list) handle(e, true);
+    }, SCENE_HOLD_MS);
+    return true;
+  }
+
+  function handle(event, released = false) {
     if (destroyed || !event || typeof event !== 'object' || typeof event.type !== 'string') return;
+    if (!released && holdSceneEvent(event)) return;
     try {
       if (event.type === 'HP_SYNC' && timeline.isBusy() && !reduced()) {
         // Authoritative snapshots may arrive ahead of the queued cosmetic hit.
@@ -4662,6 +4722,8 @@ export async function createArena3D({
         }];
       })),
       skillFx: () => (skillFx ? skillFx.stats() : {live: 0, kinds: []}),
+      /** KESINYAP 22 ölçüm: iki dövüşçünün gövde ortası ekranda mı (NDC x,y; |x|≤1 kadrajda). */
+      onScreen: () => SEATS.map(seat => { const v = new THREE.Vector3(); fighters.get(seat).actor.getWorldPosition(v); v.y += 1.2; v.project(camera); return [Math.round(v.x * 100) / 100, Math.round(v.y * 100) / 100]; }),
       /** Ölçüm (kasma tanısı): kalite kademesi + çizim yükü. */
       perf: () => ({step: autoStep(), quality: effectiveQuality(), bloom: bloomActive(), ratio: safeCall(() => renderer.getPixelRatio?.()) ?? null,
         w: layoutState.width, h: layoutState.height, calls: renderer.info?.render?.calls ?? null, tris: renderer.info?.render?.triangles ?? null,

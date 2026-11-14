@@ -24,7 +24,7 @@ const descriptors={
  'ultimate-charge':'ULTİ YÜKLENİYOR','ultimate-hit':'ULTİ KESİŞİ',
  'final-blast':'BİTİRİCİ PATLAMA','victory-flare':'ZAFER','defeat-smoke':'YENİLGİ'
 };
-export function createCombatFxDirector({root,scheduler=globalThis,motionReduced=()=>false,now=()=>Date.now()}={}){
+export function createCombatFxDirector({root,scheduler=globalThis,motionReduced=()=>false,now=()=>Date.now(),quietLabels=()=>false}={}){
   if(!root?.querySelector)throw new TypeError('An arena stage is required');
   let reduced=false,disposed=false,serial=0;
   const scheduled=new Set();
@@ -68,7 +68,8 @@ export function createCombatFxDirector({root,scheduler=globalThis,motionReduced=
     const t=now();
     if(t-cueWindow>=1000||t<cueWindow){cueWindow=t;cueCount=0;}
     if(++cueCount>MAX_CUES_PER_SECOND){dropped++;return false;}
-    const label=root.querySelector('[data-fx-label]');
+    // KESINYAP 22: rounds'ta havada yüzen efekt adı (KIVILCIM / KILIÇ İZİ / BİTİRİCİ PATLAMA) yazılmaz.
+    const label=quietLabels()?null:root.querySelector('[data-fx-label]');
     if(label){label.textContent=descriptors[cue];const n=++serial;
       delay(()=>{if(serial===n)label.textContent='';},760);
     }

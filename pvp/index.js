@@ -59,7 +59,7 @@ attachStageFocus({root,isReduced:()=>reducedEffects||Boolean(window.matchMedia?.
 // Sıralı saldırı göstergesi (U3): "SALDIRI SIRASI 3/8", saldıran/SİPER vurgusu, pencere özeti.
 // Geçiş sesleri (attack-turn) oyuncunun SFX ayarına uyar; pvpAudio satır sonunda tanımlanır, çağrı anında hazırdır.
 attachResolveUi({root,getSeat:()=>network.seat,isReduced:()=>reducedEffects||Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches),
-  sfx:(name,gain)=>pvpAudio.play(name,{character:'center',gain})});
+  sfx:(name,gain)=>pvpAudio.play(name,{character:'center',gain}),quietRounds:true});
 // Nasıl oynanır paneli (U5): ? düğmesi, sekmeli rehber, Esc yalnız paneli kapatır.
 attachHowto({root});
 // Dövüş oyunu tarzı sinematik geçişler (VS girişi, raund bantları, tur arası sıralaması).
@@ -577,7 +577,7 @@ function show(open){
   void arena3dCreate();
   for(const id of ['fire','rune']){
     const stage=root.querySelector(`.pvp2-side[data-player="${id}"] .pvp2-stage`);
-    fxDirectors[id]=createCombatFxDirector({root:stage,motionReduced:()=>window.matchMedia?.('(prefers-reduced-motion: reduce)').matches??false});
+    fxDirectors[id]=createCombatFxDirector({root:stage,motionReduced:()=>window.matchMedia?.('(prefers-reduced-motion: reduce)').matches??false,quietLabels:()=>network.match?.mode==='rounds'});
     fxDirectors[id].setReduced(reducedEffects);
     choreographers[id]?.dispose();
     choreographers[id]=createChoreographyDirector({stage,id,reduced:()=>reducedEffects||Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)});
@@ -818,9 +818,9 @@ root?.addEventListener('tuslab:pvp-match',()=>{
   for(const seat of [1,2])controllers[seat===1?'fire':'rune']?.trigger(m.winnerSeat===null?'idle':m.winnerSeat===seat?'victory':'defeat');
   if(m.winnerSeat===1||m.winnerSeat===2){
     pvpAudio.play(m.winnerSeat===network.seat?'victory':'defeat',{character:m.winnerSeat===1?'fire':'rune',gain:.7});
-    playFighterSfx(m.winnerSeat===1?2:1,'ko',.9); // paket 32: kaybedenin KO sesi
+    playFighterSfx(m.winnerSeat===1?2:1,'ko',.3); // paket 32: kaybedenin KO sesi
     // Görev S: düşme + zafer repliği + spiker + tezahürat (tek replik kanalı; üst üste binmez)
-    pvpAudio.playExtra?.('dusme',{gain:.5});pvpAudio.cheer?.(.4);
+    pvpAudio.playExtra?.('dusme',{gain:.85});pvpAudio.cheer?.(.4);
     // KESINYAP iş 6: zafer repliğini YALNIZ kazanan yerel oyuncunun karakteri söyler (teslim/yenilgi/berabere: söylemez).
     const voicePlan=endVoicePlan({winnerSeat:m.winnerSeat,mySeat:network.seat});
     // İş 1, 3. tur: bekleyen düşük öncelikli replikler atılır → kazananın zafer repliği → bitiş spikeri (bayatlıktan muaf).

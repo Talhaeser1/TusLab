@@ -55,12 +55,16 @@ export function createFrameGovernor({
   windowFrames = 40,
   ignoreAboveMs = 250,
   maxStep = 3,
+  nativeMinMs = 19.5,
+  nativeMaxMs = 21.5,
+  steadyMaxMs = 24.5,
 } = {}) {
   let step = 0;
   let warm = 0;
   let sum = 0;
   let count = 0;
-  const resetWindow = () => { warm = 0; sum = 0; count = 0; };
+  const win = [];
+  const resetWindow = () => { warm = 0; sum = 0; count = 0; win.length = 0; };
   return {
     get step() { return step; },
     /** Kademe değişince / görünürlük dönüşünde ısınmayı yeniden başlat. */
@@ -75,11 +79,20 @@ export function createFrameGovernor({
       if (warm < warmupFrames) { warm++; return false; }
       sum += dt;
       count++;
+      win.push(dt);
       if (count < windowFrames) return false;
       const average = sum / count;
+      // 48/50 Hz ekran (pil modundaki dizustu): karelerin ORTANCASI ekranin kendi araligidir (~20-20,8 ms); bu yavaslik degil.
+      // Ortanca nativeMinMs..nativeMaxMs araligindaysa ve ortalama steadyMaxMs'i asmiyorsa kademe dusurulmez
+      // (gercek yavaslik vsync'e kuantalanir: ortanca 27,8 / 33,3 / 41,7 ms olur).
+      const median = win.sort((a, b) => a - b)[win.length >> 1];
+      // Tek tuk sapma (cop toplama, sekme arkasi) ortalamayi sisirir; karelerin en az %80'i ekran araligindaysa duzgun sayilir.
+      const onPace = win.filter(x => x <= median * 1.5).length / win.length;
+      const steady = median >= nativeMinMs && median <= nativeMaxMs && (average <= steadyMaxMs || onPace >= 0.8);
       sum = 0;
       count = 0;
-      if (average <= slowMs) return false;
+      win.length = 0;
+      if (average <= slowMs || steady) return false;
       step++;
       warm = 0;
       return true;
