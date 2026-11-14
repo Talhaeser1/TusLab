@@ -537,6 +537,9 @@ export function frameFighters(xA, xB, {follow = 0.35, nearZoom = 0.45, farGap = 
   return {centerX: mid * follow, zoom: nearZoom * t, gap};
 }
 
+/** Vuruş çakması / yetenek parıltısı sınırları (setTint): dövüşçü hiçbir zaman düz beyaza dönmez. */
+export const TINT_LIMITS = Object.freeze({flashColor: 0.3, flashEmissive: 0.9, glowEmissive: 0.55, emissiveCap: 1.0});
+
 // ------------------------------------------------------------------ loading
 
 const assetCache = new Map(); // url → Promise<{gltf, clips}>
@@ -1203,14 +1206,17 @@ export function createFighterRig(THREE, asset, {
       const rest = restMaterials[i];
       if (rest.color && m.color?.copy) {
         m.color.copy(rest.color).multiplyScalar(shade);
-        if (flash) m.color.lerp(new THREE.Color(0xffffff), flash * .8);
+        if (flash) m.color.lerp(new THREE.Color(0xffffff), flash * TINT_LIMITS.flashColor);
         if (red) m.color.lerp(new THREE.Color(0xff3028), red);
       }
       if (rest.emissive && m.emissive?.copy) {
         m.emissive.copy(rest.emissive);
-        m.emissive.r += flash * 3 + red * 2 + glow * ((palette.main >> 16) & 255) / 255;
-        m.emissive.g += flash * 3 + glow * ((palette.main >> 8) & 255) / 255;
-        m.emissive.b += flash * 3 + glow * (palette.main & 255) / 255;
+        // "Karakter beyaza dönüyor" hatası: çakma + parıltı dokuyu beyaza yakıyordu (emisyon 4'e çıkıyordu).
+        // Katkı kısık ve üst sınırlı; karakterin kendi renkleri her zaman okunur.
+        const f = flash * TINT_LIMITS.flashEmissive, g = glow * TINT_LIMITS.glowEmissive, cap = TINT_LIMITS.emissiveCap;
+        m.emissive.r = Math.min(rest.emissive.r + cap, m.emissive.r + f + red * 2 + g * ((palette.main >> 16) & 255) / 255);
+        m.emissive.g = Math.min(rest.emissive.g + cap, m.emissive.g + f + g * ((palette.main >> 8) & 255) / 255);
+        m.emissive.b = Math.min(rest.emissive.b + cap, m.emissive.b + f + g * (palette.main & 255) / 255);
         m.emissive.multiplyScalar(shade);
         m.emissiveIntensity = rest.intensity;
       }
@@ -1275,6 +1281,7 @@ export function createFighterRig(THREE, asset, {
       fighter: fighterId, state: state.name, clip: state.clip, clipTime: state.current?.time ?? 0, timeScale: state.timeScale, paused: state.paused,
       yaw: state.yaw, queued: state.queue.length, plays: state.plays, disposed: state.disposed,
       materials: materials.length, variant: variantReady ? variantName : null, height: height * scale,
+      tint: materials.map(m => [Math.round((m.emissive?.r ?? -1) * 100) / 100, Math.round((m.color?.r ?? -1) * 100) / 100, m.map?.image ? 1 : 0, m.emissiveMap ? 1 : 0, m.emissiveIntensity ?? -1, m.type]),
       chain: state.chain.slice(), chainStrikes: state.chainStrikes,
       chainContacts: state.chainPlan ? state.chainPlan.contacts.map(c => c.ms) : [],
       chainTotalMs: state.chainPlan?.totalMs ?? 0,

@@ -1848,7 +1848,8 @@ export async function createArena3D({
       forwardToPlugins({...event, impactContact: true});
       if (!event.blocked && event.amount > 0) {
         const f = fighters.get(event.toSeat);
-        if (f) f.impactFlash = {at: now(), whiteMs: spec.flashMs};
+        // Üst üste vuruşlarda (toplu çözüm) çakma sürekli yenilenip karakteri beyaz tutuyordu: 260 ms'de en çok bir çakma.
+        if (f && !(f.lastImpactFlashAt > now() - 260)) { f.lastImpactFlashAt = now(); f.impactFlash = {at: now(), whiteMs: spec.flashMs}; }
       }
     },
     deliver: (event, scene) => safeCall(() => onImpact(event, scene)),
