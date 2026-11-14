@@ -578,6 +578,13 @@ export async function createArena3D({
   let destroyed = false;
   let qualityMode = 'auto';   // 'high' | 'low' | 'auto'
   const governor = createFrameGovernor({...AUTO_QUALITY, maxStep: AUTO_QUALITY.lowStep});
+  const softwareRenderer = safeCall(() => {
+    const gl = renderer.getContext?.();
+    const ext = gl?.getExtension?.('WEBGL_debug_renderer_info');
+    const name = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl?.getParameter?.(gl.RENDERER);
+    return /swiftshader|llvmpipe|softpipe/i.test(String(name || ''));
+  }) || false;
+  if (softwareRenderer) governor.setStep(AUTO_QUALITY.lowStep);
   const autoStep = () => (qualityMode === 'auto' ? governor.step : 0);
   const startTime = now();
   let lastTime = startTime;
@@ -2494,6 +2501,7 @@ export async function createArena3D({
    */
   function pixelRatio(width = 0, height = 0) {
     const dpr = Number(env?.devicePixelRatio) || 1;
+    if (softwareRenderer && qualityMode === 'auto') return budgetRatio(width, height, dpr, {maxRatio: 0.5, minRatio: 0.3, budget: 0.12e6});
     if (effectiveQuality() === 'low') return 1;
     if (autoStep() >= 2) return budgetRatio(width, height, dpr, {maxRatio: 1.25, budget: PIXEL_BUDGETS.arenaMedium});
     return Math.min(dpr, 2);
@@ -3508,6 +3516,16 @@ export async function createArena3D({
     cameraOffset.x += impactFrame.shakeX + impactFrame.punch;
     cameraOffset.y += impactFrame.shakeY;
     cameraOffset.z -= impactFrame.zoom;
+    if (ult && !quiet) cameraOffset.z += 2.5;
+
+    // An ultimate can throw one fighter above the normal two-person frame.
+    // Widen around the midpoint immediately; damped tracking alone lags that arc.
+    const ultimateAir = ult && !quiet ? Math.max(0, ...[...fighters.values()].map(f => f.offset.y)) : 0;
+    if (ultimateAir > 0.2) {
+      cameraOffset.y += ultimateAir * 0.28;
+      lookOffset.y += ultimateAir * 0.28;
+      cameraOffset.z += ultimateAir * 4;
+    }
 
     camera.position.copy(baseCamera.position).add(cameraOffset);
     lookPoint.copy(baseTarget).add(lookOffset);
@@ -4160,12 +4178,13 @@ export async function createArena3D({
   function setQuality(mode) {
     if (destroyed || !['high', 'low', 'auto'].includes(mode)) return;
     qualityMode = mode;
-    if (mode === 'auto') governor.setStep(0);
+    if (mode === 'auto') governor.setStep(softwareRenderer ? AUTO_QUALITY.lowStep : 0);
     applyQuality();
   }
 
   function monitorFrame(dtMs) {
     if (qualityMode !== 'auto') return;
+    governor.setPaused(readyState !== 'ready' || warmQueue.length > 0 || pendingCompiles > 0 || [...fighters.values()].some(f => f.modelJob));
     // Tek yönlü kademe: bloom kapat → çözünürlük düşür → düşük kalite. Titreme yok.
     if (governor.sample(dtMs)) applyQuality();
   }
@@ -4178,13 +4197,28 @@ export async function createArena3D({
    * kare başına bir düzen olacak şekilde derlenir; sonra geçişler bedavadır.
    */
   const warmQueue = [];
+  let pendingCompiles = 0;
   function queueWarmup() {
     if (typeof renderer.compile !== 'function') return;
     warmQueue.length = 0;
-    if (bloom) warmQueue.push({level: 'high', target: bloom.target});
-    warmQueue.push({level: 'high', target: null}, {level: 'low', target: null});
+    if (!softwareRenderer && bloom) warmQueue.push({level: 'high', target: bloom.target});
+    if (!softwareRenderer) warmQueue.push({level: 'high', target: null});
+    warmQueue.push({level: 'low', target: null});
     if (readyState === 'ready' && !reduced()) warmQueue.push({rehearse: true});
     warmQueue.push({draw: true});
+  }
+  function whenWarm(timeoutMs = 60000) {
+    const deadline = now() + timeoutMs;
+    return new Promise(resolve => {
+      const check = () => {
+        if (destroyed || readyState === 'failed') return resolve(false);
+        if (readyState === 'ready' && !warmQueue.length && !pendingCompiles &&
+            [...fighters.values()].every(f => !f.modelJob)) return resolve(true);
+        if (now() >= deadline) return resolve(false);
+        env.setTimeout(check, 50);
+      };
+      check();
+    });
   }
 
   /**
@@ -4276,7 +4310,7 @@ export async function createArena3D({
     });
     const previousTarget = safeCall(() => renderer.getRenderTarget?.()) ?? null;
     try {
-      if (bloom) {
+      if (bloom && !softwareRenderer) {
         renderer.setRenderTarget?.(bloom.target);
         renderer.render(scene, camera);
       }
@@ -4307,7 +4341,11 @@ export async function createArena3D({
     try {
       setLightLevel(job.level);
       safeCall(() => renderer.setRenderTarget?.(job.target));
-      if (typeof renderer.compileAsync === 'function') renderer.compileAsync(scene, camera).catch?.(() => {});
+      if (!softwareRenderer && typeof renderer.compileAsync === 'function') {
+        const compilation = renderer.compileAsync(scene, camera);
+        pendingCompiles++;
+        Promise.resolve(compilation).catch(() => {}).finally(() => { pendingCompiles--; });
+      }
       else renderer.compile(scene, camera);
     } catch {
       /* ön-derleme kozmetiktir */
@@ -4631,6 +4669,7 @@ export async function createArena3D({
     setFighters,
     /** Resolves true once the rig textures are on the GPU (false on fallback). */
     ready,
+    whenWarm,
     /** Test/debug hooks (not part of the plugin contract). */
     _debug: {
       tick,
@@ -4709,6 +4748,7 @@ export async function createArena3D({
         fov: camera.fov,
       }),
       readyState: () => readyState,
+      warmup: () => ({queued:warmQueue.length,pendingCompiles,models:[...fighters.values()].map(f=>Boolean(f.modelJob))}),
       models: () => Object.fromEntries(SEATS.map(seat => {
         const f = fighters.get(seat);
         return [seat, {

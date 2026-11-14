@@ -56,3 +56,131 @@
 @keyframes rui-summary-full-enter{from{opacity:0;transform:translate(-50%,-50%) scale(.94)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 @media(prefers-reduced-motion:reduce){#pvp-root[data-layout="fullscreen"] .aui-overlay>.aui-summary,#pvp-root[data-layout="fullscreen"] .rui-inter.is-centered:not([hidden]){animation:none!important}}
 #pvp-root.pvp4-reduced[data-layout="fullscreen"] .aui-overlay>.aui-summary,#pvp-root.pvp4-reduced[data-layout="fullscreen"] .rui-inter.is-centered:not([hidden]){animation:none!important}
+
+/* ===== SONUC EKRANI v3 ===== */
+/* Kök neden (v2): .pvp15-scorecards{flex:1 1 0;min-height:0;align-items:flex-end} + içerikten bağımsız portre boyu (--sz 34–46vh).
+   Sığmayınca kartlar kutunun ÜSTÜNE taşıp başlığı/skor satırını örtüyordu; kaybeden kartı filter ile soluyordu, sayılar dar sütunda sarıyordu.
+   v3: her blok kendi boyunda (flex:none), dikey sırayla dizilir; portre boyu tek bütçeli değişken (--r3-ph); iki oyuncu EŞİT yapılı,
+   aynı satırda, kesik köşeli levha (sol turuncu / sağ camgöbeği ışık, kazanan altın kenar). Giriş ≤400 ms, yalnız transform/opacity. */
+#pvp-root .pvp15-scene{--r3-gold:#e9c46a;--r3-ph:clamp(118px,30vh,350px);--r3-gap:clamp(6px,1.25vh,16px);--r3-cut:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)}
+/* örtü: başlık bölgesi koyu (kontrast), ortada görsel seçilir (kartlar zaten opak levha), alt koyu */
+#pvp-root .pvp15-scene::before{background:linear-gradient(180deg,#05071deb 0,#05071de0 22%,#05071d99 42%,#05071d8c 62%,#05071dd9 82%,#05071df2 100%)}
+#pvp-root .pvp15-scene .pvp15-card{justify-content:safe center;gap:var(--r3-gap);overflow-x:hidden;overflow-y:auto;scrollbar-width:thin;padding:clamp(10px,2.2vh,32px) clamp(12px,3vw,48px)}
+#pvp-root .pvp15-scene .pvp15-card>*{flex:none;max-width:100%}
+/* başlık + bitiş nedeni */
+#pvp-root .pvp15-scene .pvp15-title{font-size:clamp(44px,9.5vh,124px)!important;line-height:1.08!important;letter-spacing:.14em!important;text-indent:.14em;padding-top:.04em;
+  text-shadow:0 2px 0 #000d,0 0 16px #000,0 0 36px #000b!important}
+#pvp-root .pvp15-scene .pvp15-title[data-outcome='victory']{color:#ffd877!important}
+#pvp-root .pvp15-scene .pvp15-title[data-outcome='defeat']{color:#ff9d90!important}
+#pvp-root .pvp15-scene .pvp15-title[data-outcome='draw'],#pvp-root .pvp15-scene .pvp15-title[data-outcome='cancelled']{color:#d4f1ff!important}
+#pvp-root .pvp15-scene .pvp15-reason{display:flex;align-items:center;justify-content:center;gap:14px;font-size:14px;font-weight:800;letter-spacing:.26em;color:#f6ead0}
+#pvp-root .pvp15-scene .pvp15-reason::before,#pvp-root .pvp15-scene .pvp15-reason::after{content:'';width:clamp(28px,6vw,90px);height:1px;background:linear-gradient(90deg,transparent,var(--r3-gold))}
+#pvp-root .pvp15-scene .pvp15-reason::after{transform:scaleX(-1)}
+#pvp-root .pvp15-scene .pvp15-reason:empty{display:none}
+/* skor satırı (rounds: .rui-result, arena: .aui-result): tek bant, adlar skorun iki yanında */
+#pvp-root .pvp15-scene .rui-result,#pvp-root .pvp15-scene .aui-result{display:grid;justify-items:center;gap:2px;width:min(860px,100%);margin:0;padding:6px 20px;
+  background:linear-gradient(90deg,#05071d00,#070a20f2 14%,#070a20f2 86%,#05071d00);border-block:1px solid #e9c46a4d}
+#pvp-root .pvp15-scene .rui-res-len,#pvp-root .pvp15-scene .aui-res-len{font-size:12px;letter-spacing:.08em;color:#e9e4ff}
+#pvp-root .pvp15-scene .rui-res-score{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-areas:"n1 line n2";align-items:center;column-gap:clamp(12px,2vw,30px);width:100%;max-width:none;margin:0}
+#pvp-root .pvp15-scene .rui-res-name{font:900 italic clamp(15px,2.2vh,22px)/1.15 system-ui,sans-serif;text-transform:uppercase;letter-spacing:.03em}
+#pvp-root .pvp15-scene .rui-res-name.rui-col-1{color:#ffc29c}
+#pvp-root .pvp15-scene .rui-res-name.rui-col-2{color:#b4ebff}
+#pvp-root .pvp15-scene .rui-res-line{font-size:clamp(24px,4.4vh,46px);line-height:1.1;white-space:nowrap;font-variant-numeric:tabular-nums;color:#fff3d6}
+#pvp-root .pvp15-scene .aui-res-hp{font-variant-numeric:tabular-nums}
+/* oyuncu kartları: eşit yapılı yatay levha, sol portre | sağ bilgi (sağ oyuncuda ayna) */
+#pvp-root .pvp15-scene .pvp15-scorecards{flex:none;display:grid;grid-template-columns:repeat(2,minmax(0,calc(var(--r3-ph)*.75 + 430px)));justify-content:center;align-items:stretch;gap:clamp(12px,2.4vw,40px);width:100%;min-height:0}
+#pvp-root .pvp15-scene .pvp15-player{--r3-c:#ff9a63;--r3-edge:#ff9a6399;
+  position:relative;display:grid;grid-template-columns:calc(var(--r3-ph)*.75) minmax(0,1fr);grid-template-rows:auto auto 1fr;column-gap:clamp(10px,1.4vw,22px);row-gap:clamp(4px,.8vh,10px);
+  align-items:start;align-content:start;width:auto;min-width:0;padding:clamp(8px,1.2vh,14px);border:0;border-radius:0;background:none;box-shadow:none;filter:none;opacity:1;transform:none;text-align:left}
+#pvp-root .pvp15-scene .pvp15-player[data-seat='2']{--r3-c:#6fd3ff;--r3-edge:#6fd3ff99}
+#pvp-root .pvp15-scene .pvp15-player::before,#pvp-root .pvp15-scene .pvp15-player::after{content:'';position:absolute;z-index:0;clip-path:var(--r3-cut);pointer-events:none}
+#pvp-root .pvp15-scene .pvp15-player::before{inset:0;background:linear-gradient(135deg,var(--r3-edge),#e9c46a40 45%,#ffffff1f)}
+#pvp-root .pvp15-scene .pvp15-player::after{inset:1px;background:radial-gradient(85% 75% at 0 0,color-mix(in srgb,var(--r3-c) 24%,transparent),transparent 72%),linear-gradient(180deg,#0e1332f5,#070a1ef8)}
+#pvp-root .pvp15-scene .pvp15-player[data-seat='2']::after{background:radial-gradient(85% 75% at 100% 0,color-mix(in srgb,var(--r3-c) 24%,transparent),transparent 72%),linear-gradient(180deg,#0e1332f5,#070a1ef8)}
+#pvp-root .pvp15-scene .pvp15-player>*,#pvp-root .pvp15-scene .pvp15-head>*{position:relative;z-index:1}
+#pvp-root .pvp15-scene .pvp15-player.pvp15-winner::before{background:linear-gradient(135deg,#ffe7a3,#e9c46a 40%,#b8862f 70%,#ffe7a3)}
+#pvp-root .pvp15-scene .pvp15-player.pvp15-winner::after{inset:2px}
+#pvp-root .pvp15-scene .pvp15-scorecards:has(.pvp15-winner) .pvp15-player:not(.pvp15-winner){opacity:.88;filter:none}
+#pvp-root .pvp15-scene .pvp15-scorecards:has(.pvp15-winner) .pvp15-player:not(.pvp15-winner) .pvp15-portrait{filter:saturate(.6) brightness(.85)}
+#pvp-root .pvp15-scene .pvp15-head{display:contents}
+#pvp-root .pvp15-scene .pvp15-portrait{grid-column:1;grid-row:1/-1;align-self:start;width:100%;height:var(--r3-ph);aspect-ratio:auto;object-fit:cover;object-position:50% 14%;
+  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);-webkit-mask-image:none;mask-image:none;background:#0a0f22;box-shadow:none;border:0;border-radius:0}
+#pvp-root .pvp15-scene .pvp15-player-name{grid-column:2;grid-row:1;display:grid;gap:3px;margin:0;min-width:0}
+#pvp-root .pvp15-scene .pvp15-player-name span{font:400 clamp(20px,3.4vh,38px)/1.05 Impact,Haettenschweiler,'Arial Narrow Bold',system-ui,sans-serif;letter-spacing:.04em;color:#fff;white-space:normal;overflow-wrap:anywhere}
+#pvp-root .pvp15-scene .pvp15-winner .pvp15-player-name span{color:#ffd877}
+#pvp-root .pvp15-scene .pvp15-player-name small{font-size:12px;font-weight:800;letter-spacing:.12em;color:#ece6ff}
+#pvp-root .pvp15-scene .pvp15-figures{grid-column:2;grid-row:2;display:grid;grid-template-columns:repeat(3,max-content);justify-content:start;gap:0 clamp(14px,2vw,30px);margin:0;padding-top:4px;border-top:1px solid #ffffff1f}
+#pvp-root .pvp15-scene .pvp15-figures>div{display:grid;gap:1px;text-align:inherit}
+#pvp-root .pvp15-scene .pvp15-figures strong{font-size:clamp(20px,3.6vh,36px);line-height:1.05;white-space:nowrap;font-variant-numeric:tabular-nums;color:#fff}
+#pvp-root .pvp15-scene .pvp15-winner .pvp15-figures strong{color:#fff1cf}
+#pvp-root .pvp15-scene .pvp15-figures small{font-size:12px;letter-spacing:.1em;white-space:nowrap;color:#e2dcf6}
+#pvp-root .pvp15-scene .pvp15-detail{grid-column:2;grid-row:3;display:flex;flex-direction:column;flex-wrap:nowrap;align-items:flex-start;gap:2px;font-size:13px;line-height:1.3;color:#e9e4fb;font-variant-numeric:tabular-nums}
+#pvp-root .pvp15-scene .pvp15-detail span+span::before{content:none}
+#pvp-root .pvp15-scene .pvp15-card[data-arena-result] .pvp15-detail{display:none}
+/* sağ oyuncu: ayna (portre sağda, yazı sağa yaslı) */
+#pvp-root .pvp15-scene .pvp15-player[data-seat='2']{grid-template-columns:minmax(0,1fr) calc(var(--r3-ph)*.75);text-align:right}
+#pvp-root .pvp15-scene .pvp15-player[data-seat='2'] .pvp15-portrait{grid-column:2}
+#pvp-root .pvp15-scene .pvp15-player[data-seat='2'] :is(.pvp15-player-name,.pvp15-figures,.pvp15-detail){grid-column:1}
+#pvp-root .pvp15-scene .pvp15-player[data-seat='2'] .pvp15-figures{justify-content:end}
+#pvp-root .pvp15-scene .pvp15-player[data-seat='2'] .pvp15-detail{align-items:flex-end}
+/* raund şeridi, en iyi an, alt bilgi */
+#pvp-root .pvp15-scene .pvp15-rd-strip{width:auto;padding:6px 16px 4px;background:linear-gradient(90deg,#05071d00,#070a20d9 18%,#070a20d9 82%,#05071d00)}
+#pvp-root .pvp15-scene .pvp15-rd small{font-variant-numeric:tabular-nums}
+#pvp-root .pvp15-scene .pvp15-best{margin:0;font-size:13px;font-weight:700;color:#ffe3a6;text-shadow:0 1px 0 #000c,0 0 8px #000}
+#pvp-root .pvp15-scene .pvp15-meta{color:#e4def7}
+/* düğmeler: her zaman görünür */
+#pvp-root .pvp15-scene .pvp15-buttons,#pvp-root .pvp15-card .pvp15-buttons{position:static;padding:0;background:none}
+#pvp-root .pvp15-scene .pvp15-buttons button{clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);border-radius:0}
+#pvp-root .pvp15-scene .pvp15-rematch{background:linear-gradient(180deg,#ffe08a,#f0b43c);color:#1d1200;border:0}
+#pvp-root .pvp15-scene .pvp15-exit{background:#0b1030e6;border:1px solid #e9c46a8c;color:#fff}
+/* giriş: kısa, yalnız transform/opacity */
+@keyframes pvp15-r3-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+/* dolgu yalnız "backwards": bitince transform kalmaz (kalırsa arena döküm tablosunun kapsayıcısı olup onu skor bandına hapsediyordu) */
+#pvp-root .pvp15-scene:not([hidden]) .pvp15-card>*{animation:pvp15-r3-in 260ms cubic-bezier(.2,.8,.2,1) backwards}
+#pvp-root .pvp15-scene:not([hidden]) .pvp15-card>.pvp15-scorecards{animation-delay:80ms}
+#pvp-root .pvp15-scene:not([hidden]) .pvp15-card>:is(.pvp15-rd-strip,.pvp15-best,.pvp15-meta,.pvp15-votes,.pvp15-buttons){animation-delay:130ms}
+@media(prefers-reduced-motion:reduce){#pvp-root .pvp15-scene .pvp15-card>*{animation:none!important}}
+#pvp-root.pvp4-reduced .pvp15-scene .pvp15-card>*{animation:none!important}
+/* telefon dikey: kartlar alt alta, skor satırı iki satır, ayrıntı satır içi */
+@media(max-width:760px){
+  #pvp-root .pvp15-scene{--r3-ph:clamp(84px,12vh,120px);--r3-gap:6px}
+  #pvp-root .pvp15-scene .pvp15-card{padding:10px 12px}
+  #pvp-root .pvp15-scene .pvp15-title{font-size:clamp(40px,12vw,64px)!important;letter-spacing:.08em!important;text-indent:.08em}
+  #pvp-root .pvp15-scene .pvp15-scorecards{grid-template-columns:minmax(0,1fr);gap:8px}
+  #pvp-root .pvp15-scene .pvp15-player{column-gap:10px;row-gap:4px}
+  #pvp-root .pvp15-scene .pvp15-player-name span{font-size:20px}
+  #pvp-root .pvp15-scene .pvp15-figures{grid-template-columns:repeat(3,minmax(0,max-content));gap:0 10px}
+  #pvp-root .pvp15-scene .pvp15-figures strong{font-size:20px}
+  #pvp-root .pvp15-scene .pvp15-figures small{letter-spacing:.02em}
+  #pvp-root .pvp15-scene .pvp15-detail{flex-direction:row;flex-wrap:wrap;gap:0 10px;font-size:12px;line-height:1.25}
+  #pvp-root .pvp15-scene .aui-res-players{gap:14px}
+  #pvp-root .pvp15-scene .aui-res-player{flex-direction:column;align-items:center;gap:0}
+  #pvp-root .pvp15-scene .aui-res-hp{font-size:18px;white-space:nowrap}
+  #pvp-root .pvp15-scene .pvp15-rd-bars{height:20px}
+  #pvp-root .pvp15-scene .pvp15-meta{display:none}
+  #pvp-root .pvp15-scene .pvp15-buttons button{padding:0 12px;font-size:16px;white-space:nowrap}
+  #pvp-root .pvp15-scene .pvp15-player[data-seat='2'] .pvp15-detail{justify-content:flex-end}
+  #pvp-root .pvp15-scene .pvp15-best,#pvp-root .pvp15-scene .pvp15-meta{font-size:12px}
+}
+@media(max-width:600px){
+  #pvp-root .pvp15-scene .rui-res-score{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"n1 n2" "line line";row-gap:0}
+  #pvp-root .pvp15-scene .rui-res-name{font-size:15px}
+  #pvp-root .pvp15-scene .rui-res-line{font-size:26px}
+  #pvp-root .pvp15-scene .rui-result,#pvp-root .pvp15-scene .aui-result{padding:4px 8px}
+  /* dar ekranda raund sütunları yalnız çubuk + raund adı; sayısal en iyi an alttaki satırda */
+  #pvp-root .pvp15-scene .pvp15-rd small{display:none}
+}
+/* yatay telefon / çok kısa ekran: kart içi kaydırma kabul, düğmeler altta yapışık */
+@media(max-height:520px){
+  #pvp-root .pvp15-scene{--r3-ph:clamp(96px,30vh,150px);--r3-gap:6px}
+  #pvp-root .pvp15-scene .pvp15-card{justify-content:flex-start;padding:8px 14px 0}
+  #pvp-root .pvp15-scene .pvp15-title{font-size:44px!important}
+  #pvp-root .pvp15-scene .pvp15-buttons,#pvp-root .pvp15-card .pvp15-buttons{position:sticky;bottom:0;z-index:3;padding:8px 0;margin-top:auto;width:100%;background:linear-gradient(180deg,#05071d00,#05071df2 35%)}
+  #pvp-root .pvp15-scene:not([hidden]) .pvp15-card>.pvp15-buttons{animation:none}
+}
+/* %67–80 yakınlaştırma (≥2200 CSS px): küçük yazılar ≥15 px */
+@media(min-width:2200px){
+  #pvp-root .pvp15-scene .pvp15-reason,#pvp-root .pvp15-scene .pvp15-detail,#pvp-root .pvp15-scene .pvp15-best,#pvp-root .pvp15-scene .pvp15-meta,#pvp-root .pvp15-scene .pvp15-votes{font-size:16px}
+  #pvp-root .pvp15-scene .pvp15-card small,#pvp-root .pvp15-scene .pvp15-rd b,#pvp-root .pvp15-scene .pvp15-rd small,#pvp-root .pvp15-scene .rui-res-len,#pvp-root .pvp15-scene .aui-res-len{font-size:15px}
+  #pvp-root .pvp15-scene .pvp15-buttons button{font-size:17px;min-height:52px}
+}

@@ -63,17 +63,23 @@ export function createFrameGovernor({
   let warm = 0;
   let sum = 0;
   let count = 0;
+  let paused = false;
   const win = [];
   const resetWindow = () => { warm = 0; sum = 0; count = 0; win.length = 0; };
   return {
     get step() { return step; },
     /** Kademe değişince / görünürlük dönüşünde ısınmayı yeniden başlat. */
     reset: resetWindow,
+    setPaused(next) {
+      const value = Boolean(next);
+      if (paused !== value) { paused = value; resetWindow(); }
+    },
     setStep(next) {
       step = Math.max(0, Math.min(maxStep, Math.round(Number(next) || 0)));
       resetWindow();
     },
     sample(dtMs) {
+      if (paused) return false;
       const dt = Number(dtMs);
       if (step >= maxStep || !(dt > 0) || dt > ignoreAboveMs) return false;
       if (warm < warmupFrames) { warm++; return false; }

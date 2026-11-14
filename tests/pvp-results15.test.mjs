@@ -32,6 +32,23 @@ test('HTML scorecard escapes server-sourced player name and never exposes inject
  assert.ok(resultPanelHTML().includes('data-pvp15-action="rematch"'));
  assert.equal(END_LABELS.KNOCKOUT,'NAKAVT');
 });
+test('sonuç ekranı v3: kartlar akışta (taşıp başlığı örtmez), eşit yapılı, taraf rengi, kısa giriş hareketi',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const css=readFileSync(new URL('../pvp/results-v2.css',import.meta.url),'utf8');
+ const at=css.indexOf('/* ===== SONUC EKRANI v3 ===== */');assert.ok(at>0,'v3 bloğu results-v2.css içinde');
+ const v3=css.slice(at);
+ assert.match(v3,/\.pvp15-scorecards\{flex:none;display:grid;grid-template-columns:repeat\(2,/,'iki kart aynı satırda, esnemeyen blok');
+ assert.match(v3,/\.pvp15-card>\*\{flex:none/,'hiçbir blok kalan alanı doldurup taşmaz');
+ assert.match(v3,/\.pvp15-card\{justify-content:safe center/,'sığmazsa üstten kesilmez');
+ assert.match(v3,/\.pvp15-portrait\{[^}]*height:var\(--r3-ph\)/,'portre bütçeli sabit boy');
+ assert.match(v3,/:not\(\.pvp15-winner\)\{opacity:\.88;filter:none\}/,'kaybeden okunur (≥ .85)');
+ assert.match(v3,/\.pvp15-figures strong\{[^}]*white-space:nowrap;font-variant-numeric:tabular-nums/,'sayılar tek satır');
+ assert.match(v3,/@media\(prefers-reduced-motion:reduce\)\{[^}]*animation:none/);
+ assert.match(v3,/#pvp-root\.pvp4-reduced \.pvp15-scene \.pvp15-card>\*\{animation:none!important\}/);
+ const durs=[...v3.matchAll(/pvp15-r3-in (\d+)ms/g)].map(m=>+m[1]);assert.ok(durs.length&&durs.every(d=>d<=400));
+ assert.doesNotMatch(v3,/infinite|backdrop-filter|blur\(/,'sonsuz animasyon / bulanıklık yok');
+ assert.match(resultCardHTML({seat:2,name:'B',character:'rune',fighter:'nyx',wpm:1,accuracy:100,damageDealt:5},2,2),/data-seat="2"/);
+});
 const original={Response:globalThis.Response,WebSocketPair:globalThis.WebSocketPair,WebSocketRequestResponsePair:globalThis.WebSocketRequestResponsePair};
 let last;
 class Sock{constructor(){this.readyState=1;this.messages=[];this.attachment=null;}

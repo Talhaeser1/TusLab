@@ -276,3 +276,9 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 - Karar: karşı saldırı yalnız SONRAKİ sahneleri counterMs kaydırır (aynı sahnenin kalan vuruşları sahne bittikten sonra sahnesiz düşüyordu).
 - Karar: impactFeel bekleme sınırı 16 → 128 (toplu sahne ~70 vuruş); bir flush karesinde en çok 3 tam darbe, kalan yalnız sayı + can; fx-damage taşma kıstırması tek rAF'te önce-oku-sonra-yaz. Menzilli ulti 1. faz sayısı faz temasına bağlandı. arena3d: bağlanamayan q/e/destek hasarı için kendi q sahnesi (güvenlik ağı).
 - Ölçüm (gerçek GPU, 7 koşu/5+ tam maç): kart/geri sayım açıkken sahne 0, hasar yazısı 0; sahnesiz 0; kamera ihlali 0 (en büyük %55); hasar–temas ≤ 4 ms (erken sayı 0); 250 ms+ kare 0, medyan 17 ms; sayfa hatası 0; tests 924/924. C: tüm modlarda vuruşlar tasarım gereği (resolveAtEnd) raund/pencere SONUNDA oynuyor (raund içi 0). npm run cf:validate onaysız çalıştırılamadı.
+
+## 14 Kas 2026
+- Karar: Higgsfield ücretsiz planda üretmiyor; görseller Meshy nano-banana-pro ile (5 görsel, 45 kredi).
+- Karar: kullanıcı isteğiyle Cloudflare production yayını yapıldı (tuslab-neon-pvp.tuslab-arena.workers.dev, sürüm cf71a1f2 = ed135a1). Sonraki işler yayında değil.
+- Karar: üç işçi paralel (Opus h1: yazma paneli + beceri bandı; Opus h2: sonuç ekranı v3; Codex: sahne doğrulaması + performans). Sonuç ekranında portreler eşit boy, kazanan altın kenarla ayrılır.
+- Ölçüm: 961/961 test; yazma başladıktan sonra en uzun görev 108 ms (headless); beş karakterde Q/W/E/R klipleri oynuyor, R sırasında iki dövüşçü kadrajda.

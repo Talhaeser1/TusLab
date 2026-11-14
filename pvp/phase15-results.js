@@ -29,7 +29,7 @@ function fighterLabel(player){
 export function resultCardHTML(player,winnerSeat,mvpSeat){
   const winner=player.seat===winnerSeat;
   const cast=player.skillCasts||{};
-  return `<article class="pvp15-player pvp15-${player.character==='rune'?'rune':'fire'} ${winner?'pvp15-winner':''}">
+  return `<article class="pvp15-player pvp15-${player.character==='rune'?'rune':'fire'} ${winner?'pvp15-winner':''}" data-seat="${Number(player.seat)===2?2:1}">
     <div class="pvp15-head"><img class="pvp15-portrait" src="${escapeHTML(portraitFor(player).url)}" alt="" width="768" height="1024" decoding="async" draggable="false" data-portrait="${escapeHTML(portraitFor(player).id)}" data-fallback="${escapeHTML(portraitFor(player).fallback)}">
     <div class="pvp15-player-name"><span>${escapeHTML(player.name)}</span><small>${fighterLabel(player)}${player.seat===mvpSeat?' · MVP':''}</small></div></div>
     <div class="pvp15-figures"><div><strong>${num(player.wpm)}</strong><small>WPM</small></div><div><strong>%${num(player.accuracy)}</strong><small>DOĞRULUK</small></div><div><strong>${num(player.damageDealt)}</strong><small>HASAR</small></div></div>

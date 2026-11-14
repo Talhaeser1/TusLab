@@ -59,6 +59,19 @@ test('kare valisi: ısınma ve duraklamalar sayılmaz, kademeler tek yönlü ine
   assert.equal(g.step, 0);
 });
 
+test('kare valisi: model ve shader hazırlığında örneklemez, sonrasında ısınmayı sıfırlar', () => {
+  const g = createFrameGovernor({slowMs: 20, warmupFrames: 3, windowFrames: 4, maxStep: 3});
+  g.sample(40); g.sample(40);
+  g.setPaused(true);
+  for (let i = 0; i < 200; i++) assert.equal(g.sample(40), false);
+  assert.equal(g.step, 0);
+  g.setPaused(false);
+  for (let i = 0; i < 3; i++) assert.equal(g.sample(40), false, 'yeni ısınma');
+  for (let i = 0; i < 3; i++) assert.equal(g.sample(40), false, 'henüz pencere dolmadı');
+  assert.equal(g.sample(40), true);
+  assert.equal(g.step, 1);
+});
+
 test('kare valisi: 48/50 Hz ekranın düzgün kareleri (≈20,8 ms) kaliteyi düşürmez; düzensiz ya da 30 FPS düşürür', () => {
   const steady = createFrameGovernor({slowMs: 20, warmupFrames: 5, windowFrames: 10, maxStep: 3});
   for (let i = 0; i < 400; i++) steady.sample(20.8 + (i % 3) * 0.2); // 48 Hz, ±0,4 ms titreme

@@ -457,78 +457,106 @@ html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-xchg{border:0;background:no
   html #pvp-root.fhud-on[data-layout="fullscreen"] .tt-target{font-size:clamp(30px,8.6vw,42px)}
 }
 
-/* ===== YAZMA PANELI · FANTASTIK ===== (13 Kas 2026) — raund arasi bandi ve lobi "sahne" ile ayni aile:
-   pahli levha (sol ust + sag alt kesik), benim renk → altin → rakip renk ince kenar, bant-zemin.webp koyu ortu altinda,
-   iki oyuncunun renginden kose isigi. Kelime sahnenin yildizi: arkasi her zaman koyu. JS degismedi; tetikleyiciler:
-   yeni kelime = hedefin ilk cocugu mark.pvp2-char-next (cakma), yeni yanlis harf = .pvp2-char-bad + mark (sarsilma).
-   Hareket yalniz transform/opacity, tek sefer; azaltilmis harekette kapali. */
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt{--yp-cut:18px;--yp-gold:var(--v3-gold,#f6c460);isolation:isolate;
-  border:0;border-radius:0;background:none;box-shadow:none;padding:14px 30px 13px}
+/* ===== YAZMA PANELI · CERCEVE ===== (14 Kas 2026) — onceki "FANTASTIK" blogunun yerine.
+   Panel uretilmis obsidyen+altin cercevenin (assets/higgsfield/final/yazma-cerceve.webp, 1235x523, saydam) ICINDE durur:
+   ::before = cerceve (border-image dilimleri 75/150/93/150 + fill → koseler, mucevherler ve run kenarlari bozulmaz;
+   gorselin alt-ortasindaki gri artik clip-path ile kesilir), ::after = cercevenin altindaki koyu dolgu (gorselde sag ic kenar
+   saydam; arena oradan gorunmesin). Icerik cercevenin ic alanina (gorselde x 153-1124, y 75-430) padding ile sigar.
+   Masaustunde panel iki yetenek rayinin ARASINDA, alta yakin durur (raylar sigmiyorsa raylarin ustune cikar).
+   Hareket: .tt.is-hit (dogru kelime, cakma 170 ms) / .tt.is-miss (yanlis kelime, sarsilma + kirmizi parlama 150 ms) — pvp/typing-top.js;
+   yalniz transform/opacity, azaltilmis harekette yok. Harf yazarken animasyon YOK (eski harf/yeni kelime tetikleyicileri kaldirildi). */
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt{--yp-gold:var(--v3-gold,#f6c460);isolation:isolate;
+  border:0;border-radius:0;background:none;box-shadow:none;padding:10px 16px 10px;gap:4px}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt.is-input-focused{border:0;box-shadow:none}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt::before,
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt::after{content:"";position:absolute;z-index:-2;pointer-events:none;border-radius:0;height:auto;
-  clip-path:polygon(var(--yp-cut) 0,100% 0,100% calc(100% - var(--yp-cut)),calc(100% - var(--yp-cut)) 100%,0 100%,0 var(--yp-cut))}
-/* kenar: benim renk → altin → koyu altin → altin → rakip renk */
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt::before{inset:0;left:0;right:0;top:0;opacity:.82;transition:opacity .16s ease-out;
-  background:linear-gradient(100deg,var(--v3-me),color-mix(in srgb,var(--yp-gold) 80%,#3a2a10) 32%,#5a4a2a 50%,color-mix(in srgb,var(--yp-gold) 80%,#3a2a10) 68%,var(--v3-opp))}
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt.is-input-focused::before{opacity:1}
-/* ic: koyu ortu altinda bant zemini (solda alev, sagda run) + iki rengin alt kose isigi + ustte soluk altin */
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt::after{inset:1.5px;
-  background:
-    radial-gradient(46% 110% at 0% 100%,color-mix(in srgb,var(--v3-me) 24%,transparent),transparent 70%),
-    radial-gradient(46% 110% at 100% 100%,color-mix(in srgb,var(--v3-opp) 22%,transparent),transparent 70%),
-    radial-gradient(40% 60% at 50% 0%,rgba(246,196,96,.12),transparent 75%),
-    linear-gradient(180deg,rgba(11,8,26,.84),rgba(7,5,17,.93)),
-    url('../assets/higgsfield/final/bant-zemin.webp') center/cover no-repeat #0a0718}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt::after{content:"";position:absolute;pointer-events:none;border-radius:0;height:auto;opacity:1;transition:none}
+/* sade surum (telefon / dar): kesik koseli altin kenar + koyu ic */
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt::before{inset:0;z-index:-2;
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+  background:linear-gradient(100deg,var(--v3-me),#c9963e 26%,#6b5228 50%,#c9963e 74%,var(--v3-opp))}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt::after{inset:2px;z-index:-1;
+  clip-path:polygon(13px 0,100% 0,100% calc(100% - 13px),calc(100% - 13px) 100%,0 100%,0 13px);
+  background:radial-gradient(60% 90% at 50% 0%,rgba(246,196,96,.1),transparent 70%),linear-gradient(180deg,#151a34,#0b0e20)}
 
-/* baslik: iki yanda altin cizgi + run elmasi (bant basligiyla ayni) */
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-head{gap:12px;min-height:20px}
+/* cerceveli surum (>= 761 px) */
+@media (min-width:761px){
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt{--yf-k:.5;
+    --yf-t:calc(75px * var(--yf-k));--yf-s:calc(150px * var(--yf-k));--yf-b:calc(93px * var(--yf-k));
+    width:min(680px,calc(100vw - 32px));bottom:150px;max-height:calc(100dvh - 170px);
+    padding:calc(var(--yf-t) + 4px) calc(var(--yf-s) + 12px) calc(var(--yf-b) + 10px);gap:3px}
+  /* raylar arasina sigiyorsa (1366 px'te ~ 298..1030 arasi bos) alta iner: dovuscunun ayaklari acik kalir */
+  @media (min-width:1300px){
+    html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt{width:min(680px,calc(100vw - 688px));bottom:12px;max-height:calc(100dvh - 120px)}
+  }
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt::before{inset:0;z-index:-1;background:none;box-sizing:border-box;
+    border-style:solid;border-width:var(--yf-t) var(--yf-s) var(--yf-b);
+    border-image:url('../assets/higgsfield/final/yazma-cerceve.webp') 75 150 93 150 fill / var(--yf-t) var(--yf-s) var(--yf-b) stretch;
+    clip-path:polygon(0 0,100% 0,100% 100%,
+      calc(var(--yf-s) + (100% - 2 * var(--yf-s)) * .802) 100%,calc(var(--yf-s) + (100% - 2 * var(--yf-s)) * .802) calc(100% - var(--yf-b) * .38),
+      calc(var(--yf-s) + (100% - 2 * var(--yf-s)) * .615) calc(100% - var(--yf-b) * .38),calc(var(--yf-s) + (100% - 2 * var(--yf-s)) * .615) 100%,0 100%)}
+  /* cercevenin altinda koyu ic + sagda ince altin kenar (gorseldeki saydam sag ic kenari kapatir) */
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt::after{z-index:-2;clip-path:none;
+    top:calc(var(--yf-t) * .6);bottom:calc(var(--yf-b) * .6);left:calc(var(--yf-s) * .9);right:calc(var(--yf-s) * .58);
+    background:radial-gradient(70% 80% at 50% 40%,#1c2140,#10142a 70%);box-shadow:inset -2px 0 0 #9b7a45}
+  @media (max-height:700px){
+    html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt{--yf-k:.42}
+  }
+}
+/* bant acikken panel gizli: cerceve de gizli */
+html #pvp-root.fhud-on.rui-inter-open[data-layout="fullscreen"] .pvp2-shell>.tt::before,
+html #pvp-root.fhud-on.rui-inter-open[data-layout="fullscreen"] .pvp2-shell>.tt::after{display:none}
+
+/* baslik: iki yanda altin cizgi + run elmasi */
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-head{gap:10px;min-height:18px;justify-content:center}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-head::before,
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-head::after{content:"";flex:0 1 120px;min-width:24px;height:7px;
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-head::after{content:"";flex:0 1 90px;min-width:20px;height:7px;
   background:linear-gradient(45deg,transparent 35%,var(--yp-gold) 36% 64%,transparent 65%) right center/7px 7px no-repeat,
     linear-gradient(90deg,transparent,var(--yp-gold)) left center/calc(100% - 9px) 1px no-repeat}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-head::after{transform:scaleX(-1)}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-mode{font:400 14px/1.15 Impact,Haettenschweiler,'Arial Narrow Bold',system-ui,sans-serif;
   letter-spacing:.22em;color:var(--yp-gold);text-shadow:0 0 12px rgba(246,196,96,.35),0 1px 2px #000}
 
-/* kelime: arkasinda yerel koyu hare (her zaman koyu → kontrast) */
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-word{position:relative}
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-word::before{content:"";position:absolute;z-index:-1;inset:-6px 6%;pointer-events:none;
-  background:radial-gradient(closest-side,rgba(4,2,12,.72),rgba(4,2,12,.4) 70%,transparent)}
+/* kelime: sahnenin yildizi — buyuk, acik renk, koyu ic zemin uzerinde (>= 7:1) */
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-word{position:relative;isolation:isolate;min-height:56px;column-gap:18px;align-items:baseline}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-word::before{content:"";position:absolute;z-index:-1;inset:-4px 4%;pointer-events:none;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--v3-me) 14%,transparent),transparent)}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target{position:relative;
-  font:800 clamp(40px,3.4vw,60px)/1.12 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.06em;color:rgba(240,236,255,.8);
-  text-shadow:0 2px 0 rgba(0,0,0,.55),0 4px 18px rgba(0,0,0,.7)}
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target.is-sentence{font:600 clamp(17px,1.3vw,22px)/1.5 system-ui,sans-serif;letter-spacing:.01em;color:rgba(240,236,255,.82)}
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target .pvp2-char-good{color:color-mix(in srgb,var(--v3-me) 52%,#fff);
-  text-shadow:0 0 14px color-mix(in srgb,var(--v3-me) 70%,transparent),0 2px 0 rgba(0,0,0,.55)}
+  font:800 clamp(38px,3.2vw,52px)/1.12 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.05em;color:#ece6ff;
+  text-shadow:0 2px 0 rgba(0,0,0,.6),0 4px 16px rgba(0,0,0,.7)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target.is-sentence{font:600 clamp(17px,1.3vw,21px)/1.45 system-ui,sans-serif;letter-spacing:.01em;color:#e6e0fa}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target .pvp2-char-good{color:color-mix(in srgb,var(--v3-me) 30%,#fff6dc);
+  text-shadow:0 0 16px color-mix(in srgb,var(--v3-me) 85%,transparent),0 2px 0 rgba(0,0,0,.6)}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target .pvp2-char-next{color:#fff7df;background:none;border-radius:0;
-  box-shadow:inset 0 -4px 0 var(--yp-gold);text-shadow:0 0 14px rgba(246,196,96,.75),0 2px 0 rgba(0,0,0,.55)}
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target .pvp2-char-bad{color:#ff8a9a;background:none;border-radius:0;text-decoration:none;
-  box-shadow:inset 0 -4px 0 #ff4d63;text-shadow:0 0 12px rgba(255,77,99,.6),0 2px 0 rgba(0,0,0,.55)}
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-done{color:color-mix(in srgb,var(--v3-me) 52%,#fff)}
-/* dogru kelime → yeni kelime gelir: benim renkte kisa cakma (160 ms, yalniz opacity/transform) */
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target:not(.is-sentence)>mark.pvp2-char-next:first-child::after{content:"";position:absolute;z-index:-1;inset:-8% -10%;pointer-events:none;
-  background:radial-gradient(closest-side,color-mix(in srgb,var(--v3-me) 55%,transparent),color-mix(in srgb,var(--yp-gold) 22%,transparent) 55%,transparent);
-  opacity:0;animation:yp-flash .16s ease-out 1}
-@keyframes yp-flash{0%{opacity:.95;transform:scaleX(.55)}100%{opacity:0;transform:scaleX(1.12)}}
-/* yanlis harf: o harf kisa sarsilir (140 ms) */
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target:not(.is-sentence) .pvp2-char-bad:has(+mark.pvp2-char-next),
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target:not(.is-sentence) .pvp2-char-bad:last-child{display:inline-block;animation:yp-shake .14s linear 1}
-@keyframes yp-shake{0%,100%{transform:none}25%{transform:translateX(-4px)}50%{transform:translateX(3px)}75%{transform:translateX(-2px)}}
-
-/* siradaki kelimeler: okunur soluk (>= 4,5:1) */
+  box-shadow:inset 0 -4px 0 var(--yp-gold);text-shadow:0 0 14px rgba(246,196,96,.75),0 2px 0 rgba(0,0,0,.6)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target .pvp2-char-bad{color:#ff6f84;background:rgba(255,40,70,.16);border-radius:0;text-decoration:none;
+  box-shadow:inset 0 -4px 0 #ff3352;text-shadow:0 0 12px rgba(255,51,82,.7),0 2px 0 rgba(0,0,0,.6)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-done{color:color-mix(in srgb,var(--v3-me) 50%,#fff)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-next{gap:14px;font:600 16px/1.2 system-ui,sans-serif;letter-spacing:.02em}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-next span{color:rgba(232,226,255,.8);text-shadow:0 1px 3px #000}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-next span+span{color:rgba(232,226,255,.72)}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-next span+span+span{color:rgba(232,226,255,.66)}
 
-/* yazi alani: kutu degil, altin run cizgisi (uclarda elmas); odakta iki renk + altin parlar; imlec altin */
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-input{border:0;border-radius:0;box-shadow:none;outline:0;padding:4px 18px;
-  color:#fff;caret-color:var(--yp-gold);text-shadow:0 1px 3px #000;
+/* gonderim hissi: dogru kelime → benim renkte + altin cakma; yanlis kelime → sarsilma + kirmizi parlama */
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-word::after{content:"";position:absolute;z-index:-1;inset:-6px 2%;pointer-events:none;opacity:0;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--v3-me) 60%,transparent),color-mix(in srgb,var(--yp-gold) 28%,transparent) 55%,transparent)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt.is-hit .tt-word{animation:yp-hit-pop .15s cubic-bezier(.2,.9,.3,1) 1}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt.is-hit .tt-word::after{animation:yp-hit .17s ease-out 1}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt.is-miss .tt-word{animation:yp-miss .15s linear 1}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt.is-miss .tt-word::after{animation:yp-miss-flash .15s ease-out 1;
+  background:radial-gradient(closest-side,rgba(255,64,90,.62),rgba(255,64,90,.2) 60%,transparent)}
+@keyframes yp-hit{0%{opacity:.95;transform:scale(.62,.7)}100%{opacity:0;transform:scale(1.14,1.04)}}
+@keyframes yp-hit-pop{0%{transform:scale(1.045)}100%{transform:none}}
+@keyframes yp-miss{0%,100%{transform:none}20%{transform:translateX(-7px)}45%{transform:translateX(6px)}70%{transform:translateX(-4px)}88%{transform:translateX(2px)}}
+@keyframes yp-miss-flash{0%{opacity:0}25%{opacity:1}100%{opacity:0}}
+
+/* yazi alani: kutu degil, altin run cizgisi (uclarda elmas); odakta iki renk + altin parlar */
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-input{min-height:40px;height:40px;border:0;border-radius:0;box-shadow:none;outline:0;padding:2px 18px;
+  text-align:center;color:#fff;caret-color:var(--yp-gold);text-shadow:0 1px 3px #000;font:700 clamp(19px,1.4vw,24px)/1.2 system-ui,sans-serif;letter-spacing:.06em;
   background:
-    linear-gradient(45deg,transparent 35%,rgba(246,196,96,.55) 36% 64%,transparent 65%) left bottom/8px 8px no-repeat,
-    linear-gradient(45deg,transparent 35%,rgba(246,196,96,.55) 36% 64%,transparent 65%) right bottom/8px 8px no-repeat,
-    linear-gradient(90deg,transparent,rgba(246,196,96,.4) 18%,rgba(246,196,96,.4) 82%,transparent) center calc(100% - 3px)/calc(100% - 20px) 1px no-repeat,
-    linear-gradient(0deg,rgba(4,2,12,.62),rgba(4,2,12,.2) 80%,transparent)}
+    linear-gradient(45deg,transparent 35%,rgba(246,196,96,.6) 36% 64%,transparent 65%) left bottom/8px 8px no-repeat,
+    linear-gradient(45deg,transparent 35%,rgba(246,196,96,.6) 36% 64%,transparent 65%) right bottom/8px 8px no-repeat,
+    linear-gradient(90deg,transparent,rgba(246,196,96,.45) 18%,rgba(246,196,96,.45) 82%,transparent) center calc(100% - 3px)/calc(100% - 20px) 1px no-repeat,
+    linear-gradient(0deg,rgba(4,2,12,.5),transparent 85%)}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-input:focus,
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-input:focus-visible{outline:0;box-shadow:none;
   background:
@@ -536,31 +564,39 @@ html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-input:focus
     linear-gradient(45deg,transparent 35%,#ffe29a 36% 64%,transparent 65%) right bottom/8px 8px no-repeat,
     linear-gradient(90deg,transparent,var(--v3-me) 10%,var(--yp-gold) 30%,#ffe29a 50%,var(--yp-gold) 70%,var(--v3-opp) 90%,transparent) center calc(100% - 3px)/calc(100% - 20px) 2px no-repeat,
     radial-gradient(50% 100% at 50% 100%,rgba(246,196,96,.12),transparent 80%),
-    linear-gradient(0deg,rgba(4,2,12,.68),rgba(4,2,12,.24) 80%,transparent)}
+    linear-gradient(0deg,rgba(4,2,12,.55),transparent 85%)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-input::placeholder{color:rgba(232,226,255,.6);font-size:14px}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-input:disabled{opacity:.7;border:0}
 
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-status{color:rgba(232,226,255,.7);text-shadow:0 1px 2px #000}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-status{min-height:15px;font:500 12px/1.25 system-ui,sans-serif;color:rgba(232,226,255,.76);text-shadow:0 1px 2px #000}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-status[data-kind="lock"],
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-status[data-kind="chaos"]{color:var(--yp-gold)}
 
 /* ilerleme: ince, karakter renginde, ucu parlak (benim soldan, rakip sagdan dolar) */
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-who-line{color:rgba(232,226,255,.76);text-shadow:0 1px 2px #000}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-meta{gap:24px;font:600 12px/1.3 system-ui,sans-serif;letter-spacing:.02em}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-who-line{color:rgba(232,226,255,.8);text-shadow:0 1px 2px #000}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-me b{color:color-mix(in srgb,var(--v3-me) 45%,#fff)}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-opp b{color:color-mix(in srgb,var(--v3-opp) 45%,#fff)}
-html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-bar{height:3px;border-radius:0;background:rgba(255,255,255,.1)}
+html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-bar{height:3px;border-radius:0;background:rgba(255,255,255,.12)}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-bar i{border-radius:0}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-bar-me i{background:linear-gradient(90deg,color-mix(in srgb,var(--v3-me) 35%,#140c24),var(--v3-me) 82%,color-mix(in srgb,var(--v3-me) 30%,#fff) 97%,#fff)}
 html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-bar-opp i{background:linear-gradient(270deg,color-mix(in srgb,var(--v3-opp) 35%,#140c24),var(--v3-opp) 82%,color-mix(in srgb,var(--v3-opp) 30%,#fff) 97%,#fff)}
 
 @media (max-width:760px){
-  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt{--yp-cut:12px;padding:8px 14px;gap:4px}
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt{padding:9px 14px 8px;gap:3px}
   html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target{font-size:clamp(30px,8.6vw,42px)}
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-word{min-height:40px}
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-input{min-height:44px;height:44px}
   html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-head::before,
-  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-head::after{flex-basis:36px}
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-head::after{flex-basis:32px}
+}
+@media (max-height:700px) and (min-width:761px){
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target{font-size:clamp(32px,2.8vw,44px)}
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-word{min-height:46px}
 }
 @media (prefers-reduced-motion:reduce){
-  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target>mark.pvp2-char-next::after,
-  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target .pvp2-char-bad{animation:none!important}
-  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt::before{transition:none}
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-word,
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-word::after{animation:none!important}
 }
-html #pvp-root.pvp4-reduced.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target>mark.pvp2-char-next::after,
-html #pvp-root.pvp4-reduced.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target .pvp2-char-bad{animation:none!important}
-html #pvp-root.pvp4-reduced.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt::before{transition:none}
+html #pvp-root.pvp4-reduced.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-word,
+html #pvp-root.pvp4-reduced.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-word::after{animation:none!important}

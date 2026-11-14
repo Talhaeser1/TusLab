@@ -60,6 +60,7 @@ test('render33: auto starts at full resolution and only slow frame windows can l
   const {root, env, renderer} = fixture(2);
   const arena = await createArena3D({root, env, THREE, createRenderer: () => renderer, loadTexture: async () => new THREE.Texture()});
   try {
+    await arena.ready;
     assert.equal(renderer.ratio, 2);
     for (let i = 0; i < 160; i++) { env.advance(16); arena._debug.tick(); }
     assert.equal(renderer.ratio, 2);

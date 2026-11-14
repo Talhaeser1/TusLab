@@ -5,6 +5,7 @@ import {getFighter, SKILL_KEY} from './shared/fighters.js';
 import {SKILL_THRESHOLDS, streakSkill, streakMultiplier} from './shared/match.js';
 import {SKILL_INFO, readSkillState, skillMeter, fighterSkillLabels} from './skillbar.js';
 import {portraitFor} from './portraits.js';
+import {attachTypingFeel} from './typing-top.js';
 
 export const HEX = '30,3 53.4,16.5 53.4,43.5 30,57 6.6,43.5 6.6,16.5';
 const seatOf = (match, seat) => (match?.players || []).find(p => p && p.seat === seat) || null;
@@ -65,6 +66,7 @@ export function createHudV2({root, doc = root?.ownerDocument || globalThis.docum
   const railHTML = seat => `<div class="fhud2-rail fhud2-rail-${seat}" data-fhud-rail="${seat}"><div class="fhud2-skills"></div><small class="fhud2-rail-note">Seri dolunca yetenek kendiliğinden atılır</small></div>`;
   el.innerHTML = sideHTML(1) + sideHTML(2) + railHTML(1) + railHTML(2);
   root.appendChild(el);
+  const feelOff = attachTypingFeel({root, reduced, later, cancel}); // yazma paneli: doğru kelime .is-hit, yanlış kelime .is-miss
 
   const S = {1: null, 2: null};
   for (const seat of [1, 2]) {
@@ -219,6 +221,6 @@ export function createHudV2({root, doc = root?.ownerDocument || globalThis.docum
   return {
     update, el,
     hide() { setHidden(el, true); },
-    destroy() { destroyed = true; for (const seat of [1, 2]) cancel(S[seat].timer); ro?.disconnect?.(); globalThis.removeEventListener?.('resize', onResize); el.remove(); },
+    destroy() { destroyed = true; feelOff();for (const seat of [1, 2]) cancel(S[seat].timer); ro?.disconnect?.(); globalThis.removeEventListener?.('resize', onResize); el.remove(); },
   };
 }

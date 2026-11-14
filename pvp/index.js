@@ -554,8 +554,8 @@ function show(open){
   root.innerHTML=screen();
   topbarArrangeStatus();
   const loading=document.getElementById('pvp-loading');if(loading)loading.hidden=true;
-  network.mount();
-  network.updateArena();
+  const autoPractice=new URLSearchParams(location.search).get('pvp')==='practice';
+  if(!autoPractice){network.mount();network.updateArena();}
   projectiles?.dispose();
   projectiles=createProjectileDirector({root,motionReduced:()=>reducedEffects||Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)});
   // Tuş sesleri hemen; müzik (~1,8 MB) karakter resimleriyle yarışmasın diye boşta yüklenir.
@@ -574,7 +574,19 @@ function show(open){
   root.classList.toggle('pvp4-reduced',reducedEffects);
   fx24Create();
   roundsUiCreate();arenaUiCreate();matchInfoCreate();arenaLayoutSync();fullscreenLayoutSync();fullscreenButtonSync();
-  void arena3dCreate();
+  if(autoPractice){
+    void arena3dCreate().then(async()=>{
+      await arena3d.instance?.whenWarm?.();
+      if(root?.hidden)return;
+      const typingPanel=root.querySelector('[data-tt-type]');
+      if(typingPanel)typingPanel.style.visibility='hidden';
+      network.mount();network.updateArena();
+      await new Promise(resolve=>requestAnimationFrame(resolve));
+      await arena3d.instance?.whenWarm?.();
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      if(!root?.hidden&&typingPanel)typingPanel.style.visibility='';
+    });
+  }else void arena3dCreate();
   for(const id of ['fire','rune']){
     const stage=root.querySelector(`.pvp2-side[data-player="${id}"] .pvp2-stage`);
     fxDirectors[id]=createCombatFxDirector({root:stage,motionReduced:()=>window.matchMedia?.('(prefers-reduced-motion: reduce)').matches??false,quietLabels:()=>network.match?.mode==='rounds'});
