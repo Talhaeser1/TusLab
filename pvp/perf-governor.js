@@ -56,18 +56,26 @@ export function createFrameGovernor({
   ignoreAboveMs = 250,
   maxStep = 3,
   nativeMinMs = 19.5,
-  nativeMaxMs = 21.5,
-  steadyMaxMs = 24.5,
+  // 15 Kas 2026 ölçüm (Intel UHD, 48 Hz): oyun saatinin ortancası 21,1–21,4 ms geliyor; 21,5 sınırı ara sıra aşılıp
+  // kalite boş yere 'low'a iniyordu. Gerçek yavaşlık vsync'e kuantalanır (27,8 ms+), 22,6 güvenli.
+  nativeMaxMs = 22.6,
+  steadyMaxMs = 25.5,
+  mildMs = 25.5,
 } = {}) {
   let step = 0;
   let warm = 0;
   let sum = 0;
   let count = 0;
   let paused = false;
+  let prevAverage = 0; // kademe düşürülmeden önceki pencere ortalaması
+  let locked = false;  // 'işe yaramadı' kararından sonra kademe sabit
+  let last = null; // son pencerenin ölçümü (tanı)
   const win = [];
   const resetWindow = () => { warm = 0; sum = 0; count = 0; win.length = 0; };
   return {
     get step() { return step; },
+    get last() { return last; },
+    get locked() { return locked; },
     /** Kademe değişince / görünürlük dönüşünde ısınmayı yeniden başlat. */
     reset: resetWindow,
     setPaused(next) {
@@ -76,10 +84,11 @@ export function createFrameGovernor({
     },
     setStep(next) {
       step = Math.max(0, Math.min(maxStep, Math.round(Number(next) || 0)));
+      locked = false; prevAverage = 0;
       resetWindow();
     },
     sample(dtMs) {
-      if (paused) return false;
+      if (paused || locked) return false;
       const dt = Number(dtMs);
       if (step >= maxStep || !(dt > 0) || dt > ignoreAboveMs) return false;
       if (warm < warmupFrames) { warm++; return false; }
@@ -95,10 +104,18 @@ export function createFrameGovernor({
       // Tek tuk sapma (cop toplama, sekme arkasi) ortalamayi sisirir; karelerin en az %80'i ekran araligindaysa duzgun sayilir.
       const onPace = win.filter(x => x <= median * 1.5).length / win.length;
       const steady = median >= nativeMinMs && median <= nativeMaxMs && (average <= steadyMaxMs || onPace >= 0.8);
+      last = {average: Math.round(average * 10) / 10, median: Math.round(median * 10) / 10, onPace: Math.round(onPace * 100) / 100, steady, step};
       sum = 0;
       count = 0;
       win.length = 0;
       if (average <= slowMs || steady) return false;
+      // Kademe düşürmek işe yaramadıysa (darboğaz ekran kartı değil: ölçüm 15 Kas 2026, Intel UHD — çözünürlük ve 'low'
+      // kare süresini 23,5 ms'den indirmedi) ve yavaşlık hafifse: son kademeyi GERİ AL ve orada kal. Görüntü boş yere bozulmaz.
+      if (step > 0 && prevAverage && average <= mildMs && average > prevAverage * 0.92) {
+        step--; locked = true; warm = 0; prevAverage = 0;
+        return true;
+      }
+      prevAverage = average;
       step++;
       warm = 0;
       return true;

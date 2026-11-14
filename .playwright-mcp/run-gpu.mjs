@@ -1,5 +1,5 @@
-// run.mjs ile aynı, ama gerçek GPU (ANGLE/D3D11) ile: yazılımsal GL'nin ~2 fps'si ölçümü bozmasın.
-// Kullanım: node .playwright-mcp/run-gpu.mjs <probe.js> '<json parametreler>'
+// Gerçek GPU ile (pencereli) ölçüm: run.mjs'in başlıklı sürümü.
+// Kullanım: node .playwright-mcp/run.mjs <probe.js> '<json parametreler>'
 import {createRequire} from 'node:module';
 import {readFileSync, readdirSync, existsSync} from 'node:fs';
 import {join} from 'node:path';
@@ -12,7 +12,7 @@ const {chromium} = createRequire(join(dir, 'package.json'))('playwright');
 const [file, params = '{}'] = process.argv.slice(2);
 const src = readFileSync(file, 'utf8').replace(/^\s*\/\/[^\n]*\n/, '');
 const fn = (0, eval)(`(${src})`);
-const browser = await chromium.launch({headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--mute-audio', '--disable-renderer-backgrounding', '--disable-background-timer-throttling']});
+const browser = await chromium.launch({headless: false, args: ['--mute-audio', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling', '--window-size=1400,900']});
 try {
   const ctx = await browser.newContext();
   await ctx.addInitScript(p => { try { localStorage.setItem('__ui', p); } catch {} }, params);
@@ -20,8 +20,6 @@ try {
   await page.goto('http://127.0.0.1:5176/favicon.svg');
   const errors = [];
   page.on('pageerror', e => errors.push(String(e.message).slice(0, 160)));
-  const gl = await page.evaluate(() => { try { const c = document.createElement('canvas').getContext('webgl2'); const d = c.getExtension('WEBGL_debug_renderer_info'); return c.getParameter(d.UNMASKED_RENDERER_WEBGL); } catch (e) { return String(e); } });
-  console.log('GL', gl);
   const out = await fn(page);
   console.log(typeof out === 'string' ? out : JSON.stringify(out, null, 1));
   if (errors.length) console.log('PAGEERRORS', JSON.stringify([...new Set(errors)].slice(0, 8)));

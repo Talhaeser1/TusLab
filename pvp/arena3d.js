@@ -4780,7 +4780,7 @@ export async function createArena3D({
       /** KESINYAP 22 ölçüm: iki dövüşçünün gövde ortası ekranda mı (NDC x,y; |x|≤1 kadrajda). */
       onScreen: () => SEATS.map(seat => { const v = new THREE.Vector3(); fighters.get(seat).actor.getWorldPosition(v); v.y += 1.2; v.project(camera); return [Math.round(v.x * 100) / 100, Math.round(v.y * 100) / 100]; }),
       /** Ölçüm (kasma tanısı): kalite kademesi + çizim yükü. */
-      perf: () => ({step: autoStep(), quality: effectiveQuality(), bloom: bloomActive(), ratio: safeCall(() => renderer.getPixelRatio?.()) ?? null,
+      perf: () => ({gov: governor.last, step: autoStep(), quality: effectiveQuality(), bloom: bloomActive(), ratio: safeCall(() => renderer.getPixelRatio?.()) ?? null,
         w: layoutState.width, h: layoutState.height, calls: renderer.info?.render?.calls ?? null, tris: renderer.info?.render?.triangles ?? null,
         programs: renderer.info?.programs?.length ?? null, textures: renderer.info?.memory?.textures ?? null, geometries: renderer.info?.memory?.geometries ?? null}),
       /** İş 12 (kasma tanısı): görünür ışık sayıları (sayı değişirse tüm programlar yeniden derlenir) + sis. */

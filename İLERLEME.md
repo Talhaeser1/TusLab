@@ -282,3 +282,6 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 - Karar: kullanıcı isteğiyle Cloudflare production yayını yapıldı (tuslab-neon-pvp.tuslab-arena.workers.dev, sürüm cf71a1f2 = ed135a1). Sonraki işler yayında değil.
 - Karar: üç işçi paralel (Opus h1: yazma paneli + beceri bandı; Opus h2: sonuç ekranı v3; Codex: sahne doğrulaması + performans). Sonuç ekranında portreler eşit boy, kazanan altın kenarla ayrılır.
 - Ölçüm: 961/961 test; yazma başladıktan sonra en uzun görev 108 ms (headless); beş karakterde Q/W/E/R klipleri oynuyor, R sırasında iki dövüşçü kadrajda.
+- Ölçüm (15 Kas, gerçek GPU Intel UHD 48 Hz, pencereli Playwright: .playwright-mcp/run-gpu.mjs): çözüm sahnesi 50 FPS, >50 ms kare 0; takılmalar yalnız ilk ~4 sn (yükleme). Kare valisi oyunu ~10 sn'de 'low'a indiriyordu oysa çözünürlük/low kare süresini iyileştirmiyordu.
+- Karar: vali, kademe düşürmek ortalamayı %8 iyileştirmediyse ve yavaşlık hafifse (≤ 25,5 ms) son kademeyi geri alır ve kilitler; 48 Hz üst sınırı 21,5 → 22,6 ms. Sonuç: kademe 1 (yüksek kalite, bloom kapalı) kalıyor.
+- Bulgu (yapılmadı): yayında tüm dosyalar Cache-Control: no-cache (kök _headers, testli karar); müzikler WAV (5 × ~700 KB) — MP3'e çevrilirse ilk yükleme ~3 MB azalır; maç sayfası toplam ~10,3 MB / 249 istek.

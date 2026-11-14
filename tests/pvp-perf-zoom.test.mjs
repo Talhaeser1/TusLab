@@ -79,8 +79,11 @@ test('kare valisi: 48/50 Hz ekranın düzgün kareleri (≈20,8 ms) kaliteyi dü
   const fifty = createFrameGovernor({slowMs: 20, warmupFrames: 5, windowFrames: 10, maxStep: 3});
   for (let i = 0; i < 400; i++) fifty.sample(20);
   assert.equal(fifty.step, 0, '50 Hz ekran yavaşlık sayılmaz');
+  const edge = createFrameGovernor({slowMs: 20, warmupFrames: 5, windowFrames: 40, maxStep: 3});
+  for (let i = 0; i < 800; i++) edge.sample(i % 9 === 0 ? 27.8 : 21.4 + (i % 4) * 0.2); // ölçülen gerçek dizi: ortanca ~21,7, arada kaçan kare
+  assert.equal(edge.step, 0, '48 Hz + oyun saati sapması kaliteyi düşürmez');
   const jitter = createFrameGovernor({slowMs: 20, warmupFrames: 5, windowFrames: 10, maxStep: 3});
-  for (let i = 0; i < 400; i++) jitter.sample(i % 2 ? 16.7 : 33.3); // 60 Hz ekranda kare kaçırma
+  for (let i = 0; i < 400; i++) jitter.sample(i % 2 ? 16.7 : 41.7); // 60 Hz ekranda ağır kare kaçırma
   assert.equal(jitter.step, 3, 'düzensiz kareler kademe düşürür');
   const thirty = createFrameGovernor({slowMs: 20, warmupFrames: 5, windowFrames: 10, maxStep: 3});
   for (let i = 0; i < 400; i++) thirty.sample(33.3);
@@ -203,4 +206,19 @@ test('parçacık canvas\'ı: 3B arena sonradan açılınca clear() backing store
   layer.burstAt(100, 100, 'hit');
   assert.ok(layer.canvas.width > 1);
   layer.destroy();
+});
+
+test('kare valisi: kademe düşürmek kare süresini iyileştirmediyse (hafif yavaşlık) son kademe geri alınır ve kilitlenir', () => {
+  const g = createFrameGovernor({slowMs: 20, warmupFrames: 5, windowFrames: 10, maxStep: 3});
+  let changes = 0;
+  for (let i = 0; i < 15; i++) if (g.sample(28.4)) changes++;   // bloom açık: 28,4 ms → kademe 1
+  assert.equal(g.step, 1);
+  for (let i = 0; i < 15; i++) if (g.sample(23.6)) changes++;   // bloom kapalı: 23,6 ms (iyileşti ama hâlâ > 20) → kademe 2
+  assert.equal(g.step, 2);
+  for (let i = 0; i < 400; i++) if (g.sample(23.5)) changes++;  // çözünürlük düşürmek işe yaramadı → kademe 1'e dön, kal
+  assert.equal(g.step, 1);
+  assert.equal(g.locked, true);
+  assert.equal(changes, 3);
+  g.setStep(0);
+  assert.equal(g.locked, false);
 });
