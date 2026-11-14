@@ -20,7 +20,7 @@ Concise responses. No overengineering. No unrequested extras.
 - Higgsfield ücretsiz planda üretim yapmıyor; görsel gerekirse Meshy (nano-banana-pro, 9 kredi).
 
 # Yarıda kalan / yapılmayan işler (14 Kas 2026 — bitince buradan sil)
-Bitti (commit edildi, YAYINDA DEĞİL — yayın: `npm run cf:deploy:production`, yalnız kullanıcı isterse): yazma paneli çerçevesi + is-hit/is-miss, resimli beceri kartları, sonuç ekranı v3, dört yetenek/yön/kalabalık doğrulaması, R kadrajı, maç başı shader hazırlığı.
+Bitti (commit edildi ve 15 Kas itibarıyla YAYINDA, sürüm 2829f07 — yeniden yayın: `npm run cf:deploy:production`, yalnız kullanıcı isterse): yazma paneli çerçevesi + is-hit/is-miss, resimli beceri kartları, sonuç ekranı v3, dört yetenek/yön/kalabalık doğrulaması, R kadrajı, maç başı shader hazırlığı.
 Yapılmadı:
 - Sonuç ekranı gerçek maçta (oyunun kendi #pvp-root içinde) gözle kontrol edilmedi; örnek veriyle ölçüldü.
 - Arena modunda hazırlık/özet evresinde yazma paneli çerçevesi (1040 px) kontrol edilmedi.

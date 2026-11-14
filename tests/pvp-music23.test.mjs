@@ -17,6 +17,8 @@ test('7 original PCM tracks are 22.05kHz 16-bit mono, loops ~16s, stingers 8-10s
   heads.push(buf.subarray(30000,30040).toString('hex'));}
  assert.equal(new Set(heads).size,MUSIC_SCENES.length,'every scene is distinct');
  assert.ok(total<=5_200_000,`music footprint ${total}`);
+ // Oyunun indirdiği sürüm: aynı parçaların .mp3'ü, her biri .wav'ın en çok üçte biri.
+ for(const scene of MUSIC_SCENES){const mp3=readFileSync(join(dir,scene+'.mp3')),wav=readFileSync(join(dir,scene+'.wav'));assert.ok(mp3.byteLength*3<wav.byteLength,`${scene}.mp3 ${mp3.byteLength}`);}
 });
 test('preload fetches lobby+combat first; other scenes load lazily on first setScene',async()=>{
  class Node{connect(){}disconnect(){}}
@@ -33,9 +35,10 @@ test('preload fetches lobby+combat first; other scenes load lazily on first setS
  assert.equal(score.setScene('ultimate'),false,'not loaded yet');
  await new Promise(r=>setTimeout(r,0));
  assert.equal(score.getState().current,'ultimate');
- assert.equal(fetched.filter(f=>f==='ultimate.wav').length,1);
+ assert.equal(fetched.filter(f=>f==='ultimate.mp3').length,1);
+ assert.ok(!fetched.includes('ultimate.wav'),'mp3 varken wav indirilmez');
  assert.equal(score.setScene('combat'),true,'preloaded scene switches immediately');
- assert.ok(!fetched.includes('prep.wav')&&!fetched.includes('defeat.wav'));
+ assert.ok(!fetched.some(f=>/^(prep|defeat)\./.test(f)));
  await score.dispose();
 });
 test('autoplay disabled before unlock, levels persisted, invalid scenes rejected',async()=>{

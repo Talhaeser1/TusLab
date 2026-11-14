@@ -122,9 +122,10 @@ test('müzik: anadolu.mp3 yoksa sahne .wav yedeğine düşer', async () => {
   const fetched = [];
   const s = createDynamicScore({storage: null, AudioContextClass: Context, fetcher: async u => {
     const f = u.split('/').pop(); fetched.push(f);
-    return f === 'anadolu.mp3' ? {ok: false} : {ok: true, arrayBuffer: async () => new Uint8Array(4).buffer};
+    return f.endsWith('.mp3') ? {ok: false} : {ok: true, arrayBuffer: async () => new Uint8Array(4).buffer};
   }});
   await s.preload();
+  assert.ok(fetched.includes('lobby.mp3') && fetched.includes('combat.mp3'), 'önce küçük mp3 denenir');
   assert.ok(fetched.includes('lobby.wav') && fetched.includes('combat.wav'));
   assert.equal(fetched.filter(f => f === 'anadolu.mp3').length, 1, 'yedeğe düşünce yeniden denemez');
   await s.dispose();

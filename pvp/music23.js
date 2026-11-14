@@ -49,8 +49,12 @@ export function createDynamicScore({storage=globalThis.localStorage,AudioContext
       }catch{anadoluMissing=true;anadoluBytes=null;}
      }
      if(!bytes){
-      const response=await fetcher(baseURL+scene+'.wav');if(!response.ok)throw new Error('Missing track');
-      bytes=await response.arrayBuffer();trackOf.set(scene,scene+'.wav');
+      // Önce küçük .mp3 (~130 KB), yoksa/yüklenemezse aynı parçanın .wav yedeği (~700 KB).
+      let file=scene+'.mp3',response=null;
+      try{response=await fetcher(baseURL+file);}catch{response=null;}
+      if(!response?.ok){file=scene+'.wav';response=await fetcher(baseURL+file);}
+      if(!response.ok)throw new Error('Missing track');
+      bytes=await response.arrayBuffer();trackOf.set(scene,file);
      }
      raw.set(scene,bytes);
     }
