@@ -1,5 +1,5 @@
 /* TuşLab ana sayfa kabuğu (klasik defer betik). Diğer home/ modüllerini dinamik import ile yükler.
- * Açılış ekranı "Merkez": solda karşılama + gerçek sayılar, sağda 2×2 bölüm kartı. 3B sahne yok (düz CSS arka plan).
+ * Açılış ekranı "Merkez" = Sahne (docs/18): solda başlık + canlı satır + sayılar, sağda 5 kartlık bento. 3B sahne yok (düz CSS arka plan).
  * "Yazma" kendi görünümüdür (#yazma): atasözü/şiir/deyim/tekerleme/özdeyiş kesintisiz akar, Kelime tek metindir.
  * ?pvp= varsa açılmaz, yalnız PvP kapanınca temiz adrese (Merkez) yönlendirir; #pvp-root görünür olunca veya tuslab:pvp-enter olayında gizlenir. */
 (() => {
@@ -150,30 +150,34 @@
     { id: 'pvp', icon: '⚔️', label: 'PvP Düello' },
     { id: 'performans', icon: '📈', label: 'Performans' },
   ];
-  // Kokpit (24 Kas 2026): solda metrikler, ortada Yazma (ana odak) + altında "Edebiyatla yaz" kartları,
-  // sağda Klavye Dersleri + PvP girişi. Kartlar Şiir & Atasözü akışını o türle doğrudan açar (intent.cat).
-  // Edip (24 Kas): beş tür kartı (özdeyiş dahil); her kartta tür motifi (assets/home/lit-*.svg, CSS maskesi),
-  // o türden kısa bir örnek satır (her açılışta farklı) ve bu türdeki ilerleme. Tür seçimi Merkez'de YALNIZ burada.
+  // Sahne (24 Kas 2026, docs/18): solda kahraman alanı (başlık, iki düğme, kendi kendine yazılan canlı satır, 4 sayı),
+  // sağda 5 kartlık bento (Yazma · Dersler · Şiir & Atasözü · PvP · Performans). Tür çipleri Şiir & Atasözü akışını
+  // o türle doğrudan açar (intent.cat); kartın geri kalanı tür menüsünü açar. Sıra tür menüsüyle (literature.js) aynı.
   const LIT = [
-    { id: 'atasozu', label: 'Atasözleri', unit: 'atasözü' },
-    { id: 'deyim', label: 'Deyimler', unit: 'deyim' },
-    { id: 'siir', label: 'Şiirler', unit: 'şiir' },
-    { id: 'tekerleme', label: 'Tekerlemeler', unit: 'tekerleme' },
-    { id: 'ozdeyis', label: 'Özdeyişler', unit: 'özdeyiş' },
+    { id: 'atasozu', label: 'Atasözleri', short: 'Atasözü', unit: 'atasözü' },
+    { id: 'deyim', label: 'Deyimler', short: 'Deyim', unit: 'deyim' },
+    { id: 'siir', label: 'Şiirler', short: 'Şiir', unit: 'şiir' },
+    { id: 'tekerleme', label: 'Tekerlemeler', short: 'Tekerleme', unit: 'tekerleme' },
+    { id: 'ozdeyis', label: 'Özdeyişler', short: 'Özdeyiş', unit: 'özdeyiş' },
   ];
-  const litChipHTML = (c) => `
-        <li><button type="button" class="tlh-lit-chip tlh-lit--${c.id}" data-lit="${c.id}">
-          <span class="tlh-lit-row">
-            <span class="tlh-lit-ic" aria-hidden="true"></span>
-            <span class="tlh-lit-go">Başla <span aria-hidden="true">→</span></span>
-          </span>
-          <b class="tlh-lit-name">${esc(c.label)}</b>
-          <span class="tlh-lit-ex" id="tlh-litex-${c.id}" data-s="litex-${c.id}">&nbsp;</span>
-          <span class="tlh-lit-foot">
-            <span class="tlh-lit-bar" aria-hidden="true"><i data-s="litbar-${c.id}"></i></span>
-            <span class="tlh-lit-p" data-s="litp-${c.id}">&nbsp;</span>
-          </span>
-        </button></li>`;
+  const litChipHTML = (c) => `<li><button type="button" class="tlh-chip tlh-lit--${c.id}" data-lit="${c.id}" aria-label="${esc(c.label)}, başla"><span class="tlh-chip-ic" aria-hidden="true"></span>${esc(c.short)}<b data-s="litn-${c.id}"></b></button></li>`;
+
+  /** Yazma kartının klavye görseli: elle SVG (Türkçe Q), her tuşun --i sırası üzerine gelince soldan sağa parlama dalgası verir. */
+  const KB_SVG = (() => {
+    const rows = [['QWERTYUIOPĞÜ', 0], ['ASDFGHJKLŞİ', 14], ['ZXCVBNMÖÇ', 36]];
+    const K = 40, G = 6;
+    let keys = '';
+    rows.forEach(([letters, off], r) => {
+      Array.from(letters).forEach((ch, c) => {
+        const x = off + c * (K + G), y = r * (K + G);
+        const home = r === 1 && (ch === 'F' || ch === 'J');
+        const lit = ch === 'T' || ch === 'U' || ch === 'Ş';   // Tuş(Lab): üç tuş hep yanık
+        keys += `<g class="tlh-kk${r === 1 ? ' is-home' : ''}${lit ? ' is-lit' : ''}" style="--i:${c + r}"><rect x="${x}" y="${y}" width="${K}" height="${K}" rx="8"/><text x="${x + K / 2}" y="${y + 26}">${ch}</text>${home ? `<rect class="tlh-kk-bump" x="${x + 14}" y="${y + 32}" width="12" height="2.5" rx="1"/>` : ''}</g>`;
+      });
+    });
+    keys += `<g class="tlh-kk is-space" style="--i:7"><rect x="150" y="${3 * (K + G)}" width="252" height="${K}" rx="8"/></g>`;
+    return `<svg class="tlh-cw-kb" viewBox="-4 -4 560 190" aria-hidden="true" focusable="false">${keys}</svg>`;
+  })();
 
   const root = document.createElement('div');
   root.id = 'tl-home';
@@ -195,72 +199,69 @@
 </header>
 <div class="tlh-menu">
   <main class="tlh-hub" aria-labelledby="tlh-hub-h">
-    <h1 id="tlh-hub-h" class="tlh-sr">TuşLab Merkez — Türkçe klavye eğitimi</h1>
-    <section class="tlh-k tlh-k-write" aria-labelledby="tlh-pw-h">
-      <header class="tlh-k-head">
-        <div>
-          <p class="tlh-eyebrow">NEON ARENA · HEMEN YAZ</p>
-          <h2 id="tlh-pw-h" class="tlh-k-title">Yazma <span>Arenası</span></h2>
-        </div>
-        <span class="tlh-pw-last" data-s="card-yazma">Kesintisiz akış</span>
-      </header>
-      <button type="button" class="tlh-pw" data-tlh="write" aria-describedby="tlh-pw-tip">
-        <span class="tlh-pw-bar" aria-hidden="true"><i>WPM <b>0</b></i><i>Doğruluk <b>%100</b></i><i data-s="pwmode">Atasözü</i></span>
-        <span class="tlh-pw-text"><span class="tlh-pw-caret" aria-hidden="true"></span><span data-s="pwtext">Damlaya damlaya göl olur.</span></span>
-        <span class="tlh-pw-src" data-s="pwsrc">— Atasözü</span>
-      </button>
-      <div class="tlh-pw-foot">
-        <p id="tlh-pw-tip" class="tlh-pw-tip"><kbd>A</kbd><kbd>Ş</kbd><kbd>İ</kbd> Herhangi bir harfe bas, hemen başla</p>
+    <section class="tlh-stage" aria-labelledby="tlh-hub-h">
+      <div class="tlh-stage-deco" aria-hidden="true"><span>ğ</span><span>ü</span><span>ş</span><span>i</span><span>ö</span><span>ç</span></div>
+      <p class="tlh-stage-kicker"><span class="tlh-stage-dot" aria-hidden="true"></span>NEON ARENA · TÜRKÇE KLAVYE</p>
+      <h1 id="tlh-hub-h" class="tlh-stage-h">Parmakların <span>ışık hızında</span></h1>
+      <p class="tlh-stage-sub">On parmak öğren; atasözleri, şiirler ve deyimlerle hızlan, hazır olunca düelloya çık.</p>
+      <div class="tlh-stage-btns">
         <button type="button" class="tlh-btn tlh-btn--primary tlh-btn--lg" data-tlh="write"><span aria-hidden="true">▶</span> Yazmaya başla</button>
+        <button type="button" class="tlh-btn tlh-btn--line tlh-btn--lg tlh-resume" data-tlh="resume"><span aria-hidden="true">🎓</span><span class="tlh-resume-t" data-s="resume">İlk derse başla</span></button>
       </div>
-    </section>
-    <section class="tlh-k tlh-k-lit" aria-labelledby="tlh-lit-h">
-      <header class="tlh-k-head tlh-lit-head">
-        <h2 id="tlh-lit-h" class="tlh-k-h">Edebiyatla yaz <span class="tlh-lit-kinds">Atasözü · Deyim · Şiir · Tekerleme · Özdeyiş</span></h2>
-        <p class="tlh-lit-tip">Bir türe gir: metinler durmadan akar, <kbd>Esc</kbd> ile bitir</p>
-      </header>
-      <ul class="tlh-lit-chips" aria-label="Edebiyat türleri">${LIT.map(litChipHTML).join('')}
+      <button type="button" class="tlh-live" data-tlh="write" aria-describedby="tlh-live-tip">
+        <span class="tlh-live-bar" aria-hidden="true"><i class="tlh-live-rec"></i><i data-s="pwmode">Atasözü</i><i class="tlh-live-src" data-s="pwsrc"></i></span>
+        <span class="tlh-live-text"><span class="tlh-live-typed" aria-hidden="true">&#8203;</span><span class="tlh-live-caret" aria-hidden="true"></span><span class="tlh-live-rest" aria-hidden="true">Damlaya damlaya göl olur.</span><span class="tlh-sr" data-s="pwtext">Damlaya damlaya göl olur.</span></span>
+      </button>
+      <p id="tlh-live-tip" class="tlh-live-tip"><kbd>A</kbd><kbd>Ş</kbd><kbd>İ</kbd> Herhangi bir harfe bas, bu satırla hemen başla</p>
+      <ul class="tlh-hero-stats" aria-label="Senin sayıların">
+        <li class="tlh-hs tlh-hs--wpm"><b data-s="wpm">0</b><small>en iyi WPM</small></li>
+        <li class="tlh-hs tlh-hs--acc"><b data-s="acc">—</b><small>ort. doğruluk</small></li>
+        <li class="tlh-hs tlh-hs--star"><b><span data-s="stars">0</span><em>/<span data-s="starmax">—</span></em></b><small>ders yıldızı</small></li>
+        <li class="tlh-hs tlh-hs--streak"><b data-s="streak">0</b><small>gün seri</small></li>
       </ul>
     </section>
-    <aside class="tlh-k tlh-k-met" aria-labelledby="tlh-met-h">
-      <header class="tlh-k-head"><h2 id="tlh-met-h" class="tlh-k-h"><span aria-hidden="true">📊</span> Eğitim metriklerin</h2></header>
-      <ul class="tlh-stats" aria-label="Senin sayıların">
-        <li class="tlh-stat tlh-stat--wpm"><b data-s="wpm">0</b><small>en iyi WPM</small></li>
-        <li class="tlh-stat tlh-stat--acc"><b data-s="acc">—</b><small>ort. doğruluk</small></li>
-        <li class="tlh-stat tlh-stat--star"><b><span data-s="stars">0</span><em>/<span data-s="starmax">—</span></em></b><small>ders yıldızı</small></li>
-        <li class="tlh-stat tlh-stat--streak"><b data-s="streak">0</b><small>gün seri</small></li>
-      </ul>
-      <div class="tlh-met-slot" data-slot="metrik-grafik"></div>
-      <section class="tlh-mq-box" aria-label="Günlük görevler">
-        <button type="button" class="tlh-quest-strip" data-tlh="quests"><span aria-hidden="true">🗓️</span> Günlük görevler <b data-s="qcount">0/3</b><span class="tlh-quest-strip-go" aria-hidden="true">→</span></button>
-        <ul class="tlh-mq" data-s-mq></ul>
-      </section>
-      <button type="button" class="tlh-k-more tlh-met-perf" data-tlh="perf"><span aria-hidden="true">📈</span> Performans ayrıntıları <span aria-hidden="true">→</span></button>
-    </aside>
-    <section class="tlh-k tlh-k-edu" aria-labelledby="tlh-edu-h">
-      <header class="tlh-k-head">
-        <div>
-          <p class="tlh-eyebrow tlh-eyebrow--gold">ON PARMAK · EĞİTİM</p>
-          <h2 id="tlh-edu-h" class="tlh-k-title">Klavye <span>Dersleri</span></h2>
+    <div class="tlh-bento">
+      <button type="button" class="tlh-c tlh-c-write" data-tlh="write" aria-labelledby="tlh-cw-h" aria-describedby="tlh-cw-d">
+        <span class="tlh-c-kick">HEMEN YAZ</span>
+        <span id="tlh-cw-h" class="tlh-c-title">Yazma <span>Arenası</span></span>
+        <span id="tlh-cw-d" class="tlh-c-desc"><span>Kesintisiz akış</span> · <span data-s="card-yazma">metinler durmadan akar</span></span>
+        <span class="tlh-cw-tags" aria-hidden="true"><i>Atasözü</i><i>Şiir</i><i>Deyim</i><i>Tekerleme</i><i>Özdeyiş</i><i>Kelime</i></span>
+        <span class="tlh-c-go">Yazmaya başla <span aria-hidden="true">→</span></span>
+        ${KB_SVG}
+      </button>
+      <section class="tlh-c tlh-c-edu" data-tlh="resume" aria-labelledby="tlh-ce-h">
+        <p class="tlh-c-kick">ON PARMAK · EĞİTİM</p>
+        <h2 id="tlh-ce-h" class="tlh-c-title">Klavye <span>Dersleri</span></h2>
+        <div class="tlh-edu-top">
+          <span class="tlh-ring" aria-hidden="true"><svg viewBox="0 0 64 64" focusable="false"><circle class="tlh-ring-bg" cx="32" cy="32" r="27" pathLength="100"/><circle class="tlh-ring-fg" data-s-ring cx="32" cy="32" r="27" pathLength="100"/></svg><b data-s="ldone">0</b></span>
+          <div class="tlh-edu-txt">
+            <p class="tlh-edu-sum" data-s="card-egitim">47 ders · 8 ünite</p>
+            <p class="tlh-edu-unit" data-s="unit">Ünite 1 · Temel Sıra</p>
+          </div>
         </div>
-      </header>
-      <div class="tlh-edu-row">
-        <p class="tlh-edu-sum" data-s="card-egitim">47 ders · 8 ünite</p>
-        <button type="button" class="tlh-k-more" data-tlh="lessons" aria-label="Tüm dersler">Tümü <span aria-hidden="true">→</span></button>
-      </div>
-      <p class="tlh-edu-unit" data-s="unit">Ünite 1 · Temel Sıra</p>
-      <span class="tlh-edu-bar" aria-hidden="true"><i data-s="lessonbar"></i></span>
-      <ol class="tlh-path" aria-label="Ders yolu"></ol>
-      <div class="tlh-edu-btns">
-        <button type="button" class="tlh-btn tlh-btn--gold tlh-resume" data-tlh="resume"><span aria-hidden="true">🎓</span><span class="tlh-resume-t" data-s="resume">İlk derse başla</span></button>
-      </div>
-    </section>
-    <a class="tlh-k tlh-k-pvp" href="?pvp=lobby" data-card="pvp">
-      <span class="tlh-pvp-kicker">⚔️ DÜELLO</span>
-      <span class="tlh-pvp-title">PvP Düello</span>
-      <span class="tlh-pvp-desc">Yazarak dövüş · bot ya da arkadaş</span>
-      <span class="tlh-pvp-go" aria-hidden="true">Lobiye git →</span>
-    </a>
+        <ol class="tlh-path" aria-label="Sıradaki dersler"></ol>
+        <button type="button" class="tlh-c-link" data-tlh="lessons">Ders haritası <span aria-hidden="true">→</span></button>
+      </section>
+      <section class="tlh-c tlh-c-lit" data-tlh="lit-all" aria-labelledby="tlh-cl-h">
+        <header class="tlh-c-head"><h2 id="tlh-cl-h" class="tlh-c-h">Şiir &amp; Atasözü</h2><button type="button" class="tlh-c-link tlh-c-link--ic" data-tlh="lit-all" aria-label="Tüm türler" title="Tüm türler"><span aria-hidden="true">→</span></button></header>
+        <figure class="tlh-quote"><blockquote data-s="quote">Damlaya damlaya göl olur.</blockquote><figcaption><span>Günün sözü</span><span data-s="quotesrc"></span></figcaption></figure>
+        <ul class="tlh-chips" aria-label="Edebiyat türleri">${LIT.map(litChipHTML).join('')}</ul>
+      </section>
+      <a class="tlh-c tlh-c-pvp" href="?pvp=lobby" data-card="pvp">
+        <span class="tlh-c-kick">⚔️ DÜELLO</span>
+        <span class="tlh-c-title">PvP Düello</span>
+        <span class="tlh-pvp-desc">Yazarak dövüş · bot ya da arkadaş</span>
+        <span class="tlh-c-go">Lobiye git <span aria-hidden="true">→</span></span>
+      </a>
+      <section class="tlh-c tlh-c-perf" data-tlh="perf" aria-labelledby="tlh-cp-h">
+        <header class="tlh-c-head"><h2 id="tlh-cp-h" class="tlh-c-h">Performans</h2><button type="button" class="tlh-c-link tlh-c-link--ic" data-tlh="perf" aria-label="Performans ayrıntıları" title="Performans ayrıntıları"><span aria-hidden="true">→</span></button></header>
+        <div class="tlh-met-slot" data-slot="metrik-grafik"></div>
+        <div class="tlh-mq-box">
+          <p class="tlh-mq-cap">Günlük görevler <b data-s="qcount">0/3</b></p>
+          <ul class="tlh-mq" data-s-mq></ul>
+        </div>
+      </section>
+    </div>
   </main>
 </div>
 <section class="tlh-view tlh-write" hidden aria-labelledby="tlh-write-h">
@@ -383,14 +384,14 @@
     return last.length ? Math.round(last.reduce((a, x) => a + num(x.acc), 0) / last.length) : null;
   }
 
-  /** Sağ sütun ders yolu: kaldığın dersin bir öncesi + kendisi + sonraki ikisi (biten / şimdi / açık / kilitli). */
+  /** Dersler kartı: kaldığın ders + sonraki ikisi (biten / şimdi / açık / kilitli). */
   function renderPath(li) {
     if (!pathEl || !lessonData) return;
     const { LESSONS, lessonUnlocked } = lessonData;
     const all = data.sec.egitim && typeof data.sec.egitim === 'object' ? data.sec.egitim : {};
     const recs = all.lessons && typeof all.lessons === 'object' ? all.lessons : {};
-    const start = Math.max(0, Math.min(li.idx - 1, LESSONS.length - 4));
-    const html = LESSONS.slice(start, start + 4).map((l, k) => {
+    const start = Math.max(0, Math.min(li.idx, LESSONS.length - 3));
+    const html = LESSONS.slice(start, start + 3).map((l, k) => {
       const i = start + k;
       const stars = Math.min(3, num(recs[l.id] && recs[l.id].stars));
       const st = stars > 0 ? 'done' : i === li.idx ? 'now' : lessonUnlocked(all, i) ? 'open' : 'lock';
@@ -552,29 +553,15 @@
     }).join('');
   }
 
-  /** Merkez sol sütunundaki mini pano. */
+  /** Merkez Performans kartındaki mini pano: yalnız hız eğrisi (küçük hâl). 7 gün, doğruluk, zayıf tuşlar Performans'ta. */
   let metHtml = '', mqHtml = '';
   function renderMetrics() {
     if (!metEl) return;
     const m = computeMetrics(data, 12);
     const n = m.hist.length;
     const html = `
-        <div class="tlh-met-sec tlh-met-speed">
-          <p class="tlh-met-cap"><span>${n > 1 ? `Son ${n} yazış · hız` : 'Hız eğrin'}</span><em>WPM</em></p>
-          ${speedHTML(m, false)}
-        </div>
-        ${m.accs.length > 1 ? `<div class="tlh-met-sec tlh-met-acc">
-          <p class="tlh-met-cap"><span>Doğruluk</span><em>ort. <b>%${m.avgA}</b></em></p>
-          ${accHTML(m, false)}
-        </div>` : ''}
-        <div class="tlh-met-sec tlh-met-week">
-          <p class="tlh-met-cap"><span>Son 7 gün</span><em><b>${m.activeDays}</b>/7 gün etkin</em></p>
-          ${weekHTML(m)}
-        </div>
-        ${m.weak.length ? `<div class="tlh-met-sec tlh-met-weak">
-          <p class="tlh-met-cap"><span>Zorlandığın tuşlar</span><em>hata</em></p>
-          ${weakHTML(m, false)}
-        </div>` : ''}`;
+        <p class="tlh-met-cap"><span>${n > 1 ? `Son ${n} yazış · hız` : 'Hız eğrin'}</span><em>WPM</em></p>
+        ${speedHTML(m, false)}`;
     metEl.classList.toggle('is-empty', !n);
     if (html !== metHtml) { metHtml = html; metEl.innerHTML = html; }
     if (mqEl) { const r = questRows(false); if (r !== mqHtml) { mqHtml = r; mqEl.innerHTML = r; } }
@@ -614,9 +601,55 @@
     if (!p) return;
     const mm = arenaMod.MODES.find(x => x.id === mode);
     setAll('pwmode', mm ? mm.label : '');
-    setAll('pwtext', p.chunk.text);
-    setAll('pwsrc', p.chunk.source ? '— ' + p.chunk.source : '');
+    liveRun();
   }
+
+  /* ---------- Canlı satır (Sahne): önizleme satırı harf harf kendiliğinden yazılır ----------
+   * ≈14 harf/sn; bitince 3 sn bekler, akıştaki sıradaki parçaya geçer (peek yenilenir → harfe basınca yazılan satır
+   * her an ekrandakiyle aynı). Yalnız Merkez görünürken çalışır; azaltılmış harekette satır hazır yazılmış durur.
+   * Her adımda yalnız iki metin düğümünün verisi değişir (setText kuralı: düğüm değiştirme yok → ucuz stil hesabı). */
+  const LIVE_MAX = 120;
+  const liveTyped = $('.tlh-live-typed');
+  const liveRest = $('.tlh-live-rest');
+  const liveBox = $('.tlh-live-text');
+  const liveCaret = $('.tlh-live-caret');
+  let liveT = 0, liveChunk = null, liveChars = [], liveI = 0;
+  const liveData = (el, v) => { if (el.firstChild && el.firstChild.nodeType === 3) { if (el.firstChild.data !== v) el.firstChild.data = v; } else el.textContent = v; };
+  const liveCut = (t) => (t.length <= LIVE_MAX ? t : t.slice(0, LIVE_MAX).replace(/\s+\S*$/, '') + ' …');
+  function livePaint() {
+    liveData(liveTyped, liveChars.slice(0, liveI).join('') || '​');
+    liveData(liveRest, liveChars.slice(liveI).join(''));
+    // kısa ekranda satır tek satırdır (home.css): imleç görünür kalsın diye satır yatayda kaydırılır
+    const x = liveBox.scrollWidth > liveBox.clientWidth + 1 ? Math.max(0, Math.round(liveCaret.offsetLeft - liveBox.clientWidth * 0.72)) : 0;
+    if (liveBox.scrollLeft !== x) liveBox.scrollLeft = x;
+    if (liveBox.classList.contains('is-shift') !== x > 0) liveBox.classList.toggle('is-shift', x > 0);
+  }
+  function liveRun() {
+    clearTimeout(liveT);
+    liveT = 0;
+    if (!arenaMod || view || root.hidden || document.hidden) return;
+    const p = ensurePeek();
+    if (!p) return;
+    if (p.chunk !== liveChunk) {
+      liveChunk = p.chunk;
+      liveChars = Array.from(liveCut(p.chunk.text));
+      liveI = 0;
+      setAll('pwtext', p.chunk.text);
+      const mm = arenaMod.MODES.find(x => x.id === mode);
+      setAll('pwsrc', p.chunk.source && (!mm || p.chunk.source !== mm.label) ? p.chunk.source : '');
+    }
+    if (reduced()) { liveI = liveChars.length; livePaint(); return; }
+    if (liveI < liveChars.length) {
+      liveI++;
+      livePaint();
+      const ch = liveChars[liveI - 1];
+      liveT = setTimeout(liveRun, ch === ' ' ? 95 : /[,.;!?]/.test(ch) ? 180 : 52 + Math.random() * 38);
+    } else {
+      livePaint();
+      liveT = setTimeout(() => { if (peek && peek.chunk === liveChunk) peek = null; liveRun(); }, 3000);
+    }
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) liveRun(); });
   function renderModeButtons(host) {
     if (!host || !arenaMod) return;
     host.innerHTML = arenaMod.MODES.map(m => `
@@ -624,60 +657,46 @@
           <span aria-hidden="true">${m.icon}</span>${esc(m.label)}</button>`).join('');
   }
 
-  /* ---------- Edebiyatla yaz kartları ----------
-   * Sayı + örnek satır: her tür için itemsFor() bir kez, ilk boyamadan sonra boşta çalışır (açılışı geciktirmez).
-   * Örnek her açılışta rastgele; karta sığsın diye kısa olanlar seçilir, şiirde ilk iki dize. */
+  /* ---------- Şiir & Atasözü kartı ----------
+   * Tür sayıları + "Günün sözü": itemsFor() tür başına bir kez, ilk boyamadan sonra boşta çalışır (açılışı geciktirmez).
+   * Söz her açılışta rastgele bir atasözü ya da özdeyiş; karta sığsın diye kısa olanlardan seçilir. */
   const idle = (fn) => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 1200 }) : setTimeout(fn, 200));
-  function litSample(id, items) {
+  function litSample(items) {
     if (!items.length) return null;
-    // deyimde kalıp kısa olsun ki anlamı da görünsün ("Göz atmak — …")
-    const short = items.filter(it => it.text.length <= (id === 'deyim' ? 96 : 84) && (id !== 'deyim' || it.text.indexOf(': ') <= 15));
+    const short = items.filter(it => it.text.length <= 72 && it.text.length >= 18);
     const pool = short.length ? short : items;
     const it = pool[Math.floor(Math.random() * pool.length)];
-    let text = it.text;
-    if (id === 'siir') {   // ilk iki dize (dizeler virgülle birleştirilmiş)
-      const parts = text.split(/(?<=[,;.!?]) /);
-      text = parts.slice(0, 2).join(' ');
-      if (text.length > 90) text = text.slice(0, 88).replace(/\s+\S*$/, '');
-      if (parts.length > 2 || text.length < it.text.length) text = text.replace(/[,;:]$/, '') + ' …';
-    }
-    return { text, source: it.source || '' };
+    return { text: it.text, source: it.source || '' };
   }
   function computeLit(am) {
     const out = {};
     for (const c of LIT) {
       let items = [];
       try { items = am.itemsFor(c.id) || []; } catch { items = []; }
-      out[c.id] = { n: items.length, ex: litSample(c.id, items) };
+      out[c.id] = { n: items.length, ex: c.id === 'atasozu' || c.id === 'ozdeyis' ? litSample(items) : null };
     }
+    const pick = [out.atasozu.ex, out.ozdeyis.ex].filter(Boolean);
+    out.quote = pick.length ? pick[Math.floor(Math.random() * pick.length)] : null;
     return out;
   }
+  let quoteOn = false;
   function renderLit() {
     const recs = (data.sec && data.sec.edebiyat && data.sec.edebiyat.litStreams) || {};
+    if (litInfo && litInfo.quote && !quoteOn) {
+      quoteOn = true;
+      setAll('quote', litInfo.quote.text);
+      setAll('quotesrc', litInfo.quote.source ? '— ' + litInfo.quote.source : '');
+    }
     for (const c of LIT) {
       const info = litInfo && litInfo[c.id];
       const r = recs[c.id] || {};
       const items = Math.max(0, num(r.items));
-      if (info) {
-        const ex = root.querySelector(`[data-s="litex-${c.id}"]`);
-        if (ex && info.ex && !ex.dataset.on) {
-          ex.dataset.on = '1';
-          const t = info.ex.text;
-          const k = c.id === 'deyim' ? t.indexOf(': ') : -1;
-          ex.innerHTML = k > 0 ? `<b>${esc(t.slice(0, k))}</b> — ${esc(t.slice(k + 2))}` : `“${esc(t.replace(/\.$/, ''))}”`;
-          if (info.ex.source && c.id !== 'deyim') ex.title = info.ex.source;
-        }
-      }
-      if (info || items) setAll('litp-' + c.id, items ? `${items} metin yazdın` : `${info.n} ${c.unit}`);
-      const bar = root.querySelector(`[data-s="litbar-${c.id}"]`);
-      if (bar) bar.style.width = info && items ? Math.max(4, Math.min(100, Math.round((items / Math.max(1, info.n)) * 100))) + '%' : '0%';
+      if (info) setAll('litn-' + c.id, String(info.n));
       const btn = root.querySelector(`[data-lit="${c.id}"]`);
       if (btn) {
         const best = r.best && num(r.best.wpm);
         btn.title = `${c.label}: kesintisiz yaz${items ? ` · ${items} metin yazdın` : ''}${best ? ` · en iyi ${best} WPM` : ''}`;
-        // ekran okuyucu: önce tür adı (görsel sırada "Başla" önde), örnek satır ayrıca okunur
         btn.setAttribute('aria-label', `${c.label}, başla${info ? ` (${info.n} ${c.unit})` : ''}${items ? `, ${items} metin yazdın` : ''}${best ? `, en iyi ${best} WPM` : ''}`);
-        btn.setAttribute('aria-describedby', 'tlh-litex-' + c.id);
       }
     }
   }
@@ -698,18 +717,21 @@
     const li = lessonInfo();
     if (li) {
       setAll('starmax', String(li.total * 3));
-      setAll('resume', li.started && li.lesson ? `Kaldığın ders: ${li.idx + 1} · ${li.lesson.title}` : 'İlk derse başla');
+      setAll('resume', li.started && li.lesson ? `Kaldığın ders: ${li.idx + 1}` : 'İlk derse başla');
+      const rb = root.querySelector('.tlh-stage .tlh-resume');
+      if (rb && li.lesson) rb.title = `Ders ${li.idx + 1} · ${li.lesson.title}`;
       const units = lessonData.UNITS.length;
-      setAll('card-egitim', `${li.total} ders${units ? ' · ' + units + ' ünite' : ''} · ${li.done} bitti`);
-      const bar = root.querySelector('[data-s="lessonbar"]');
-      if (bar) bar.style.width = Math.round((li.done / Math.max(1, li.total)) * 100) + '%';
+      setAll('card-egitim', `${li.total} ders${units ? ' · ' + units + ' ünite' : ''}`);
+      setAll('ldone', String(li.done));
+      const ring = root.querySelector('[data-s-ring]');
+      if (ring) ring.style.strokeDasharray = `${Math.round((li.done / Math.max(1, li.total)) * 100)} 100`;
       const ui = li.lesson ? lessonData.UNITS.findIndex(u => u.id === li.lesson.unit) : -1;
-      setAll('unit', ui >= 0 ? `Ünite ${ui + 1}/${units} · ${lessonData.UNITS[ui].title}` : '');
+      setAll('unit', `${li.done}/${li.total} ders bitti${ui >= 0 ? ` · Ünite ${ui + 1}: ${lessonData.UNITS[ui].title}` : ''}`);
       renderPath(li);
     }
     renderLit();
     const last = data.history[data.history.length - 1];
-    setAll('card-yazma', last && num(last.wpm) ? `Son yazışın ${num(last.wpm)} WPM` : 'Kesintisiz akış');
+    setAll('card-yazma', last && num(last.wpm) ? `son yazışın ${num(last.wpm)} WPM` : 'metinler durmadan akar');
     renderMetrics();
 
     const ids = todaysQuestIds();
@@ -1020,6 +1042,7 @@
     renderStats();
     updateFab();
     root.focus({ preventScroll: true });
+    liveRun();
   }
 
   /* ---------- Yazma (kendi görünümü) ---------- */
@@ -1297,7 +1320,7 @@
   const prefetch = (e) => {
     const t = e.target && e.target.closest ? e.target : null;
     if (!t) return;
-    if (!preLessons && t.closest('.tlh-k-edu,[data-nav="egitim"],[data-quest="lesson"]')) {
+    if (!preLessons && t.closest('.tlh-c-edu,[data-tlh="resume"],[data-nav="egitim"],[data-quest="lesson"]')) {
       preLessons = true;
       loadMod('lessons.js').catch(() => { preLessons = false; });
     }

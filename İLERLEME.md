@@ -330,3 +330,8 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 - Karar: "Teslim ol"/Esc/maç içi Ana Sayfa `window.confirm` yerine oyun içi onay kutusu kullanır (gömülü tarayıcı confirm'ü bastırıyordu). Rapor: docs/14-pvp-denetim.md.
 - Karar: PvP JS'i yükleyiciyle gelir (`pvp/index.js` → `pvp/pvp-main.js`); testler pvp-main.js'i okur. Rapor: docs/12.
 - Not: Denetçi'nin dokunduğu pvp dosyalarında (fight-hud.css, network.js, arena3d.js…) önceki oturumlardan kalan commit edilmemiş değişiklikler de vardı; dosyalar bütün hâlinde commit edildi.
+
+## 24 Kas 2026 — Ana ekran "Sahne" (kokpit kalktı)
+- Karar (kullanıcı: "eski düzen olsun, Fable 5.2'nin yaratıcılığına bırakalım"): üç sütunlu kokpit kaldırıldı; eski iskelet geri geldi — solda kahraman alanı (başlık, iki düğme, kendi kendine yazılan canlı satır, 4 sayı), sağda 5 kartlık bento (Yazma, Dersler, Şiir & Atasözü, PvP, Performans). Tasarım: docs/18; uygulama raporu: docs/19.
+- Kokpit işlevleri korundu (harfle başlama, 5 tür, görev satırları, ertelenmiş yüklemeler); ayrıntılı metrikler Performans görünümünde.
+- Yazma ekranları ortak düzen (docs/16); PvP kalanlar (docs/17).

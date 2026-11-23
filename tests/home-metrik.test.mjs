@@ -53,10 +53,11 @@ test('görevler: Merkez\'de adı + ilerlemesi; bitmeyen görev o işi açan dü�
   assert.match(js, /function startQuest\(id\)/);
 });
 
-test('sol sütun taşmaz: geniş masaüstünde satırı büyütmez, kısa ekranda bölümler gizlenir', () => {
-  assert.match(css, /@media \(min-width: 1181px\) \{ #tl-home \.tlh-k-met \{ contain: size;/);
-  assert.match(css, /@media \(max-height: 820px\) and \(min-width: 1181px\) \{\s*#tl-home \.tlh-met-weak \{ display: none; \}/);
-  assert.match(css, /@media \(max-height: 740px\) and \(min-width: 1181px\) \{\s*#tl-home \.tlh-met-acc \{ display: none; \}/);
+test('Merkez Performans kartı: hız eğrisinin küçük hâli sabit yükseklikte; görünen yazı ≥ 12 px', () => {
+  const rm = js.slice(js.indexOf('function renderMetrics('), js.indexOf('/* ---------- Yazma önizlemesi'));
+  assert.match(rm, /speedHTML\(m, false\)/);
+  assert.doesNotMatch(rm, /weekHTML|accHTML|weakHTML/);   // 7 gün, doğruluk, zayıf tuşlar Performans görünümünde
+  assert.match(css, /#tl-home \.tlh-met-slot \{[^}]*height: clamp\(/);
   // görünen yazı ≥ 12 px
   for (const m of css.matchAll(/font-size: (\d+(?:\.\d+)?)px/g)) assert.ok(Number(m[1]) >= 12, 'font-size ' + m[1]);
 });

@@ -9,16 +9,14 @@ const css = read('home/home.css');
 const lit = read('home/literature.js');
 const IDS = ['atasozu', 'deyim', 'siir', 'tekerleme', 'ozdeyis'];
 
-test('beş tür kartı: sıra ana ekran ve tür menüsünde aynı; Merkez önizlemesinde ikinci tür seçici yok', () => {
+test('beş tür: sıra ana ekran çiplerinde ve tür menüsünde aynı; Merkez\'de ikinci tür seçici yok', () => {
   const order = (src) => [...src.matchAll(/\{ id: '(\w+)', label: '/g)].map((m) => m[1]).filter((id) => IDS.includes(id));
   assert.deepEqual(order(js), IDS);
   assert.deepEqual(order(lit), IDS);
   assert.doesNotMatch(js, /tlh-modes--hub|hubModesEl/);
-  assert.match(css, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
-  // her kartta örnek satır, ilerleme ve "Başla"
-  assert.match(js, /data-s="litex-\$\{c\.id\}"/);
-  assert.match(js, /data-s="litp-\$\{c\.id\}"/);
-  assert.match(js, /class="tlh-lit-go">Başla/);
+  // Sahne: her çipte tür adı + metin sayısı; tür menüsünün kartlarında "Başla" (literature.js)
+  assert.match(js, /data-s="litn-\$\{c\.id\}"/);
+  assert.match(lit, /class: 'tlh-lit-go' \}, 'Başla '/);
 });
 
 test('motifler: elle çizilmiş küçük SVG, betik/dış kaynak yok, CSS maskesiyle tür rengine boyanır', () => {
@@ -39,7 +37,7 @@ test('erişilebilirlik: odak halkası, azaltılmış harekette kayma yok, görü
   const rm = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
   assert.match(rm, /\.tlh-lit-chip:hover \.tlh-lit-go span/);
   assert.match(css, /html\.reduced-motion #tl-home \.tlh-lit-chip:hover \.tlh-lit-go span/);
-  const block = css.slice(css.indexOf('/* --- orta alt: "Edebiyatla yaz"'), css.indexOf('/* --- sol: eğitim metrikleri'));
+  const block = css.slice(css.indexOf('/* --- Şiir & Atasözü tür kartları'), css.indexOf('/* çizgi/alan grafiği'));
   for (const m of block.matchAll(/font(?:-size)?: (?:\d+ )?(\d+(?:\.\d+)?)px/g)) assert.ok(Number(m[1]) >= 12, 'yazı ' + m[1] + 'px');
 });
 

@@ -26,8 +26,9 @@ test('üst menüde beş bölüm; dört bölüm görünümü kayıtlı; logo Merk
   assert.match(js, /const VIEW_IDS = \['yazma', 'egitim', 'edebiyat', 'performans'\];/);
   for (const v of ['yazma', 'egitim', 'edebiyat', 'performans']) assert.match(js, new RegExp(`\\n    ${v}: \\{ title:`));
   assert.match(js, /class="tlh-logo"[^>]*data-nav="hub"[^>]*aria-current="page"/);
-  // kokpit (24 Kas): Merkez beş panel — metrikler, Yazma, tür şeridi, dersler, PvP
-  for (const c of ['tlh-k-met', 'tlh-k-write', 'tlh-k-lit', 'tlh-k-edu', 'tlh-k-pvp']) assert.match(js, new RegExp(`class="tlh-k ${c}"`));
+  // Sahne (24 Kas, docs/18): solda kahraman alanı, sağda beş kartlık bento
+  assert.match(js, /<section class="tlh-stage"/);
+  for (const c of ['tlh-c-write', 'tlh-c-edu', 'tlh-c-lit', 'tlh-c-pvp', 'tlh-c-perf']) assert.match(js, new RegExp(`class="tlh-c ${c}"`));
 });
 
 test('Yazma kesintisiz akışa bağlı: stream/onChunk/nextChunk, Kelime tek metin', () => {

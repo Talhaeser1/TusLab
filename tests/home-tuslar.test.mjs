@@ -84,7 +84,7 @@ test('odak yazma alanından çıkınca basılan harf açık yazıcıya gider; bo
 test('görünmeyen katmanlar boyanmaz/animasyonu durur; dokunmatikte 44 px hedef', () => {
   assert.match(css, /html\.tlh-app-off #app, html\.tlh-app-off #app \* \{ animation-play-state: paused !important;/);
   assert.match(css, /#tl-home \.tlh-menu\[aria-hidden="true"\] \{ visibility: hidden; \}/);
-  assert.match(css, /#tl-home\.tlh-in-view \.tlh-bg i \{ animation-play-state: paused; \}/);
+  assert.doesNotMatch(css, /tlh-drift/);   // Sahne: arka plan bulutları durağan (sonsuz animasyon yalnız canlı satır imlecinde)
   assert.match(js, /root\.classList\.add\('tlh-in-view'\)/);
   assert.match(js, /root\.classList\.remove\('tlh-in-view'\)/);
   assert.match(css, /@media \(pointer: coarse\) \{[^}]*\}[^@]*#tl-home \.tlh-sound \{ min-width: 44px; min-height: 44px; \}/);
