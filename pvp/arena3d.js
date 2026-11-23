@@ -1,4 +1,5 @@
 import {createVisualTimeline, TURN} from './visual-timeline.js';
+import {ASSIST_FX} from './arena3d-assist.js';
 import {createImpactDirector, stepImpact, addTrauma, beginHitstop, restoreHitstop, hitReaction} from './impact-feel.js';
 import {createArenaBloom} from './arena3d-bloom.js';
 import {budgetRatio, createFrameGovernor, PIXEL_BUDGETS} from './perf-governor.js';
@@ -1886,6 +1887,11 @@ export async function createArena3D({
   // artar, eski raunda ait zamanlayıcılar kendini yok sayar. clear()'dan önce tanımlı olsun diye burada.
   const sceneHold = new Map();
   let visualGen = 0;
+  // Destek hayaleti zamanlaması (docs/3): çözüm modunda ASSIST_CAST eklentilere hemen GİTMEZ. Koltuk başına sırayla
+  // bekler (assistWaiting), aynı koltuğun destek hasarı (DAMAGE_APPLIED assist:true) bir sahne vuruşuna bağlanınca
+  // ipucu olur (assistCues) ve o vuruşun temasından ASSIST_LEAD_MS önce eklentilere iletilir (pumpAssistCues).
+  const assistWaiting = new Map(); // seat -> [ASSIST_CAST]
+  const assistCues = [];           // {cast, damage, gen}
   const timeline = createVisualTimeline({now, isReduced: reduced, breathMs: TURN.breathMs,
     isSettled: () => fighterSettled(fighters.get(1)) && fighterSettled(fighters.get(2)),
     setTimer: (fn, ms) => env?.setTimeout?.(fn, ms), clearTimer: id => env?.clearTimeout?.(id)});
@@ -1901,6 +1907,9 @@ export async function createArena3D({
   /** Sahnesiz hasar teslimi (yalnız sayı/can) — ölçüm için nedeniyle işaretlenir. */
   const silentDamage = (event, why) => { probeMark('silent', {seat: event?.fromSeat, skill: `${event?.skill}:${why}`}); impactFeel.silent(event); };
   if (probe) safeCall(() => { env.__tuslabAnimProbe = animProbe; });
+  // docs/3 gözlem yolu (?animprobe=1): destek hayaletinin GERÇEKTEN görünür olduğu an {t, fromSeat, sceneSlot, resolve}.
+  const assistLog = probe ? [] : null;
+  if (assistLog) safeCall(() => { env.__tuslabAssistLog = assistLog; });
 
   /** Karaktere özel beceri: klip adımları + kök hareketi izi + zamanlı efektler. false → model yok. */
   function playModelSkill(seat, skill, {fx = true, compress = false, skipReturn = false, entry = null} = {}) {
@@ -3702,6 +3711,13 @@ export async function createArena3D({
         fighterId: fighter.fighterId, seat: asSeat, clone: cloneFn, ghost: {color, opacity},
       })) || null;
     },
+    /** docs/3: destek eklentisi hayaleti görünür yaptığı an bildirir (yalnız ?animprobe=1'de kaydedilir). */
+    assistShown(info = {}) {
+      if (!assistLog) return;
+      assistLog.push({t: Math.round(now()), fromSeat: info.fromSeat ?? null, sceneSlot: info.sceneSlot ?? null, resolve: Boolean(info.resolve)});
+      if (assistLog.length > 200) assistLog.splice(0, assistLog.length - 200);
+      probeMark('assistShown', {seat: info.fromSeat, sceneSlot: info.sceneSlot});
+    },
     /** Make the crowd cheer, intensity 0..1 (decays by itself). */
     cheer(intensity = 0.6) {
       if (!destroyed) cheer(intensity);
@@ -4081,19 +4097,74 @@ export async function createArena3D({
           // Görev 4: hasar KENDİ vuruşunun (strike) temas karesine bağlanır.
           entry.strike.events.push(event);
           boundEvents.set(event, entry);
+          if (event.assist === true) cueAssist(event); // docs/3: bekleyen destek hayaleti bu vuruşun temasına bağlanır
           // Bağ dinamik: boşaltma sıkıştırması olayı başka sahneye taşıyabilir (compactForDrain).
           impactFeel.queue(event, () => { const b = boundEvents.get(event) || entry; return b.strike.contact && !b.entry.dead; }, 9000);
         } else if (reduced()) impactFeel.hit(event);
-        else silentDamage(event, event.skill === 'r'
+        else {
+          if (event.assist === true) releaseAssistNow(event.fromSeat);
+          silentDamage(event, event.skill === 'r'
           ? `unbound-u${ult ? 1 : 0}c${cast ? 1 : 0}p${event.phase ?? '-'}q${attacker?.castQueue?.map(e => `${e.ultimate ? 'r' : e.skill}${e.started ? 's' : ''}${e.dead ? 'd' : ''}`).join('') ?? '-'}`
           : 'unbound');
+        }
         return;
       }
       handleCore(event);
     } catch {
       /* cosmetic layer: never break the combat listener */
     }
+    if (deferAssistCast(event)) return; // docs/3: çözüm modunda hayalet kendi sahnesini bekler
     forwardToPlugins(event);
+  }
+
+  // ------------------------------------------------ docs/3 destek hayaleti zamanlaması
+  // Hayaletin vuruş anı (ASSIST_FX.dashEnd) bağlandığı vuruşun temas karesine denk gelsin diye bu kadar önce başlar.
+  const ASSIST_LEAD_MS = Math.round(ASSIST_FX.totalMs * ASSIST_FX.dashEnd);
+  /** Çözüm modundaki (resolve:true) ASSIST_CAST'i bekletir; true = eklentilere şimdi iletilmez. */
+  function deferAssistCast(event) {
+    if (event.type !== 'ASSIST_CAST' || event.resolve !== true || reduced() || !isSeat(event.fromSeat)) return false;
+    let list = assistWaiting.get(event.fromSeat);
+    if (!list) assistWaiting.set(event.fromSeat, list = []);
+    list.push(event);
+    if (list.length > 4) list.shift(); // koruma: hasarı hiç gelmeyen destekler birikmez
+    probeMark('assistHold', {seat: event.fromSeat, sceneSlot: event.sceneSlot});
+    return true;
+  }
+  /** Destek hasarı sahneye bağlandı: koltuğun sıradaki bekleyen ASSIST_CAST'i bu hasarın vuruşuna bağlanır. */
+  function cueAssist(damage) {
+    const cast = assistWaiting.get(damage.fromSeat)?.shift();
+    if (!cast) return;
+    assistCues.push({cast, damage, gen: visualGen});
+    pumpAssistCues();
+  }
+  /** Sahneye bağlanamayan destek hasarı (model yok vb.): hayalet eski davranışla hemen oynar. */
+  function releaseAssistNow(seat) {
+    const cast = assistWaiting.get(seat)?.shift();
+    if (cast) forwardToPlugins(cast);
+  }
+  /** Her kare: vuruşu oynayan sahnede temasa ASSIST_LEAD_MS kalınca (ya da temas olduysa) hayalet başlar.
+   *  Sahnesi temassız biten (zorla bitirilen / düşen) ya da önceki nesle ait ipucu sessizce düşer. */
+  function pumpAssistCues() {
+    for (let i = 0; i < assistCues.length; i++) {
+      const cue = assistCues[i];
+      const bound = boundEvents.get(cue.damage);
+      if (cue.gen !== visualGen || !bound) { assistCues.splice(i--, 1); continue; }
+      const {entry, strike} = bound;
+      if (!strike.contact && (entry.dead || !entry.started)) {
+        if (entry.dead) assistCues.splice(i--, 1);
+        continue;
+      }
+      if (!strike.contact) {
+        const idx = Math.max(0, entry.strikes.indexOf(strike));
+        const contacts = entry.scenePlan?.contacts || [];
+        const ms = Number(contacts[Math.min(idx, contacts.length - 1)]);
+        const elapsed = Number(entry.handle?.elapsed) || 0;
+        if (Number.isFinite(ms) && elapsed < ms - ASSIST_LEAD_MS) continue;
+      }
+      assistCues.splice(i--, 1);
+      probeMark('assistPlay', {seat: cue.cast.fromSeat, sceneSlot: cue.cast.sceneSlot, late: Boolean(strike.contact)});
+      forwardToPlugins(cue.cast);
+    }
   }
 
   function onMatchEnd({winnerSeat} = {}) {
@@ -4135,6 +4206,8 @@ export async function createArena3D({
     if (destroyed) return;
     visualGen++;
     sceneHold.clear();
+    assistWaiting.clear(); // docs/3: bekleyen destek hayaletleri raund geçişinde iptal (eklenti clear() ile oynayanı durdurur)
+    assistCues.length = 0;
     timeline.flush();      // raund geçişi: kuyruk bitmediyse son durumu anında uygula
     impactFeel.flush();    // bekleyen hasar gösterimleri teslim edilir (kayıp yok)
     if (deferredHpSync) { forwardToPlugins(deferredHpSync); deferredHpSync = null; }
@@ -4513,6 +4586,7 @@ export async function createArena3D({
 
     // Şerit H: görsel kuyruk rig ile AYNI simülasyon dt'sini kullanır (hitstop'ta durur) → temas klip zirvesiyle hizalı.
     timeline.tick(tNow < hitStop.until ? 0 : dtMs * timeScale);
+    if (assistCues.length) safeCall(pumpAssistCues); // docs/3: hayalet bağlı vuruşun temasından ASSIST_LEAD_MS önce
     processUltimate(tNow);
     for (const fighter of fighters.values()) {
       updateTravel(fighter, tNow);

@@ -17,6 +17,11 @@
  *
  * Paket 32: partnerin 3B modeli yüklüyse (api.createFighterGhost) siluet artık o modelin
  * yarı saydam, partner renginde bir kopyasıdır ve partnerin Q klibini oynatır; model yoksa düzlem.
+ *
+ * docs/3 (çözüm modu): resolve:true ASSIST_CAST'i çekirdek (arena3d.js) bağlı vuruşun sahnesi oynarken, temastan
+ * dashEnd kadar önce iletir. Aynı koltuğun ikinci desteği birincisi sürerken gelirse onu EZMEZ: sıraya girer,
+ * öncekisi bitince başlar. Canlı modda (resolve yok) eski davranış: anında başlar, öncekini yeniden başlatır.
+ * Hayalet görünür olunca api.assistShown?.({fromSeat, sceneSlot, resolve}) çağrılır (gözlem: ?animprobe=1).
  */
 
 export const ASSIST_FX = Object.freeze({
@@ -99,7 +104,7 @@ export function createArena3DAssist(api) {
     slot.ghostId = null;
   }
 
-  function start(fromSeat, toSeat, partner) {
+  function start(fromSeat, toSeat, partner, info = null) {
     casts++;
     if (reduced()) { flashOnly(partner); return; }
     // Partner = diğer karakter: görseli karşı koltuğun modeli ya da gövde dokusudur (ayna çevrilir).
@@ -129,6 +134,7 @@ export function createArena3DAssist(api) {
       ghost.play('q');
       place(slot, 0);
       ghost.object.visible = true;
+      shown(fromSeat, info);
       return;
     }
     slot.material.map = texture;
@@ -137,6 +143,11 @@ export function createArena3DAssist(api) {
     slot.mesh.rotation.set(0, face * 0.2, 0);
     place(slot, 0);
     slot.mesh.visible = true;
+    shown(fromSeat, info);
+  }
+  function shown(fromSeat, info) {
+    if (typeof api.assistShown !== 'function') return;
+    try { api.assistShown({fromSeat, sceneSlot: info?.sceneSlot ?? null, resolve: Boolean(info?.resolve)}); } catch { /* gözlem */ }
   }
 
   /** p = 0..1 ilerleme: konum, ölçek, eğim ve saydamlık. */
@@ -187,7 +198,15 @@ export function createArena3DAssist(api) {
     if (event.type !== 'ASSIST_CAST' || !isSeat(event.fromSeat)) return;
     const toSeat = isSeat(event.toSeat) ? event.toSeat : (event.fromSeat === 1 ? 2 : 1);
     const partner = event.partner === 'fire' || event.partner === 'rune' ? event.partner : (event.fromSeat === 1 ? 'rune' : 'fire');
-    start(event.fromSeat, toSeat, partner);
+    const info = {sceneSlot: Number.isFinite(Number(event.sceneSlot)) ? Number(event.sceneSlot) : null, resolve: event.resolve === true};
+    const busy = slots.get(event.fromSeat);
+    if (info.resolve && busy?.active && !reduced()) {
+      // docs/3: çözüm sahnesindeki ikinci destek öncekini ezmez; öncekisi bitince başlar.
+      (busy.waiting ||= []).push({toSeat, partner, info});
+      if (busy.waiting.length > 3) busy.waiting.shift();
+      return;
+    }
+    start(event.fromSeat, toSeat, partner, info);
   }
 
   function update(dt) {
@@ -198,10 +217,15 @@ export function createArena3DAssist(api) {
     step = Math.min(step, 0.05);
     for (const slot of slots.values()) {
       if (!slot.active) continue;
-      if (reduced()) { stop(slot); continue; }
+      if (reduced()) { stop(slot); if (slot.waiting) slot.waiting.length = 0; continue; }
       slot.age += step * 1000;
       const p = slot.age / ASSIST_FX.totalMs;
-      if (p >= 1) { stop(slot); continue; }
+      if (p >= 1) {
+        stop(slot);
+        const next = slot.waiting?.shift();
+        if (next) start(seatOf(slot), next.toSeat, next.partner, next.info);
+        continue;
+      }
       if (!slot.struck && p >= ASSIST_FX.dashEnd) {
         slot.struck = true;
         flashOnly(slot.partner, 0.16);
@@ -219,7 +243,11 @@ export function createArena3DAssist(api) {
   }
 
   function clear() {
-    for (const slot of slots.values()) stop(slot);
+    for (const slot of slots.values()) { stop(slot); if (slot.waiting) slot.waiting.length = 0; }
+  }
+  function seatOf(slot) {
+    for (const [seat, s] of slots) if (s === slot) return seat;
+    return null;
   }
 
   function dispose() {
@@ -237,11 +265,12 @@ export function createArena3DAssist(api) {
 
   /** Test/debug: koltuk başına durum + toplam sayılar. */
   function stats() {
-    const out = {casts, meshes: slots.size, active: 0, disposed, seats: {}};
+    const out = {casts, meshes: slots.size, active: 0, waiting: 0, disposed, seats: {}};
     for (const seat of SEATS) {
       const slot = slots.get(seat);
       if (!slot) continue;
       if (slot.active) out.active++;
+      out.waiting += slot.waiting?.length || 0;
       out.seats[seat] = {active: slot.active, visible: slot.mesh.visible || Boolean(slot.ghost?.object.visible),
         ghost: Boolean(slot.useGhost && slot.ghost), opacity: slot.material.opacity,
         x: slot.mesh.position.x, progress: clamp(slot.age / ASSIST_FX.totalMs, 0, 1)};
