@@ -27,6 +27,9 @@ def main():
     except Exception:
         return 0
     metin = veri.get("prompt") or ""
+    # Ajan raporları ve sistem bildirimleri de bu olayla gelir; onlar kullanıcının hata bildirimi değildir.
+    if re.search(r"Another Claude session sent a message|\[Subagent hand-back\]|<task-notification>|SYSTEM NOTIFICATION", metin):
+        return 0
     if not metin or metin.lstrip().startswith("/") or not KALIP.search(metin):
         return 0
     tp = veri.get("transcript_path") or ""
