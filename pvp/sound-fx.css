@@ -21,3 +21,11 @@
 @media(max-width:1050px){#pvp-root .pvp10-volume{display:none}}
 @media(prefers-reduced-motion:reduce){#pvp-root .pvp10-projectile,#pvp-root .pvp10-cross-impact{display:none!important}}
 #pvp-root.pvp4-reduced .pvp10-projectile,#pvp-root.pvp4-reduced .pvp10-cross-impact{display:none!important}
+
+/* Padişah sözleri (pvp/quote-bubble.js): sesli repliği olmayan dövüşçünün sözü, üstte tek şerit. */
+#pvp-root .pvp-quote{position:fixed;left:50%;top:clamp(86px,15vh,140px);z-index:60;max-width:min(640px,calc(100vw - 32px));
+  padding:8px 16px;border-radius:12px;border:1px solid var(--q-accent,#ffe08a);background:color-mix(in srgb,var(--q-main,#5a0f1a) 72%,#0b0820);
+  color:#fff7e6;font:600 clamp(13px,1.6vw,17px)/1.35 inherit;text-align:center;box-shadow:0 6px 24px #0008;pointer-events:none;
+  transform:translateX(-50%);opacity:0;transition:opacity 180ms ease-out}
+#pvp-root .pvp-quote b{color:var(--q-accent,#ffe08a);font-weight:800}
+#pvp-root .pvp-quote.is-on{opacity:1}

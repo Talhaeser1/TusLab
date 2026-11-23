@@ -305,3 +305,8 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 - Karar: eski sayfalara götüren düğmeler kaldırıldı. Hız Arenası kartı yok (yazma alanı onun yerine); Performans artık ana sayfa içinde yerel görünüm (#performans: son 20 sonuç grafiği, zayıf tuşlar; veri tuslab-home-v1 history/weak). Üst menü: Yazma · Klavye Dersleri · Şiir & Atasözü · PvP Düello (?pvp=practice) · Performans. PvP kapanınca ana sayfa geri gelir.
 - Karar: kırmızı boss (Harf Muhafızı) sahneden çıkarıldı; adada Nyx ve Konyalı durur. Geniş ekranda sahne sağ sütuna kaydırılır (setViewOffset). Ana sayfa açıkken alttaki eski sayfa kilitli (html.tlh-lock).
 - Ölçüm: Playwright 1440×900 / 1366×768 / 1920×1080 / 390×844'te #tl-home kaymıyor; 6 tür metin geliyor; bölümler arası geçişten sonra Ana Sayfa tek adımda dönüyor; PvP açılışı etkilenmiyor; sayfa hatası 0; npm test 974/974.
+
+## 23 Kas 2026 — Osmanlı padişahları PvP dövüşçüsü (ilk 10)
+- Karar: "oyuna ekle" = PvP dövüşçüsü (yazma içeriği denemesi geri alındı, de9b436).
+- Karar: kendi 3B modeli/portresi olmadığı için her padişah temel kadrodan bir gövdeyi (model, klip, efekt, ses) kullanır; ad, unvan, renk, beceri adları/açıklamaları, sözler ve tarih notu padişahın kendisinin. Portre yerine yüzsüz renkli madalyon (SVG). Uydurma yüz/model üretilmedi.
+- Karar: hasar ve E türü (can/kalkan) gövde arketipinden; sunucu kuralları değişmedi. Sözler sesli değil, ekranda yazı (quote-bubble). Rapor: docs/4-osmanli-padisahlari-pvp.md.

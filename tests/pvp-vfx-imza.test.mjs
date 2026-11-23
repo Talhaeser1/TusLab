@@ -37,7 +37,7 @@ function gpuObjects(scene) {
 }
 
 test('İş 15: beş karakter (fighters.js) imza yapılandırmasında; fx türleri koreografiyle eşleşiyor', () => {
-  assert.deepEqual([...SIG_FIGHTERS].sort(), Object.keys(FIGHTERS).sort());
+  assert.deepEqual([...SIG_FIGHTERS].sort(), Object.keys(FIGHTERS).filter(id => !FIGHTERS[id].body).sort(), 'padişahlar gövdenin imzasını kullanır');
   for (const id of SIG_FIGHTERS) for (const s of ['q', 'e', 'r']) assert.ok(FIGHTERS[id].skills[s].name, `${id}.${s} adı`);
   assert.ok(CHOREOGRAPHY.konyali.q.fx.some(f => f.kind === 'bread'));
   assert.ok(CHOREOGRAPHY.konyali.r.fx.some(f => f.kind === 'shockring'));

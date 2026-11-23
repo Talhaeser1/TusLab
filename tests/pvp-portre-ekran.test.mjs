@@ -5,7 +5,7 @@ import {vsModel} from '../pvp/cinematic.js';
 import {PORTRAITS, portraitFor, PORTRAIT_FALLBACK} from '../pvp/portraits.js';
 import {resultCardHTML} from '../pvp/phase15-results.js';
 import {summaryPlayers} from '../pvp/rounds-ui.js';
-import {FIGHTER_IDS, FIGHTERS} from '../pvp/shared/fighters.js';
+import {BASE_FIGHTER_IDS as FIGHTER_IDS, FIGHTERS} from '../pvp/shared/fighters.js';
 
 const EXPECT = {
   vargr: 'assets/higgsfield/final/portre-vargr.webp',

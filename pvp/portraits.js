@@ -1,13 +1,15 @@
 /** Dövüşçü kimliği → Higgsfield portre dosyası: TEK eşleme (VS, sonuç, raund arası kullanır).
  *  Lobi CSS'i (lobby-v3.css [data-fighter-portrait]) aynı dosyaları kullanır; yeni dövüşçü eklenirse ikisi birlikte güncellenir. */
-import {normalizeFighter, getFighter} from './shared/fighters.js';
+import {normalizeFighter, getFighter, PADISAH_IDS} from './shared/fighters.js';
 
 export const PORTRAITS = Object.freeze({
   vargr: './assets/higgsfield/final/portre-vargr.webp',
   sira: './assets/higgsfield/final/portre-sira.webp',
   doran: './assets/higgsfield/final/portre-doran.webp',
   nyx: './assets/higgsfield/final/portre-nyx.webp',
-  konyali: './assets/models/konyali/portre-konyali.webp'
+  konyali: './assets/models/konyali/portre-konyali.webp',
+  // Osmanlı padişahları: yüz portresi yok → renkli madalyon (scripts/padisah-madalyon.mjs üretir)
+  ...Object.fromEntries(PADISAH_IDS.map(id => [id, `./assets/padisah/${id}.svg`]))
 });
 
 /** Portre yüklenemezse eski görsele düşülür (yalnız arketip bazlı). */

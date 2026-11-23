@@ -4,9 +4,10 @@
  * arketipten gelir; karakter farkı görsel + ad + efekt + animasyondur.
  * Kaynak modeller: KayKit Adventurers 1.0 (CC0, Kay Lousberg) — oyunda özgün kimliklerle sunulur.
  */
+import {buildPadisahlar} from './padisahlar.js';
 const freezeDeep=o=>{for(const v of Object.values(o))if(v&&typeof v==='object')freezeDeep(v);return Object.freeze(o);};
 
-export const FIGHTERS=freezeDeep({
+const BASE_FIGHTERS={
  vargr:{
   id:'vargr',name:'Vargr',title:'Kızıl Balta',archetype:'fire',source:'Barbarian',weapon:'Çift başlı savaş baltası',
   model:'./assets/models/vargr/vargr.glb',
@@ -72,9 +73,18 @@ export const FIGHTERS=freezeDeep({
    s:{name:'Hacı Duruşu',short:'Eş kelimede %30 blok',desc:'Yere sağlam basıp darbeyi karşılar; tam zamanlamada savuşturur.',clip:'Block1',fx:'guard'}
   }
  }
-});
+};
+
+/** Temel kadro (kendi modeli/portresi olan 5 dövüşçü) + Osmanlı padişahları (pvp/shared/padisahlar.js; gövde = temel kadrodan biri). */
+export const FIGHTERS=freezeDeep({...BASE_FIGHTERS,...buildPadisahlar(BASE_FIGHTERS)});
 
 export const FIGHTER_IDS=Object.freeze(Object.keys(FIGHTERS));
+export const BASE_FIGHTER_IDS=Object.freeze(Object.keys(BASE_FIGHTERS));
+export const PADISAH_IDS=Object.freeze(FIGHTER_IDS.filter(id=>FIGHTERS[id].padisah));
+/** 3B model/koreografi/efekt/ses için kullanılan gövde kimliği (padişah → temel dövüşçü; diğerleri kendisi). */
+export function fighterBody(id){return typeof id==='string'&&Object.hasOwn(FIGHTERS,id)?FIGHTERS[id].body||id:id;}
+/** Ekranda gösterilecek söz (q/e/r/savunma/zafer/soz); yoksa ''. */
+export function fighterQuote(id,key){return typeof id==='string'&&Object.hasOwn(FIGHTERS,id)?FIGHTERS[id].sozler?.[key]||'':'';}
 export const SHARED_CLIPS=Object.freeze({block:'Blocking',blockHit:'Block_Hit',hit:['Hit_A','Hit_B'],ko:'Death_A',win:'Cheer',idle:'Idle',idleCombat:'2H_Melee_Idle'});
 const DEFAULTS=Object.freeze({fire:'vargr',rune:'doran'});
 

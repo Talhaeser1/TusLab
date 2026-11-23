@@ -10,7 +10,7 @@ import {
   CHOREOGRAPHY, STATE_CLIPS, resolveChoreography, rootMotionAt, skillDuration, createFighterRig, createSkillFx,
   fighterPalette, isKnownFighter, modelUrl, MODEL_VARIANTS,
 } from '../pvp/fighters3d.js';
-import {FIGHTERS, FIGHTER_IDS} from '../pvp/shared/fighters.js';
+import {FIGHTERS, BASE_FIGHTER_IDS as FIGHTER_IDS} from '../pvp/shared/fighters.js';
 import {createArena3D} from '../pvp/arena3d.js';
 import {TURN} from '../pvp/visual-timeline.js';
 import {createArena3DAssist} from '../pvp/arena3d-assist.js';

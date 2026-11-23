@@ -54,7 +54,9 @@ export function fighterInfoHTML(id){
     // Tuş rozeti + ad + açıklama tek satır öbeği (boş kutu yok: rozet yalnız harf taşır).
     return `<li class="j2-skill"><b class="j2-key" aria-hidden="true">${k.toUpperCase()}</b><span class="j2-skill-copy"><b>${esc(sk.name)}</b><small>${esc(sk.desc)}</small></span></li>`;}).join('');
   return `<div class="j2-info-head"><b lang="tr">${esc(f.name)}</b><span>${esc(f.title)}</span><em class="${f.archetype}">${SIDE_LABEL[f.archetype]}</em></div>`
-    +`<p class="j2-weapon"><span>Silah:</span><b>${esc(f.weapon||f.skills.q.short)}</b></p><ul class="j2-skills">${skills}</ul>`;
+    +(f.padisah?`<p class="j2-weapon j2-reign"><span>${f.padisah}. padişah ·</span><b>${esc(f.reign)}</b></p>`:'')
+    +`<p class="j2-weapon"><span>Silah:</span><b>${esc(f.weapon||f.skills.q.short)}</b></p><ul class="j2-skills">${skills}</ul>`
+    +(f.sozler?.soz?`<p class="j2-soz">«${esc(f.sozler.soz)}»</p>`:'');
 }
 /** Karakter dock'u: yuvarlak madalyonlar (radyo grubu; ok tuşlarıyla gezilir) + bilgi kartı `<template>`'leri. */
 export function fighterDockHTML(selected=defaultFighter('fire')){

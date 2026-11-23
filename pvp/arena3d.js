@@ -5,6 +5,7 @@ import {createArenaBloom} from './arena3d-bloom.js';
 import {budgetRatio, createFrameGovernor, PIXEL_BUDGETS} from './perf-governor.js';
 import {buildStage} from './stages3d.js';
 import {DEFAULT_STAGE, normalizeStage} from './shared/stages.js';
+import {fighterBody} from './shared/fighters.js';
 import {
   createFighterRig, createSkillFx, contactDistance as contactGap, dashProgress, travelProgress, chainProgress, frameFighters, isKnownFighter, loadFighterModel, fighterModelUrl, rootMotionAt, skillDuration, COMBO,
   sceneProgress, sceneTurn, SCENE,
@@ -1795,7 +1796,7 @@ export async function createArena3D({
     if (modelsBlocked()) return Promise.resolve(false);
     const jobs = [];
     for (const seat of SEATS) {
-      const id = map?.[seat];
+      const id = fighterBody(map?.[seat]); // padişah → gövde dövüşçüsü (kendi modeli yok; bkz. shared/padisahlar.js)
       if (!isKnownFighter(id)) continue;
       const fighter = fighters.get(seat);
       if (fighter.fighterId === id && (fighter.model || fighter.modelJob)) {

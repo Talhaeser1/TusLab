@@ -6,7 +6,7 @@ import {resolve, dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import * as THREE from '../pvp/vendor/three.module.min.js';
 import {readGlb} from '../scripts/optimize-characters.mjs';
-import {FIGHTERS, FIGHTER_IDS, isFighterId, normalizeFighter} from '../pvp/shared/fighters.js';
+import {FIGHTERS, BASE_FIGHTER_IDS as FIGHTER_IDS, isFighterId, normalizeFighter} from '../pvp/shared/fighters.js';
 import {MODEL_VARIANTS, MODEL_VIEW, CHOREOGRAPHY, SKILL_PROFILES, variantMissingClips, createFighterRig, isKnownFighter, createSkillFx} from '../pvp/fighters3d.js';
 import {createMatch, publicMatch} from '../pvp/shared/match.js';
 import {createArenaMatch, arenaPublicMatch} from '../pvp/shared/arena.js';
@@ -75,7 +75,7 @@ test('K: konyali seçilince üç modda (classic, rounds, arena) maça taşınır
 test('K: bot havuzu, URL parametresi, lobi kartı', () => {
   const human = practiceFighters({fighter: 'konyali'});
   assert.deepEqual([human.character, human.fighter, human.botCharacter], ['rune', 'konyali', 'fire']);
-  assert.equal(practiceFighters({fighter: 'vargr', fighterRng: () => 0.99}).botFighter, 'konyali', 'bot havuzunda Hacı Usta var');
+  assert.equal(practiceFighters({fighter: 'vargr', fighterRng: () => 0.25}).botFighter, 'konyali', 'bot havuzunda Hacı Usta var');
   const s = createPracticeSession({mode: 'classic', fighter: 'vargr', botFighter: 'konyali', rng: () => 0.5, createId: () => 'k'});
   assert.equal(s.botFighter, 'konyali');
   assert.equal(fighterFromUrl('http://x/index.html?karakter=konyali'), 'konyali');

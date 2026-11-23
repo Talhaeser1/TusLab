@@ -6,7 +6,7 @@ import {readFileSync} from 'node:fs';
 import {resolve, dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createPracticeSession, practiceFighters, BOT_ID, HUMAN_ID} from '../pvp/practice.js';
-import {FIGHTERS, FIGHTER_IDS} from '../pvp/shared/fighters.js';
+import {FIGHTERS, BASE_FIGHTER_IDS as FIGHTER_IDS} from '../pvp/shared/fighters.js';
 import {CONTENT_MODES} from '../pvp/shared/content-modes.js';
 import {modePickDecision} from '../pvp/arena-ui.js';
 import {PvPNetworkConsole, networkConsoleHTML, fighterRosterHTML, fighterInfoHTML, botFighterFromUrl, fighterFromUrl} from '../pvp/network.js';
@@ -49,7 +49,7 @@ test('J2: içerik modu seçimi bot oturumuna içerik olarak geçer (lobi seçimi
 const info0 = () => fighterInfoHTML('konyali');
 test('J2: karakterler yalnız ikon; bilgi kartı silah + Q/E/R adı/açıklaması fighters.js\'ten gelir', () => {
   const roster = fighterRosterHTML('sira');
-  assert.deepEqual([...roster.matchAll(/data-fighter="(\w+)" data-side/g)].map(m => m[1]), ['vargr', 'sira', 'doran', 'nyx', 'konyali']);
+  assert.deepEqual([...roster.matchAll(/data-fighter="(\w+)" data-side/g)].map(m => m[1]).slice(0, 5), ['vargr', 'sira', 'doran', 'nyx', 'konyali']);
   assert.equal(FIGHTER_IDS.length, 5);
   assert.doesNotMatch(roster.replace(/<template[\s\S]*?<\/template>/g, ''), /lb3-f-skill|lb3-f-blurb/, 'kartın kendisinde açıklama yok, yalnız portre + ad');
   assert.match(roster, /data-fighter-info/);
@@ -136,7 +136,7 @@ test('J2: fighter2 botu — kök neden: lobi başlatma yolu botFighter\'ı oturu
   assert.equal(fighterFromUrl('http://x/?karakter=konyali&fighter2=sira'), 'konyali', 'fighter2 insan karakterini değiştirmez');
   // Eski davranış: botFighter verilmezse havuzdan RASTGELE (fighterRng) seçilir → URL'deki karakter tutmuyordu.
   assert.equal(practiceFighters({fighter: 'konyali', fighterRng: () => 0}).botFighter, 'vargr');
-  assert.equal(practiceFighters({fighter: 'konyali', fighterRng: () => 0.99}).botFighter, 'sira');
+  assert.equal(practiceFighters({fighter: 'konyali', fighterRng: () => 0.2}).botFighter, 'sira');
   // Düzeltme: PvPNetworkConsole.startPractice botFighter'ı (parametre ya da ?fighter2=) oturuma verir.
   const store = new Map();
   globalThis.localStorage = {getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v))};

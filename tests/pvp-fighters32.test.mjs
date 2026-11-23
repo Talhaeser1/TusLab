@@ -1,7 +1,7 @@
 // Paket 32 — karakter kadrosu: sözleşme, motor yayını, oda FIGHTER_SELECT, bot karakteri, lobi işaretlemesi, maç içi adlar.
 import test,{beforeEach,afterEach} from 'node:test';
 import assert from 'node:assert/strict';
-import {FIGHTERS,FIGHTER_IDS,normalizeFighter,defaultFighter,fighterSide,isFighterId} from '../pvp/shared/fighters.js';
+import {FIGHTERS,BASE_FIGHTER_IDS as FIGHTER_IDS,normalizeFighter,defaultFighter,fighterSide,isFighterId} from '../pvp/shared/fighters.js';
 import {createMatch,publicMatch,matchResult,surrenderMatch} from '../pvp/shared/match.js';
 import {createArenaMatch,arenaPublicMatch} from '../pvp/shared/arena.js';
 import {createPracticeSession,practiceFighters} from '../pvp/practice.js';
@@ -63,8 +63,10 @@ test('bot maçı: insan karakteri arketipi belirler; bot karşı arketipten kara
   const nyx=practiceFighters({fighter:'nyx'});
   assert.deepEqual([nyx.character,nyx.fighter,nyx.botCharacter],['rune','nyx','fire']);
   assert.equal(practiceFighters({fighter:'nyx',rng:()=>0.7}).botFighter,'vargr','deterministik oturumda bot karakteri sabit');
-  assert.ok(['vargr','sira'].includes(practiceFighters({fighter:'nyx'}).botFighter));
-  assert.equal(practiceFighters({fighter:'sira',fighterRng:()=>0.99}).botFighter,'konyali');
+  assert.equal(FIGHTERS[practiceFighters({fighter:'nyx'}).botFighter].archetype,'fire');
+  // Havuz = karşı arketipteki tüm dövüşçüler (padişahlar dahil); 0.99 → havuzun sonu (rün: Kanuni).
+  assert.equal(practiceFighters({fighter:'sira',fighterRng:()=>0.99}).botFighter,'kanuni');
+  assert.equal(practiceFighters({fighter:'sira',fighterRng:()=>0.25}).botFighter,'konyali');
   assert.equal(practiceFighters({fighter:'sira',fighterRng:()=>0}).botFighter,'doran');
   assert.equal(practiceFighters({fighter:'sira',botFighter:'nyx'}).botFighter,'nyx');
   assert.equal(practiceFighters({fighter:'sira',botFighter:'vargr'}).botFighter!=='vargr',true,'bot aynı arketipi alamaz');
@@ -143,9 +145,9 @@ test('oda: geçersiz FIGHTER_SELECT ve maç başladıktan sonra seçim reddedili
 test('lobi işaretlemesi: 5 karakter kartı, radyo grubu, rozet, hikâye, Q/E/R adları, portre yeri',()=>{
   const html=networkConsoleHTML();
   const cards=html.match(/class="lb3-fighter (fire|rune)"/g)||[];
-  assert.equal(cards.length,5);
+  assert.equal(cards.length,15,'5 temel + 10 padişah');
   assert.match(html,/role="radiogroup" aria-labelledby="lb3-hero-title"/);
-  assert.equal((html.match(/data-fighter-portrait="/g)||[]).length,5);
+  assert.equal((html.match(/data-fighter-portrait="/g)||[]).length,15);
   assert.equal((html.match(/role="radio" aria-checked="true"/g)||[]).length,2,'lobi + oda içi grupta birer seçili');
   for(const id of FIGHTER_IDS){
     const f=FIGHTERS[id];

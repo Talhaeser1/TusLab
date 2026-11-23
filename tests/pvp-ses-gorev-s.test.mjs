@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync,statSync} from 'node:fs';
-import {FIGHTER_IDS} from '../pvp/shared/fighters.js';
+import {BASE_FIGHTER_IDS as FIGHTER_IDS} from '../pvp/shared/fighters.js';
 import {createPvPAudio,VOICE_KEYS,EXTRA_NAMES,ANNOUNCE_NAMES,fighterSfxFile,weaponSfx} from '../pvp/sound.js';
 import {createDynamicScore} from '../pvp/music23.js';
 import {createVoiceQueue} from '../pvp/voice-queue.js';
@@ -23,7 +23,7 @@ test('konyali: q/e/r mp3 yolu, hit/ko için dosya yok (istek atılmaz)', () => {
   assert.equal(fighterSfxFile('konyali', 'r'), 'konyali-r.mp3');
   assert.equal(fighterSfxFile('konyali', 'hit'), null);
   assert.equal(fighterSfxFile('konyali', 'ko'), null);
-  assert.equal(fighterSfxFile('vargr', 'q'), 'vargr-q.wav');
+  assert.equal(fighterSfxFile('vargr', 'q'), 'vargr-q.mp3');
   assert.equal(weaponSfx('konyali', 'q'), null);
   for (const id of FIGHTER_IDS) if (id !== 'konyali') assert.ok(weaponSfx(id, 'q'));
 });

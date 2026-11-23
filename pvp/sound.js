@@ -6,7 +6,8 @@
  * preloadFighters(ids) for the fighters of the current match; missing files fall back to the
  * archetype sound (fire-q / rune-e / hit / defeat …).
  */
-import {FIGHTER_IDS,isFighterId,fighterSide} from './shared/fighters.js';
+import {FIGHTERS,FIGHTER_IDS,isFighterId,fighterSide,fighterBody,fighterQuote} from './shared/fighters.js';
+import {showQuote} from './quote-bubble.js';
 import {createVoiceQueue,VOICE_QUEUE} from './voice-queue.js';
 import {createStreakTracker,STREAK_ANNOUNCE} from './streak-sound.js';
 export const SFX_NAMES=Object.freeze([
@@ -20,7 +21,7 @@ export const ALL_SFX_NAMES=Object.freeze([...SFX_NAMES,...FIGHTER_SFX_NAMES]);
 const KNOWN_SFX=new Set(ALL_SFX_NAMES);
 /** Görev S: dosya adı sözleşmesi. Karakter repliği = assets/sfx/replik/<id>-<q|e|r|savunma|zafer|soz>.mp3 */
 export const VOICE_KEYS=Object.freeze(['q','e','r','savunma','zafer','soz']);
-export const voiceKey=(fighterId,key)=>isFighterId(fighterId)&&VOICE_KEYS.includes(key)?`replik/${fighterId}-${key}`:null;
+export const voiceKey=(fighterId,key)=>isFighterId(fighterId)&&FIGHTERS[fighterId].voice!==false&&VOICE_KEYS.includes(key)?`replik/${fighterId}-${key}`:null;
 /** assets/sfx/extra/*.mp3 (silah, blok, kritik, düşme, seyirci, jingle) */
 export const EXTRA_NAMES=Object.freeze(['balta','kilic','mizrak','hancer','isik','meteor','kalkan','blok','kritik','dusme','run',
  'seyirci-baslangic','seyirci-tezahurat','seyirci-ugultu','jingle-2','jingle-3','jingle-4','jingle-5','jingle-6']);
@@ -30,12 +31,13 @@ export const ANNOUNCE_NAMES=Object.freeze(['spiker-raund1','spiker-savas','spike
 const EXTRA_SET=new Set(EXTRA_NAMES),ANNOUNCE_SET=new Set(ANNOUNCE_NAMES);
 /** Temas karesinde çalacak silah sesi (konyalı kendi mp3'ünü playFighter ile çalar → null). */
 const WEAPON_SFX={vargr:{q:'balta',e:'balta',r:'balta'},sira:{q:'mizrak',e:'hancer',r:'hancer'},doran:{q:'kilic',e:'kalkan',r:'meteor'},nyx:{q:'isik',e:'isik',r:'meteor'}};
-export const weaponSfx=(fighterId,skill)=>WEAPON_SFX[fighterId]?.[skill]??null;
+export const weaponSfx=(fighterId,skill)=>WEAPON_SFX[fighterBody(fighterId)]?.[skill]??null;
 /** Karakter efekt dosyası (baseURL'e göre). Konyalı q/e/r → mp3; konyalı hit/ko dosyası yok → null (arketip sesine düşer, 404 yok). */
 export const fighterSfxFile=(fighterId,key)=>{
  if(!isFighterId(fighterId)||!FIGHTER_SFX_KEYS.includes(key))return null;
- if(fighterId==='konyali')return ['q','e','r'].includes(key)?`${fighterId}-${key}.mp3`:null;
- return `${fighterId}-${key}.wav`;
+ const body=fighterBody(fighterId); // padişah: gövde dövüşçüsünün ses dosyası (kendi dosyası yok, 404 olmaz)
+ if(body==='konyali')return ['q','e','r'].includes(key)?`${body}-${key}.mp3`:null;
+ return `${body}-${key}.wav`;
 };
 /** Per-fighter SFX name for key ('q'|'e'|'r'|'hit'|'ko'), or null for unknown fighter/key. */
 export const fighterSfx=(fighterId,key)=>isFighterId(fighterId)&&FIGHTER_SFX_KEYS.includes(key)?`${fighterId}-${key}`:null;
@@ -187,8 +189,8 @@ export function createPvPAudio({storage=globalThis.localStorage, AudioContextCla
  function preloadVoices(ids=[]){
    const list=[...new Set((Array.isArray(ids)?ids:[ids]).filter(isFighterId))];
    for(const id of list){
-     for(const k of VOICE_KEYS)wantedAssets.add(voiceKey(id,k));
-     for(const w of new Set(Object.values(WEAPON_SFX[id]||{})))wantedAssets.add(`extra/${w}`);
+     for(const k of VOICE_KEYS){const v=voiceKey(id,k);if(v)wantedAssets.add(v);}
+     for(const w of new Set(Object.values(WEAPON_SFX[fighterBody(id)]||{})))wantedAssets.add(`extra/${w}`);
    }
    for(const n of ['blok','kritik','dusme','seyirci-baslangic','seyirci-tezahurat','seyirci-ugultu','jingle-2','jingle-3','jingle-4','jingle-5','jingle-6'])wantedAssets.add(`extra/${n}`);
    for(const n of ANNOUNCE_NAMES)wantedAssets.add(`anons/${n}`);
@@ -218,6 +220,7 @@ export function createPvPAudio({storage=globalThis.localStorage, AudioContextCla
    }});
  /** Karakterin kendi repliği (q/e/r/savunma/zafer/soz). Dosya yoksa sessiz. */
  function speak(fighterId,key,{priority=3,gain=.9,ttlMs,cooldownMs=1500}={}){
+   if(!disposed){const text=fighterQuote(fighterId,key);if(text)showQuote(fighterId,key,text);} // padişah sözleri: sesli replik yok, ekranda yazı
    const k=voiceKey(fighterId,key);if(!k||disposed||muted||volume<=0)return false;
    if(!assets.has(k)&&ctx&&!failedAssets.has(k)){ // henüz inmediyse: inince (süresi geçmediyse) sıraya gir
      const t=typeof performance!=='undefined'?performance.now():Date.now(),life=Math.min(ttlMs>0?ttlMs:VOICE_QUEUE.ttlMs,VOICE_QUEUE.staleMs);

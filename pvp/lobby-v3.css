@@ -904,3 +904,24 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
   #pvp-root .lb3.sc *,#pvp-root .lb3.sc *::before,#pvp-root .lb3.sc *::after{transition:none!important;animation:none!important}
 }
 #pvp-root.pvp4-reduced .lb3.sc *,#pvp-root.pvp4-reduced .lb3.sc *::before,#pvp-root.pvp4-reduced .lb3.sc *::after{transition:none!important;animation:none!important}
+
+/* Osmanlı padişahları: yüz portresi yok → madalyon (assets/padisah/<id>.svg). Lobi kartı, büyük yüz ve madalyon dock'u. */
+#pvp-root .lb3-f-art[data-fighter-portrait="osman"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="osman"],#pvp-root .lb3.sc .sc-face[data-face="osman"]{background-image:url('../assets/padisah/osman.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="orhan"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="orhan"],#pvp-root .lb3.sc .sc-face[data-face="orhan"]{background-image:url('../assets/padisah/orhan.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="murad1"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="murad1"],#pvp-root .lb3.sc .sc-face[data-face="murad1"]{background-image:url('../assets/padisah/murad1.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="bayezid1"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="bayezid1"],#pvp-root .lb3.sc .sc-face[data-face="bayezid1"]{background-image:url('../assets/padisah/bayezid1.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="mehmed1"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="mehmed1"],#pvp-root .lb3.sc .sc-face[data-face="mehmed1"]{background-image:url('../assets/padisah/mehmed1.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="murad2"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="murad2"],#pvp-root .lb3.sc .sc-face[data-face="murad2"]{background-image:url('../assets/padisah/murad2.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="fatih"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="fatih"],#pvp-root .lb3.sc .sc-face[data-face="fatih"]{background-image:url('../assets/padisah/fatih.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="bayezid2"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="bayezid2"],#pvp-root .lb3.sc .sc-face[data-face="bayezid2"]{background-image:url('../assets/padisah/bayezid2.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="yavuz"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="yavuz"],#pvp-root .lb3.sc .sc-face[data-face="yavuz"]{background-image:url('../assets/padisah/yavuz.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="kanuni"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="kanuni"],#pvp-root .lb3.sc .sc-face[data-face="kanuni"]{background-image:url('../assets/padisah/kanuni.svg');background-position:center 30%}
+#pvp-root .lb3.sc[data-fighter="osman"] .sc-face[data-face="osman"],#pvp-root .lb3.sc[data-fighter="orhan"] .sc-face[data-face="orhan"],#pvp-root .lb3.sc[data-fighter="murad1"] .sc-face[data-face="murad1"],#pvp-root .lb3.sc[data-fighter="bayezid1"] .sc-face[data-face="bayezid1"],#pvp-root .lb3.sc[data-fighter="mehmed1"] .sc-face[data-face="mehmed1"],#pvp-root .lb3.sc[data-fighter="murad2"] .sc-face[data-face="murad2"],#pvp-root .lb3.sc[data-fighter="fatih"] .sc-face[data-face="fatih"],#pvp-root .lb3.sc[data-fighter="bayezid2"] .sc-face[data-face="bayezid2"],#pvp-root .lb3.sc[data-fighter="yavuz"] .sc-face[data-face="yavuz"],#pvp-root .lb3.sc[data-fighter="kanuni"] .sc-face[data-face="kanuni"]{opacity:1;transform:none}
+
+/* Padişah bilgi kartı: saltanat satırı + söz. Dock: 15 madalyon tek sırada (temel 5 + 10 padişah, araya boşluk). */
+#pvp-root .lb3.sc .j2-soz{margin:0;font-size:15px;font-style:italic;color:var(--f-accent,#ffe08a)}
+@media (min-width:761px) and (min-aspect-ratio:1/1){
+  #pvp-root .pvp6-panel.lb3.sc{--sc-med:clamp(40px,3vw,62px)}
+  #pvp-root .lb3.sc .j2-chars{gap:clamp(8px,0.7vw,14px)}
+}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter[data-fighter="osman"]{margin-left:clamp(8px,1vw,20px)}
