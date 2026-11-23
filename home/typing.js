@@ -1,7 +1,7 @@
 // TuşLab — yazma motoru (İşçi E). Saf JS, ES modülü.
 // Dışa açılan: mountTyper, ensureStyles, h, fingerName, fingerShort, trLower, trUpper,
-// shuffle, fmtTime, loadAll, bumpProgress, normalizeText
-// mountTyper(host, { text, keyboard, onProgress, onFinish, sfx, stream?, onChunk? }) -> { destroy, focus, setKeyboard, stop, stats, item }
+// shuffle, fmtTime, loadAll, bumpProgress, normalizeText, matchStartKey
+// mountTyper(host, { text, keyboard, onProgress, onFinish, sfx, stream?, onChunk? }) -> { destroy, focus, setKeyboard, stop, stats, item, expected }
 //   stream(): sıradaki parça ({ text } ya da metin; null = bitti). onChunk({ item, index, done, stats }). stats.chunks = biten parça.
 import * as LD from './data/lessons.js';
 
@@ -41,6 +41,16 @@ export function h(tag, attrs, ...kids) {
 
 export const trLower = (s) => String(s).toLocaleLowerCase('tr');
 export const trUpper = (s) => String(s).toLocaleUpperCase('tr');
+
+/** Ana ekrandan yazmayı başlatan ilk tuş: beklenen harfle büyük/küçük harf duyarsız (Türkçe i/İ, ı/I) eşleşiyorsa
+ *  beklenen harfi döndürür (doğru sayılır), eşleşmiyorsa '' (hiç aktarılmaz, hata yazılmaz). */
+export function matchStartKey(key, expected) {
+  const k = String(key || '');
+  const e = String(expected || '');
+  if (!k || !e || Array.from(k).length !== 1) return '';
+  if (k === e) return e;
+  return trLower(k) === trLower(e) ? e : '';
+}
 
 export function shuffle(arr) {
   const a = arr.slice();
@@ -621,6 +631,10 @@ export function mountTyper(host, opts = {}) {
     stats,
     get item() {
       return item;
+    },
+    /** Sıradaki beklenen karakter (bittiyse ''). */
+    get expected() {
+      return finished || destroyed ? '' : chars[pos] || '';
     },
   };
 }
