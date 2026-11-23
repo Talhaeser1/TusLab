@@ -90,15 +90,17 @@ function weakText(lesson, weak, len) {
 
 /* ------------------------------------------------------------------ derecelendirme */
 
-function rate(lesson, st) {
+// Yıldızlar (orta zorluk): 1 = hedef hız + hedef doğruluk; 2 = hedefin 1,3 katı hız ve en az %97 doğruluk;
+// 3 = hedefin 1,6 katı hız ve en az %99 doğruluk.
+export function rate(lesson, st) {
   const gW = lesson.goalWpm || 0;
   const gA = lesson.goalAcc || 0;
   const pass = st.acc >= gA && st.wpm >= gW;
   let stars = 0;
   if (pass) {
     stars = 1;
-    if (st.wpm >= gW * 1.25) stars = 2;
-    if (st.acc >= 98 && st.wpm >= gW * 1.5) stars = 3;
+    if (st.wpm >= gW * 1.3 && st.acc >= Math.max(97, gA + 1)) stars = 2;
+    if (st.wpm >= gW * 1.6 && st.acc >= 99) stars = 3;
   }
   return { pass, stars };
 }
@@ -111,6 +113,26 @@ function starsEl(n) {
 
 function lessonRec(all, id) {
   return (all.lessons && all.lessons[id]) || { stars: 0, bestWpm: 0, bestAcc: 0 };
+}
+
+// Açık ders: ilk ders, önceki dersi yıldızlı olan ders ya da daha önce kaydı olan (açılmış) ders.
+// Zorluk artsa da kayıtlı ilerleme (sec.egitim.lessons[id]) kimseyi kilitlemez.
+export function lessonUnlocked(all, i) {
+  if (i <= 0) return true;
+  const prev = LESSONS[i - 1];
+  if (prev && lessonRec(all, prev.id).stars >= 1) return true;
+  const own = LESSONS[i] && all.lessons && all.lessons[LESSONS[i].id];
+  return !!own && ((own.stars || 0) > 0 || (own.bestWpm || 0) > 0);
+}
+
+// Ana ekrandaki "Kaldığın ders" düğmesi ctx.intent = { lesson: 'L07', index: 6 } gönderir.
+// Geçerli ve açık bir dersse o dersin sırasını, değilse -1 döndürür (o zaman ders haritası açılır).
+export function intentLessonIndex(intent, all) {
+  if (!intent || typeof intent !== 'object') return -1;
+  let i = typeof intent.lesson === 'string' ? LESSONS.findIndex((l) => l.id === intent.lesson) : -1;
+  if (i < 0 && Number.isInteger(intent.index) && LESSONS[intent.index]) i = intent.index;
+  if (i < 0) return -1;
+  return lessonUnlocked(all || {}, i) ? i : -1;
 }
 
 function keyLabel(k) {
@@ -147,9 +169,7 @@ export function mountLessons(host, ctx) {
   };
 
   function isUnlocked(i) {
-    if (i <= 0) return true;
-    const prev = LESSONS[i - 1];
-    return !!prev && lessonRec(loadAll(ctx), prev.id).stars >= 1;
+    return lessonUnlocked(loadAll(ctx), i);
   }
 
   function celebrate(pass, stars, record) {
@@ -324,6 +344,8 @@ export function mountLessons(host, ctx) {
       h('div', { class: 'tl-pills' },
         h('span', { class: 'tl-pill' }, 'Hedef ', h('b', null, String(lesson.goalWpm || '?')), ' WPM'),
         h('span', { class: 'tl-pill' }, h('b', null, '%' + (lesson.goalAcc || '?')), ' doğruluk'),
+        h('span', { class: 'tl-pill', title: '2 yıldız: hedef hızın 1,3 katı ve en az %97 doğruluk. 3 yıldız: 1,6 katı ve en az %99.' },
+          '★★★ ', h('b', null, Math.ceil((lesson.goalWpm || 0) * 1.6) + ' WPM'), ' · %99'),
         kbButton()));
     const sec = h('section', { class: 'tl-lesson' }, head);
     if (view.preview) {
@@ -597,6 +619,9 @@ export function mountLessons(host, ctx) {
     });
   }
 
+  // Ana ekrandan belirli bir ders istendiyse harita yerine doğrudan o dersi aç.
+  const startIdx = intentLessonIndex(ctx && ctx.intent, loadAll(ctx));
+  if (startIdx >= 0) Object.assign(view, { name: 'lesson', idx: startIdx, preview: false, last: '' });
   render(false);
 
   return {

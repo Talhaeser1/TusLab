@@ -319,3 +319,8 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 - Karar: ana sayfada #pvp-root gizliyken VS portreleri önden indirilmez (`pvp/cinematic.js`, PvP görünür olunca boşta ısınır); eski sitenin (#app) arka plan görselleri ve tembel `<img>`'leri `html:not(.tlh-legacy)` altında kapalı (`exact-ui.css`, `app.js` 2 `loading="lazy"`). Eski siteyi görselleriyle açmak gerekirse `<html>`'e `.tlh-legacy`.
 - Ölçüm (ajan, dosya boyutlarıyla): 154 → 132 istek, 3074 → 2170 KB. Orkestra: ana sayfada 132 istek, portre/eski görsel isteği yok; lobide 15 portre yükleniyor. Rapor: docs/6-acilis-hizlandirma.md.
 - Ertelenen karar: PvP JS'i (60 dosya, 835 KB) ana sayfada hâlâ iniyor; `pvp/index.js`'i yükleyiciye çevirmek 33 testin okuma yolunu değiştirmeyi gerektirir. `home/data/words.js` (104 KB) kart sayıları için açılışta yükleniyor.
+
+## 24 Kas 2026 — Gece planı: ana ekran "kokpit" + raund sayacı
+- Karar (kullanıcı isteği yorumu): ana ekran üç sütun — solda eğitim metrikleri, ortada Yazma önizlemesi (herhangi bir harfle başlar) + altında Atasözü/Deyim/Şiir/Tekerleme şeridi, sağda Klavye Dersleri + PvP. Atasözü/deyim girişleri yalnız ana ekran ve üst menüde. Plan: docs/9-gece-plani.md; rapor: docs/10-ana-ekran-kokpit.md.
+- Karar: home/ dosyalarındaki önceki oturumdan kalan commit edilmemiş "Merkez" işi kokpitin tabanı olduğu için birlikte commit edildi.
+- Raund sayacı: soluk görünmenin kök nedeni `.fhud2::before` üst karartmasının madalyonun üstüne düşmesi; maske penceresi + altın-mor SVG madalyon (docs/7-raund-sayaci.md).

@@ -1,6 +1,8 @@
 // TuşLab — yazma motoru (İşçi E). Saf JS, ES modülü.
 // Dışa açılan: mountTyper, ensureStyles, h, fingerName, fingerShort, trLower, trUpper,
 // shuffle, fmtTime, loadAll, bumpProgress, normalizeText
+// mountTyper(host, { text, keyboard, onProgress, onFinish, sfx, stream?, onChunk? }) -> { destroy, focus, setKeyboard, stop, stats, item }
+//   stream(): sıradaki parça ({ text } ya da metin; null = bitti). onChunk({ item, index, done, stats }). stats.chunks = biten parça.
 import * as LD from './data/lessons.js';
 
 const FINGERS = LD.FINGERS || {};
@@ -135,12 +137,29 @@ const FINGER_ORDER = ['L5', 'L4', 'L3', 'L2', 'L1', 'T', 'R1', 'R2', 'R3', 'R4',
 
 export function mountTyper(host, opts = {}) {
   ensureStyles();
-  const { onProgress, onFinish, sfx } = opts;
+  const { onProgress, onFinish, onChunk, sfx } = opts;
   let showKb = opts.keyboard !== false;
+  // Akış kipi: opts.stream() her çağrıda sıradaki parçayı ({ text, ... } ya da metin) verir.
+  // Parça bitince sonraki hemen gelir; istatistikler sürer. Bitiş yalnız stop() / Esc / "Bitir" ile.
+  const stream = typeof opts.stream === 'function' ? opts.stream : null;
+  const pull = () => {
+    let nx = null;
+    try {
+      nx = stream();
+    } catch (e) {
+      nx = null;
+    }
+    if (typeof nx === 'string') nx = { text: nx };
+    return nx && normalizeText(nx.text) ? nx : null;
+  };
+  let item = null;
+  if (stream && !normalizeText(opts.text)) item = pull();
 
-  const chars = Array.from(normalizeText(opts.text));
-  const total = chars.length;
-  const status = new Uint8Array(total); // 0 bekliyor, 1 doğru, 2 hata sonrası düzeltildi
+  let chars = Array.from(normalizeText(item ? item.text : opts.text));
+  let total = chars.length;
+  let status = new Uint8Array(total); // 0 bekliyor, 1 doğru, 2 hata sonrası düzeltildi
+  let doneChars = 0; // akış kipinde önceki parçalarda yazılan karakter
+  let chunks = 0; // akış kipinde tamamlanan parça sayısı
   const weak = Object.create(null);
 
   let pos = 0;
@@ -167,6 +186,12 @@ export function mountTyper(host, opts = {}) {
   };
   const stat = (label, b) => h('div', { class: 'tl-stat' }, b, h('span', null, label));
   const statsBar = h('div', { class: 'tl-typer-stats' }, stat('WPM', stEls.wpm), stat('Doğruluk', stEls.acc), stat('Hata', stEls.err), stat('Süre', stEls.time));
+  if (stream) {
+    stEls.cnt = h('b', null, '0');
+    statsBar.classList.add('is-stream');
+    statsBar.append(stat('Metin', stEls.cnt),
+      h('button', { class: 'tl-btn tl-typer-stop', type: 'button', title: 'Oturumu bitir (Esc)', onclick: () => stop() }, 'Bitir', h('kbd', null, 'Esc')));
+  }
   const prog = h('i');
   const progWrap = h('div', { class: 'tl-typer-progress' }, prog);
   const textEl = h('div', { class: 'tl-typer-text' });
@@ -189,23 +214,29 @@ export function mountTyper(host, opts = {}) {
   const kbWrap = h('div', { class: 'tl-kb-wrap' });
   const root = h('div', { class: 'tl-edu tl-typer' }, statsBar, progWrap, box, kbWrap);
 
-  const spans = [];
-  let wordEl = null;
-  for (let i = 0; i < total; i++) {
-    const ch = chars[i];
-    const s = h('span', { class: 'tl-ch' }, ch);
-    spans.push(s);
-    if (ch === ' ') {
-      wordEl = null;
-      textEl.append(s);
-    } else {
-      if (!wordEl) {
-        wordEl = h('span', { class: 'tl-w' });
-        textEl.append(wordEl);
+  let spans = [];
+  function renderText() {
+    spans = [];
+    textEl.replaceChildren(caret);
+    textEl.style.transform = '';
+    let wordEl = null;
+    for (let i = 0; i < total; i++) {
+      const ch = chars[i];
+      const s = h('span', { class: 'tl-ch' }, ch);
+      spans.push(s);
+      if (ch === ' ') {
+        wordEl = null;
+        textEl.append(s);
+      } else {
+        if (!wordEl) {
+          wordEl = h('span', { class: 'tl-w' });
+          textEl.append(wordEl);
+        }
+        wordEl.append(s);
       }
-      wordEl.append(s);
     }
   }
+  renderText();
 
   /* --- klavye --- */
   let kbBuilt = false;
@@ -318,7 +349,7 @@ export function mountTyper(host, opts = {}) {
     const now = performance.now();
     const elapsedMs = started ? (finished ? endT : now) - startT : 0;
     const mins = Math.max(elapsedMs, 1000) / 60000;
-    const wpm = started ? Math.round(pos / 5 / mins) : 0;
+    const wpm = started ? Math.round((doneChars + pos) / 5 / mins) : 0;
     const acc = keystrokes ? Math.round((hits / keystrokes) * 1000) / 10 : 100;
     const weakKeys = {};
     Object.entries(weak)
@@ -326,7 +357,7 @@ export function mountTyper(host, opts = {}) {
       .forEach(([k, v]) => {
         weakKeys[k] = v;
       });
-    return { wpm, acc, errors, elapsedMs, typed: pos, total, weakKeys, keystrokes, hits };
+    return { wpm, acc, errors, elapsedMs, typed: doneChars + pos, total: doneChars + total, weakKeys, keystrokes, hits, chunks };
   }
 
   function paintStats(s) {
@@ -334,6 +365,7 @@ export function mountTyper(host, opts = {}) {
     stEls.acc.textContent = Math.round(s.acc) + '%';
     stEls.err.textContent = String(s.errors);
     stEls.time.textContent = fmtTime(s.elapsedMs);
+    if (stEls.cnt) stEls.cnt.textContent = String(s.chunks);
     prog.style.width = (total ? (pos / total) * 100 : 0) + '%';
   }
 
@@ -376,8 +408,10 @@ export function mountTyper(host, opts = {}) {
       flashKey(ch, false);
       placeCaret();
       updateHint();
-      if (pos >= total) finish();
-      else tick();
+      if (pos >= total) {
+        if (stream) advance();
+        else finish();
+      } else tick();
       return true;
     }
     errors++;
@@ -423,7 +457,10 @@ export function mountTyper(host, opts = {}) {
 
   ta.addEventListener('keydown', (e) => {
     if (e.isComposing || composing) return;
-    if (e.key === 'Backspace') {
+    if (e.key === 'Escape' && stream && !finished) {
+      e.preventDefault();
+      stop();
+    } else if (e.key === 'Backspace') {
       e.preventDefault();
       backspace();
     } else if (e.key === 'Enter') {
@@ -462,6 +499,53 @@ export function mountTyper(host, opts = {}) {
     }
   }
 
+  // Akış kipi: parça bitti -> sayacı artır, sıradakini hemen yükle.
+  function advance() {
+    const prev = item;
+    doneChars += total;
+    chunks++;
+    const nx = pull();
+    if (!nx) {
+      doneChars -= total; // son parça ekranda kalır; sayım çift olmasın
+      finish();
+      return;
+    }
+    item = nx;
+    chars = Array.from(normalizeText(nx.text));
+    total = chars.length;
+    status = new Uint8Array(total);
+    pos = 0;
+    wrong = false;
+    posErr = false;
+    lineH = 0;
+    renderText();
+    paintChar(0);
+    updateHint();
+    placeCaret();
+    const s = stats();
+    paintStats(s);
+    if (onProgress) onProgress(s);
+    if (onChunk) {
+      try {
+        onChunk({ item, index: chunks, done: prev, stats: s });
+      } catch (e) {
+        /* yoksay */
+      }
+    }
+  }
+
+  // Oturumu bitirir (akış kipi için; düz kipte de çalışır). Hiç yazılmadıysa da onFinish çağrılır.
+  function stop() {
+    if (finished || destroyed) return;
+    if (!started) {
+      finished = true;
+      ta.readOnly = true;
+      if (onFinish) onFinish(stats());
+      return;
+    }
+    finish();
+  }
+
   function finish() {
     finished = true;
     endT = performance.now();
@@ -482,6 +566,17 @@ export function mountTyper(host, opts = {}) {
   setKeyboard(showKb);
   paintChar(0);
   updateHint();
+  if (stream && item && onChunk) {
+    setTimeout(() => {
+      if (!destroyed && chunks === 0) {
+        try {
+          onChunk({ item, index: 0, done: null, stats: stats() });
+        } catch (e) {
+          /* yoksay */
+        }
+      }
+    }, 0);
+  }
   let ro = null;
   const onResize = () => {
     lineH = 0;
@@ -522,5 +617,10 @@ export function mountTyper(host, opts = {}) {
     },
     focus,
     setKeyboard,
+    stop,
+    stats,
+    get item() {
+      return item;
+    },
   };
 }
