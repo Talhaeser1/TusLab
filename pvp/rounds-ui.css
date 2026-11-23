@@ -962,3 +962,8 @@
   #pvp-root#pvp-root.rui-inter-open .fhud2-rail{visibility:hidden}
   #pvp-root#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon{width:46px;height:46px}
 }
+
+/* Usta (docs/17): teslim satırı ("Teslim · Raund 1/7'de çekildin") sayı satırından uzun → daha küçük, kırılabilir. */
+.rui-res-line.is-surrender{font-size:clamp(18px,2.2vw,26px);line-height:1.2;text-align:center;overflow-wrap:anywhere}
+/* Teslim satırı uzun: adlar üstte iki sütun, satır altta tam genişlik (adlar harf harf kırılmasın). */
+#pvp-root .pvp15-scene .rui-res-score:has(.rui-res-line.is-surrender){grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"n1 n2" "line line";row-gap:4px}

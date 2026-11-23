@@ -186,7 +186,7 @@
 #pvp-root .lb3 .pvp6-slot.rune{border-color:#3d9dff55;background:#0a1530}
 #pvp-root .lb3-slot-art{position:absolute;inset:0;z-index:-1;background:center 10%/cover no-repeat;opacity:.18;filter:grayscale(1)}
 /* B2B — oda slotları: her iki arketip için neon kolezyum afişi (arena-neon-kolezyum.webp). */
-#pvp-root .lb3 .pvp6-slot .lb3-slot-art{background-image:url('../assets/higgsfield/final/arena-neon-kolezyum.webp')}
+#pvp-root .lb3 .pvp6-slot .lb3-slot-art{background-image:url('../assets/higgsfield/final/arena-neon-kolezyum-kart.webp')}
 #pvp-root .lb3 .pvp6-slot[data-online="true"] .lb3-slot-art{opacity:.7;filter:none}
 #pvp-root .lb3 .pvp6-slot::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,transparent 25%,#0a0620f0)}
 #pvp-root .lb3 .pvp6-player-tag{font-size:12px;font-weight:900;letter-spacing:.14em;color:#ffb48a}
@@ -763,10 +763,10 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
 #pvp-root .lb3.sc .sc-win{position:relative;flex:1 1 0;min-height:72px;max-height:clamp(120px,34vh,420px);clip-path:polygon(7% 0,100% 0,93% 100%,0 100%);background:#0b0820}
 #pvp-root .lb3.sc .sc-win-img{position:absolute;inset:0;display:grid;place-items:center;background:center/cover no-repeat #151030;opacity:0;transition:opacity 300ms ease-out}
 #pvp-root .lb3.sc .sc-win-img b{font:400 56px/1 var(--sc-display);color:#fff}
-#pvp-root .lb3.sc .sc-win-img[data-win="colosseum"]{background-image:url('../assets/higgsfield/final/arena-neon-kolezyum.webp')}
-#pvp-root .lb3.sc .sc-win-img[data-win="skyforge"]{background-image:url('../assets/higgsfield/final/arena-gok-demirhanesi.webp')}
-#pvp-root .lb3.sc .sc-win-img[data-win="runegarden"]{background-image:url('../assets/higgsfield/final/arena-run-bahcesi.webp')}
-#pvp-root .lb3.sc .sc-win-img[data-win="harbor"]{background-image:url('../assets/higgsfield/final/arena-firtina-limani.webp')}
+#pvp-root .lb3.sc .sc-win-img[data-win="colosseum"]{background-image:url('../assets/higgsfield/final/arena-neon-kolezyum-kart.webp')}
+#pvp-root .lb3.sc .sc-win-img[data-win="skyforge"]{background-image:url('../assets/higgsfield/final/arena-gok-demirhanesi-kart.webp')}
+#pvp-root .lb3.sc .sc-win-img[data-win="runegarden"]{background-image:url('../assets/higgsfield/final/arena-run-bahcesi-kart.webp')}
+#pvp-root .lb3.sc .sc-win-img[data-win="harbor"]{background-image:url('../assets/higgsfield/final/arena-firtina-limani-kart.webp')}
 #pvp-root .lb3.sc .sc-win-img[data-win="random"]{background-image:linear-gradient(135deg,#1b1442,#3a2c6a)}
 #pvp-root .lb3.sc[data-stage="colosseum"] .sc-win-img[data-win="colosseum"],#pvp-root .lb3.sc[data-stage="skyforge"] .sc-win-img[data-win="skyforge"],
 #pvp-root .lb3.sc[data-stage="runegarden"] .sc-win-img[data-win="runegarden"],#pvp-root .lb3.sc[data-stage="harbor"] .sc-win-img[data-win="harbor"],
@@ -782,10 +782,10 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
 #pvp-root .pvp6-panel.lb3.sc .j2-arena button.lb3-stage-card:focus-visible{outline:3px solid var(--lb3-focus);outline-offset:3px;opacity:1}
 #pvp-root .lb3.sc .j2-arena .lb3-stage-art{position:absolute;inset:0;display:block;width:auto;aspect-ratio:auto;border:0;border-radius:0;background:center/cover no-repeat #151030;transform:skewX(14deg) scale(1.5);transition:transform 200ms var(--lb3-ease)}
 #pvp-root .lb3.sc .j2-arena .lb3-stage-art::after{content:none}
-#pvp-root .lb3.sc .j2-arena .lb3-stage-art[data-stage-art="colosseum"]{background-image:url('../assets/higgsfield/final/arena-neon-kolezyum.webp')}
-#pvp-root .lb3.sc .j2-arena .lb3-stage-art[data-stage-art="skyforge"]{background-image:url('../assets/higgsfield/final/arena-gok-demirhanesi.webp')}
-#pvp-root .lb3.sc .j2-arena .lb3-stage-art[data-stage-art="runegarden"]{background-image:url('../assets/higgsfield/final/arena-run-bahcesi.webp')}
-#pvp-root .lb3.sc .j2-arena .lb3-stage-art[data-stage-art="harbor"]{background-image:url('../assets/higgsfield/final/arena-firtina-limani.webp')}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-art[data-stage-art="colosseum"]{background-image:url('../assets/higgsfield/final/arena-neon-kolezyum-kart.webp')}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-art[data-stage-art="skyforge"]{background-image:url('../assets/higgsfield/final/arena-gok-demirhanesi-kart.webp')}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-art[data-stage-art="runegarden"]{background-image:url('../assets/higgsfield/final/arena-run-bahcesi-kart.webp')}
+#pvp-root .lb3.sc .j2-arena .lb3-stage-art[data-stage-art="harbor"]{background-image:url('../assets/higgsfield/final/arena-firtina-limani-kart.webp')}
 #pvp-root .lb3.sc .j2-arena .lb3-stage-art[data-stage-art="random"]{background:linear-gradient(135deg,#1b1442,#3a2c6a);border:0}
 #pvp-root .lb3.sc .j2-arena .lb3-stage-art i{background:none;width:auto;height:auto;font-size:28px;font-weight:400;font-family:var(--sc-display);color:#fff}
 #pvp-root .lb3.sc .j2-arena .lb3-stage-name,#pvp-root .lb3.sc .j2-arena .lb3-stage-description{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}

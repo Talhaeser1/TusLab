@@ -7,6 +7,8 @@ const num=n=>Number(n||0).toLocaleString('tr-TR');
 export const END_LABELS=Object.freeze({KNOCKOUT:'NAKAVT',TIME_LIMIT:'SÜRE DOLDU',DISCONNECT_FORFEIT:'BAĞLANTI HÜKMEN YENİLGİ',SURRENDER:'TESLİM OLMA',BOTH_DISCONNECTED:'MAÇ İPTALİ'});
 /** Sonuç sahnesinin arka planı (tam ekran, net): zafer / yenilgi / berabere-iptal. */
 export const RESULT_BG=Object.freeze({victory:'./assets/higgsfield/final/sonuc-zafer.webp',defeat:'./assets/higgsfield/final/sonuc-yenilgi.webp',draw:'./assets/higgsfield/final/ekran-raund-banner.webp',cancelled:'./assets/higgsfield/final/ekran-raund-banner.webp'});
+/** Sonuç ekranı çıkış düğmesi metni: bot/antrenman maçında oda yok → "Lobiye dön". */
+export const leaveLabel=vsBot=>vsBot?'Lobiye dön':'Odadan çık';
 export function resultPanelHTML(){return `<div class="pvp15-backdrop pvp15-scene" data-pvp15-results hidden>
   <img class="pvp15-bgimg" data-pvp15-bg alt="" decoding="async" draggable="false">
   <section class="pvp15-card" role="dialog" aria-modal="true" aria-label="Ruh Düellosu maç sonucu">
@@ -33,8 +35,15 @@ export function resultCardHTML(player,winnerSeat,mvpSeat){
     <div class="pvp15-head"><img class="pvp15-portrait" src="${escapeHTML(portraitFor(player).url)}" alt="" width="768" height="1024" decoding="async" draggable="false" data-portrait="${escapeHTML(portraitFor(player).id)}" data-fallback="${escapeHTML(portraitFor(player).fallback)}">
     <div class="pvp15-player-name"><span>${escapeHTML(player.name)}</span><small>${fighterLabel(player)}${player.seat===mvpSeat?' · MVP':''}</small></div></div>
     <div class="pvp15-figures"><div><strong>${num(player.wpm)}</strong><small>WPM</small></div><div><strong>%${num(player.accuracy)}</strong><small>DOĞRULUK</small></div><div><strong>${num(player.damageDealt)}</strong><small>HASAR</small></div></div>
-    <div class="pvp15-detail">${castTotal(cast)>0?(cast.h!==undefined?`<span>Q / W / E / R: ${num(cast.q)} / ${num(cast.e)} / ${num(cast.h)} / ${num(cast.r)}</span><span>Toplam iyileşme: +${num(player.healDone)}</span>`:`<span>Q / W / R: ${num(cast.q)} / ${num(cast.e)} / ${num(cast.r)}</span>`):''}<span>${num(player.correctWords)} doğru / ${num(player.wrongWords)} yanlış</span><span>En yüksek seri: ${num(player.maxCombo)}</span></div>
+    <div class="pvp15-detail">${castTotal(cast)>0?(cast.h!==undefined?`<span>Q / W / E / R: ${num(cast.q)} / ${num(cast.e)} / ${num(cast.h)} / ${num(cast.r)}</span>${defenseLine(player)}`:`<span>Q / W / R: ${num(cast.q)} / ${num(cast.e)} / ${num(cast.r)}</span>`):''}<span>${num(player.correctWords)} doğru / ${num(player.wrongWords)} yanlış</span><span>En yüksek seri: ${num(player.maxCombo)}</span></div>
   </article>`;
+}
+/* Usta (docs/17, DEVIR-PVP 7): kalkan kuran dövüşçüde (E = kalkan) iyileşme hep +0 görünüyordu. Motor sonucu kalkan toplamı
+ * taşımıyor (yalnız healDone); taşırsa (shieldDone) "Toplam kalkan" yazılır, yoksa satır gizlenir. Kural/motor değişmez. */
+export function defenseLine(player){
+  let shield=false;try{shield=getFighter(player?.fighter,player?.character)?.skills?.e?.defense==='shield';}catch{}
+  if(!shield)return `<span>Toplam iyileşme: +${num(player?.healDone)}</span>`;
+  return player?.shieldDone!==undefined?`<span>Toplam kalkan: ${num(player.shieldDone)}</span>`:'';
 }
 const castTotal=c=>(Number(c?.q)||0)+(Number(c?.e)||0)+(Number(c?.h)||0)+(Number(c?.r)||0); // KESINYAP 21: e = W (motor), h = E (can)
 /** Raund raund hasar şeridi + "en iyi an" satırı modeli (saf; test edilir). Veri yoksa null. */
@@ -83,6 +92,9 @@ export function renderResult(root,match,network){
   // Bot maçında "iki oyuncu/sunucu" dili yanıltıcıydı: bot hep hazırdır, sonuç bu cihazda hesaplanır.
   const vsBot=votes.includes(BOT_ID)||result.players.some(p=>p.playerId===BOT_ID);
   const duration=Math.floor(result.durationMs/1000);overlay.querySelector('[data-pvp15-meta]').textContent=`Savaş süresi ${Math.floor(duration/60)}:${String(duration%60).padStart(2,'0')} · ${vsBot?'Bot maçı · sonuçlar bu cihazda hesaplandı':'İki oyuncunun sunucuda doğrulanmış sonuçları'}`;
+  // Bot maçında oda yoktur: çıkış düğmesi "Lobiye dön" (aynı yol: network.disconnect → PvP lobisi). Çevrimiçi odada "Odadan çık".
+  const leave=overlay.querySelector('[data-pvp15-action="leave"]');
+  if(leave){const label=leaveLabel(vsBot);if(leave.textContent!==label)leave.textContent=label;leave.setAttribute('aria-label',vsBot?'Bot maçını bitir, PvP lobisine dön':'Odadan çık, PvP lobisine dön');}
   const button=overlay.querySelector('[data-pvp15-action="rematch"]');
   button.disabled=!network.myId||network.phase==='rematch_countdown';
   button.textContent=network.phase==='rematch_countdown'?'Rövanş hazırlanıyor…':mine?'Rövanş isteğini geri çek':vsBot?'Rövanşa başla':'Rövanş iste';

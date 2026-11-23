@@ -367,6 +367,15 @@ export function roundsResultModel(result,myId){
   const hpOf=seat=>Number(result.finalHp?.[seat]??result.players?.find(p=>p.seat===seat)?.hp)||0;
   const ko=result.endReason==='KNOCKOUT';
   const mySeat=result.players?.find(p=>p.playerId===myId)?.seat||null;
+  // Usta (docs/17): teslimde kalan can eşit ve oynanmamış raund sayısı yanıltıcıydı ("6.000 – 6.000 · 7 raund").
+  // Yalnız gösterim: kim, hangi raundda çekildi. Raund = tamamlanan raund + 1 (ani ölümde "ani ölümde").
+  if(result.endReason==='SURRENDER'&&(result.winnerSeat===1||result.winnerSeat===2)){
+    const loser=result.winnerSeat===1?2:1,at=list.length+1;
+    const where=at>total?'ani ölümde':`Raund ${at}/${total}'de`;
+    const who=mySeat===loser?`${where} çekildin`:mySeat?`Rakip ${where} çekildi`:`${name(loser)} ${where} çekildi`;
+    return {scoreline:`Teslim · ${who}`,surrender:true,names:[name(1),name(2)],mySeat,rows,
+      reasonLabel:END_REASON_LABELS[result.endReason]||null,lengthLabel:`${total} raundluk maç · ${list.length} raund oynandı`};
+  }
   return {scoreline:`${num(hpOf(1))} – ${num(hpOf(2))} · ${ko?'NAKAVT':`${list.length||total} raund`}`,names:[name(1),name(2)],mySeat,rows,
     reasonLabel:END_REASON_LABELS[result.endReason]||null,lengthLabel:`Kalan can · ${total} raundluk maç · ${num(ROUND_HP)} can`};
 }
@@ -831,7 +840,7 @@ export function renderRoundsResult(root,match,myId,doc=globalThis.document){
   if(model.reasonLabel){const reason=card.querySelector('[data-pvp15-reason]');if(reason)reason.textContent=model.reasonLabel;}
   const score=h('div',{cls:'rui-res-score'},
     h('span',{cls:`rui-res-name rui-col-1${model.mySeat===1?' is-me':''}`,text:model.names[0]}),
-    h('strong',{cls:'rui-res-line',text:model.scoreline,attrs:{'aria-label':`Kalan can ${model.scoreline}`,'data-rounds-scoreline':''}}),
+    h('strong',{cls:`rui-res-line${model.surrender?' is-surrender':''}`,text:model.scoreline,attrs:{'aria-label':model.surrender?model.scoreline:`Kalan can ${model.scoreline}`,'data-rounds-scoreline':''}}),
     h('span',{cls:`rui-res-name rui-col-2${model.mySeat===2?' is-me':''}`,text:model.names[1]}));
   const list=h('ol',{cls:'rui-res-rounds',attrs:{'aria-label':'Raund tablosu: raund başına iki tarafın hasarı'}},...model.rows.map(r=>h('li',{cls:`rui-res-round${r.winnerSeat?` is-seat-${r.winnerSeat}`:' is-draw'}`},
     h('span',{cls:'rui-res-label',text:r.label}),h('b',{text:`Hasar ${r.damage}`}),r.ko?h('em',{cls:'rui-ko',text:'NAKAVT'}):null)));

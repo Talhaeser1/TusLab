@@ -135,6 +135,8 @@ function arena3dButtonSync(){
   button.setAttribute('aria-pressed',String(on));
   button.textContent=on?'◈ 3B arenayı kapat':'◈ 3B arenayı aç';
 }
+/** Usta (docs/17): maç yokken lobi paneli açık → 3B sahne opak lobinin arkasında, çizilmesine gerek yok. */
+function arena3dOccluded(){const panel=document.getElementById('pvp-lobby-panel');return Boolean(panel&&!panel.hidden&&!network.match);}
 async function arena3dCreate(){
   arena3dDestroy();
   const token=arena3d.token;
@@ -145,7 +147,7 @@ async function arena3dCreate(){
   try{
     const [{createArena3D},{createArena3DFx},{createArena3DHpBars,WORLD_HPBARS_ON},{createArena3DAssist}]=await Promise.all([import('./arena3d.js'),import('./arena3d-fx.js'),import('./arena3d-hpbars.js'),import('./arena3d-assist.js')]);
     if(token!==arena3d.token||root.hidden)return;
-    const instance=await createArena3D({root,isReduced:fx24Reduced,onImpact:playImpactFeedback});
+    const instance=await createArena3D({root,isReduced:fx24Reduced,onImpact:playImpactFeedback,isOccluded:arena3dOccluded});
     if(!instance){arena3dButtonSync();return;}
     if(token!==arena3d.token||root.hidden){instance.destroy();return;}
     instance.registerPlugin(createArena3DFx(instance.api));
@@ -179,7 +181,19 @@ function fighterOfSeat(seat){
   return normalizeFighter(p?.fighter,side);
 }
 let lastFighterKey='';
+/** Usta (docs/17): maç yokken (lobi) yalnız oyuncunun SEÇİLİ dövüşçüsü kendi koltuğunda ön ısınır; bot/rakip maç gelince yüklenir.
+ * Önceden varsayılan Vargr + Doran (≈2,3 MB) iniyor, başka seçimde boşa gidiyordu. */
+function lobbyFighterMap(){
+  const id=isFighterId(network.fighter)?network.fighter:null;
+  if(!id)return {};
+  return {[FIGHTERS[id].archetype==='rune'?2:1]:id};
+}
 function arena3dSyncFighters(){
+  if(!network.match){
+    const map=lobbyFighterMap();
+    if(arena3d.instance?.setFighters&&Object.keys(map).length)void arena3d.instance.setFighters(map); // aynı seçim → yeniden yüklemez
+    return;
+  }
   const map={1:fighterOfSeat(1),2:fighterOfSeat(2)};
   const key=`${map[1]}|${map[2]}`;
   if(network.match&&key!==lastFighterKey){lastFighterKey=key;pvpAudio.preloadFighters?.([map[1],map[2]]);void pvpAudio.preloadVoices?.([map[1],map[2]]);}
@@ -784,6 +798,8 @@ function playCombat(action){
   }else if(action.type==='HEAL_APPLIED'&&action.kind==='shield'){
     // Rounds E kalkanı: 2B sahnede de kalkan halkası (aegis; azaltılmış harekette choreography21 sessiz kalır).
     choreographers[action.seat===2?'rune':'fire']?.onDefense('BLOCK');
+    // Usta (docs/17, DEVIR-PVP 8 "kalkan kurma sesi yok"): kalkan kurulunca mevcut kalkan örneği (assets/sfx/shield.mp3) çalar.
+    if(Number(action.shieldAdded)>0)pvpAudio.play('shield',{character:action.seat===2?'rune':'fire',gain:.9});
   }
 }
 function playImpactFeedback(action, scenePresented = true){
@@ -838,6 +854,7 @@ function hitFeelDamage(action){
   }
   if(network.seat===action.toSeat)fx24.lowHp?.hit(Math.min(1,(Number(action.amount)||0)/150));
 }
+root?.addEventListener('tuslab:pvp-fighter',()=>{if(!network.match)arena3dSyncFighters();}); // Usta: lobide seçim değişti → yeni model
 root?.addEventListener('tuslab:pvp-match',()=>{
   const m=network.match;
   if(m?.status==='running'&&m.matchId!==fx24.matchId){fx24.matchId=m.matchId;fx24Clear();arena3d.instance?.clear();}

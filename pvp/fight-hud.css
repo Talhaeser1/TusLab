@@ -685,3 +685,17 @@ html #pvp-root.pvp4-reduced.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .t
 @media (orientation:landscape) and (max-height:500px) and (min-width:600px){
   html #pvp-root#pvp-root[data-layout="fullscreen"]{--fs-bottom:24px}
 }
+/* Usta (docs/17): telefon yatayda (844×390) 444 px'lik yazma paneli 3B dövüşçülerin iç yarısını örtüyordu (dövüşçüler x≈210/630).
+   Panel ortadaki boşluğa sığacak kadar daralır (844'te ≈324 px); kelime 30 px, başlık 12 px kalır. */
+@media (orientation:landscape) and (max-height:500px) and (min-width:600px){
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt{width:clamp(300px,calc(100vw - 520px),520px)}
+}
+/* Usta (docs/17, DEVIR-PVP 5): 761–1100 px'te raylar yazma panelinin ÜSTÜNE hesaplanıyordu (hud-v2 --fhud2-rail-b); panel uzun olunca
+   (800×600'de üstü y≈215) raylar y≈55'e çıkıp üst HUD'u (ad, can barı) örtüyordu. Bu genişlikte panel zaten bottom:150px'te
+   duruyor ve altındaki 150 px raylar için ayrılmış: raylar 1101–1299 px'teki gibi alt köşelerde kalır. */
+@media (min-width:761px) and (max-width:1100px) and (min-height:501px){
+  html #pvp-root.fhud-on .fhud2 .fhud2-rail{bottom:14px}
+}
+/* Usta (docs/17, DEVIR-PVP 12): overflow-wrap:anywhere adın en küçük genişliğini tek harfe indiriyor, yan yazı (karakter adı)
+   yer kapınca "SAVA/ŞÇI" diye kelime ortasından kırılıyordu (800 px). break-word yalnız gerçekten sığmayan kelimeyi böler. */
+#pvp-root .fhud2 .fhud2-name{overflow-wrap:break-word}

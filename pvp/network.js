@@ -354,6 +354,7 @@ export class PvPNetworkConsole {
     this.fighter=id;this.character=FIGHTERS[id].archetype;safeStore(localStorage,FIGHTER_KEY,id);
     if(joined&&this.ws?.readyState===1)this.send('FIGHTER_SELECT',{fighter:id});
     this.render();
+    this.root?.dispatchEvent?.(new CustomEvent('tuslab:pvp-fighter',{detail:{fighter:id}})); // Usta: lobide seçili modeli ön ısıt
   }
   /** Lobi ok tuşları (karakter ikonları · arena karuseli · mod şeridi). İşlediyse true döner. */
   lobbyKey(e){

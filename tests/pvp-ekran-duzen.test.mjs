@@ -75,7 +75,7 @@ test('lobi kadrosu: kesik köşeli neon çerçeve, portreler, afiş zemini, SEÇ
   for(const id of ['vargr','sira','doran','nyx'])
     assert.match(css,new RegExp(`\\.lb3-f-art\\[data-fighter-portrait="${id}"\\]\\{background-image:url\\('\\.\\./assets/higgsfield/final/portre-${id}\\.webp'\\)\\}`));
   assert.match(css,/\.lb3-showcase\.lb3-roster\{[^}]*lobi-afis\.webp/s,'vitrin zemini lobi afişi');
-  assert.match(css,/\.pvp6-slot \.lb3-slot-art\{background-image:url\('\.\.\/assets\/higgsfield\/final\/arena-neon-kolezyum\.webp'\)\}/,'oda slotları neon kolezyum');
+  assert.match(css,/\.pvp6-slot \.lb3-slot-art\{background-image:url\('\.\.\/assets\/higgsfield\/final\/arena-neon-kolezyum-kart\.webp'\)\}/,'oda slotları neon kolezyum (Usta: 800×450 kart sürümü)');
   assert.doesNotMatch(css,/arena-king\.webp|rune-preview\.webp/,'eski oda slot görselleri kalktı');
   assert.match(css,/button\.lb3-fighter\{[^}]*clip-path:polygon\(var\(--f-cut\)/s,'kesik köşe');
   assert.match(css,/button\.lb3-fighter::before\{[^}]*inset:2px;z-index:-1/s,'iç panel çerçeveyi ~2px bırakır');

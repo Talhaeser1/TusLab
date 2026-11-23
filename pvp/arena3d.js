@@ -528,6 +528,8 @@ export async function createArena3D({
   loadModel = null,
   cloneModel = null,
   modelBase = FIGHTER_MODEL_BASE,
+  // Usta (docs/17): sahne tamamen örtülüyken (maç yokken opak lobi) kare çizilmez; ön-ısıtma işleri yine çizer.
+  isOccluded = () => false,
 } = {}) {
   // ---------------------------------------------------------------- guards
   const duel = safeCall(() => root?.querySelector?.('.pvp2-duel')) || null;
@@ -4340,7 +4342,8 @@ export async function createArena3D({
     if (!softwareRenderer && bloom) warmQueue.push({level: 'high', target: bloom.target});
     if (!softwareRenderer) warmQueue.push({level: 'high', target: null});
     warmQueue.push({level: 'low', target: null});
-    if (readyState === 'ready' && !reduced()) warmQueue.push({rehearse: true});
+    // Usta (docs/17): prova koltuk başına ayrı karede (tek ~100–260 ms'lik kare yerine iki yarım); provası yapılmış koltuk atlanır.
+    if (readyState === 'ready' && !reduced()) for (const seat of SEATS) warmQueue.push({rehearse: true, seat});
     warmQueue.push({draw: true});
   }
   function whenWarm(timeoutMs = 60000) {
@@ -4365,8 +4368,10 @@ export async function createArena3D({
    * çağrıları prova boyunca etkisizdir; hasar/can olayı gönderilmez (HUD'a dokunulmaz).
    */
   const rehearsed = new Set();
-  function rehearseFx() {
-    const key = SEATS.map(s => fighters.get(s)?.fighterId || '').join('|');
+  function rehearseFx(only = null) {
+    const seats = SEATS.filter(s => (only === null || s === only) && fighters.get(s)?.fighterId);
+    if (!seats.length) return;
+    const key = seats.map(s => `${s}:${fighters.get(s)?.fighterId || ''}`).join('|');
     if (rehearsed.has(key)) return;
     rehearsed.add(key);
     const quietApi = ['flash', 'shake', 'kick', 'hitStop', 'slowMo', 'superFreeze', 'introSweep', 'cheer'];
@@ -4376,7 +4381,7 @@ export async function createArena3D({
     try {
       const at = new THREE.Vector3(0, -50, 0);
       if (skillFx) {
-        for (const seat of SEATS) {
+        for (const seat of seats) {
           const id = fighters.get(seat)?.fighterId;
           for (const kind of ['spear', 'dagger', 'rune', 'bread', 'meteor', 'column', 'shockring', 'shards', 'swirl']) {
             safeCall(() => skillFx.spawn({kind, from: at.clone(), to: at.clone(), color: 0xffffff, accent: 0xffffff, flight: 300, ms: 300, scale: 1,
@@ -4385,7 +4390,7 @@ export async function createArena3D({
           safeCall(() => skillFx.burst(id, at.clone(), 1));
         }
       }
-      for (const seat of SEATS) {
+      for (const seat of seats) {
         const to = otherSeat(seat);
         const events = [
           ...['q', 'e', 'r'].map(skill => ({type: 'SKILL_CAST', fromSeat: seat, toSeat: to, skill, warm: true})),
@@ -4469,7 +4474,7 @@ export async function createArena3D({
       return;
     }
     if (job.rehearse) {
-      try { rehearseFx(); } catch { /* kozmetik */ }
+      try { rehearseFx(job.seat ?? null); } catch { /* kozmetik */ }
       return;
     }
     const current = effectiveQuality();
@@ -4671,6 +4676,9 @@ export async function createArena3D({
         /* subscriber errors are isolated */
       }
     }
+    // Usta (docs/17): opak lobinin arkasında saniyede 60 boş çizim yapılıyordu. Örtülüyken çizim atlanır
+    // (ön-ısıtma kuyruğu doluysa çizilir: derleme/prova karesi gerekli). Örtü kalkınca ilk tick yine çizer.
+    if (!warmQueue.length && safeCall(() => isOccluded()) === true) return;
     renderFrame();
   }
 
