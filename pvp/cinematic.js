@@ -89,15 +89,28 @@ export function attachCinematic({root, isReduced = () => false, scheduler = glob
   // show() eski zamanlayıcıları temizler: sarsıntı show() SONRASI kurulmalı.
   const shake = delay => { if (reduced()) return; later(() => { root.classList?.add('cin-shake'); later(() => root.classList?.remove('cin-shake'), 340); }, delay); };
   // VS girişindeki dövüşçü resimleri ilk maçta hazır olsun (~400 KB, bir kez; boşta indirilir).
+  // Açılış yükü (rapor 6): ana sayfada #pvp-root gizliyken İNDİRİLMEZ; PvP görünür olunca boşta ısınır.
+  let warmObserver = null;
   try {
     const warm = () => {
       warmTimer = null; warmIdle = null;
       if (typeof globalThis.Image !== 'function') return;
       try { for (const src of Object.values(PORTRAITS)) { const im = new globalThis.Image(); im.decoding = 'async'; im.src = src; } } catch { /* yalnız iyileştirme */ }
     };
-    const idle = globalThis.requestIdleCallback;
-    if (idle) warmIdle = idle(warm, {timeout: 4000});
-    else warmTimer = scheduler.setTimeout(warm, 2500);
+    const schedule = () => {
+      const idle = globalThis.requestIdleCallback;
+      if (idle) warmIdle = idle(warm, {timeout: 4000});
+      else warmTimer = scheduler.setTimeout(warm, 2500);
+    };
+    const MO = globalThis.MutationObserver;
+    if (root.hidden === true && typeof MO === 'function') {
+      warmObserver = new MO(() => {
+        if (root.hidden) return;
+        warmObserver?.disconnect(); warmObserver = null;
+        schedule();
+      });
+      warmObserver.observe(root, {attributes: true, attributeFilter: ['hidden']});
+    } else schedule();
   } catch { /* önyükleme yalnız iyileştirmedir */ }
 
   function ensureLayer() {
@@ -226,6 +239,7 @@ export function attachCinematic({root, isReduced = () => false, scheduler = glob
       if (warmTimer !== null) scheduler.clearTimeout(warmTimer);
       if (warmIdle !== null) globalThis.cancelIdleCallback?.(warmIdle);
       warmTimer = warmIdle = null;
+      warmObserver?.disconnect(); warmObserver = null;
       for (const k of Object.keys(seq)) if (seq[k] !== null) { scheduler.clearTimeout(seq[k]); seq[k] = null; }
       root.removeEventListener('tuslab:pvp-cinematic', onMatch);
       root.removeEventListener('tuslab:pvp-round', onRound);

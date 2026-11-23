@@ -314,3 +314,8 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 ## 23 Kas 2026 — Ana ekran kartları (kutular) güzelleştirme
 - Karar: "kutular" = ana ekrandaki 4 bölüm kartı + istatistik kutusu + görev çipi. Yazma/Dersler/Edebiyat kartlarına elle yazılmış SVG görsel (`assets/home/kart-*.svg`, CSS arka planı), eşit hiza, odak halkası, azaltılmış harekette dönüşüm yok. Rapor: docs/5-ana-ekran-kartlari.md.
 - Optimizasyon: ana ekrandaki ağır yük home/'dan değil `index.html`'deki pvp modülü ve `pvp/cinematic.js:96` portre ön yüklemesinden geliyor; dokunulmadı, ayrı iş.
+
+## 24 Kas 2026 — Açılış hızlandırma (ana sayfa)
+- Karar: ana sayfada #pvp-root gizliyken VS portreleri önden indirilmez (`pvp/cinematic.js`, PvP görünür olunca boşta ısınır); eski sitenin (#app) arka plan görselleri ve tembel `<img>`'leri `html:not(.tlh-legacy)` altında kapalı (`exact-ui.css`, `app.js` 2 `loading="lazy"`). Eski siteyi görselleriyle açmak gerekirse `<html>`'e `.tlh-legacy`.
+- Ölçüm (ajan, dosya boyutlarıyla): 154 → 132 istek, 3074 → 2170 KB. Orkestra: ana sayfada 132 istek, portre/eski görsel isteği yok; lobide 15 portre yükleniyor. Rapor: docs/6-acilis-hizlandirma.md.
+- Ertelenen karar: PvP JS'i (60 dosya, 835 KB) ana sayfada hâlâ iniyor; `pvp/index.js`'i yükleyiciye çevirmek 33 testin okuma yolunu değiştirmeyi gerektirir. `home/data/words.js` (104 KB) kart sayıları için açılışta yükleniyor.

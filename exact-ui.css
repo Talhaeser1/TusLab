@@ -125,3 +125,10 @@ body::before{background:linear-gradient(180deg,#00051e24,#05032105 50%,#08031f25
  #panel-home .phase4-launch{height:46px!important}
 }
 @media(max-height:820px){.global-header{height:50px!important;min-height:50px!important;max-height:50px!important}}
+
+/* Açılış yükü (docs/6-acilis-hizlandirma.md): eski site (#app) kullanıcıya hiç gösterilmez (ana sayfa/PvP üstte,
+   home.js html.tlh-app-off). Arka plan görselleri ve tembel <img>'leri ilk boyamada (home.js çalışmadan önce)
+   istendiği için kural sınıfa bağlı DEĞİL; eski siteyi görselleriyle açmak gerekirse <html>'e .tlh-legacy eklenir. */
+html:not(.tlh-legacy) body{background-image:none!important}
+html:not(.tlh-legacy) #app *,html:not(.tlh-legacy) #app *::before,html:not(.tlh-legacy) #app *::after{background-image:none!important}
+html:not(.tlh-legacy) #app img[loading="lazy"]{display:none!important}
