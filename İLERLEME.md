@@ -298,3 +298,10 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 - Ölçüm: npm test 974/974; Playwright (Edge) uçtan uca: ana sayfa, günün dizesi, ders 1 (3 yıldız), tekrar farklı metin, atasözü, Hız Arenası geçişi + ⌂ dönüş, PvP açılışı etkilenmiyor, 390 px'te yatay kaydırma yok; sayfa hatası 0.
 - Ortam: makinede node/git yoktu → node v22.23.5 (nodejs.org, SHA256 doğrulandı) ve playwright 1.56.1 oturumun geçici klasörüne kuruldu. git bulunamadığı için COMMIT YAPILAMADI.
 - Açık: şiirler hafızadan yazıldı, bir Türkçe okurun gözden geçirmesi iyi olur; telefonda Backspace/IME davranışı gerçek cihazda denenmedi; GitHub'dan beceri kurulmadı (CLAUDE.md: dışarıdan kod indirip çalıştıran komutlar yasak).
+- Ek (aynı gün): git winget ile kuruldu, ilk iş a544772 olarak commit edildi.
+
+## 23 Kas 2026 — Ana sayfa v2: tek ekran Yazma Arenası (kullanıcı ilkini beğenmedi)
+- Karar: ana sayfa kaymaz (tek ekran). Merkezde doğrudan yazma alanı (home/arena.js metin seçici + typing.js yazıcı); üstte tür çipleri: Atasözü (zor, 3'lü zincir) / Şiir / Deyim / Tekerleme / Özdeyiş / Kelime. Oturumda aynı metin tekrar gelmez. Sonuçta büyük WPM + rütbe + konfeti, Enter = sonraki metin; kombo sayacı.
+- Karar: eski sayfalara götüren düğmeler kaldırıldı. Hız Arenası kartı yok (yazma alanı onun yerine); Performans artık ana sayfa içinde yerel görünüm (#performans: son 20 sonuç grafiği, zayıf tuşlar; veri tuslab-home-v1 history/weak). Üst menü: Yazma · Klavye Dersleri · Şiir & Atasözü · PvP Düello (?pvp=practice) · Performans. PvP kapanınca ana sayfa geri gelir.
+- Karar: kırmızı boss (Harf Muhafızı) sahneden çıkarıldı; adada Nyx ve Konyalı durur. Geniş ekranda sahne sağ sütuna kaydırılır (setViewOffset). Ana sayfa açıkken alttaki eski sayfa kilitli (html.tlh-lock).
+- Ölçüm: Playwright 1440×900 / 1366×768 / 1920×1080 / 390×844'te #tl-home kaymıyor; 6 tür metin geliyor; bölümler arası geçişten sonra Ana Sayfa tek adımda dönüyor; PvP açılışı etkilenmiyor; sayfa hatası 0; npm test 974/974.

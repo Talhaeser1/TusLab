@@ -1,5 +1,7 @@
-/* TuşLab yeni ana sayfa kabuğu (klasik defer betik). Diğer home/ modüllerini dinamik import ile yükler.
- * ?pvp= varsa hiç açılmaz; #pvp-root görünür olunca veya tuslab:pvp-enter olayında gizlenir. */
+/* TuşLab ana sayfa kabuğu (klasik defer betik). Diğer home/ modüllerini dinamik import ile yükler.
+ * Ana ekranın kalbi doğrudan yazma alanı (Yazma Arenası); metin türü üstteki çiplerden seçilir.
+ * ?pvp= varsa hiç açılmaz; #pvp-root görünür olunca veya tuslab:pvp-enter olayında gizlenir.
+ * Eski uygulama sayfalarına (Hız Arenası, Performans) artık hiçbir düğme götürmez. */
 (() => {
   'use strict';
   if (window.__tlHomeLoaded) return;
@@ -11,7 +13,7 @@
   const ROOT = new URL('../', BASE).href;                // site kökü
   const loadMod = (file) => import(BASE + file);
   const KEY = 'tuslab-home-v1';
-  const VIEW_IDS = ['egitim', 'edebiyat'];
+  const VIEW_IDS = ['egitim', 'edebiyat', 'performans'];
 
   /* ---------- yardımcılar ---------- */
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -30,6 +32,8 @@
     if (!d.sec || typeof d.sec !== 'object') d.sec = {};
     if (!d.badges || typeof d.badges !== 'object') d.badges = {};
     if (!d.stats || typeof d.stats !== 'object') d.stats = {};
+    if (!Array.isArray(d.history)) d.history = [];
+    if (!d.weak || typeof d.weak !== 'object') d.weak = {};
     return d;
   }
   let data = readStore();
@@ -75,11 +79,11 @@
   /* ---------- görevler ve rozetler ---------- */
   const QUESTS = {
     lesson: { icon: '🎓', text: 'Bugün 1 ders bitir' },
-    acc98: { icon: '🎯', text: 'Bir atasözünü ya da dizeyi %98 doğrulukla yaz' },
-    daily: { icon: '📜', text: 'Günün Dizesini yaz' },
+    acc98: { icon: '🎯', text: 'Bir metni %98 doğrulukla yaz' },
+    daily: { icon: '⌨️', text: 'Ana ekranda 2 metin bitir', need: 2 },
     wpm35: { icon: '⚡', text: '35+ WPM hıza ulaş' },
     lit: { icon: '🪶', text: 'Şiir & Atasözü köşesinde bir metin bitir' },
-    arena: { icon: '🏟️', text: 'Hız Arenası\'na uğra' },
+    arena: { icon: '🧿', text: 'Atasözü modunda bir metin bitir' },
   };
   function todaysQuestIds() {
     const rot = ['daily', 'wpm35', 'lit', 'arena'];
@@ -90,7 +94,7 @@
   }
   function questState(d = data) {
     const t = today();
-    return d.quests && d.quests.date === t ? d.quests : { date: t, done: {} };
+    return d.quests && d.quests.date === t ? d.quests : { date: t, done: {}, count: {} };
   }
   const BADGES = [
     { id: 'ilk', icon: '🌱', name: 'İlk Adım', test: d => num(d.stats.finished) >= 1 },
@@ -112,12 +116,12 @@
   };
 
   /* ---------- DOM ---------- */
-  const CARDS = [
-    { id: 'egitim', icon: '🎓', kicker: 'Eğitim', title: 'Klavye Dersleri', desc: 'F-J\'den Ğ, Ş, Ç, İ\'ye adım adım. Her derste yıldız topla.', acc: 'var(--tl-cyan)' },
-    { id: 'edebiyat', icon: '🪶', kicker: 'Edebiyat', title: 'Şiir & Atasözü', desc: 'Ustaların dizeleri, zorlu atasözleri ve dil döndüren tekerlemeler.', acc: 'var(--tl-violet)' },
-    { id: 'arena', icon: '🏟️', kicker: 'Hız', title: 'Hız Arenası', desc: 'Klasik hız testi, maceralar ve rekor avı.', acc: 'var(--tl-gold)' },
-    { id: 'pvp', icon: '⚔️', kicker: 'Düello', title: 'PvP Düello', desc: 'Yazarak dövüş: antrenman ya da çevrimiçi rakip.', acc: 'var(--tl-ember)' },
-    { id: 'analytics', icon: '📈', kicker: 'Analiz', title: 'Performans', desc: 'Hız, doğruluk ve zayıf tuş haritan.', acc: 'var(--tl-ok)' },
+  const NAV = [
+    { id: 'home', icon: '⌨️', label: 'Yazma' },
+    { id: 'egitim', icon: '🎓', label: 'Klavye Dersleri' },
+    { id: 'edebiyat', icon: '🪶', label: 'Şiir & Atasözü' },
+    { id: 'pvp', icon: '⚔️', label: 'PvP Düello' },
+    { id: 'performans', icon: '📈', label: 'Performans' },
   ];
 
   const root = document.createElement('div');
@@ -128,66 +132,54 @@
   root.innerHTML = `
 <div class="tlh-scene tlh-scene--fallback" aria-hidden="true"></div>
 <div class="tlh-shade" aria-hidden="true"></div>
+<div class="tlh-aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+<header class="tlh-top">
+  <a class="tlh-logo" href="${esc(location.pathname)}" aria-label="TuşLab ana sayfa">
+    <img src="${esc(ROOT)}favicon.svg" alt="" width="34" height="34" /><span>Tuş<b>Lab</b></span>
+  </a>
+  <nav class="tlh-nav" aria-label="Bölümler">
+    ${NAV.map(n => n.id === 'pvp'
+      ? `<a class="tlh-nav-btn" href="?pvp=practice&amp;mode=classic" data-nav="pvp"><span aria-hidden="true">${n.icon}</span><em>${esc(n.label)}</em></a>`
+      : `<button type="button" class="tlh-nav-btn${n.id === 'home' ? ' is-on' : ''}" data-nav="${n.id}"${n.id === 'home' ? ' aria-current="page"' : ''}><span aria-hidden="true">${n.icon}</span><em>${esc(n.label)}</em></button>`).join('')}
+  </nav>
+  <div class="tlh-stats" aria-label="Oyuncu durumu">
+    <span class="tlh-chip tlh-chip--lv" title="Seviye"><b data-s="lv">Sv. 1</b><i class="tlh-xp"><i data-s="xp"></i></i></span>
+    <span class="tlh-chip" title="En iyi hız">⚡ <b data-s="wpm">0</b><small> WPM</small></span>
+    <span class="tlh-chip" title="Günlük seri">🔥 <b data-s="streak">0</b><small> gün</small></span>
+  </div>
+  <button type="button" class="tlh-sound" aria-pressed="true" aria-label="Sesi kapat"><span aria-hidden="true">🔊</span></button>
+</header>
 <div class="tlh-menu">
-  <header class="tlh-top">
-    <a class="tlh-logo" href="${esc(location.pathname)}" aria-label="TuşLab ana sayfa">
-      <img src="${esc(ROOT)}favicon.svg" alt="" width="34" height="34" /><span>Tuş<b>Lab</b></span>
-    </a>
-    <div class="tlh-stats" aria-label="Oyuncu durumu">
-      <span class="tlh-chip tlh-chip--lv" title="Seviye"><b data-s="lv">Sv. 1</b><i class="tlh-xp"><i data-s="xp"></i></i></span>
-      <span class="tlh-chip" title="Toplam ders yıldızı">⭐ <b data-s="stars">0</b></span>
-      <span class="tlh-chip" title="En iyi hız">⚡ <b data-s="wpm">0</b><small> WPM</small></span>
-      <span class="tlh-chip" title="Günlük seri">🔥 <b data-s="streak">0</b><small> gün</small></span>
-    </div>
-    <button type="button" class="tlh-sound" aria-pressed="true" aria-label="Sesi kapat"><span aria-hidden="true">🔊</span></button>
-  </header>
   <main class="tlh-main">
-    <section class="tlh-hero">
-      <p class="tlh-eyebrow">NEON ARENA · TÜRKÇE KLAVYE</p>
-      <h1 class="tlh-title">Parmakların <span>ışık hızında</span></h1>
-      <p class="tlh-slogan">Ders ders öğren, şiirle ısın, düelloda rakibini yazarak yen. Her gün biraz daha hızlı.</p>
-      <div class="tlh-cta">
-        <button type="button" class="tlh-btn tlh-btn--primary" data-tlh="start">Hemen Başla <span aria-hidden="true">→</span></button>
-        <button type="button" class="tlh-btn tlh-btn--ghost" data-tlh="to-daily">Günün Dizesi</button>
+    <section class="tlh-arena" aria-labelledby="tlh-arena-h">
+      <div class="tlh-arena-head">
+        <h1 id="tlh-arena-h" class="tlh-arena-title"><span class="tlh-arena-ic" aria-hidden="true">⌨️</span>Yazma <b>Arenası</b></h1>
+        <div class="tlh-combo" aria-hidden="true"><b data-s="combo">0</b><small>KOMBO</small></div>
       </div>
+      <div class="tlh-modes" role="radiogroup" aria-label="Metin türü"></div>
+      <div class="tlh-arena-typer"><div class="tlh-loading">Yükleniyor…</div></div>
+      <div class="tlh-arena-foot">
+        <span class="tlh-src" data-s="src"></span>
+        <button type="button" class="tlh-next" data-tlh="next">↻ Yeni metin</button>
+      </div>
+      <div class="tlh-result" hidden></div>
     </section>
-    <section class="tlh-cards" aria-label="Menü">
-      ${CARDS.map((c, i) => `
-      <article class="tlh-card" data-card="${c.id}" style="--acc:${c.acc};--i:${i}">
-        ${c.id === 'pvp'
-          ? `<a class="tlh-card-main" href="?pvp=practice&amp;mode=classic" data-card-main="${c.id}">`
-          : `<button type="button" class="tlh-card-main" data-card-main="${c.id}">`}
-          <span class="tlh-card-icon" aria-hidden="true">${c.icon}</span>
-          <span class="tlh-card-kicker">${esc(c.kicker)}</span>
-          <span class="tlh-card-title">${esc(c.title)}</span>
-          <span class="tlh-card-desc">${esc(c.desc)}</span>
-          <span class="tlh-card-go" aria-hidden="true">${c.id === 'pvp' ? 'Antrenman →' : 'Aç →'}</span>
-        ${c.id === 'pvp' ? '</a>' : '</button>'}
-        ${c.id === 'pvp' ? '<button type="button" class="tlh-card-alt" data-tlh="pvp-online">🌐 Çevrimiçi lobi</button>' : ''}
-      </article>`).join('')}
-    </section>
-    <div class="tlh-row">
-      <section class="tlh-panel tlh-daily" id="tlh-daily" aria-labelledby="tlh-daily-h">
-        <div class="tlh-panel-head">
-          <h2 id="tlh-daily-h">📜 Günün Dizesi</h2>
-          <span class="tlh-daily-src" data-s="src"></span>
-        </div>
-        <div class="tlh-daily-typer"><div class="tlh-loading">Yükleniyor…</div></div>
-        <div class="tlh-daily-result" hidden></div>
-      </section>
+    <aside class="tlh-side">
+      <div class="tlh-hero">
+        <p class="tlh-eyebrow">NEON ARENA · TÜRKÇE KLAVYE</p>
+        <p class="tlh-title">Parmakların <span>ışık hızında</span></p>
+      </div>
       <section class="tlh-panel tlh-quests" aria-labelledby="tlh-quests-h">
         <div class="tlh-panel-head"><h2 id="tlh-quests-h">🗓️ Günlük Görevler</h2><span class="tlh-quest-count" data-s="qcount"></span></div>
         <ul class="tlh-quest-list"></ul>
-        <h3 class="tlh-sub">Rozetler</h3>
-        <ul class="tlh-badges"></ul>
+        <ul class="tlh-badges" aria-label="Rozetler"></ul>
       </section>
-    </div>
-    <footer class="tlh-foot">TuşLab · Türkçe Q klavye için kişisel koç</footer>
+    </aside>
   </main>
 </div>
 <section class="tlh-view" hidden aria-labelledby="tlh-view-h">
   <header class="tlh-view-top">
-    <button type="button" class="tlh-btn tlh-btn--ghost tlh-back" data-tlh="back" aria-label="Ana menüye dön">← Ana Menü</button>
+    <button type="button" class="tlh-btn tlh-btn--ghost tlh-back" data-tlh="back" aria-label="Ana sayfaya dön">← Ana Sayfa</button>
     <h2 id="tlh-view-h" class="tlh-view-title"></h2>
   </header>
   <div class="tlh-view-body"></div>
@@ -208,8 +200,10 @@
   const viewTitle = $('.tlh-view-title');
   const toastHost = $('.tlh-toasts');
   const soundBtn = $('.tlh-sound');
-  const dailyHost = $('.tlh-daily-typer');
-  const dailyResult = $('.tlh-daily-result');
+  const arenaHost = $('.tlh-arena-typer');
+  const resultEl = $('.tlh-result');
+  const modesEl = $('.tlh-modes');
+  const comboEl = $('.tlh-combo');
 
   /* ---------- toast + konfeti ---------- */
   function toast(msg) {
@@ -235,9 +229,9 @@
     if (!g) { c.remove(); return; }
     g.scale(dpr, dpr);
     const colors = ['#ff7a2f', '#ffc861', '#3fe0ff', '#8b5cff', '#45e39a', '#eef1ff'];
-    const parts = Array.from({ length: 150 }, () => ({
-      x: w / 2 + (Math.random() - 0.5) * w * 0.3, y: h * 0.55,
-      vx: (Math.random() - 0.5) * 14, vy: -8 - Math.random() * 12,
+    const parts = Array.from({ length: 160 }, () => ({
+      x: w * 0.35 + (Math.random() - 0.5) * w * 0.3, y: h * 0.5,
+      vx: (Math.random() - 0.5) * 15, vy: -8 - Math.random() * 12,
       s: 5 + Math.random() * 6, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4,
       col: colors[(Math.random() * colors.length) | 0],
     }));
@@ -263,7 +257,6 @@
     set('lv', 'Sv. ' + lv);
     const bar = root.querySelector('[data-s="xp"]');
     if (bar) bar.style.width = Math.round(((xp - a) / Math.max(1, b - a)) * 100) + '%';
-    set('stars', lessonStars());
     set('wpm', bestWpm());
     set('streak', streakNow());
 
@@ -271,27 +264,28 @@
     const q = questState();
     const done = ids.filter(id => q.done[id]).length;
     set('qcount', `${done}/${ids.length}`);
-    $('.tlh-quest-list').innerHTML = ids.map(id => `
+    $('.tlh-quest-list').innerHTML = ids.map(id => {
+      const need = QUESTS[id].need;
+      const cnt = need && !q.done[id] ? ` <small>${Math.min(need, num(q.count && q.count[id]))}/${need}</small>` : '';
+      return `
       <li class="tlh-quest${q.done[id] ? ' is-done' : ''}">
         <span class="tlh-quest-icon" aria-hidden="true">${QUESTS[id].icon}</span>
-        <span class="tlh-quest-text">${esc(QUESTS[id].text)}</span>
+        <span class="tlh-quest-text">${esc(QUESTS[id].text)}${cnt}</span>
         <span class="tlh-quest-mark">${q.done[id] ? '<span aria-hidden="true">✓</span><span class="tlh-sr">tamamlandı</span>' : '<span class="tlh-sr">bekliyor</span>'}</span>
-      </li>`).join('');
+      </li>`;
+    }).join('');
     $('.tlh-badges').innerHTML = BADGES.map(bd => {
       const got = !!data.badges[bd.id];
-      return `<li class="tlh-badge${got ? ' is-got' : ''}" title="${esc(bd.name)}${got ? '' : ' (kilitli)'}"><span aria-hidden="true">${bd.icon}</span><small>${esc(bd.name)}</small>${got ? '' : '<span class="tlh-sr"> kilitli</span>'}</li>`;
+      return `<li class="tlh-badge${got ? ' is-got' : ''}" title="${esc(bd.name)}${got ? '' : ' (kilitli)'}"><span aria-hidden="true">${bd.icon}</span><span class="tlh-sr">${esc(bd.name)}${got ? '' : ' kilitli'}</span></li>`;
     }).join('');
 
-    const started = lessonStars() > 0 || !!(data.sec.egitim && Object.keys(data.sec.egitim).length);
-    const startBtn = root.querySelector('[data-tlh="start"]');
-    if (startBtn) startBtn.firstChild.textContent = started ? 'Kaldığın Yerden Devam ' : 'Hemen Başla ';
     soundBtn.setAttribute('aria-pressed', String(sfx.enabled));
     soundBtn.setAttribute('aria-label', sfx.enabled ? 'Sesi kapat' : 'Sesi aç');
     soundBtn.firstElementChild.textContent = sfx.enabled ? '🔊' : '🔇';
   }
 
-  /** İlerleme olaylarını işler: görevler, seri, rozetler. */
-  function progress({ quests = [], finished = false, wpm = 0, acc = 0 } = {}) {
+  /** İlerleme olaylarını işler: görevler, seri, rozetler, geçmiş, zayıf tuşlar. */
+  function progress({ quests = [], finished = false, wpm = 0, acc = 0, mode = '', weak = null } = {}) {
     const msgs = [];
     let record = false;
     update(d => {
@@ -299,6 +293,13 @@
         d.stats.finished = num(d.stats.finished) + 1;
         if (acc >= 100) d.stats.perfect = num(d.stats.perfect) + 1;
         touchStreak(d);
+        if (wpm > 0) {
+          d.history.push({ t: Date.now(), wpm: Math.round(wpm), acc: Math.round(acc * 10) / 10, m: mode });
+          if (d.history.length > 40) d.history = d.history.slice(-40);
+        }
+      }
+      if (weak && typeof weak === 'object') {
+        for (const [k, v] of Object.entries(weak)) if (k.trim()) d.weak[k] = num(d.weak[k]) + num(v);
       }
       if (wpm > 0) {
         if (wpm > num(d.bestWpm) && wpm > bestWpm(d) && num(d.stats.finished) > 1) record = true;
@@ -308,8 +309,12 @@
       if (acc >= 98) quests.push('acc98');
       const ids = todaysQuestIds();
       const q = questState(d);
+      if (!q.count || typeof q.count !== 'object') q.count = {};
       for (const id of quests) {
-        if (ids.includes(id) && !q.done[id]) {
+        if (!ids.includes(id) || q.done[id]) continue;
+        const need = QUESTS[id].need || 1;
+        q.count[id] = num(q.count[id]) + 1;
+        if (q.count[id] >= need) {
           q.done[id] = true;
           d.stats.quests = num(d.stats.quests) + 1;
           msgs.push('Görev tamamlandı: ' + QUESTS[id].text);
@@ -324,6 +329,7 @@
     if (record) { toast('Yeni rekor! ' + Math.round(wpm) + ' WPM'); setTimeout(() => sfx.voice('record'), 900); }
     msgs.forEach((m, i) => setTimeout(() => { toast(m); sfx.chime(); }, 300 + i * 700));
     renderStats();
+    return { record };
   }
 
   /** Alt bölümün kaydettiği nesneden tamamlanmış bir sonuç (wpm/acc) çıkarmaya çalışır. */
@@ -336,10 +342,46 @@
   }
   const normAcc = (a) => { a = num(a); return a > 0 && a <= 1 ? a * 100 : a; };
 
+  /* ---------- Performans (yerel görünüm, eski sayfaya gitmez) ---------- */
+  function mountPerf(host) {
+    const d = readStore();
+    const hist = d.history.slice(-20);
+    const last10 = d.history.slice(-10);
+    const avg = (arr, k) => arr.length ? Math.round(arr.reduce((a, x) => a + num(x[k]), 0) / arr.length) : 0;
+    const maxW = Math.max(40, ...hist.map(x => num(x.wpm)));
+    const weak = Object.entries(d.weak).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const maxWeak = weak.length ? weak[0][1] : 1;
+    const MODE_NAME = { atasozu: 'Atasözü', siir: 'Şiir', deyim: 'Deyim', tekerleme: 'Tekerleme', ozdeyis: 'Özdeyiş', kelime: 'Kelime' };
+    const tiles = [
+      ['⚡', 'En iyi hız', bestWpm(d) + ' WPM', 'var(--tl-gold)'],
+      ['📊', 'Son 10 ortalama', avg(last10, 'wpm') + ' WPM', 'var(--tl-cyan)'],
+      ['🎯', 'Ortalama doğruluk', '%' + avg(last10, 'acc'), 'var(--tl-ok)'],
+      ['✅', 'Biten metin', String(num(d.stats.finished)), 'var(--tl-violet)'],
+      ['🔥', 'Günlük seri', streakNow(d) + ' gün', 'var(--tl-ember)'],
+      ['⭐', 'Ders yıldızı', String(lessonStars(d)), 'var(--tl-gold)'],
+    ];
+    host.innerHTML = `
+      <div class="tlh-perf">
+        <div class="tlh-perf-tiles">${tiles.map(([i, l, v, c]) => `<div class="tlh-perf-tile" style="--acc:${c}"><span aria-hidden="true">${i}</span><b>${esc(v)}</b><small>${esc(l)}</small></div>`).join('')}</div>
+        <div class="tlh-perf-row">
+          <section class="tlh-panel tlh-perf-chart"><h3>Son ${hist.length || ''} metin · hız</h3>
+            ${hist.length ? `<div class="tlh-bars">${hist.map(x => `<i style="--h:${Math.round(num(x.wpm) / maxW * 100)}%" title="${num(x.wpm)} WPM · %${num(x.acc)}${x.m ? ' · ' + esc(MODE_NAME[x.m] || x.m) : ''}"><b>${num(x.wpm)}</b></i>`).join('')}</div>`
+              : '<p class="tlh-empty">Henüz sonuç yok. Ana ekrandaki yazma alanında bir metin bitir, grafik burada belirsin.</p>'}
+          </section>
+          <section class="tlh-panel tlh-perf-weak"><h3>En çok zorlandığın tuşlar</h3>
+            ${weak.length ? `<ul>${weak.map(([k, v]) => `<li><kbd>${esc(k.toLocaleUpperCase('tr'))}</kbd><span class="tlh-weak-bar"><i style="width:${Math.round(v / maxWeak * 100)}%"></i></span><small>${v} hata</small></li>`).join('')}</ul>`
+              : '<p class="tlh-empty">Hata yaptıkça zayıf tuşların burada listelenir.</p>'}
+          </section>
+        </div>
+      </div>`;
+    return { destroy() { host.innerHTML = ''; } };
+  }
+
   /* ---------- alt bölümler ---------- */
   const VIEWS = {
     egitim: { title: '🎓 Klavye Dersleri', file: 'lessons.js', fn: 'mountLessons' },
     edebiyat: { title: '🪶 Şiir & Atasözü Yazma', file: 'literature.js', fn: 'mountLiterature' },
+    performans: { title: '📈 Performans', local: mountPerf },
   };
   let view = null;     // { id, inst }
   let cssInjected = false;
@@ -379,7 +421,7 @@
             if (id === 'edebiyat') { quests.push('lit'); finished = true; }
           }
         }
-        if (quests.length || wpm || finished) progress({ quests, finished, wpm, acc });
+        if (quests.length || wpm || finished) progress({ quests, finished, wpm, acc, mode: id });
         else renderStats();
       },
     };
@@ -390,34 +432,54 @@
       <button type="button" class="tlh-btn tlh-btn--ghost" data-tlh="retry">Tekrar dene</button></div>`;
   }
 
+  function setNav(id) {
+    root.querySelectorAll('.tlh-nav-btn[data-nav]').forEach(b => {
+      const on = b.dataset.nav === id;
+      b.classList.toggle('is-on', on);
+      if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+  }
+
   async function openView(id, { push = true, intent = null } = {}) {
     const v = VIEWS[id];
     if (!v) return;
     if (view && view.id === id) return;
+    const switching = !!view;   // bölümden bölüme geçiş: geçmişe yeni kayıt ekleme (Ana Sayfa tek geri adımla dönsün)
     closeView({ silent: true });
     ensureEgitimCss();
+    pauseArena();
     const token = { id, inst: null, intent };
     view = token;
+    setNav(id);
     viewTitle.textContent = v.title;
     viewEl.hidden = false;
     menuEl.setAttribute('aria-hidden', 'true');
     menuEl.inert = true;
     scene?.setPaused?.(true);
     if (push && location.hash !== '#' + id) {
-      try { history.pushState({ tlh: id }, '', '#' + id); } catch { /* yok */ }
+      try {
+        if (switching && history.state && history.state.tlh) history.replaceState({ tlh: id }, '', '#' + id);
+        else history.pushState({ tlh: id }, '', '#' + id);
+      } catch { /* yok */ }
     }
     viewBody.innerHTML = '<div class="tlh-loading">Yükleniyor…</div>';
     $('.tlh-back').focus({ preventScroll: true });
     try {
-      const m = await loadMod(v.file);
-      if (view !== token) return;
-      if (typeof m[v.fn] !== 'function') throw new Error(v.fn + ' yok');
       viewBody.innerHTML = '';
       const host = document.createElement('div');
       host.className = 'tlh-view-host';
       viewBody.appendChild(host);
-      let inst = m[v.fn](host, makeCtx(id, intent));
-      if (inst && typeof inst.then === 'function') inst = await inst;
+      let inst;
+      if (v.local) inst = v.local(host);
+      else {
+        viewBody.firstChild.innerHTML = '<div class="tlh-loading">Yükleniyor…</div>';
+        const m = await loadMod(v.file);
+        if (view !== token) return;
+        if (typeof m[v.fn] !== 'function') throw new Error(v.fn + ' yok');
+        host.innerHTML = '';
+        inst = m[v.fn](host, makeCtx(id, intent));
+        if (inst && typeof inst.then === 'function') inst = await inst;
+      }
       if (view !== token) { try { inst?.destroy?.(); } catch { /* yok */ } return; }
       token.inst = inst || null;
     } catch (err) {
@@ -435,12 +497,13 @@
     viewEl.hidden = true;
     menuEl.removeAttribute('aria-hidden');
     menuEl.inert = false;
+    setNav('home');
     if (!root.hidden) scene?.setPaused?.(false);
     if (!silent && !fromPop && VIEW_IDS.includes(location.hash.slice(1))) {
       if (history.state && history.state.tlh) history.back();
       else clearHash();
     }
-    if (!silent) root.querySelector('.tlh-card-main')?.focus({ preventScroll: true });
+    if (!silent || fromPop) setTimeout(() => arenaCtl?.focus?.(), 30);
   }
 
   function clearHash() {
@@ -448,7 +511,7 @@
     try { history.replaceState(null, '', location.pathname + location.search); } catch { /* yok */ }
   }
 
-  /* ---------- gizle / göster ---------- */
+  /* ---------- gizle / göster (yalnız PvP için) ---------- */
   const pvpRoot = () => document.getElementById('pvp-root');
   const pvpVisible = () => { const p = pvpRoot(); return !!p && !p.hidden; };
   function updateFab() { fab.hidden = !root.hidden || pvpVisible(); }
@@ -456,7 +519,9 @@
     if (root.hidden) { updateFab(); return; }
     closeView({ silent: true });
     clearHash();
+    pauseArena();
     root.hidden = true;
+    document.documentElement.classList.remove('tlh-lock');
     scene?.setPaused?.(true);
     if (root.contains(document.activeElement)) document.activeElement.blur();
     updateFab();
@@ -464,116 +529,164 @@
   function showHome() {
     if (pvpVisible()) return;
     root.hidden = false;
+    document.documentElement.classList.add('tlh-lock');
     scene?.setPaused?.(false);
     data = readStore();
     renderStats();
     updateFab();
     root.focus({ preventScroll: true });
+    setTimeout(() => arenaCtl?.focus?.(), 30);
   }
 
-  function clickAppNav(mode) {
-    let b = document.querySelector(`[data-action="nav"][data-mode="${mode}"]`);
-    if (b) { b.click(); return; }
-    // Uygulamanın tıklama dinleyicisi document üzerinde ve navigate(mode)'u çağırır: geçici düğme yeterli.
-    b = document.createElement('button');
-    b.type = 'button';
-    b.hidden = true;
-    b.dataset.action = 'nav';
-    b.dataset.mode = mode;
-    document.body.appendChild(b);
-    try { b.click(); } finally { b.remove(); }
-  }
-
-  /* ---------- Günün Dizesi ---------- */
-  let dailyCtl = null;
-  let dailyLine = null;
+  /* ---------- Yazma Arenası ---------- */
+  let arenaMod = null;
   let mountTyperFn = null;
+  let arenaCtl = null;
+  let current = null;           // { text, source, mode }
+  let mode = typeof data.mode === 'string' ? data.mode : 'atasozu';
+  let combo = 0, lastTyped = 0, lastErr = 0, lastPulse = 0, bestCombo = 0;
   const typerSfx = { key: () => sfx.key(), error: () => sfx.error(), win: () => {}, voice: (n) => sfx.voice(n), get enabled() { return sfx.enabled; } };
+  const wantKeyboard = () => window.innerHeight >= 800 && window.innerWidth >= 1000;
 
-  async function mountDaily() {
-    dailyHost.innerHTML = '<div class="tlh-loading">Yükleniyor…</div>';
-    dailyResult.hidden = true;
+  async function mountArena() {
+    arenaHost.innerHTML = '<div class="tlh-loading">Yükleniyor…</div>';
     try {
       ensureEgitimCss();
-      const [lit, typing] = await Promise.all([loadMod('literature.js'), loadMod('typing.js')]);
-      if (typeof lit.dailyLine !== 'function' || typeof typing.mountTyper !== 'function') throw new Error('arabirim eksik');
-      dailyLine = lit.dailyLine();
-      if (!dailyLine || !dailyLine.text) throw new Error('dize yok');
+      const [am, typing] = await Promise.all([loadMod('arena.js'), loadMod('typing.js')]);
+      if (typeof am.pickText !== 'function' || typeof typing.mountTyper !== 'function') throw new Error('arabirim eksik');
+      arenaMod = am;
       mountTyperFn = typing.mountTyper;
-      const src = root.querySelector('[data-s="src"]');
-      if (src) src.textContent = dailyLine.source || '';
-      startDaily();
+      if (!am.MODES.some(m => m.id === mode)) mode = am.MODES[0].id;
+      modesEl.innerHTML = am.MODES.map(m => `
+        <button type="button" class="tlh-mode${m.id === mode ? ' is-on' : ''}" role="radio" aria-checked="${m.id === mode}" data-mode="${m.id}" title="${esc(m.hint)}">
+          <span aria-hidden="true">${m.icon}</span>${esc(m.label)}</button>`).join('');
+      newText();
     } catch (err) {
-      try { console.warn('[home] Günün Dizesi yüklenemedi:', err); } catch { /* yok */ }
-      dailyHost.innerHTML = errorCard('Günün Dizesi şu an yüklenemedi.');
+      try { console.warn('[home] yazma alanı yüklenemedi:', err); } catch { /* yok */ }
+      arenaHost.innerHTML = errorCard('Yazma alanı şu an yüklenemedi.');
     }
   }
 
-  function startDaily() {
-    try { dailyCtl?.destroy?.(); } catch { /* yok */ }
-    dailyCtl = null;
-    dailyHost.innerHTML = '';
-    dailyResult.hidden = true;
-    let lastTyped = 0;
-    let lastPulse = 0;
+  function setMode(id) {
+    if (!arenaMod || id === mode) { arenaCtl?.focus?.(); return; }
+    mode = id;
+    update(d => { d.mode = id; });
+    modesEl.querySelectorAll('.tlh-mode').forEach(b => {
+      const on = b.dataset.mode === id;
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-checked', String(on));
+    });
+    newText();
+  }
+
+  function newText(same = false) {
+    if (!arenaMod) return;
+    if (!same || !current) current = Object.assign(arenaMod.pickText(mode), { mode });
+    const src = root.querySelector('[data-s="src"]');
+    if (src) src.textContent = current.source ? '— ' + current.source : '';
+    startTyper();
+  }
+
+  function setCombo(n) {
+    combo = n;
+    bestCombo = Math.max(bestCombo, n);
+    const b = comboEl.querySelector('b');
+    b.textContent = String(n);
+    comboEl.classList.toggle('is-hot', n >= 25);
+    comboEl.classList.toggle('is-on', n > 0);
+    if (n > 0 && n % 25 === 0 && !reduced()) {
+      comboEl.classList.remove('is-pop'); void comboEl.offsetWidth; comboEl.classList.add('is-pop');
+      scene?.pulse('key');
+    }
+  }
+
+  function startTyper() {
+    try { arenaCtl?.destroy?.(); } catch { /* yok */ }
+    arenaCtl = null;
+    arenaHost.innerHTML = '';
+    resultEl.hidden = true;
+    resultEl.innerHTML = '';
+    lastTyped = 0; lastErr = 0; bestCombo = 0;
+    setCombo(0);
     try {
-      dailyCtl = mountTyperFn(dailyHost, {
-        text: dailyLine.text,
-        keyboard: false,
+      arenaCtl = mountTyperFn(arenaHost, {
+        text: current.text,
+        keyboard: wantKeyboard(),
         sfx: typerSfx,
         onProgress(s) {
-          const typed = num(s && s.typed);
+          const typed = num(s && s.typed), errs = num(s && s.errors);
+          if (errs > lastErr) setCombo(0);
+          else if (typed > lastTyped) setCombo(combo + (typed - lastTyped));
           const now = performance.now();
           if (typed > lastTyped && now - lastPulse > 90) { scene?.pulse('key'); lastPulse = now; }
-          lastTyped = typed;
+          lastTyped = typed; lastErr = errs;
         },
-        onFinish(s) { finishDaily(s || {}); },
+        onFinish(s) { finishArena(s || {}); },
       });
     } catch (err) {
       try { console.warn('[home] yazma alanı açılamadı:', err); } catch { /* yok */ }
-      dailyHost.innerHTML = errorCard('Yazma alanı açılamadı.');
+      arenaHost.innerHTML = errorCard('Yazma alanı açılamadı.');
     }
   }
 
-  function finishDaily(s) {
+  function pauseArena() { try { document.activeElement?.blur?.(); } catch { /* yok */ } }
+
+  function rankOf(wpm, acc) {
+    if (acc >= 97 && wpm >= 60) return ['ŞİMŞEK', 'var(--tl-cyan)'];
+    if (acc >= 95 && wpm >= 45) return ['ALEV', 'var(--tl-ember)'];
+    if (acc >= 92 && wpm >= 30) return ['USTA', 'var(--tl-gold)'];
+    return ['ÇIRAK', 'var(--tl-violet)'];
+  }
+
+  function finishArena(s) {
     const wpm = Math.round(num(s.wpm));
     const acc = Math.round(normAcc(s.acc));
-    dailyResult.hidden = false;
-    dailyResult.innerHTML = `
-      <div class="tlh-result-nums"><span><b>${wpm}</b> WPM</span><span><b>%${acc}</b> doğruluk</span></div>
-      <p class="tlh-result-msg">${acc >= 98 ? 'Kusursuza yakın! 🎉' : wpm >= 35 ? 'Harika hız! 🔥' : 'Güzel! Bir tur daha?'}</p>
-      <button type="button" class="tlh-btn tlh-btn--ghost" data-tlh="daily-again">Tekrar yaz</button>`;
+    const secs = Math.round(num(s.elapsedMs) / 1000);
+    const quests = ['daily'];
+    if (current && current.mode === 'atasozu') quests.push('arena');
+    const { record } = progress({ quests, finished: true, wpm, acc, mode: current?.mode, weak: s.weakKeys });
+    const [rank, col] = rankOf(wpm, acc);
+    resultEl.hidden = false;
+    resultEl.style.setProperty('--rk', col);
+    resultEl.innerHTML = `
+      <div class="tlh-result-card" role="status">
+        <p class="tlh-rank">${record ? '🏆 YENİ REKOR' : rank}</p>
+        <p class="tlh-big"><b>${wpm}</b><small>WPM</small></p>
+        <div class="tlh-result-nums">
+          <span><b>%${acc}</b> doğruluk</span><span><b>${secs}</b> sn</span><span><b>${bestCombo}</b> en uzun kombo</span>
+        </div>
+        <div class="tlh-result-btns">
+          <button type="button" class="tlh-btn tlh-btn--primary" data-tlh="next">Sonraki metin <kbd>Enter</kbd></button>
+          <button type="button" class="tlh-btn tlh-btn--ghost" data-tlh="again">Aynısını tekrar</button>
+        </div>
+      </div>`;
+    resultEl.querySelector('[data-tlh="next"]').focus({ preventScroll: true });
     confetti();
     sfx.win();
     if (acc >= 98) setTimeout(() => sfx.voice('great'), 1100);
     scene?.pulse('win');
-    progress({ quests: ['daily'], finished: true, wpm, acc });
   }
 
   /* ---------- olaylar ---------- */
   root.addEventListener('click', (e) => {
-    const t = e.target.closest('[data-tlh],[data-card-main]');
+    const t = e.target.closest('[data-tlh],[data-nav],[data-mode]');
     if (!t || !root.contains(t)) return;
+    if (t.dataset.mode && t.classList.contains('tlh-mode')) { setMode(t.dataset.mode); return; }
+    const nav = t.dataset.nav;
+    if (nav) {
+      if (nav === 'pvp') return;            // bağlantı ?pvp=practice&mode=classic adresine gider (PvP'nin kendi ekranı)
+      if (nav === 'home') { closeView(); return; }
+      openView(nav);
+      return;
+    }
     const act = t.dataset.tlh;
-    const card = t.dataset.cardMain;
-    if (act === 'start') { sfx.voice('lesson'); openView('egitim', { intent: 'continue' }); return; }
-    if (act === 'to-daily') {
-      $('#tlh-daily').scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'center' });
-      setTimeout(() => dailyCtl?.focus?.(), reduced() ? 0 : 450);
-      return;
-    }
     if (act === 'back') { closeView(); return; }
-    if (act === 'daily-again') { startDaily(); setTimeout(() => dailyCtl?.focus?.(), 30); return; }
+    if (act === 'next') { newText(); return; }
+    if (act === 'again') { newText(true); return; }
     if (act === 'retry') {
-      if (t.closest('.tlh-daily')) mountDaily();
+      if (t.closest('.tlh-arena')) mountArena();
       else if (view) { const id = view.id, intent = view.intent; view = null; openView(id, { push: false, intent }); }
-      return;
     }
-    if (act === 'pvp-online') { hideHome(); document.dispatchEvent(new CustomEvent('tuslab:pvp-enter')); return; }
-    if (card === 'egitim' || card === 'edebiyat') { openView(card); return; }
-    if (card === 'arena') { hideHome(); clickAppNav('arena'); progress({ quests: ['arena'] }); return; }
-    if (card === 'analytics') { hideHome(); clickAppNav('analytics'); return; }
-    // pvp: bağlantı varsayılan davranışıyla ?pvp=practice&mode=classic adresine gider.
   });
 
   soundBtn.addEventListener('click', () => {
@@ -584,39 +697,10 @@
     if (on) sfx.chime();
   });
 
-  // Kartlar: ok tuşlarıyla gezinme
-  const cardMains = () => Array.from(root.querySelectorAll('.tlh-card-main'));
-  $('.tlh-cards').addEventListener('keydown', (e) => {
-    const list = cardMains();
-    const i = list.indexOf(document.activeElement);
-    if (i < 0) return;
-    let n = -1;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') n = (i + 1) % list.length;
-    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') n = (i - 1 + list.length) % list.length;
-    else if (e.key === 'Home') n = 0;
-    else if (e.key === 'End') n = list.length - 1;
-    if (n >= 0) { e.preventDefault(); list[n].focus(); }
-  });
-
-  // Kartlar: fareyle 3B eğilme + parlama
-  root.querySelectorAll('.tlh-card').forEach(card => {
-    card.addEventListener('pointermove', (e) => {
-      if (e.pointerType !== 'mouse' || reduced()) return;
-      const r = card.getBoundingClientRect();
-      const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
-      card.style.setProperty('--rx', ((0.5 - y) * 12).toFixed(2) + 'deg');
-      card.style.setProperty('--ry', ((x - 0.5) * 14).toFixed(2) + 'deg');
-      card.style.setProperty('--mx', (x * 100).toFixed(1) + '%');
-      card.style.setProperty('--my', (y * 100).toFixed(1) + '%');
-    });
-    card.addEventListener('pointerleave', () => {
-      card.style.removeProperty('--rx'); card.style.removeProperty('--ry');
-    });
-  });
-
-  // Klavye: Escape → menü; tuşları alttaki uygulamaya sızdırma (uygulama girdi alanlarını zaten yok sayar).
+  // Klavye: Escape → ana sayfa; sonuç ekranında Enter → sonraki metin; tuşları alttaki uygulamaya sızdırma.
   root.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && view && !e.defaultPrevented) { e.preventDefault(); closeView(); }
+    if (e.key === 'Enter' && !view && !resultEl.hidden && !e.target.closest?.('button,a')) { e.preventDefault(); newText(); }
     const t = e.target;
     const field = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
     if (!field) e.stopPropagation();
@@ -629,13 +713,20 @@
     else closeView({ fromPop: true, silent: true });
   });
 
+  let resizeT = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(() => { try { arenaCtl?.setKeyboard?.(wantKeyboard()); } catch { /* yok */ } }, 200);
+  });
+
   fab.addEventListener('click', () => showHome());
   document.addEventListener('tuslab:pvp-enter', () => hideHome());
 
   function watchPvp() {
     const p = pvpRoot();
     if (!p) return false;
-    new MutationObserver(() => { if (!p.hidden) hideHome(); else updateFab(); }).observe(p, { attributes: true, attributeFilter: ['hidden'] });
+    // PvP kapanınca eski sayfada kalma: ana sayfaya dön.
+    new MutationObserver(() => { if (!p.hidden) hideHome(); else showHome(); }).observe(p, { attributes: true, attributeFilter: ['hidden'] });
     if (!p.hidden) hideHome();
     return true;
   }
@@ -645,6 +736,7 @@
   function boot() {
     document.body.appendChild(root);
     document.body.appendChild(fab);
+    document.documentElement.classList.add('tlh-lock');   // ana sayfa açıkken alttaki eski sayfa kaymasın
     if (!watchPvp()) {
       // #pvp-root sonradan eklenirse yakala
       const mo = new MutationObserver(() => { if (watchPvp()) mo.disconnect(); });
@@ -664,7 +756,7 @@
       if (root.hidden || view) scene.setPaused?.(true);
     }).catch(err => { try { console.warn('[home] 3B sahne yüklenemedi:', err); } catch { /* yok */ } });
 
-    mountDaily();
+    mountArena();
 
     const id = location.hash.slice(1);
     if (VIEW_IDS.includes(id) && !root.hidden) openView(id, { push: false });

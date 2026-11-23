@@ -1,12 +1,12 @@
-/* TuşLab ana ekran 3B sahnesi: yüzen ada + Harf Muhafızı, çevresinde Nyx ve Konyalı, yörüngede harf tuşları,
+/* TuşLab ana ekran 3B sahnesi: yüzen ada üstünde Nyx ve Konyalı (boss yok), yörüngede harf tuşları,
  * yıldızlar ve parlayan parçacıklar. WebGL yoksa / three yüklenemezse host'taki CSS degrade yedek olarak kalır.
  * mountScene(host) → { destroy(), pulse(kind), setPaused(bool) } */
 const THREE_URL = new URL('../pvp/vendor/three.module.min.js', import.meta.url).href;
 const GLTF_URL = new URL('../pvp/vendor/GLTFLoader.js', import.meta.url).href;
+// Boss yok: adada iki karakter kameraya dönük durur (ada altlarında döner, onlar dönmez).
 const MODELS = [
-  { url: new URL('../assets/models/harf-muhafizi/harf-muhafizi.glb', import.meta.url).href, h: 2.3, r: 0, a: 0 },
-  { url: new URL('../assets/models/nyx/nyx.glb', import.meta.url).href, h: 1.15, r: 1.75, a: 2.25 },
-  { url: new URL('../assets/models/konyali/konyali.glb', import.meta.url).href, h: 1.15, r: 1.75, a: -2.25 },
+  { url: new URL('../assets/models/nyx/nyx.glb', import.meta.url).href, h: 2.05, x: 0.9, z: 0.2, yaw: -0.35 },
+  { url: new URL('../assets/models/konyali/konyali.glb', import.meta.url).href, h: 1.9, x: -0.9, z: 0.35, yaw: 0.4 },
 ];
 const LETTERS = ['Ö', 'Ğ', 'Ş', 'Ç', 'Ü', 'İ', 'A', 'S', 'D', 'F', 'J', 'K', 'L'];
 const ACCENTS = ['#3fe0ff', '#ff7a2f', '#8b5cff', '#ffc861'];
@@ -264,7 +264,9 @@ export function mountScene(host) {
     // Modeller
     const mixers = [];
     let loader = null;
-    let mainHolder = null;   // Harf Muhafızı: ada dönerken kameraya dönük kalır, hafifçe salınır
+    const cast = new THREE.Group();   // karakterler: adayla birlikte süzülür ama dönmez
+    world.add(cast);
+    const holders = [];
     async function loadModels() {
       try {
         const { GLTFLoader } = await import(GLTF_URL);
@@ -291,10 +293,11 @@ export function mountScene(host) {
           model.position.y -= box.min.y;
           const holder = new THREE.Group();
           holder.add(model);
-          holder.position.set(Math.sin(def.a) * def.r, ISLAND_TOP, Math.cos(def.a) * def.r);
-          holder.rotation.y = def.a;            // dışa (kameraya doğru) bakar
-          island.add(holder);
-          if (!def.r) mainHolder = holder;
+          holder.position.set(def.x, ISLAND_TOP, def.z);
+          holder.rotation.y = def.yaw;
+          holder.userData = { yaw: def.yaw, phase: holders.length * 1.7 };
+          cast.add(holder);
+          holders.push(holder);
           const clips = gltf.animations || [];
           const clip = clips.find(k => /idle|stance/i.test(k.name)) || clips[0];
           if (clip) {
@@ -326,9 +329,12 @@ export function mountScene(host) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
-      wide = camera.aspect > 1.25;
-      world.position.x = wide ? Math.min(3.2, 1.2 + (camera.aspect - 1.25) * 2.2) : 0;
-      camBase.z = camera.aspect < 0.8 ? 12.5 : camera.aspect < 1.1 ? 10.5 : 9;
+      wide = camera.aspect > 1.25 && w > 860;
+      world.position.x = 0;
+      // Geniş ekranda sahne sağ sütunun ortasına kaydırılır (sol taraf yazma alanı).
+      if (wide) camera.setViewOffset(w, h, -Math.round(w * 0.3), Math.round(h * 0.02), w, h);
+      else camera.clearViewOffset();
+      camBase.z = wide ? 11.5 : camera.aspect < 0.8 ? 12.5 : camera.aspect < 1.1 ? 10.5 : 9;
       camera.updateProjectionMatrix();
     }
 
@@ -345,7 +351,8 @@ export function mountScene(host) {
       ring.material.opacity = 0.7 + Math.sin(t * 2.2) * 0.2;
       glow.material.opacity = 0.45 + Math.sin(t * 1.4) * 0.12;
       mixers.forEach(m => m.update(dt));
-      if (mainHolder) mainHolder.rotation.y = -island.rotation.y + Math.sin(t * 0.35) * 0.5;
+      cast.position.y = island.position.y;
+      holders.forEach(hd => { hd.rotation.y = hd.userData.yaw + Math.sin(t * 0.4 + hd.userData.phase) * 0.18; });
 
       keys.forEach(k => {
         const u = k.userData;
