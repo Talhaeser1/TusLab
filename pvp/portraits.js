@@ -1,15 +1,13 @@
 /** Dövüşçü kimliği → Higgsfield portre dosyası: TEK eşleme (VS, sonuç, raund arası kullanır).
  *  Lobi CSS'i (lobby-v3.css [data-fighter-portrait]) aynı dosyaları kullanır; yeni dövüşçü eklenirse ikisi birlikte güncellenir. */
-import {normalizeFighter, getFighter, PADISAH_IDS} from './shared/fighters.js';
+import {normalizeFighter, getFighter} from './shared/fighters.js';
 
 export const PORTRAITS = Object.freeze({
   vargr: './assets/higgsfield/final/portre-vargr.webp',
   sira: './assets/higgsfield/final/portre-sira.webp',
   doran: './assets/higgsfield/final/portre-doran.webp',
   nyx: './assets/higgsfield/final/portre-nyx.webp',
-  konyali: './assets/models/konyali/portre-konyali.webp',
-  // Osmanlı padişahları: yüz portresi yok → renkli madalyon (scripts/padisah-madalyon.mjs üretir)
-  ...Object.fromEntries(PADISAH_IDS.map(id => [id, `./assets/padisah/${id}.svg`]))
+  konyali: './assets/models/konyali/portre-konyali.webp'
 });
 
 /** Portre yüklenemezse eski görsele düşülür (yalnız arketip bazlı). */
@@ -39,11 +37,9 @@ export function portraitImg(doc, player, cls) {
   return img;
 }
 
-/** Lobi şeridi (dövüşçü seçim madalyonları): madalyonun altındaki kısa ad. Listede yoksa dövüşçünün kendi adı. */
-export const DOCK_NAMES = Object.freeze({
-  osman: 'Osman', orhan: 'Orhan', murad1: 'I. Murad', bayezid1: 'Yıldırım', mehmed1: 'Çelebi',
-  murad2: 'II. Murad', fatih: 'Fatih', bayezid2: 'II. Bayezid', yavuz: 'Yavuz', kanuni: 'Kanuni'
-});
+/** Lobi şeridi (dövüşçü seçim madalyonları): madalyonun altındaki kısa ad. Listede yoksa dövüşçünün kendi adı.
+ *  Padişah kısa adları kadroyla birlikte kaldırıldı (docs/14). */
+export const DOCK_NAMES = Object.freeze({});
 export const dockName = id => DOCK_NAMES[id] || getFighter(id)?.name || String(id);
-/** Şeritteki küçük padişah madalyonu (yazısız sürüm; scripts/padisah-madalyon.mjs üretir). Temel dövüşçüde null. */
-export const dockMedallionUrl = id => (PADISAH_IDS.includes(id) ? `./assets/padisah/${id}-kucuk.svg` : null);
+/** Eski padişah şerit madalyonu: kadro kaldırıldı, her dövüşçüde null (dışa aktarım uyumluluk için kalır). */
+export const dockMedallionUrl = () => null;

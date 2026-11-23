@@ -16,6 +16,7 @@ import {createProjectileDirector} from './projectiles.js';
 import {createChoreographyDirector} from './choreography21.js';
 import {PvPNetworkConsole,networkConsoleHTML} from './network.js';
 import {resultPanelHTML,renderResult} from './phase15-results.js';
+import {askConfirm,confirmHandleKey} from './confirm-dialog.js'; // Denetçi: window.confirm yerine oyun içi kutu (docs/14)
 import {RELEASE_LABEL} from './release.js';
 import {createDamageNumbers} from './fx-damage.js';
 // Paket 29: dövüş HUD'u (maç girişi, büyük kombo sayacı, süper bar, anons yazıları).
@@ -654,10 +655,12 @@ root?.addEventListener('click',event=>{
   if(action.dataset.pvpAction==='music'){const muted=pvpMusic.setMuted(!pvpMusic.getState().muted);action.setAttribute('aria-pressed',String(muted));action.textContent=muted?'♫ Müziği aç':'♫ Müziği kapat';if(!muted)void pvpMusic.unlock();}
   else if(action.dataset.pvpAction==='close'){
     // Araç çubuğu "← Ana Sayfa" ve lobi "← Ana Sayfa" aynı yol: PvP kapanır, home/home.js yeni ana sayfayı açar (eski #app asla).
-    if(['running','paused'].includes(network.match?.status)&&!window.confirm("PvP'den çıkarsan maçtan ayrılırsın. Çıkılsın mı?"))return;
-    if(network.myId&&!network.practice&&network.ws&&!window.confirm('Odadan ayrılıp ana sayfaya dönülsün mü?'))return;
-    store.dispatch({type:'PVP_CLOSE'});
-    document.querySelector('[data-action="nav"][data-mode="arena"]')?.focus({preventScroll:true});
+    void (async()=>{
+      if(['running','paused'].includes(network.match?.status)&&!await askConfirm(root,{title:'Maçtan çık?',message:"PvP'den çıkarsan maçtan ayrılırsın.",confirmLabel:'Çık'})){document.activeElement?.blur?.();focusTypingWhenReady();return;}
+      if(network.myId&&!network.practice&&network.ws&&!await askConfirm(root,{title:'Odadan ayrıl?',message:'Odadan ayrılıp ana sayfaya dönülsün mü?',confirmLabel:'Ayrıl'}))return;
+      store.dispatch({type:'PVP_CLOSE'});
+      document.querySelector('[data-action="nav"][data-mode="arena"]')?.focus({preventScroll:true});
+    })();
   } else if(action.dataset.pvpAction==='effects'){
     reducedEffects=!reducedEffects;
     root.classList.toggle('pvp4-reduced',reducedEffects);
@@ -999,6 +1002,7 @@ document.addEventListener('keydown',event=>{
   if(store.getState().view===PvPView.CLOSED)return;
   if(!pvpAudio.getState().muted&&event.key.length===1)void pvpAudio.unlock();
   event.stopImmediatePropagation();
+  if(confirmHandleKey(event))return; // oyun içi onay kutusu açıkken tuşlar ona kalır
   if(network.lobbyKey?.(event))return; // lobi: karakter/arena/mod ok tuşları (kök dinleyicisi bu satırdan sonra hiç tetiklenmez)
   // Arena hazırlığı: 1–5 skill, 6–9 eşya, Enter kilitle, Esc seçmeden geç.
   if(arenaUi?.handleKey(event))return;
@@ -1009,7 +1013,10 @@ document.addEventListener('keydown',event=>{
   }
   if(event.key==='Escape'&&!['TEXTAREA','INPUT'].includes(document.activeElement?.tagName)){
     // Canlı maçta yanlışlıkla Esc oyuncuyu odadan düşürmesin.
-    if(['running','paused'].includes(network.match?.status)&&!window.confirm("PvP'den çıkarsan maçtan ayrılırsın. Çıkılsın mı?"))return;
+    if(['running','paused'].includes(network.match?.status)){
+      void askConfirm(root,{title:'Maçtan çık?',message:"PvP'den çıkarsan maçtan ayrılırsın.",confirmLabel:'Çık'}).then(ok=>{if(ok)store.dispatch({type:'PVP_CLOSE'});else{document.activeElement?.blur?.();focusTypingWhenReady();}});
+      return;
+    }
     store.dispatch({type:'PVP_CLOSE'});
   }
 },true);
@@ -1055,7 +1062,12 @@ root?.addEventListener('tuslab:pvp-rematch',()=>{renderResult(root,network.match
 root?.addEventListener('click',event=>{
   const control=event.target.closest('[data-pvp15-action]');if(!control)return;
   if(control.dataset.pvp15Action==='surrender'){
-    if(['running','paused'].includes(network.match?.status)&&network.myId&&window.confirm('Maçtan çekilirsen rakibin hükmen kazanacak. Emin misin?'))network.send('SURRENDER',{});
+    if(!['running','paused'].includes(network.match?.status)||!network.myId)return;
+    void askConfirm(root,{title:'Teslim ol?',message:'Maçtan çekilirsen rakibin hükmen kazanacak.',confirmLabel:'Teslim ol',cancelLabel:'Devam et'})
+      .then(ok=>{
+        if(ok&&['running','paused'].includes(network.match?.status)){network.send('SURRENDER',{});return;}
+        document.activeElement?.blur?.();focusTypingWhenReady(); // vazgeçince yazmaya kaldığı yerden devam
+      });
   }else if(control.dataset.pvp15Action==='rematch'){
     if(network.match?.status!=='ended'||!network.myId)return;
     network.send('REMATCH_VOTE',{accept:!network.rematchVotes.includes(network.myId)});

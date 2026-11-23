@@ -134,6 +134,8 @@ export const MAX_FWD_STEP = 0.12;
 export const MAX_WORLD_SPEED = MAX_FWD_STEP * 60;
 /** Konum sınırında sayılan en uzun kare (ms): 20 fps'e kadar hız korunur, daha uzun karede adım ≤ 0,36. */
 export const MAX_POSE_DT_MS = 50;
+/** Gösterilen konum ile hedef arasında bundan büyük fark bozuk durumdur (ilk yerleşim), anında oturur. Ev ±2.3, en uzun koşu ≈ 5. */
+export const ARENA_SNAP_DIST = 15;
 /** Eve dönerken gövde yönü: rakibe bakan yarım profilden eve bakan yarım profile (kameradan geçerek). */
 const TURN_YAW = -(Math.PI - 2 * MODEL_VIEW.yawToCamera);
 /** KO/maç sonu: bekleyen sahnelerin sıralı oynaması için üst süre (sunum; kural süresi değil). */
@@ -1796,7 +1798,7 @@ export async function createArena3D({
     if (modelsBlocked()) return Promise.resolve(false);
     const jobs = [];
     for (const seat of SEATS) {
-      const id = fighterBody(map?.[seat]); // padişah → gövde dövüşçüsü (kendi modeli yok; bkz. shared/padisahlar.js)
+      const id = fighterBody(map?.[seat]); // gövde kimliği (padişahlar kaldırıldı; şu an kimliğin kendisi)
       if (!isKnownFighter(id)) continue;
       const fighter = fighters.get(seat);
       if (fighter.fighterId === id && (fighter.model || fighter.modelJob)) {
@@ -3154,7 +3156,10 @@ export async function createArena3D({
     const wantZ = fighter.root.position.z;
     const dtPose = clamp(tNow - (fighter.poseT ?? tNow), 0, 1000);
     fighter.poseT = tNow;
-    if (quiet || !fighter.shown) { fighter.shown = {x: wantX, z: wantZ}; fighter.speed = 0; }
+    // Denetçi (docs/14): sahne dışı bir ilk konum (telefon yatayda maç başı yerleşimi: gösterilen x ≈ ±98) arenaya hız
+    // sınırıyla ~13 sn'de yürüyordu (gizli sekmede dakikalarca) → dövüşçüler görünmüyordu. Arena genişliğini aşan fark
+    // (> ARENA_SNAP_DIST) hareket değil bozuk durumdur: anında oturur. Olağan koşu/dönüş bu eşiğin çok altında kalır.
+    if (quiet || !fighter.shown || Math.abs(wantX - fighter.shown.x) > ARENA_SNAP_DIST || Math.abs(wantZ - fighter.shown.z) > ARENA_SNAP_DIST) { fighter.shown = {x: wantX, z: wantZ}; fighter.speed = 0; }
     else {
       // KESINYAP 22: sınır HIZ tabanlı (60 fps'te kare başına 0,12, eskisiyle aynı); düşük kare hızında (zayıf GPU) kare
       // başı 0,12 sınırı dövüşçüyü planlı dönüşün gerisinde bırakıyor, sahne bitince eve sırtı dönük yürüyordu.
@@ -4473,7 +4478,7 @@ export async function createArena3D({
       setLightLevel(job.level);
       safeCall(() => renderer.setRenderTarget?.(job.target));
       if (!softwareRenderer && typeof renderer.compileAsync === 'function') {
-        const compilation = renderer.compileAsync(scene, camera);
+        const compilation = safeCompileAsync();
         pendingCompiles++;
         Promise.resolve(compilation).catch(() => {}).finally(() => { pendingCompiles--; });
       }
@@ -4484,6 +4489,31 @@ export async function createArena3D({
       safeCall(() => renderer.setRenderTarget?.(previousTarget));
       setLightLevel(current);
     }
+  }
+
+  /**
+   * Denetçi (docs/14): three r160 compileAsync'in kendi yoklaması, derleme sürerken bir malzeme atılırsa (efekt temizliği,
+   * raund/maç geçişi) `properties.get(m).currentProgram` tanımsız kalıp "reading 'isReady'" ile yakalanmamış hata atıyordu;
+   * söz hiç çözülmüyor → pendingCompiles sonsuza dek > 0 → kalite yöneticisi kalıcı duraklıyor ve whenWarm 60 sn bekliyordu.
+   * Aynı iş: senkron compile (malzeme kümesini döner) + programı olmayan/atılmış malzemeyi düşüren güvenli yoklama, 5 sn tavan.
+   */
+  function safeCompileAsync() {
+    const materials = renderer.compile(scene, camera);
+    if (!(materials instanceof Set) || !materials.size) return Promise.resolve();
+    const startedAt = now();
+    return new Promise(resolve => {
+      const check = () => {
+        if (destroyed || contextLost) return resolve();
+        materials.forEach(material => {
+          let ready = true;
+          try { ready = renderer.properties?.get(material)?.currentProgram?.isReady?.() !== false; } catch { ready = true; }
+          if (ready) materials.delete(material);
+        });
+        if (!materials.size || now() - startedAt > 5000) resolve();
+        else env.setTimeout(check, 10);
+      };
+      check();
+    });
   }
 
   // ===================================================================== LOOP

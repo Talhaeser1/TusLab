@@ -25,8 +25,9 @@ const open = (mode, o = {}) => { const t = clock(); let n = 0; const s = createP
 test('J2: mod şeridinde klasik/raund/arena + Atasözü/Şiir/Osmanlıca; içerik modları içerik moduyla aynı kimlikler', () => {
   const strip = html.match(/data-mode-picker="practice"[\s\S]*?<\/div><small class="rui-picker-note"/)[0];
   const ids = [...strip.matchAll(/data-mode="(\w+)"/g)].map(m => m[1]);
-  assert.deepEqual(ids, ['classic', 'rounds', 'arena', 'atasozu', 'siir', 'osmanlica']);
-  for (const c of ['atasozu', 'siir', 'osmanlica']) assert.ok(CONTENT_MODES.includes(c), `${c} içerik modu`);
+  // RAPOR-PVP-KALANLAR madde 8: 'rastgele' = her raund tohumlu içerik (kelime/atasözü/şiir/Osmanlıca karışımı).
+  assert.deepEqual(ids, ['classic', 'rounds', 'arena', 'atasozu', 'siir', 'osmanlica', 'rastgele']);
+  for (const c of ['atasozu', 'siir', 'osmanlica', 'rastgele']) assert.ok(CONTENT_MODES.includes(c), `${c} içerik modu`);
   // Şerit mod seçiciden ÖNCE gelir (EN ÜSTTE) ve yatay kaydırma + scroll-snap CSS'i var.
   assert.ok(html.indexOf('class="j2-modes"') < html.indexOf('id="lb3-hero-title"'));
   const css = read('pvp/lobby-v3.css');
@@ -108,7 +109,8 @@ test('J2 SAHNE: tam ekran sahne (lobi-sahne.webp), eğik arena yelpazesi + paral
 
 test('J2: ok tuşları belge yakalayıcısı sonrası lobi yönlendiricisinden geçer (kök dinleyicisine ulaşmaz)', () => {
   const idx = read('pvp/pvp-main.js');
-  assert.match(idx, /event\.stopImmediatePropagation\(\);\s*if\(network\.lobbyKey\?\.\(event\)\)return;/);
+  // Denetçi (docs/14): araya yalnız oyun içi onay kutusu satırı girebilir (kutu açıkken tuşlar ona kalır).
+  assert.match(idx, /event\.stopImmediatePropagation\(\);\s*(?:if\(confirmHandleKey\(event\)\)return;[^\n]*\s*)?if\(network\.lobbyKey\?\.\(event\)\)return;/);
   const net = Object.create(PvPNetworkConsole.prototype), calls = [];
   net.fighterKey = () => calls.push('f'); net.stageKey = () => calls.push('s'); net.modeKey = e => { calls.push('m'); e.defaultPrevented = true; };
   assert.equal(net.lobbyKey({defaultPrevented: false}), true);
@@ -136,7 +138,7 @@ test('J2: fighter2 botu — kök neden: lobi başlatma yolu botFighter\'ı oturu
   assert.equal(fighterFromUrl('http://x/?karakter=konyali&fighter2=sira'), 'konyali', 'fighter2 insan karakterini değiştirmez');
   // Eski davranış: botFighter verilmezse havuzdan RASTGELE (fighterRng) seçilir → URL'deki karakter tutmuyordu.
   assert.equal(practiceFighters({fighter: 'konyali', fighterRng: () => 0}).botFighter, 'vargr');
-  assert.equal(practiceFighters({fighter: 'konyali', fighterRng: () => 0.2}).botFighter, 'sira');
+  assert.equal(practiceFighters({fighter: 'konyali', fighterRng: () => 0.6}).botFighter, 'sira');
   // Düzeltme: PvPNetworkConsole.startPractice botFighter'ı (parametre ya da ?fighter2=) oturuma verir.
   const store = new Map();
   globalThis.localStorage = {getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v))};

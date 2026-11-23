@@ -54,7 +54,7 @@ test('raund sayacı: sonuç anında üst karartmada şerit kadar pencere kalır 
 
 test('raund sayacı: telefon ve alçak ekran ölçekleri, azaltılmış hareket', () => {
   assert.match(block, /@media \(max-width:600px\)\{[^]*?--rs:\.72;top:240px/);
-  assert.match(block, /@media \(max-height:500px\)\{[^]*?--rs:\.62;top:4px/);
+  assert.match(block, /@media \(max-height:500px\)\{[^]*?--rs:\.62;top:42px/);
   const reduced = block.match(/@media \(prefers-reduced-motion:reduce\)\{[^]*?\n\}/)[0];
   assert.match(reduced, /\.rui-medal::before\{transition:none\}/);
   assert.match(reduced, /\.rui-medal\.is-urgent \.rui-secs\{animation:none\}/);

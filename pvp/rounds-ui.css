@@ -930,8 +930,10 @@
    büyüklüğünde yumuşak kenarlı elips bir pencere açılır; barların arkasındaki karartma aynen kalır. */
 #pvp-root#pvp-root.fhud-on[data-layout="fullscreen"]:has(.pvp2-announce > [data-rounds-ui]:not([hidden]) .rui-medal) > .fhud2::before{
   --rs-rx:118px;--rs-ry:104px;--rs-cy:72px; /* elips pencere: merkez madalyon çekirdeği, kenarı yumuşak (sert sütun izi yok) */
-  -webkit-mask:radial-gradient(var(--rs-rx) var(--rs-ry) at 50% var(--rs-cy),transparent 70%,#000 100%);
-  mask:radial-gradient(var(--rs-rx) var(--rs-ry) at 50% var(--rs-cy),transparent 70%,#000 100%)}
+  /* --rs-cy sayfa koordinatıdır; karartma tam ekranda araç çubuğunun altından başlar (fight-hud.css: top:var(--fs-toolbar,40px)),
+     o yüzden pencere merkezi ::before kutusuna göre o kadar yukarı alınır (Denetçi, docs/14: sonuç şeridi soluk kalıyordu). */
+  -webkit-mask:radial-gradient(var(--rs-rx) var(--rs-ry) at 50% calc(var(--rs-cy) - var(--fs-toolbar,40px)),transparent 70%,#000 100%);
+  mask:radial-gradient(var(--rs-rx) var(--rs-ry) at 50% calc(var(--rs-cy) - var(--fs-toolbar,40px)),transparent 70%,#000 100%)}
 /* Çözüm / sonuç: saat gizli; pencere yalnız "RAUND N SONUCU" şeridi kadar daralır (yoksa şerit karartma altında soluk kalır). */
 #pvp-root#pvp-root.fhud-on[data-layout="fullscreen"]:has(.pvp2-announce > [data-rounds-ui]:not([hidden]) .rui-medal.is-result) > .fhud2::before{--rs-rx:130px;--rs-ry:30px;--rs-cy:52px}
 /* Telefon dikey: can barları arası dar → madalyon barların ve kelime şeritlerinin altında, küçük.
@@ -941,14 +943,22 @@
   #pvp-root#pvp-root.fhud-on[data-layout="fullscreen"]:has(.pvp2-announce > [data-rounds-ui]:not([hidden]) .rui-medal:not(.is-result)) > .fhud2::before{--rs-rx:86px;--rs-ry:76px;--rs-cy:300px}
   #pvp-root#pvp-root.fhud-on[data-layout="fullscreen"]:has(.pvp2-announce > [data-rounds-ui]:not([hidden]) .rui-medal.is-result) > .fhud2::before{--rs-rx:94px;--rs-ry:22px;--rs-cy:253px}
 }
-/* Alçak ekran (telefon yatay): üst şeritle aynı hizada, küçük. */
+/* Alçak ekran (telefon yatay): küçük, araç çubuğunun (40 px) hemen altında, iki can barı arasında.
+   Denetçi (docs/14): önceden top:4px idi; çubuk (z 40) "RAUND N / 7" ve "RAUND N SONUCU" şeridini örtüyordu. */
 @media (max-height:500px){
-  #pvp-root#pvp-root[data-layout="fullscreen"] .pvp2-announce:has(> [data-rounds-ui]:not([hidden])){--rs:.62;top:4px}
-  #pvp-root#pvp-root.fhud-on[data-layout="fullscreen"]:has(.pvp2-announce > [data-rounds-ui]:not([hidden]) .rui-medal:not(.is-result)) > .fhud2::before{--rs-rx:74px;--rs-ry:66px;--rs-cy:20px}
-  #pvp-root#pvp-root.fhud-on[data-layout="fullscreen"]:has(.pvp2-announce > [data-rounds-ui]:not([hidden]) .rui-medal.is-result) > .fhud2::before{--rs-rx:82px;--rs-ry:20px;--rs-cy:15px}
+  #pvp-root#pvp-root[data-layout="fullscreen"] .pvp2-announce:has(> [data-rounds-ui]:not([hidden])){--rs:.62;top:42px}
+  #pvp-root#pvp-root.fhud-on[data-layout="fullscreen"]:has(.pvp2-announce > [data-rounds-ui]:not([hidden]) .rui-medal:not(.is-result)) > .fhud2::before{--rs-rx:74px;--rs-ry:66px;--rs-cy:94px}
+  #pvp-root#pvp-root.fhud-on[data-layout="fullscreen"]:has(.pvp2-announce > [data-rounds-ui]:not([hidden]) .rui-medal.is-result) > .fhud2::before{--rs-rx:82px;--rs-ry:20px;--rs-cy:53px}
 }
 @media (prefers-reduced-motion:reduce){
   #pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal::before{transition:none}
   #pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal.is-urgent .rui-secs{animation:none}
 }
 #pvp-root.pvp4-reduced[data-layout="fullscreen"] [data-rounds-ui] .rui-medal::before{transition:none}
+/* Denetçi (docs/14): telefon yatay — tur arası bandının üst satırları ("RAUND N BİTTİ", rakip/sen vurdu) can barlarının
+   (fhud2, ≈135 px'e kadar) ALTINDA kalıyordu. Bant barların altından başlar, sığmayanı kendi içinde kayar; kart resmi küçülür. */
+@media (orientation:landscape) and (max-height:500px) and (min-width:600px){
+  #pvp-root#pvp-root .rui-inter.rui-band.is-dock{bottom:4px;max-height:calc(100dvh - 144px)}
+  #pvp-root#pvp-root.rui-inter-open .fhud2-rail{visibility:hidden}
+  #pvp-root#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon{width:46px;height:46px}
+}

@@ -28,14 +28,35 @@ export const ERROR_TEXT=Object.freeze({
   ARENA_PICK_NOT_PREP:'Seçim süresi doldu; bu raund seçimsiz oynanıyor.',ARENA_PICK_LOCKED:'Seçimin zaten kilitli.',
   INVALID_ARENA_PICK:'Geçersiz seçim.',INVALID_MATCH_CONFIG:'Geçersiz maç ayarı.',
   INVALID_ROUND_SKILL:'Geçersiz süre becerisi.',ROUND_SKILL_NOT_INTERMISSION:'Süre becerisi seçimi yalnız tur arasında yapılır.',
-  ROUND_SKILL_LOCKED:'Süre becerisi seçimin kilitli.',ROUND_SKILL_EXHAUSTED:'Bu becerinin kullanım hakkı bitti.'
+  ROUND_SKILL_LOCKED:'Süre becerisi seçimin kilitli.',ROUND_SKILL_EXHAUSTED:'Bu becerinin kullanım hakkı bitti.',
+  RATE_LIMIT:'Çok sık işlem yapıldı; birkaç saniye bekleyip yeniden dene.',SECURITY_SERVICE_UNAVAILABLE:'Güvenlik hizmetine erişilemiyor; biraz sonra yeniden dene.',
+  MATCH_PAUSED:'Maç bağlantı beklerken duraklatıldı.',MATCH_ID_MISMATCH:'Eski maça ait gönderim sayılmadı.',
+  INVALID_WORD:'Kelime geçersiz; güncel kelimeyi yeniden yaz.',INVALID_READY:'Hazır durumu geçersiz.',
+  REMATCH_NOT_AVAILABLE:'Şu anda rövanş başlatılamıyor.',INVALID_REMATCH_VOTE:'Rövanş seçimi geçersiz.',
+  INVALID_ROUNDS:'Raund sayısı geçersiz.',INVALID_RUNE:'Rün seçimi geçersiz.',INVALID_CHARACTER:'Karakter seçimi geçersiz.',
+  INVALID_FIGHTER:'Savaşçı seçimi geçersiz.',INVALID_TARGET:'Oyuncu bulunamadı.',UNKNOWN_PLAYER:'Oyuncu oturumu bulunamadı; yeniden katıl.',
+  NOT_MATCH_PARTICIPANT:'Bu maçta oyuncu değilsin.',JOIN_REQUIRED:'Önce odaya katılmalısın.',
+  INVALID_JSON:'Sunucuya gönderilen veri okunamadı.',INVALID_ENVELOPE:'Gönderim biçimi geçersiz.',
+  INVALID_PEER_MESSAGE:'Mesaj boş veya çok uzun.',INVALID_PROBE:'Bağlantı ölçümü geçersiz.',
+  ROUND_SKILL_NOT_TIMED:'Bu beceri yalnız zamana karşı raundda kullanılabilir.',
+  EXCHANGE_NOT_ACTIVE:'Yazma sırası kapandı.',SERVER_ONLY_EVENT:'Bu işlem yalnız sunucuda yapılabilir.',
+  UNSUPPORTED_MESSAGE:'İşlem tanınmadı; sayfayı yenile.',TOO_LARGE:'Gönderim çok büyük.',
+  INVALID_ROOM_CODE:'Oda kodu geçersiz.',INVALID_ROOM:'Oda kodu geçersiz.',NOT_FOUND:'İstenen oda bulunamadı.'
 });
-export const errorText=code=>ERROR_TEXT[code]||String(code||'Bilinmeyen hata');
+export const errorText=code=>ERROR_TEXT[code]||'Bilinmeyen sunucu hatası; yeniden dene.';
 /** Work package 11 — live PvP networking with 20-second rejoin recovery. */
 /** Sentinel stored in `autoInvite` for `?pvp=practice` so index.js opens the PvP view
  * exactly as it does for a room invite; mount() then starts a practice match. */
 const PRACTICE_URL_FLAG='__practice__';
 const practiceFromUrl=href=>{try{return ['practice','arena'].includes(new URL(href).searchParams.get('pvp'));}catch{return false;}};
+/** `?pvp=lobby` (ana sayfadaki "PvP Düello" bağlantısı): PvP görünümü açılır, yalnız LOBİ gösterilir; bot maçı
+ * kullanıcı "Savaşa başla"ya basınca başlar (otomatik maç yok). `?mode=` lobideki mod sekmesini önceden seçer. */
+export const LOBBY_URL_FLAG='__lobby__';
+export const lobbyFromUrl=href=>{try{return new URL(href).searchParams.get('pvp')==='lobby';}catch{return false;}};
+/** Düz statik sunucu (BASLAT.bat · scripts/serve.py) POST /api/pvp/rooms için 501 ve HTML döner (gerçek sunucu hep JSON döner):
+ * oda sunucusu yok demektir. Bu durumda sessiz kalmak yerine doğru başlatıcıyı söyleyen mesaj gösterilir. */
+export const NO_ROOM_SERVER_TEXT='Çevrimiçi oda sunucusu bu adreste çalışmıyor. Arkadaşınla oynamak için oyunu BASLAT-CLOUDFLARE.bat ile aç (http://127.0.0.1:8787/). Bota karşı oynamaya devam edebilirsin.';
+export const roomServerMissing=(status,contentType)=>[405,501].includes(Number(status))||(typeof contentType==='string'&&!/json/i.test(contentType));
 /** URL'den karakter: ?karakter=vargr|sira|doran|nyx|konyali (eski: ?fighter=). Geçersiz/yoksa null → kayıtlı tercih ya da varsayılan. */
 export const fighterFromUrl=href=>{try{const q=new URL(href).searchParams;const v=String(q.get('karakter')??q.get('fighter')??'').trim().toLowerCase();return isFighterId(v)?v:null;}catch{return null;}};
 /** Hata ayıklama/QA: ?fighter2=nyx → bot antrenmanında rakip (bot) karakteri. Geçersiz/yoksa null (bot karşı arketipten seçilir).
@@ -165,7 +186,7 @@ export class PvPNetworkConsole {
     this.fighter=fighterFromUrl(location.href)||readFighterPref()||defaultFighter('fire');
     this.character=FIGHTERS[this.fighter].archetype;this.rune='none';this.status='Bağlı değil';this.players=[];this.phase='waiting';
     this.ready=false;this.startAt=null;this.hostPlayerId=null;this.open=true;this.connecting=false;this.rematchVotes=[];this.history=[];
-    this.entries=[];this.autoInvite=invitedRoom(location.href)||(practiceFromUrl(location.href)?PRACTICE_URL_FLAG:null);this.ticker=null;
+    this.entries=[];this.autoInvite=invitedRoom(location.href)||(practiceFromUrl(location.href)?PRACTICE_URL_FLAG:lobbyFromUrl(location.href)?LOBBY_URL_FLAG:null);this.onlineError='';this.ticker=null;
     this.renderPending=false;   // U2: aynı karede gelen paketler tek render'da birleşir (scheduleRender).
     // Practice session (null when playing online). While set, send() is routed to it.
     this.practice=null;this.practiceDifficulty=normalizeDifficulty(safeStore(localStorage,'tuslab-pvp-practice-difficulty'));
@@ -286,6 +307,12 @@ export class PvPNetworkConsole {
       e.preventDefault();const now=Date.now();if(now-wheelAt<220)return;wheelAt=now;
       this.stepStage('practice',(Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY)>0?1:-1);
     },{passive:false});
+    // Denetçi (docs/14): pencere yeniden boyutlanınca seçili madalyon şeritte yeniden ortalanır (önceden yalnız seçim değişince).
+    let dockResizeRaf=0;
+    globalThis.addEventListener?.('resize',()=>{if(dockResizeRaf||typeof requestAnimationFrame!=='function')return;dockResizeRaf=requestAnimationFrame(()=>{dockResizeRaf=0;
+      const dock=root.querySelector('[data-fighter-group="lobby"]'),sel=dock?.querySelector('[aria-checked="true"]');
+      if(!sel||!dock.clientWidth||dock.scrollWidth<=dock.clientWidth+1)return;
+      const d=dock.getBoundingClientRect(),r=sel.getBoundingClientRect();dock.scrollLeft+=r.left+r.width/2-(d.left+d.width/2);});});
     // Arena kaydırmalı karusel: yatay kaydırma (dokunmatik/fare) komşu sahneyi seçer.
     let swipe=null;
     root.addEventListener('pointerdown',e=>{const g=e.target.closest?.('[data-stage-group="practice"]');swipe=g?{x:e.clientX,y:e.clientY,id:e.pointerId}:null;});
@@ -304,6 +331,10 @@ export class PvPNetworkConsole {
     ensurePracticeStyles();ensureRoundsStyles();
     this.open=true;this.render();
     if(this.autoInvite){const code=this.autoInvite;this.autoInvite=null;
+      if(code===LOBBY_URL_FLAG){const m=new URL(location.href).searchParams.get('mode');
+        // Yalnız mod sekmesini önceden seç; maç başlatma kullanıcıda.
+        if(['classic','rounds','arena'].includes(m)){this.practiceMode=normalizeMode(m);if(m!=='rounds')this.practiceContent='kelime';this.render();}
+        return;}
       if(code===PRACTICE_URL_FLAG){const q=new URL(location.href).searchParams;
         if(q.has('mode')||q.get('pvp')==='arena')this.practiceMode=normalizeMode(q.get('mode')||'arena');
         // İçerik modu: ?icerik=atasozu|siir|osmanlica (ya da ?mode=atasozu…) → raund modu + içerik. Aksi hâlde kelime bankası.
@@ -541,20 +572,34 @@ export class PvPNetworkConsole {
   }
   async create(){
     if(this.readName().length<2)return this.log('İsim en az 2 karakter olmalı.');
-    this.disconnect(false);this.connecting=true;this.status='Oda oluşturuluyor';this.render();
+    this.disconnect(false);this.connecting=true;this.onlineError='';this.status='Oda oluşturuluyor';this.render();
     try{
       const res=await fetch('/api/pvp/rooms',{method:'POST',headers:{'content-type':'application/json'},body:'{}',cache:'no-store'});
+      if(!res.ok&&roomServerMissing(res.status,res.headers?.get?.('content-type'))){
+        this.status='Oda oluşturulamadı · çevrimiçi sunucu yok';this.onlineError=NO_ROOM_SERVER_TEXT;this.log(NO_ROOM_SERVER_TEXT);return;}
       const data=await res.json();
       if(!res.ok||!ROOM_CODE.test(data.roomCode||''))throw new Error(data.error||'ODA_OLUSTURULAMADI');
       this.code=data.roomCode;this.log('Oda oluşturuldu: '+this.code);
       this.connect(this.code);
-    }catch(error){this.status='Oda oluşturulamadı · bota karşı başlatabilir veya yeniden deneyebilirsin';this.log('Oda kurma hatası: '+error.message);}
+    }catch(error){this.status='Oda oluşturulamadı · bota karşı başlatabilir veya yeniden deneyebilirsin';this.onlineError=error instanceof TypeError?'Sunucuya ulaşılamadı. Bağlantını kontrol et; yerelde oynuyorsan oyunu BASLAT-CLOUDFLARE.bat ile aç.':'Oda oluşturulamadı: '+errorText(error.message);this.log('Oda kurma hatası: '+error.message);}
     finally{this.connecting=false;this.render();}
   }
   async join(code){
     const normalized=String(code).trim().toUpperCase();
     if(!ROOM_CODE.test(normalized))return this.log('Oda kodu 16 karakter olmalı.');
     if(this.readName().length<2)return this.log('İsim en az 2 karakter olmalı.');
+    // An expired invite rejects the WebSocket upgrade before it can send ERROR;
+    // without this check the browser retries a nonexistent room for 19 seconds.
+    try{
+      const response=await fetch('/api/pvp/rooms/'+normalized,{cache:'no-store'});
+      if(!response.ok&&roomServerMissing(response.status,response.headers?.get?.('content-type'))){
+        this.status='Odaya katılınamadı · çevrimiçi sunucu yok';this.onlineError=NO_ROOM_SERVER_TEXT;this.log(NO_ROOM_SERVER_TEXT);this.render();return;}
+      if(!response.ok){
+        const body=await response.json().catch(()=>({}));
+        this.status='Odaya katılınamadı: '+errorText(body.error||'ROOM_NOT_FOUND');
+        this.log(this.status);this.render();return;
+      }
+    }catch{/* A transient status request must not prevent the WebSocket retry path. */}
     this.disconnect(false);this.code=normalized;this.open=true;this.connect(normalized);
   }
   ticket(code){
@@ -916,6 +961,8 @@ export class PvPNetworkConsole {
     if(c)c.hidden=this.phase!=='countdown';
     if(this.phase==='countdown')this.renderCountdown();
     panel.querySelectorAll('[data-lobby-action="create"],[data-lobby-action="join"]').forEach(b=>b.disabled=this.connecting);
+    const onlineErr=panel.querySelector('[data-lobby-online-error]');
+    if(onlineErr){const t=joined?'':this.onlineError||'';if(onlineErr.textContent!==t)onlineErr.textContent=t;onlineErr.hidden=!t;}
     const entries=panel.querySelector('[data-lobby-log]');
     if(entries)entries.replaceChildren(...this.entries.map(v=>{const e=document.createElement('div');e.textContent=v;return e;}));
     if(this.arenaFresh)this.arenaFresh=false;else this.updateArena();
@@ -961,7 +1008,7 @@ export function networkConsoleHTML(){
       </div>
       <div class="sc-actions">
         <button type="button" class="sc-friend" data-sc-action="drawer" aria-expanded="false" aria-controls="sc-drawer">Arkadaşla oyna</button>
-        <button type="button" class="lb3-close sc-close" data-lobby-action="toggle" aria-label="Lobiyi kapat" title="Lobiyi kapat">Kapat</button>
+        <button type="button" class="lb3-close sc-close" data-pvp-action="close" aria-label="PvP'den çık, ana sayfaya dön" title="Ana sayfaya dön">← Ana Sayfa</button>
       </div>
       <div class="sc-layer">
       <button type="button" class="sc-scrim" data-sc-action="drawer-close" tabindex="-1" aria-label="Çekmeceyi kapat"></button>
@@ -971,6 +1018,7 @@ export function networkConsoleHTML(){
         <section class="sc-online" data-lobby-before aria-label="Çevrimiçi oda">
           <label for="pvp6-name">Oyuncu adın</label><input id="pvp6-name" data-lobby-name maxlength="20" value="Savaşçı" autocomplete="nickname" />
           <button type="button" class="sc-btn" data-lobby-action="create">Oda oluştur ve davet et</button>
+          <p class="sc-online-error" data-lobby-online-error role="alert" hidden></p>
           <p class="sc-or">veya arkadaşının koduyla katıl</p>
           <label for="lb3-join-code">Oda kodu</label>
           <div class="pvp6-join"><input id="lb3-join-code" data-lobby-join-code maxlength="16" autocomplete="off" spellcheck="false" placeholder="16 karakter" aria-describedby="lb3-join-hint"/><button type="button" class="sc-btn" data-lobby-action="join">Odaya katıl</button></div>

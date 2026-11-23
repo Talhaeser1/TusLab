@@ -75,7 +75,7 @@ test('K: konyali seçilince üç modda (classic, rounds, arena) maça taşınır
 test('K: bot havuzu, URL parametresi, lobi kartı', () => {
   const human = practiceFighters({fighter: 'konyali'});
   assert.deepEqual([human.character, human.fighter, human.botCharacter], ['rune', 'konyali', 'fire']);
-  assert.equal(practiceFighters({fighter: 'vargr', fighterRng: () => 0.25}).botFighter, 'konyali', 'bot havuzunda Hacı Usta var');
+  assert.equal(practiceFighters({fighter: 'vargr', fighterRng: () => 0.7}).botFighter, 'konyali', 'bot havuzunda Hacı Usta var');
   const s = createPracticeSession({mode: 'classic', fighter: 'vargr', botFighter: 'konyali', rng: () => 0.5, createId: () => 'k'});
   assert.equal(s.botFighter, 'konyali');
   assert.equal(fighterFromUrl('http://x/index.html?karakter=konyali'), 'konyali');

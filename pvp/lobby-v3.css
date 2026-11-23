@@ -725,7 +725,6 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
 #pvp-root .lb3.sc .lb3-dock-grp:last-child{margin-right:auto}
 #pvp-root .lb3.sc .lb3-dock-grp+.lb3-dock-grp{margin-left:clamp(12px,1.2vw,22px);padding-left:clamp(12px,1.2vw,22px);border-left:1px solid #ffffff2e}
 #pvp-root .lb3.sc .lb3-dock-cap{padding:0 4px;font-size:12px;font-weight:800;line-height:1.2;letter-spacing:.18em;text-transform:uppercase;color:var(--sc-muted);white-space:nowrap}
-#pvp-root .lb3.sc .lb3-dock-grp[data-dock-group="padisah"] .lb3-dock-cap{color:#e8c15a}
 #pvp-root .lb3.sc .lb3-dock-row{display:flex;align-items:flex-start;gap:clamp(2px,.3vw,6px)}
 #pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter{--ring:var(--sc-gold);position:relative;flex:none;display:flex;flex-direction:column;align-items:center;gap:7px;
   width:max(68px,calc(var(--sc-med) + 8px));height:auto;min-height:0;aspect-ratio:auto;padding:8px 0 2px;margin:0;
@@ -919,32 +918,7 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
 }
 #pvp-root.pvp4-reduced .lb3.sc *,#pvp-root.pvp4-reduced .lb3.sc *::before,#pvp-root.pvp4-reduced .lb3.sc *::after{transition:none!important;animation:none!important}
 
-/* Osmanlı padişahları: yüz portresi yok → madalyon (assets/padisah/<id>.svg). Lobi kartı, büyük yüz ve madalyon dock'u. */
-#pvp-root .lb3-f-art[data-fighter-portrait="osman"],#pvp-root .lb3.sc .sc-face[data-face="osman"]{background-image:url('../assets/padisah/osman.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="orhan"],#pvp-root .lb3.sc .sc-face[data-face="orhan"]{background-image:url('../assets/padisah/orhan.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="murad1"],#pvp-root .lb3.sc .sc-face[data-face="murad1"]{background-image:url('../assets/padisah/murad1.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="bayezid1"],#pvp-root .lb3.sc .sc-face[data-face="bayezid1"]{background-image:url('../assets/padisah/bayezid1.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="mehmed1"],#pvp-root .lb3.sc .sc-face[data-face="mehmed1"]{background-image:url('../assets/padisah/mehmed1.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="murad2"],#pvp-root .lb3.sc .sc-face[data-face="murad2"]{background-image:url('../assets/padisah/murad2.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="fatih"],#pvp-root .lb3.sc .sc-face[data-face="fatih"]{background-image:url('../assets/padisah/fatih.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="bayezid2"],#pvp-root .lb3.sc .sc-face[data-face="bayezid2"]{background-image:url('../assets/padisah/bayezid2.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="yavuz"],#pvp-root .lb3.sc .sc-face[data-face="yavuz"]{background-image:url('../assets/padisah/yavuz.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="kanuni"],#pvp-root .lb3.sc .sc-face[data-face="kanuni"]{background-image:url('../assets/padisah/kanuni.svg');background-position:center 30%}
-#pvp-root .lb3.sc[data-fighter="osman"] .sc-face[data-face="osman"],#pvp-root .lb3.sc[data-fighter="orhan"] .sc-face[data-face="orhan"],#pvp-root .lb3.sc[data-fighter="murad1"] .sc-face[data-face="murad1"],#pvp-root .lb3.sc[data-fighter="bayezid1"] .sc-face[data-face="bayezid1"],#pvp-root .lb3.sc[data-fighter="mehmed1"] .sc-face[data-face="mehmed1"],#pvp-root .lb3.sc[data-fighter="murad2"] .sc-face[data-face="murad2"],#pvp-root .lb3.sc[data-fighter="fatih"] .sc-face[data-face="fatih"],#pvp-root .lb3.sc[data-fighter="bayezid2"] .sc-face[data-face="bayezid2"],#pvp-root .lb3.sc[data-fighter="yavuz"] .sc-face[data-face="yavuz"],#pvp-root .lb3.sc[data-fighter="kanuni"] .sc-face[data-face="kanuni"]{opacity:1;transform:none}
-
-/* Padişah bilgi kartı: saltanat satırı + söz. */
-#pvp-root .lb3.sc .j2-soz{margin:0;font-size:15px;font-style:italic;color:var(--f-accent,#ffe08a)}
-/* Şerit: padişahın yazısız küçük madalyonu (assets/padisah/<id>-kucuk.svg; büyük kart ve yüz <id>.svg kullanır). */
-#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="osman"]{background-image:url('../assets/padisah/osman-kucuk.svg');background-position:center;background-size:cover}
-#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="orhan"]{background-image:url('../assets/padisah/orhan-kucuk.svg');background-position:center;background-size:cover}
-#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="murad1"]{background-image:url('../assets/padisah/murad1-kucuk.svg');background-position:center;background-size:cover}
-#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="bayezid1"]{background-image:url('../assets/padisah/bayezid1-kucuk.svg');background-position:center;background-size:cover}
-#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="mehmed1"]{background-image:url('../assets/padisah/mehmed1-kucuk.svg');background-position:center;background-size:cover}
-#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="murad2"]{background-image:url('../assets/padisah/murad2-kucuk.svg');background-position:center;background-size:cover}
-#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="fatih"]{background-image:url('../assets/padisah/fatih-kucuk.svg');background-position:center;background-size:cover}
-#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="bayezid2"]{background-image:url('../assets/padisah/bayezid2-kucuk.svg');background-position:center;background-size:cover}
-#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="yavuz"]{background-image:url('../assets/padisah/yavuz-kucuk.svg');background-position:center;background-size:cover}
-#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="kanuni"]{background-image:url('../assets/padisah/kanuni-kucuk.svg');background-position:center;background-size:cover}
+/* Osmanlı padişahı portre/madalyon kuralları kaldırıldı (padişahlar PvP'den çıktı; Denetçi, docs/14). */
 
 
 /* Dar yatay pencere (rapor 8 · ≈800×546): bilgi kartı şeridin üstüne binmez, üst sekmeler sağdaki düğmelerin altına girmez,
@@ -975,3 +949,27 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
   #pvp-root .lb3.sc .j2-chars{scroll-behavior:auto}
 }
 #pvp-root.pvp4-reduced .lb3.sc .j2-chars button.lb3-fighter:hover .lb3-f-art{transform:none}
+
+/* Denetçi (docs/14): 761–1279 px'te üst mod sekmeleri (7 sekme ≈ 618 px) sağdaki iki düğmeye ayrılan boşluğa sığmıyor,
+   "Rastgele" (seçiliyken bile) kırpılıyordu. Sekmeler sıkılaşır; hâlâ sığmayan dar pencerede sağ kenar solar (kaydığı belli olur). */
+@media (min-width:761px) and (max-width:1279.98px){
+  #pvp-root .pvp6-panel.lb3.sc .j2-modes .aui-modes .rui-seg{gap:2px}
+  #pvp-root .pvp6-panel.lb3.sc .j2-modes .aui-modes .rui-seg button{padding-left:8px;padding-right:8px}
+  #pvp-root .pvp6-panel.lb3.sc .j2-modes .aui-modes .rui-seg button::after{left:8px;right:8px}
+  #pvp-root .lb3.sc .j2-modes .aui-modes .rui-seg button b{font-size:13px;letter-spacing:0}
+}
+@media (min-width:761px) and (max-width:1023.98px){
+  #pvp-root .pvp6-panel.lb3.sc .j2-modes .aui-modes .rui-seg{-webkit-mask:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+}
+/* Denetçi (docs/14): alçak pencerede (telefon yatay 844×390) sağ sütunun ilk satırı (arena, minmax(0,1fr)) 0 px'e iniyor,
+   arena kartları ve adı MAÇ AYARLARI'nın üstüne biniyordu. Arena kendi boyunda kalır; kısalan ve kayan satır ayarlar olur
+   (ayarlar ≤620 px'te zaten overflow-y:auto). */
+@media (min-width:761px) and (max-height:620px){
+  #pvp-root .lb3.sc .sc-stage{grid-template-rows:auto minmax(0,1fr) auto}
+}
+/* Denetçi (docs/14): padişahlar kalktı, şeritte 5 dövüşçü var. Telefonda (390 px) 31 px taşıyordu: şerit kayıyor ve
+   "DÖVÜŞÇÜLER" başlığı soldan kırpılıyordu. Dar ekranda madalyon kutusu ve kenar solması biraz daralır, 5'i sığar. */
+@media (max-width:440px){
+  #pvp-root .lb3.sc .j2-chars{--sc-fade:10px}
+  #pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter{width:62px}
+}

@@ -272,6 +272,7 @@
 .fhud2-sk[data-state="ready"] .fhud2-glyph,.fhud2-sk[data-state="active"] .fhud2-glyph{color:var(--fh-gold)}
 .fhud2-sk[data-state="ready"] .hx-ring,.fhud2-sk[data-state="active"] .hx-ring{stroke:rgba(255,214,107,.55)}
 .fhud2-sk[data-state="cooldown"] .fhud2-hexwrap{opacity:.55}
+.fhud2-sk[data-state="off"] .fhud2-hexwrap{opacity:.45}
 .fhud2-sk.is-cast .fhud2-skname{color:var(--fh-gold)}
 .fhud2-rail-note{max-width:300px;font:600 12px/1.25 system-ui,sans-serif;color:var(--fh-mute);text-shadow:0 1px 3px #000,0 0 2px #000}
 .fhud2-rail-2 .fhud2-rail-note{text-align:right}
@@ -328,6 +329,8 @@
 #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-vs{display:none!important}
 
 .fhud2::before{height:190px;background:linear-gradient(180deg,rgba(8,5,18,.86),rgba(8,5,18,.5) 55%,transparent)}
+/* Tam ekran maçta karartma araç çubuğunun ALTINDAN başlar (çubuk soluk görünmesin; önceden compact-height.css eziyordu). */
+#pvp-root[data-layout="fullscreen"] .fhud2::before{top:var(--fs-toolbar,40px)}
 
 /* Portre: tek kosesi kesik kare; koyu ic hat + karakter renginde dis hat */
 .fhud2 .fhud2-medal{width:68px;height:68px;border:0;border-radius:16px 16px 16px 4px;background:var(--v3-ink);
@@ -363,6 +366,7 @@
 #pvp-root .fhud-heal{position:fixed;z-index:70;pointer-events:none;transform:translate(-50%,-50%);
   font:900 italic 34px/1 system-ui,sans-serif;letter-spacing:.02em;color:#8dffaa;
   text-shadow:0 2px 0 #0b3a1a,0 0 12px rgba(80,255,140,.75),0 0 2px #000;animation:fhud-heal 1.2s cubic-bezier(.2,.8,.3,1) forwards}
+#pvp-root .fhud-heal.fhud-shield{color:#bfe3ff;text-shadow:0 2px 0 #0b2340,0 0 12px rgba(110,190,255,.75),0 0 2px #000}
 #pvp-root .fhud-heal-1{left:22%;top:26%}
 #pvp-root .fhud-heal-2{left:78%;top:26%}
 #pvp-root .fhud-heal.fhud-reduced{animation:fhud-heal-r 1.2s linear forwards}
@@ -372,7 +376,7 @@
 .fhud2 .fhud2-fill{transition:transform .55s cubic-bezier(.2,.9,.3,1)}
 .fhud2-bar.is-heal .fhud2-clip::after{box-shadow:inset 0 0 0 2px rgba(120,255,160,.95),0 0 14px rgba(90,255,140,.55)}
 .fhud2-bar.is-heal .fhud2-hp{color:#9dffb8}
-.fhud2 .fhud2-sk-e[data-state="ready"] .hx-prog{stroke:#6dff9c}
+.fhud2 .fhud2-sk-e[data-state="cast"] .hx-prog{stroke:#6dff9c}
 
 /* Seri:bara bitisik parcali gosterge; sayi buyuk, etiket kucuk */
 .fhud2 .fhud2-series{height:24px;margin-top:9px;gap:10px}
@@ -600,3 +604,84 @@ html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-bar-opp i{b
 }
 html #pvp-root.pvp4-reduced.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-word,
 html #pvp-root.pvp4-reduced.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-word::after{animation:none!important}
+
+/* =====================================================================
+   Beceri satırı (RAPOR-BECERI-SATIRI.md): her kart kendi eşiğine dolar (halka birincil, "n/N" ikincil);
+   atılınca "ATILDI ✓" yanık kalır (sönük/devre dışı görünmez), E bekliyorsa "BEKLİYOR"; 10'dan sonra Q "zincir".
+   Düzen: kart = sabit 3 satır (altıgen · ad en çok 2 satır · durum 1 satır) → iki yanda tek taban çizgisi, etiket taşmaz.
+   ===================================================================== */
+.fhud2 .fhud2-skills{align-items:flex-start;gap:8px}
+.fhud2 .fhud2-sk{display:grid;grid-template-rows:70px 28px 15px;justify-items:center;align-items:end;row-gap:3px;width:72px;min-width:0}
+.fhud2 .fhud2-sk-r{width:84px}
+.fhud2 .fhud2-sk-e{width:84px} /* "KALKAN 330" / "BEKLİYOR" komşuya değmesin */
+.fhud2 .fhud2-sk .fhud2-skname{align-self:start;width:100%;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;
+  max-height:28px;font:700 12px/14px system-ui,sans-serif;overflow-wrap:normal;word-break:normal;hyphens:auto}
+.fhud2 .fhud2-sk .fhud2-sksub{align-self:start;width:100%;white-space:nowrap;overflow:visible;font:800 12px/15px system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.fhud2 .fhud2-rail.is-opp .fhud2-sk{grid-template-rows:58px 28px 15px;width:66px}
+.fhud2 .fhud2-rail.is-opp .fhud2-sk-r{width:76px}
+.fhud2 .fhud2-rail.is-opp .fhud2-sk-e{width:80px}
+.fhud2 .fhud2-tag{position:absolute;left:-8px;top:-7px;padding:0 4px;border-radius:3px;background:#2a1d55;border:1px solid #c9a6ff;
+  font:800 12px/14px system-ui,sans-serif;font-style:normal;color:#f1e8ff;white-space:nowrap}
+.fhud2 .fhud2-tag[hidden]{display:none}
+/* doluyor: halka karakter renginde, sayı beyaz */
+.fhud2 .fhud2-sk[data-state="charging"] .fhud2-sksub{color:#f6f2ff}
+/* atıldı: altın halka tam, ikon altın, alt yazı altın — yanık, sönük DEĞİL */
+.fhud2 .fhud2-sk[data-state="cast"] .hx-prog{stroke:var(--fh-gold)}
+.fhud2 .fhud2-sk[data-state="cast"] .hx-ring{stroke:rgba(255,214,107,.6)}
+.fhud2 .fhud2-sk[data-state="cast"] .fhud2-glyph{color:var(--fh-gold)}
+.fhud2 .fhud2-sk[data-state="cast"] .fhud2-sksub{color:var(--fh-gold)}
+.fhud2 .fhud2-sk-e[data-state="cast"] .fhud2-sksub,.fhud2 .fhud2-sk-e[data-state="cast"] .fhud2-glyph{color:#8dffaa}
+/* bekliyor (E canı ilk darbeyi bekliyor): yeşil kesikli halka, yazı yeşil */
+.fhud2 .fhud2-sk[data-state="pending"] .hx-prog{stroke:#6dff9c;stroke-dasharray:8 5!important}
+.fhud2 .fhud2-sk[data-state="pending"] .fhud2-glyph,.fhud2 .fhud2-sk[data-state="pending"] .fhud2-sksub{color:#8dffaa}
+.fhud2 .fhud2-sk.is-drop .fhud2-sksub{color:#ffb3c0}
+.fhud2 .fhud2-rail-note{max-width:340px;height:30px;line-height:15px;overflow:hidden}
+/* rakip rayında not görünmez ama yer tutar → iki yanın kartları aynı taban çizgisinde */
+.fhud2 .fhud2-rail.is-opp .fhud2-rail-note{display:block;visibility:hidden}
+@media (max-width:1400px){
+  .fhud2 .fhud2-sk{grid-template-rows:58px 28px 15px;width:66px}
+  .fhud2 .fhud2-sk-r{width:76px}
+  .fhud2 .fhud2-sk-e{width:80px}
+  .fhud2 .fhud2-sk .fhud2-hexwrap{width:48px;height:48px}
+  .fhud2 .fhud2-sk-r .fhud2-hexwrap{width:58px;height:58px}
+  .fhud2 .fhud2-rail.is-opp .fhud2-sk{grid-template-rows:50px 28px 15px;width:62px}
+  .fhud2 .fhud2-rail.is-opp .fhud2-sk-r{width:70px}
+  .fhud2 .fhud2-rail.is-opp .fhud2-sk-e{width:78px}
+  .fhud2 .fhud2-rail.is-opp .fhud2-hexwrap{width:40px;height:40px}
+  .fhud2 .fhud2-rail.is-opp .fhud2-sk-r .fhud2-hexwrap{width:50px;height:50px}
+  .fhud2 .fhud2-rail-note{max-width:290px}
+}
+@media (prefers-reduced-motion:reduce){.fhud2 .fhud2-sk,.fhud2 .fhud2-sk *{transition:none!important;animation:none!important}}
+#pvp-root.pvp4-reduced .fhud2 .fhud2-sk,#pvp-root.pvp4-reduced .fhud2 .fhud2-sk *{transition:none!important;animation:none!important}
+#pvp-root .fhud-heal.fhud-pending{font-size:24px;color:#b8ffcb}
+
+/* Denetçi (docs/14): "KALKAN 330" rozeti flex:none olduğundan dar üst satırda adı ~22 px'e sıkıştırıyor,
+   "BOT · KOLAY" harf harf dikey kırılıyordu (390×844; 910 px'te iki satır). Satır sığmazsa rozet alta iner. */
+#pvp-root .fhud2 .fhud2-top{flex-wrap:wrap;row-gap:0}
+
+/* Denetçi (docs/14): telefon yatay (≈844×390). Önceden çerçeveli yazma paneli bottom:150px + max-height ile ekranın TEPESİNE
+   (y≈20) çıkıp tüm HUD'u ve raund madalyonunu örtüyordu; beceri rayları panelin üstüne hesaplandığı için ekran dışına
+   (y<0) taşıyordu. Bu yükseklikte: panel altta ortada ve kısa (yalnız başlık + kelime + kutu), raylar alt köşelerde küçük,
+   karakter alt başlığı ve ray notu gizli. Madalyon araç çubuğunun altına iner (rounds-ui.css, max-height:500px). */
+@media (orientation:landscape) and (max-height:500px) and (min-width:600px){
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt{--yf-k:.3;width:min(520px,calc(100vw - 400px));bottom:4px;max-height:calc(100dvh - 150px);gap:0}
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-target{font-size:30px}
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt :is(.tt-next,.tt-status,.tt-meta,.tt-xchg-bar){display:none}
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-input{min-height:34px;height:34px}
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-head::before,
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-head::after{display:none}
+  html #pvp-root.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-mode{font-size:12px;letter-spacing:.12em}
+  html #pvp-root.fhud-on .fhud2 .fhud2-rail{bottom:4px;transform:scale(.55);transform-origin:left bottom}
+  html #pvp-root.fhud-on .fhud2 .fhud2-rail-2{transform-origin:right bottom}
+  html #pvp-root.fhud-on .fhud2 .fhud2-rail-note{display:none}
+  /* ölçekli rayda yazı 12 px altına düşerdi: yalnız altıgen + dolum halkası kalır (beceriler seriyle kendiliğinden atılır) */
+  html #pvp-root.fhud-on .fhud2 .fhud2-rail :is(.fhud2-skname,.fhud2-sksub,.fhud2-key,.fhud2-tag){display:none}
+  html #pvp-root.fhud-on .fhud2 .fhud2-rail .fhud2-sk{grid-template-rows:70px}
+  html #pvp-root.fhud-on .fhud2 .fhud2-char{display:none}
+  html #pvp-root.fhud-on .fhud2 .fhud2-name{font-size:17px}
+}
+/* Denetçi (docs/14): telefon yatay — dövüşçü sahnesi (fullscreen33.css: 100dvh − araç − HUD − --fs-bottom 240px) 54 px'e
+   iniyor, 3B dövüşçüler HUD'un altında minicik kalıyordu. Bu yükseklikte alt pay küçülür, sahne ≈230 px olur. */
+@media (orientation:landscape) and (max-height:500px) and (min-width:600px){
+  html #pvp-root#pvp-root[data-layout="fullscreen"]{--fs-bottom:24px}
+}

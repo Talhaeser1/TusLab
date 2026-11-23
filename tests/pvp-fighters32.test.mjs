@@ -22,7 +22,11 @@ test('kadro sözleşmesi: 5 karakter, arketip, varsayılanlar ve normalizeFighte
     assert.ok(f.blurb.length>20);
     // KESINYAP 21: Q menzilli, W yakın (eski E klibi), R ulti, S savunma klip taşır; E kendine can (klipsiz, karaktere özel motif).
     for(const k of ['q','w','r','s']){assert.ok(f.skills[k].name&&f.skills[k].desc&&f.skills[k].clip&&f.skills[k].fx,`${id}.${k}`);}
-    assert.ok(f.skills.e.name&&f.skills.e.desc&&f.skills.e.heal===true&&/^heal-/.test(f.skills.e.fx)&&f.skills.e.motif,`${id}.e (can)`);
+    // RAPOR-PVP-MEKANIK §1.5: E savunma = YA kalkan YA can (tam biri); bayrak, tür ve kısa metin aynı şeyi söyler.
+    const e=f.skills.e;
+    assert.ok(e.name&&e.desc&&/^heal-/.test(e.fx)&&e.motif&&['heal','shield'].includes(e.defense),`${id}.e (savunma)`);
+    assert.equal(Boolean(e.heal),e.defense==='heal',`${id}.e heal bayrağı`);assert.equal(Boolean(e.shield),e.defense==='shield',`${id}.e shield bayrağı`);
+    assert.match(e.short,e.defense==='shield'?/^KALKAN:/:/^CAN:/,`${id}.e kısa metin türü söyler`);
     assert.ok(Object.isFrozen(f)&&Object.isFrozen(f.skills.q));
   }
   assert.equal(FIGHTERS.sira.skills.q.name,'Mızrak Atışı');assert.equal(FIGHTERS.sira.skills.q.clip,'Throw');
@@ -64,9 +68,9 @@ test('bot maçı: insan karakteri arketipi belirler; bot karşı arketipten kara
   assert.deepEqual([nyx.character,nyx.fighter,nyx.botCharacter],['rune','nyx','fire']);
   assert.equal(practiceFighters({fighter:'nyx',rng:()=>0.7}).botFighter,'vargr','deterministik oturumda bot karakteri sabit');
   assert.equal(FIGHTERS[practiceFighters({fighter:'nyx'}).botFighter].archetype,'fire');
-  // Havuz = karşı arketipteki tüm dövüşçüler (padişahlar dahil); 0.99 → havuzun sonu (rün: Kanuni).
-  assert.equal(practiceFighters({fighter:'sira',fighterRng:()=>0.99}).botFighter,'kanuni');
-  assert.equal(practiceFighters({fighter:'sira',fighterRng:()=>0.25}).botFighter,'konyali');
+  // Havuz = karşı arketipteki dövüşçüler (padişahlar kaldırıldı, docs/14); rün havuzu: Doran, Nyx, Hacı Usta. 0.99 → havuzun sonu.
+  assert.equal(practiceFighters({fighter:'sira',fighterRng:()=>0.99}).botFighter,'konyali');
+  assert.equal(practiceFighters({fighter:'sira',fighterRng:()=>0.5}).botFighter,'nyx');
   assert.equal(practiceFighters({fighter:'sira',fighterRng:()=>0}).botFighter,'doran');
   assert.equal(practiceFighters({fighter:'sira',botFighter:'nyx'}).botFighter,'nyx');
   assert.equal(practiceFighters({fighter:'sira',botFighter:'vargr'}).botFighter!=='vargr',true,'bot aynı arketipi alamaz');
@@ -145,9 +149,9 @@ test('oda: geçersiz FIGHTER_SELECT ve maç başladıktan sonra seçim reddedili
 test('lobi işaretlemesi: 5 karakter kartı, radyo grubu, rozet, hikâye, Q/E/R adları, portre yeri',()=>{
   const html=networkConsoleHTML();
   const cards=html.match(/class="lb3-fighter (fire|rune)"/g)||[];
-  assert.equal(cards.length,15,'5 temel + 10 padişah');
+  assert.equal(cards.length,5,'5 dövüşçü (padişahlar kaldırıldı)');
   assert.match(html,/role="radiogroup" aria-labelledby="lb3-hero-title"/);
-  assert.equal((html.match(/data-fighter-portrait="/g)||[]).length,15);
+  assert.equal((html.match(/data-fighter-portrait="/g)||[]).length,5);
   assert.equal((html.match(/role="radio" aria-checked="true"/g)||[]).length,2,'lobi + oda içi grupta birer seçili');
   for(const id of FIGHTER_IDS){
     const f=FIGHTERS[id];

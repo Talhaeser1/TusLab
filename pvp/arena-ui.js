@@ -276,6 +276,13 @@ export function modePickerHTML(scope){
     +[...MODE_OPTIONS,...CONTENT_OPTIONS].map(o=>`<button type="button" data-lobby-action="mode" data-mode-scope="${s}" data-mode="${o.id}" aria-pressed="${o.id==='rounds'}" title="${o.label} modunu seç · ${o.hint}"><b>${o.label}</b> <small>${o.hint}</small></button>`).join('')
     +`</div><small class="rui-picker-note" data-mode-note></small></div>`;
 }
+/** Denetçi (docs/14): dar pencerede yatay kayan sekme şeridinde seçili sekme kırpık kalmasın (yalnız şerit kayar, sayfa değil). */
+function revealInSeg(button){
+  const seg=button?.parentElement;
+  if(!seg||typeof seg.getBoundingClientRect!=='function'||!(seg.scrollWidth>seg.clientWidth+1))return;
+  const s=seg.getBoundingClientRect(),r=button.getBoundingClientRect();
+  if(r.left<s.left||r.right>s.right)seg.scrollLeft+=r.left+r.width/2-(s.left+s.width/2);
+}
 export function syncModePicker(container,scope,{value,content,editable,note=''}={}){
   const box=container?.querySelector(`[data-mode-picker="${scope}"]`);if(!box)return;
   const current=normalizeMode(value),key=modeSelectionKey(current,content);
@@ -284,7 +291,7 @@ export function syncModePicker(container,scope,{value,content,editable,note=''}=
   box.querySelectorAll('[data-mode]').forEach(b=>{
     if(!b.dataset.modeScope)return;
     const pressed=String(b.dataset.mode===key);
-    if(b.getAttribute('aria-pressed')!==pressed)b.setAttribute('aria-pressed',pressed);
+    if(b.getAttribute('aria-pressed')!==pressed){b.setAttribute('aria-pressed',pressed);if(pressed==='true')revealInSeg(b);}
     if(b.disabled!==!editable)b.disabled=!editable;
   });
   const n=box.querySelector('[data-mode-note]');if(n&&n.textContent!==note)n.textContent=note;

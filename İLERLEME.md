@@ -324,3 +324,9 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 - Karar (kullanıcı isteği yorumu): ana ekran üç sütun — solda eğitim metrikleri, ortada Yazma önizlemesi (herhangi bir harfle başlar) + altında Atasözü/Deyim/Şiir/Tekerleme şeridi, sağda Klavye Dersleri + PvP. Atasözü/deyim girişleri yalnız ana ekran ve üst menüde. Plan: docs/9-gece-plani.md; rapor: docs/10-ana-ekran-kokpit.md.
 - Karar: home/ dosyalarındaki önceki oturumdan kalan commit edilmemiş "Merkez" işi kokpitin tabanı olduğu için birlikte commit edildi.
 - Raund sayacı: soluk görünmenin kök nedeni `.fhud2::before` üst karartmasının madalyonun üstüne düşmesi; maske penceresi + altın-mor SVG madalyon (docs/7-raund-sayaci.md).
+
+## 24 Kas 2026 — Padişahlar PvP'den kaldırıldı; PvP denetimi
+- Karar (kullanıcı): 10 Osmanlı padişahı dövüşçüsü kaldırıldı, kadro eski 5'e döndü. Dosyalar `_to_delete/padisah-pvp/` altında (silinmedi). Meshy model/ses hedefi bırakıldı (hesap ücretsiz planda, üretim yapılamıyor).
+- Karar: "Teslim ol"/Esc/maç içi Ana Sayfa `window.confirm` yerine oyun içi onay kutusu kullanır (gömülü tarayıcı confirm'ü bastırıyordu). Rapor: docs/14-pvp-denetim.md.
+- Karar: PvP JS'i yükleyiciyle gelir (`pvp/index.js` → `pvp/pvp-main.js`); testler pvp-main.js'i okur. Rapor: docs/12.
+- Not: Denetçi'nin dokunduğu pvp dosyalarında (fight-hud.css, network.js, arena3d.js…) önceki oturumlardan kalan commit edilmemiş değişiklikler de vardı; dosyalar bütün hâlinde commit edildi.
