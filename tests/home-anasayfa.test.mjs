@@ -54,5 +54,5 @@ test('eski site koruması ve PvP dönüş gözcüsü korunur', () => {
 test('CSS: azaltılmış hareket ve görünür odak halkası', () => {
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /:focus-visible \{\s*outline: 3px solid/);
-  assert.match(css, /lobi-afis\.webp/);
+  assert.match(css, /url\("\.\.\/assets\/home\/pvp-kart\.webp"\)/);   // lobi afişinin kart boyu kopyası (Tuşçu)
 });

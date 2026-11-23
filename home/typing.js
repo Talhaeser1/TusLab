@@ -1,6 +1,6 @@
 // TuşLab — yazma motoru (İşçi E). Saf JS, ES modülü.
 // Dışa açılan: mountTyper, ensureStyles, h, fingerName, fingerShort, trLower, trUpper,
-// shuffle, fmtTime, loadAll, bumpProgress, normalizeText, matchStartKey
+// shuffle, fmtTime, loadAll, bumpProgress, normalizeText, matchStartKey, setText
 // mountTyper(host, { text, keyboard, onProgress, onFinish, sfx, stream?, onChunk? }) -> { destroy, focus, setKeyboard, stop, stats, item, expected }
 //   stream(): sıradaki parça ({ text } ya da metin; null = bitti). onChunk({ item, index, done, stats }). stats.chunks = biten parça.
 import * as LD from './data/lessons.js';
@@ -50,6 +50,17 @@ export function matchStartKey(key, expected) {
   if (!k || !e || Array.from(k).length !== 1) return '';
   if (k === e) return e;
   return trLower(k) === trLower(e) ? e : '';
+}
+
+/** Metni yalnız değiştiyse yazar; var olan metin düğümünün verisini günceller (düğüm değişimi yok → ucuz).
+ *  Sık güncellenen sayaçlar için (tuş başına): textContent= yerine bunu kullanın. */
+export function setText(el, v) {
+  if (!el) return;
+  const t = String(v);
+  const n = el.firstChild;
+  if (n && n.nodeType === 3 && !n.nextSibling) {
+    if (n.data !== t) n.data = t;
+  } else if (el.textContent !== t) el.textContent = t;
 }
 
 export function shuffle(arr) {
@@ -370,13 +381,16 @@ export function mountTyper(host, opts = {}) {
     return { wpm, acc, errors, elapsedMs, typed: doneChars + pos, total: doneChars + total, weakKeys, keystrokes, hits, chunks };
   }
 
+  // Sayaçlar her tuşta ve 250 ms'de bir yazılır: yalnız değişen değeri, metin düğümünün verisini değiştirerek yaz.
+  // (textContent= düğümü değiştirir; sayfadaki yapısal seçiciler yüzünden tüm belgede ~6 ms stil hesabı tetikliyordu.)
   function paintStats(s) {
-    stEls.wpm.textContent = String(s.wpm);
-    stEls.acc.textContent = Math.round(s.acc) + '%';
-    stEls.err.textContent = String(s.errors);
-    stEls.time.textContent = fmtTime(s.elapsedMs);
-    if (stEls.cnt) stEls.cnt.textContent = String(s.chunks);
-    prog.style.width = (total ? (pos / total) * 100 : 0) + '%';
+    setText(stEls.wpm, String(s.wpm));
+    setText(stEls.acc, Math.round(s.acc) + '%');
+    setText(stEls.err, String(s.errors));
+    setText(stEls.time, fmtTime(s.elapsedMs));
+    if (stEls.cnt) setText(stEls.cnt, String(s.chunks));
+    const p = 'scaleX(' + (total ? Math.round((pos / total) * 1000) / 1000 : 0) + ')';
+    if (prog.style.transform !== p) prog.style.transform = p;
   }
 
   function tick() {

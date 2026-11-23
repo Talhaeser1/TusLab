@@ -582,8 +582,18 @@
    * basılan ilk harf de kaybolmaz (pendingKeys → yazıcıya aktarılır). */
   let peek = null;          // { mode, chunk }
   let pendingKeys = '';
+  /** Kelime kipi kelime havuzunu ister (arena.js loadWords, açılışta inmez). Hazır değilse yükler, sonra fn'i çağırır; true döner. */
+  function needWords(m, fn) {
+    if (m !== 'kelime' || !arenaMod || typeof arenaMod.loadWords !== 'function' || arenaMod.wordsReady()) return false;
+    arenaMod.loadWords().then(() => fn(), (err) => {
+      try { console.warn('[home] kelime havuzu yüklenemedi:', err); } catch { /* yok */ }
+      if (view && view.id === 'yazma' && mode === 'kelime') arenaHost.innerHTML = errorCard('Kelime havuzu şu an yüklenemedi.');
+    });
+    return true;
+  }
   function ensurePeek() {
     if (!arenaMod) return null;
+    if (needWords(mode, renderPreview)) return null;
     if (!peek || peek.mode !== mode) {
       let chunk = null;
       try { chunk = isStream(mode) ? arenaMod.nextChunk(mode) : arenaMod.pickText(mode); } catch { chunk = null; }
@@ -913,10 +923,16 @@
     setNav(id);
     menuEl.setAttribute('aria-hidden', 'true');
     menuEl.inert = true;
+    root.classList.add('tlh-in-view');   // home.css: Merkez ve arka plan bulutları görünüm altındayken boyanmaz/durur
     if (push && location.hash !== '#' + id) {
       try {
-        if (switching && history.state && history.state.tlh) history.replaceState({ tlh: id }, '', '#' + id);
-        else history.pushState({ tlh: id }, '', '#' + id);
+        // Bölümden bölüme geçişte geçmiş kaydı değiştirilir (Merkez tek geri adımla dönsün). Adresle doğrudan açılan
+        // bölümde (#performans, state yok) de değiştirilir: yoksa "← Merkez"/Esc geri adımla önceki BÖLÜME dönüyordu.
+        // pushed: bu kaydı biz ekledik → kapatırken history.back() Merkez'e döner; eklemediysek adres temizlenir.
+        const cur = location.hash.slice(1);
+        if (switching && (VIEW_IDS.includes(cur) || (history.state && history.state.tlh))) {
+          history.replaceState({ tlh: id, pushed: !!(history.state && history.state.pushed) }, '', '#' + id);
+        } else history.pushState({ tlh: id, pushed: true }, '', '#' + id);
       } catch { /* yok */ }
     }
     if (v.write) {
@@ -964,11 +980,12 @@
     view = null;
     menuEl.removeAttribute('aria-hidden');
     menuEl.inert = false;
+    root.classList.remove('tlh-in-view');
     setNav('hub');
     pendingKeys = '';
     renderPreview();
     if (!silent && !fromPop && VIEW_IDS.includes(location.hash.slice(1))) {
-      if (history.state && history.state.tlh) history.back();
+      if (history.state && history.state.tlh && history.state.pushed) history.back();
       else clearHash();
     }
     if (!silent || fromPop) setTimeout(() => { if (!view && !root.hidden) root.focus({ preventScroll: true }); }, 30);
@@ -1072,6 +1089,13 @@
 
   function newText(same = false) {
     if (!arenaMod) return;
+    if (needWords(mode, () => { if (view && view.id === 'yazma') newText(same); })) {
+      try { arenaCtl?.destroy?.(); } catch { /* yok */ }
+      arenaCtl = null;
+      resultEl.hidden = true;
+      arenaHost.innerHTML = '<div class="tlh-loading">Yükleniyor…</div>';
+      return;
+    }
     if (!same || !current || current.mode !== mode) {
       const pk = takePeek(mode);   // Merkez önizlemesindeki satır: kullanıcı gördüğü metni yazar
       firstChunk = arenaMod.isStreamMode?.(mode) ? pk : null;
@@ -1084,13 +1108,17 @@
     startTyper();
   }
 
+  // Kombo her tuşta güncellenir: yalnız değişince, metin düğümünün verisi yazılır (textContent= düğüm değiştirir →
+  // sayfa genelinde pahalı stil hesabı; ölçüm: ~6 ms → ~0,6 ms). Sınıflar yalnız durum değişince dokunulur.
+  const comboB = comboEl.querySelector('b');
   function setCombo(n) {
+    if (n === combo && comboB.firstChild) return;
     combo = n;
     bestCombo = Math.max(bestCombo, n);
-    const b = comboEl.querySelector('b');
-    b.textContent = String(n);
-    comboEl.classList.toggle('is-hot', n >= 25);
-    comboEl.classList.toggle('is-on', n > 0);
+    const t = String(n);
+    if (comboB.firstChild && comboB.firstChild.nodeType === 3) comboB.firstChild.data = t; else comboB.textContent = t;
+    if (comboEl.classList.contains('is-hot') !== (n >= 25)) comboEl.classList.toggle('is-hot', n >= 25);
+    if (comboEl.classList.contains('is-on') !== (n > 0)) comboEl.classList.toggle('is-on', n > 0);
     if (n > 0 && n % 25 === 0 && !reduced()) {
       comboEl.classList.remove('is-pop'); void comboEl.offsetWidth; comboEl.classList.add('is-pop');
     }
@@ -1248,6 +1276,20 @@
     }
   });
 
+  // Dersler (lessons.js + kelime havuzu) ve Kelime kipi açılışta inmez; fare/odak oraya gelince önden yüklenir.
+  let preLessons = false, preWords = false;
+  const prefetch = (e) => {
+    const t = e.target && e.target.closest ? e.target : null;
+    if (!t) return;
+    if (!preLessons && t.closest('.tlh-k-edu,[data-nav="egitim"],[data-quest="lesson"]')) {
+      preLessons = true;
+      loadMod('lessons.js').catch(() => { preLessons = false; });
+    }
+    if (!preWords && arenaMod && t.closest('[data-mode="kelime"]')) { preWords = true; arenaMod.loadWords?.().catch(() => { preWords = false; }); }
+  };
+  root.addEventListener('pointerover', prefetch, { passive: true });
+  root.addEventListener('focusin', prefetch);
+
   soundBtn.addEventListener('click', () => {
     const on = !sfx.enabled;
     sfx.setEnabled(on);
@@ -1261,10 +1303,18 @@
   const isField = (t) => !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
   function typeToStart(e) {
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return false;
-    if (typeof e.key !== 'string' || e.key.length !== 1 || e.key === ' ' || isField(e.target)) return false;
+    if (typeof e.key !== 'string' || e.key.length !== 1 || isField(e.target)) return false;
     if (root.hidden || pvpVisible()) return false;
+    // Boşluk Merkez'de başlatmaz; düğme/bağlantı üstündeyken de o öğeyi çalıştırsın (aşağıda yazıcıya yönlendirilmez).
+    const space = e.key === ' ';
+    if (space && (!view || (e.target.closest && e.target.closest('button,a,[role="button"],[role="radio"],summary')))) return false;
     if (!view) { e.preventDefault(); pendingKeys = e.key; openView('yazma'); return true; }
-    if (view.id === 'yazma' && !arenaCtl && resultEl.hidden) { e.preventDefault(); pendingKeys += e.key; return true; }
+    if (view.id === 'yazma' && !arenaCtl && resultEl.hidden) { if (space && !pendingKeys) return false; e.preventDefault(); pendingKeys += e.key; return true; }
+    // Odak yazma alanından çıkmışsa (tür düğmesine / boş yere tıklandı) harf kaybolmasın: odağı açık yazıcıya geri ver,
+    // tuş varsayılan davranışıyla oraya düşer (preventDefault yok). Ders ve Şiir & Atasözü yazıcıları için de geçerli.
+    const ta = view.id === 'yazma' ? (resultEl.hidden ? arenaHost.querySelector('textarea.tl-typer-input') : null)
+      : viewBody.querySelector('textarea.tl-typer-input');
+    if (ta && !ta.readOnly && document.activeElement !== ta) { try { ta.focus({ preventScroll: true }); } catch { ta.focus(); } }
     return false;
   }
   root.addEventListener('keydown', (e) => {
@@ -1330,7 +1380,7 @@
     }).catch(err => { try { console.warn('[home] ses modülü yüklenemedi:', err); } catch { /* yok */ } });
 
     // Merkez'deki gerçek sayılar: ders listesi (kaldığın ders, yıldız üst sınırı) ve metin havuzu (kart sayıları).
-    Promise.all([loadMod('data/lessons.js'), loadMod('lessons.js')]).then(([ld, lm]) => {
+    Promise.all([loadMod('data/lessons.js'), loadMod('ders-kilit.js')]).then(([ld, lm]) => {
       if (!Array.isArray(ld.LESSONS) || typeof lm.lessonUnlocked !== 'function') return;
       lessonData = { LESSONS: ld.LESSONS, UNITS: Array.isArray(ld.UNITS) ? ld.UNITS : [], lessonUnlocked: lm.lessonUnlocked };
       renderStats();

@@ -19,6 +19,18 @@ html.tlh-lock, html.tlh-lock body { overflow: hidden !important; }
 #tl-home *, #tl-home *::before, #tl-home *::after { box-sizing: border-box; }
 #tl-home .tlh-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 #tl-home [hidden] { display: none !important; }
+/* Tuşçu (24 Kas): görünmeyen katmanlar boşuna çalışmasın.
+ * - Eski site (#app, exact-ui.css ile visibility:hidden) altta sonsuz animasyonlar (boss aurası, kıvılcım, imleç) çalıştırıyordu.
+ * - Bir bölüm açıkken Merkez (.tlh-menu) görünümün %96 opak + backdrop-filter katmanının altında boyanmaya devam ediyordu;
+ *   arka plan bulutları (tlh-drift, filter: blur) her karede bulanıklığı yeniden hesaplatıyordu. Kaydırma konumu korunsun diye
+ *   display değil visibility kullanılır. */
+html.tlh-app-off #app, html.tlh-app-off #app * { animation-play-state: paused !important; user-select: none; }
+/* görünmeyen eski sitenin PvP vitrini (visual-enrich.css) açılışta 137 KB'lık lobi-afis.webp'i indiriyordu. tlh-app-off sınıfı
+ * (home.js, defer) ilk stil hesabından sonra geldiği için bu kural ona bağlı değil; eski site kullanıcıya hiç gösterilmez. */
+html body #app .home-pvp-entry.lb3-home { background-image: none !important; }
+#tl-home .tlh-menu[aria-hidden="true"] { visibility: hidden; }
+#tl-home .tlh-menu[aria-hidden="true"] * { animation-play-state: paused !important; }
+#tl-home.tlh-in-view .tlh-bg i { animation-play-state: paused; }
 
 /* ---------- arka plan: durağan degradeler + yavaş aurora ---------- */
 #tl-home .tlh-bg {
@@ -495,7 +507,7 @@ html.tlh-lock, html.tlh-lock body { overflow: hidden !important; }
 #tl-home .tlh-k-pvp {
   justify-content: flex-end; gap: 2px; min-height: 140px; color: var(--tl-ink); text-decoration: none; cursor: pointer;
   background: linear-gradient(180deg, rgba(8,11,26,0) 0%, rgba(8,11,26,.5) 42%, rgba(8,11,26,.94) 92%),
-    url("../assets/higgsfield/final/lobi-afis.webp") center 28% / cover no-repeat, #120c1e;
+    url("../assets/home/pvp-kart.webp") center 28% / cover no-repeat, #120c1e;   /* lobi-afis.webp'in 720 px kopyası (137 → 39 KB) */
   transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
 }
 #tl-home .tlh-k-pvp:hover, #tl-home .tlh-k-pvp:focus-visible {
@@ -833,6 +845,9 @@ html.tlh-lock, html.tlh-lock body { overflow: hidden !important; }
 /* dokunmatikte "harfe bas" ipucu anlamsız */
 @media (pointer: coarse) {
   #tl-home .tlh-pw-tip, #tl-home .tlh-lit-tip, #tl-home .tl-lit-keys { display: none; }
+  /* dokunmatikte en az 44 px dokunma alanı (telefonda ses 38 px, "Tümü" 30 px idi) */
+  #tl-home .tlh-sound { min-width: 44px; min-height: 44px; }
+  #tl-home .tlh-edu-row .tlh-k-more { min-height: 44px; }
 }
 @media (max-height: 700px) and (min-width: 861px) {
   #tl-home .tlh-arena-typer .tl-kb-wrap { display: none; }

@@ -76,12 +76,16 @@ test('akış: kaynak satırı (şiir yazar — başlık, özdeyiş yazar, deyim 
   A.itemsFor('deyim').forEach((d) => assert.match(d.text, /: /));
 });
 
-test('ana ekran arabirimi: nextChunk / pickText / isStreamMode', () => {
+test('ana ekran arabirimi: nextChunk / pickText / isStreamMode', async () => {
   assert.deepEqual(A.STREAM_MODES.slice().sort(), ['atasozu', 'deyim', 'ozdeyis', 'siir', 'tekerleme']);
   assert.equal(A.isStreamMode('kelime'), false);
   const a = A.nextChunk('atasozu');
   const b = A.nextChunk('atasozu');
   assert.ok(a.text && b.text && a.text !== b.text);
+  // kelime havuzu açılışta yüklenmez (Tuşçu): önce loadWords()
+  assert.equal(typeof A.loadWords, 'function');
+  await A.loadWords();
+  assert.equal(A.wordsReady(), true);
   const k = A.pickText('kelime');
   assert.ok(k.text.split(' ').length >= 20);
   const t = A.pickText('atasozu');

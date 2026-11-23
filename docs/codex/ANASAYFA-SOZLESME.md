@@ -52,18 +52,30 @@ export function buildDrill(lesson, words, rng) -> string   // aynı kelimeyi bir
 ## Modül arabirimleri
 ```js
 // home/typing.js (İşçi E)
-export function mountTyper(host, { text, keyboard = true, onProgress(stats), onFinish(stats), sfx }) -> { destroy(), focus() }
-// stats = { wpm, acc, errors, elapsedMs, typed, total, weakKeys:{ch:count} }
+export function mountTyper(host, { text, keyboard = true, onProgress(stats), onFinish(stats), sfx,
+                                   stream?() -> { text, source? } | string | null,   // akış kipi: sıradaki parça (null = bitti)
+                                   onChunk?({ item, index, done, stats }) })
+  -> { destroy(), focus(), setKeyboard(on), stop() /* oturumu bitir (Esc/Bitir) */, stats(), get item, get expected /* sıradaki karakter */ }
+// stats = { wpm, acc, errors, elapsedMs, typed, total, weakKeys:{ch:count}, keystrokes, hits, chunks }
+// Akışta Esc yazıcı içinde stop() çağırır; hiç yazılmadan bitirilirse de onFinish(stats) gelir (typed = 0).
+export function matchStartKey(key, expected) -> string      // Merkez'de basılan ilk harf: büyük/küçük duyarsız eşleşirse beklenen harf, yoksa ''
+export function setText(el, v)                              // sık güncellenen sayaçlar: yalnız değişince, metin düğümü verisiyle yaz
+// home/arena.js (Yazma ve Şiir & Atasözü metin akışı)
+export const MODES, STREAM_MODES; export function isStreamMode(m), itemsFor(m), createStream(m, { rng, items }), nextChunk(m), pickText(m)
+export function loadWords() -> Promise, wordsReady() -> bool   // kelime havuzu (data/words.js) açılışta inmez; 'kelime' kipinden önce beklenir
+// home/ders-kilit.js (ana ekran açılışta yalnız bunu yükler; lessons.js ve data/words.js Dersler açılınca iner)
+export function lessonUnlocked(all, i), intentLessonIndex(intent, all), lessonRec(all, id)
 // home/lessons.js (İşçi E)
-export function mountLessons(host, ctx) -> { destroy() }
+export function mountLessons(host, ctx) -> { destroy() }      // ctx.intent = { lesson:'L07', index } → harita yerine doğrudan o ders (açıksa)
+export { lessonUnlocked, intentLessonIndex }                    // ders-kilit.js'ten yeniden dışa
 // home/literature.js (İşçi E)
-export function mountLiterature(host, ctx) -> { destroy() }
-export function dailyLine() -> { text, source }        // ana sayfadaki "Günün Dizesi" kutusu için
+export function mountLiterature(host, ctx) -> { destroy() }   // ctx.intent = { cat:'atasozu'|'deyim'|'siir'|'tekerleme'|'ozdeyis' } → o türün akışı hemen
+export function dailyLine() -> { text, source }        // eski "Günün Dizesi" yardımcısı (Merkez şu an kullanmıyor)
 // home/scene3d.js (İşçi K)
 export function mountScene(host) -> { destroy(), pulse(kind) }   // kind: 'key'|'win'
 // home/sfx.js (İşçi K)
 export const sfx = { key(), error(), win(), voice(name) }       // voice: 'welcome'|'great'|'lesson'|'record'
-// ctx (home.js verir): { back(), sfx, save(obj), load() -> obj, toast(msg) }
+// ctx (home.js verir): { section, intent, back(), sfx, save(obj), load() -> obj, toast(msg) }
 ```
 Ses dosyaları (orkestra üretir, ElevenLabs/Higgsfield): `assets/sfx/home/welcome.mp3`, `great.mp3`, `lesson.mp3`, `record.mp3`,
 `chime.mp3`, `fanfare.mp3`. Dosya yoksa sessiz geç (WebAudio yedek bip).
@@ -71,5 +83,7 @@ Ses dosyaları (orkestra üretir, ElevenLabs/Higgsfield): `assets/sfx/home/welco
 ## Var olan uygulamayla bağlantı (home.js)
 - `?pvp=` sorgusu varsa ana sayfa hiç açılmaz. `#pvp-root` görünür olunca veya `tuslab:pvp-enter` olayında gizlenir.
 - "Hız Arenası" → ana sayfa gizlenir, mevcut uygulama görünür (gerekirse `data-action="nav" data-mode="arena"` düğmesine tıklanır).
-- "PvP Düello" → `?pvp=practice&mode=classic` bağlantısı; "Çevrimiçi" → `document.dispatchEvent(new CustomEvent('tuslab:pvp-enter'))`.
+- "PvP Düello" → `?pvp=lobby` bağlantısı (2026-11-23: PvP LOBİSİ açılır, maç kendiliğinden başlamaz; `?pvp=practice` yalnız test/derin bağlantı); "Çevrimiçi" → `document.dispatchEvent(new CustomEvent('tuslab:pvp-enter'))`.
 - Mevcut uygulamaya dönen kullanıcı için sağ altta küçük "⌂ Ana Sayfa" düğmesi (PvP açıkken gizli).
+- 2026-11-23 (PvP akış şeridi): PvP'den her çıkış (araç çubuğu/lobi "← Ana Sayfa", Esc) yeni ana sayfaya döner; `?pvp=` sayfasında temiz adrese yönlendirilir.
+  Eski uygulama `#app` home.js etkinken hiç görünmez: `html.tlh-app-off` sınıfı (home.js) + `pvp/compact-height.css` sonundaki kural.

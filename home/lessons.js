@@ -4,6 +4,7 @@ import {
 } from './typing.js';
 import * as WD from './data/words.js';
 import * as LD from './data/lessons.js';
+import { lessonRec, lessonUnlocked, intentLessonIndex } from './ders-kilit.js';
 
 const WORDS = WD.WORDS || [];
 const UNITS = LD.UNITS || [];
@@ -111,29 +112,8 @@ function starsEl(n) {
   return el;
 }
 
-function lessonRec(all, id) {
-  return (all.lessons && all.lessons[id]) || { stars: 0, bestWpm: 0, bestAcc: 0 };
-}
-
-// Açık ders: ilk ders, önceki dersi yıldızlı olan ders ya da daha önce kaydı olan (açılmış) ders.
-// Zorluk artsa da kayıtlı ilerleme (sec.egitim.lessons[id]) kimseyi kilitlemez.
-export function lessonUnlocked(all, i) {
-  if (i <= 0) return true;
-  const prev = LESSONS[i - 1];
-  if (prev && lessonRec(all, prev.id).stars >= 1) return true;
-  const own = LESSONS[i] && all.lessons && all.lessons[LESSONS[i].id];
-  return !!own && ((own.stars || 0) > 0 || (own.bestWpm || 0) > 0);
-}
-
-// Ana ekrandaki "Kaldığın ders" düğmesi ctx.intent = { lesson: 'L07', index: 6 } gönderir.
-// Geçerli ve açık bir dersse o dersin sırasını, değilse -1 döndürür (o zaman ders haritası açılır).
-export function intentLessonIndex(intent, all) {
-  if (!intent || typeof intent !== 'object') return -1;
-  let i = typeof intent.lesson === 'string' ? LESSONS.findIndex((l) => l.id === intent.lesson) : -1;
-  if (i < 0 && Number.isInteger(intent.index) && LESSONS[intent.index]) i = intent.index;
-  if (i < 0) return -1;
-  return lessonUnlocked(all || {}, i) ? i : -1;
-}
+// Kilit kuralları ders-kilit.js'te (ana ekran yalnız onu yükler); buradan da dışa verilir (testler, eski çağıranlar).
+export { lessonUnlocked, intentLessonIndex };
 
 function keyLabel(k) {
   return k === ' ' ? 'boşluk' : trUpper(k);
@@ -372,7 +352,9 @@ export function mountLessons(host, ctx) {
     const text = opt.text || makeDrill(lesson, view.last);
     if (!opt.text) view.last = text;
     const tHost = h('div', { class: 'tl-typer-host' });
-    stage.replaceChildren(opt.note ? h('div', { class: 'tl-banner' }, opt.note) : null, tHost);
+    // replaceChildren(null) "null" yazısı ekler: not yoksa yalnız yazıcı
+    if (opt.note) stage.replaceChildren(h('div', { class: 'tl-banner' }, opt.note), tHost);
+    else stage.replaceChildren(tHost);
     typer = mountTyper(tHost, {
       text,
       keyboard: kbOn,

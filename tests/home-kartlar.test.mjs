@@ -25,7 +25,7 @@ test('panel görselleri: dersler ve edebiyat paneli kendi görseline bağlı, Pv
   }
   assert.match(css, /\.tlh-k-lit::before, #tl-home \.tlh-k-edu::before \{[^}]*background: var\(--art\)/);
   assert.match(css, /mask-image: linear-gradient\(180deg/);
-  assert.match(css, /lobi-afis\.webp/);
+  assert.match(css, /url\("\.\.\/assets\/home\/pvp-kart\.webp"\)/);   // lobi afişinin kart boyu kopyası (Tuşçu)
 });
 
 test('çipler ve PvP girişi: klavye odağı görünür, azaltılmış harekette dönüşüm yok', () => {

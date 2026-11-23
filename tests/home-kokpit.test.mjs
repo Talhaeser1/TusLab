@@ -29,7 +29,9 @@ test('Yazma önizlemesi: gösterilen satır yazılır, Merkez\'de basılan harf 
   assert.match(js, /ta\.dispatchEvent\(new Event\('input'\)\)/);
   // değiştirici tuşlar, boşluk ve form alanları yazmayı başlatmaz
   assert.match(js, /e\.ctrlKey \|\| e\.metaKey \|\| e\.altKey \|\| e\.isComposing/);
-  assert.match(js, /e\.key\.length !== 1 \|\| e\.key === ' ' \|\| isField\(e\.target\)/);
+  assert.match(js, /e\.key\.length !== 1 \|\| isField\(e\.target\)/);
+  // boşluk Merkez'de (view yokken) başlatmaz (Tuşçu: yazıcıya yönlendirme için ayrı denetlenir)
+  assert.match(js, /if \(space && \(!view \|\| /);
 });
 
 test('ders yolu ve metrik yuvası; Performans ve dersler girişleri', () => {

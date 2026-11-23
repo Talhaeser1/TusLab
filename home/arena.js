@@ -2,7 +2,18 @@
 // Akış: bir kategorinin öğeleri karışık sırayla, önce zor olanlar, tekrar etmeden art arda gelir.
 // Havuz bitince yeniden karıştırılır. Zincir atasözlerinin parçaları da aynı turda ikinci kez gelmez.
 import * as T from './data/texts.js';
-import { WORDS } from './data/words.js';
+// Kelime havuzu (data/words.js, ~104 KB) yalnız "Kelime" kipi için gerekir: açılışta inmez, ilk istendiğinde yüklenir.
+// Kelime kipine geçmeden önce loadWords() beklenir; wordsReady() hazır mı söyler (home.js bunu yapar).
+let WORDS = [];
+let wordsP = null;
+export function loadWords() {
+  if (!wordsP) {
+    wordsP = import('./data/words.js').then((m) => { WORDS = Array.isArray(m.WORDS) ? m.WORDS : []; return WORDS; });
+    wordsP.catch(() => { wordsP = null; });
+  }
+  return wordsP;
+}
+export const wordsReady = () => WORDS.length > 0;
 
 export const MODES = [
   { id: 'atasozu', label: 'Atasözü', icon: '🧿', hint: 'Zor atasözleri, art arda' },
