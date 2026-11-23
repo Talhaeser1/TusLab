@@ -2,7 +2,7 @@
 // Her kategori tek düğmedir: basınca o kategorinin metinleri, önce zor olanlar, karışık ve tekrarsız
 // biçimde ara ekran olmadan art arda gelir. Oturum yalnız "Bitir" ya da Esc ile biter; sonra tek özet.
 // Şiirde yazılan dize kıta kutusunda vurgulanır; deyimde kalıp ve anlamı ayrı kutuda görünür.
-import { mountTyper, ensureStyles, h, fmtTime, loadAll, bumpProgress } from './typing.js';
+import { mountTyper, ensureStyles, h, fmtTime, loadAll, bumpProgress, kbWanted, kbToggle } from './typing.js';
 import { createStream, itemsFor } from './arena.js';
 import * as T from './data/texts.js';
 
@@ -50,7 +50,6 @@ function streamOf(cat) {
   if (!STREAMS.has(cat)) STREAMS.set(cat, createStream(cat));
   return STREAMS.get(cat);
 }
-let kbOn = false;
 
 /* ------------------------------------------------------------------ günün satırı */
 
@@ -145,23 +144,14 @@ export function mountLiterature(host, ctx) {
       extra || null);
   }
 
+  // Ekran klavyesi tercihi üç yazma ekranında ortak ve kalıcı (typing.js kbToggle).
   function kbButton() {
-    const label = () => 'Klavye: ' + (kbOn ? 'açık' : 'kapalı');
-    const b = h('button', {
-      class: 'tl-btn is-ghost',
-      type: 'button',
-      'aria-pressed': String(kbOn),
-      onclick: () => {
-        kbOn = !kbOn;
-        b.setAttribute('aria-pressed', String(kbOn));
-        b.textContent = label();
-        if (typer) {
-          typer.setKeyboard(kbOn);
-          typer.focus();
-        }
-      },
-    }, label());
-    return b;
+    return kbToggle((on) => {
+      if (typer) {
+        typer.setKeyboard(on);
+        typer.focus();
+      }
+    });
   }
 
   const recOf = (id) => {
@@ -215,15 +205,23 @@ export function mountLiterature(host, ctx) {
     // Şiirde kıta kutusu (dize dize, yazılan dize vurgulu); deyimde kalıp + anlam kutusu.
     const ctxEl = h('section', { class: 'tl-lit-box tl-lit-ctx', hidden: true });
     const tHost = h('div', { class: 'tl-typer-host' });
+    const statsHost = h('div', { class: 'tl-ws-stats' });
+    // Ortak yazma ekranı düzeni: başlık satırı (tür · sayaç şeridi · eylemler), solda yazıcı + klavye, sağda kıta/anlam ve
+    // son yazılanlar (geniş ekranda yan sütun, dar ekranda altta).
     root.replaceChildren(
-      topbar(h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => renderMenu() }, 'Tüm türler')),
-      h('section', { class: 'tl-lesson tl-lit-session tlh-lit--' + c.id, dataset: { cat: c.id } },
-        h('header', { class: 'tl-head' },
-          h('div', { class: 'tl-lit-title' }, motif(),
-            h('div', null, h('p', { class: 'tl-eyebrow' }, 'Kesintisiz yazma'), h('h1', { class: 'tl-h1' }, c.label), srcEl)),
-          h('div', { class: 'tl-pills' }, kbButton())),
-        tHost,
-        h('div', { class: 'tl-lit-below' }, ctxEl, recentBox)));
+      topbar(),
+      h('section', { class: 'tl-ws tl-ws--lit tl-lesson tl-lit-session tlh-lit--' + c.id, dataset: { cat: c.id } },
+        h('header', { class: 'tl-ws-head' },
+          h('div', { class: 'tl-ws-id tl-lit-title' }, motif(),
+            h('div', null, h('p', { class: 'tl-eyebrow' }, 'Şiir & Atasözü · kesintisiz yazma'), h('h1', { class: 'tl-h1' }, c.label), srcEl)),
+          statsHost,
+          h('div', { class: 'tl-ws-acts' }, kbButton(),
+            h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => renderMenu() }, 'Tüm türler'))),
+        h('div', { class: 'tl-ws-main' },
+          tHost,
+          h('aside', { class: 'tl-lit-below' }, ctxEl, recentBox)),
+        h('p', { class: 'tl-ws-foot' }, h('span', null, c.desc),
+          h('span', { class: 'tl-ws-keys' }, h('kbd', null, 'Esc'), ' bitir ve özet'))));
     scrollTop();
 
     let chunkBase = 0;
@@ -270,7 +268,8 @@ export function mountLiterature(host, ctx) {
     };
     typer = mountTyper(tHost, {
       text: '',
-      keyboard: kbOn,
+      keyboard: kbWanted(),
+      statsHost,
       sfx: ctx && ctx.sfx,
       stream: () => stream.next(),
       onChunk: ({ item, done, stats }) => {
@@ -311,6 +310,7 @@ export function mountLiterature(host, ctx) {
       return;
     }
     let isBest = false;
+    const prevBest = recOf(c.id).best;
     const res = bumpProgress(ctx, st.wpm, st.acc, (all) => {
       const recs = Object.assign({}, all.litStreams || {});
       const r = Object.assign({ runs: 0, items: 0 }, recs[c.id] || {});
@@ -329,22 +329,34 @@ export function mountLiterature(host, ctx) {
     else voice('lesson');
     const rec = recOf(c.id);
     const next = h('button', { class: 'tl-btn is-primary tl-lit-next', type: 'button', onclick: () => startSession(c.id) }, 'Devam et (yeni metinler)');
+    // Şiir & Atasözü'nde ders hedefi yok: bu türdeki en iyi hızla karşılaştırılır.
+    const vs = !isBest && prevBest ? 'Bu türde en iyin ' + prevBest + ' WPM' + (st.wpm < prevBest ? ' · bu oturum ' + (prevBest - st.wpm) + ' WPM geride' : '') : '';
     root.replaceChildren(topbar(),
-      h('section', { class: 'tl-lesson tl-lit-sum tlh-lit--' + c.id },
-        h('div', { class: 'tl-result tl-panel is-pass', role: 'status' },
+      h('section', { class: 'tl-ws tl-lesson tl-lit-sum tlh-lit--' + c.id },
+        h('div', { class: 'tl-result tl-box is-pass', role: 'status' },
           motif(),
-          h('p', { class: 'tl-eyebrow' }, c.label),
-          h('h2', null, 'Oturum bitti'),
+          h('p', { class: 'tl-eyebrow' }, c.label + ' · oturum özeti'),
+          h('h2', null, 'Oturum bitti · ' + (st.chunks || 0) + ' metin'),
           isBest ? h('div', { class: 'tl-badge' }, 'Bu türde en iyi hızın!') : res.record ? h('div', { class: 'tl-badge' }, 'Yeni kişisel rekor!') : null,
+          vs ? h('p', { class: 'tl-res-tip' }, vs) : null,
           statGrid(st),
           h('p', { class: 'tl-lit-saved' }, 'Kaydedildi · bu türde toplam ' + rec.items + ' metin' + (rec.best ? ' · en iyi ' + rec.best + ' WPM' : '')),
           h('div', { class: 'tl-res-actions' },
             next,
             h('button', { class: 'tl-btn', type: 'button', onclick: () => renderMenu() }, 'Tüm türler'),
-            ctx && ctx.back ? h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => ctx.back() }, 'Ana ekran') : null),
-          h('p', { class: 'tl-lit-keys' }, 'Enter: devam · Esc: ana ekran'))));
+            ctx && ctx.back ? h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => ctx.back() }, 'Merkez') : null),
+          h('p', { class: 'tl-lit-keys' }, 'Enter: devam · Esc: Merkez'))));
     sumFor = c.id;
     scrollTop();
+    setTimeout(() => {
+      if (alive && sumFor === c.id) {
+        try {
+          next.focus({ preventScroll: true });
+        } catch (e) {
+          /* yoksay */
+        }
+      }
+    }, 0);
   }
 
   if (CATEGORIES.some((c) => c.id === startCat)) startSession(startCat);

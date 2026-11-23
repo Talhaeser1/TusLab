@@ -548,9 +548,11 @@ html body #app .home-pvp-entry.lb3-home { background-image: none !important; }
 #tl-home .tlh-btn--ghost kbd { background: rgba(255,255,255,.1); }
 
 /* ---------- görünümler (üst çubuğun altında) ---------- */
+/* Hoca (24 Kas): görünümler Merkez'in durağan arka planı (degradeler + tuş ızgarası) üzerinde, yarı saydam; backdrop-filter yok
+ * (altındaki Merkez gizli, bulutlar duruyor → bulanıklık boşuna hesaplanmıyordu). */
 #tl-home .tlh-view {
   position: absolute; top: var(--top-h); left: 0; right: 0; bottom: 0; z-index: 4; display: flex; flex-direction: column;
-  background: rgba(8,11,26,.96); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  background: linear-gradient(180deg, rgba(8,11,26,.72), rgba(8,11,26,.86));
   animation: tlh-fade .25s ease both;
 }
 #tl-home .tlh-view-top {
@@ -562,18 +564,29 @@ html body #app .home-pvp-entry.lb3-home { background-image: none !important; }
 #tl-home .tlh-view-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
 #tl-home .tlh-view-body > .tlh-loading, #tl-home .tlh-view-body > .tlh-error { max-width: 640px; margin: 32px auto; }
 #tl-home .tlh-view-host { max-width: 1180px; margin: 0 auto; padding: 20px 24px 40px; }
+/* yazma ekranı (ders, Şiir & Atasözü oturumu): geniş, kaydırmasız; içerik dikeyde ortalanır */
+#tl-home .tlh-view-host:has(.tl-ws) {
+  max-width: 1320px; min-height: 100%; display: flex; flex-direction: column;
+  padding: clamp(8px, 1.6vh, 18px) clamp(16px, 2.2vw, 32px);
+}
+#tl-home .tlh-view-host:has(.tl-map) { max-width: 1320px; padding-top: 16px; }
 
 /* ---------- Yazma görünümü: geniş, sakin, büyük yazı ---------- */
-#tl-home .tlh-write { background: rgba(8,11,26,.96); }
-#tl-home .tlh-write .tlh-view-top { padding-left: max(24px, calc((100% - 1120px) / 2)); padding-right: max(24px, calc((100% - 1120px) / 2)); }
+#tl-home .tlh-write { --acc: var(--tl-cyan); }
+#tl-home .tlh-write .tlh-view-top { padding-left: max(24px, calc((100% - 1272px) / 2)); padding-right: max(24px, calc((100% - 1272px) / 2)); }
 #tl-home .tlh-write .tlh-view-title b {
   background: linear-gradient(90deg, var(--tl-ember), var(--tl-gold) 50%, var(--tl-cyan)); -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 #tl-home .tlh-write-body { position: relative; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
 #tl-home .tlh-arena {
-  width: min(1120px, 100%); margin: auto; padding: clamp(14px, 3vh, 36px) 24px;
-  display: flex; flex-direction: column; gap: clamp(12px, 2vh, 20px);
+  width: min(1320px, 100%); margin: auto; padding: clamp(8px, 1.6vh, 18px) clamp(16px, 2.2vw, 32px);
+  display: flex; flex-direction: column; gap: clamp(8px, 1.4vh, 14px);
 }
+/* başlık satırı: tür düğmeleri + klavye tercihi (ders/Şiir & Atasözü ekranlarındaki eylemlerle aynı yerde) */
+#tl-home .tlh-arena-head { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; }
+#tl-home .tlh-arena-head .tlh-modes { flex: 1; justify-content: flex-start; }
+#tl-home .tlh-arena-acts { display: flex; gap: 8px; flex: none; }
+#tl-home .tlh-arena-acts .tl-btn { min-height: 38px; padding: 6px 14px; font-size: 14px; }
 #tl-home .tlh-combo {
   margin-left: auto; display: flex; align-items: baseline; gap: 6px; padding: 4px 14px; border-radius: 12px; flex: none;
   background: rgba(8,11,26,.6); border: 1px solid var(--tl-line); opacity: .6; transition: opacity .2s ease, border-color .2s ease, box-shadow .2s ease;
@@ -598,15 +611,10 @@ html body #app .home-pvp-entry.lb3-home { background-image: none !important; }
   background: linear-gradient(135deg, rgba(63,224,255,.2), rgba(139,92,255,.2)); box-shadow: 0 0 16px rgba(63,224,255,.28);
 }
 #tl-home .tlh-arena-typer { min-height: 0; }
-#tl-home .tlh-arena-typer .tl-typer-stats { margin-bottom: 12px; }
-#tl-home .tlh-arena-typer .tl-stat { background: rgba(8,11,26,.55); }
-#tl-home .tlh-arena-typer .tl-stat b { font-size: 1.5rem; }
-#tl-home .tlh-arena-typer .tl-stat span { font-size: 13px; }
-#tl-home .tlh-arena-typer .tl-typer-box { background: rgba(6,8,22,.72); padding: clamp(18px, 3vh, 30px) clamp(18px, 2.6vw, 34px); }
-#tl-home .tlh-arena-typer .tl-typer-view { font-size: clamp(1.3rem, 1.1rem + 1vw, 2rem); }
-#tl-home .tlh-arena-typer .tl-kb-wrap { margin-top: 14px; }
-#tl-home .tlh-arena-typer .tl-kb { --u: clamp(28px, 4.4vh, 44px); background: rgba(0,0,0,.3); padding: 10px; }
-#tl-home .tlh-arena-typer .tl-kb-legend { display: none; }
+/* yazıcı: ölçüler ve kutu ailesi egitim.css "Ortak yazma ekranı" bölümünden (ders ve Şiir & Atasözü ile aynı) */
+#tl-home .tlh-arena-typer .tl-typer-view { font-size: clamp(1.15rem, .6rem + 2vh, 1.9rem); }
+/* kısa ekranda (≤ 800 px) parmak renk açıklaması gizli: Yazma 1280×720'de kaydırmasız kalsın (renkler tuşlarda) */
+@media (max-height: 800px) { #tl-home .tlh-arena-typer .tl-kb-legend { display: none; } }
 #tl-home .tlh-arena-foot { display: flex; align-items: center; gap: 14px; min-height: 36px; }
 #tl-home .tlh-src { color: var(--tl-gold); font-style: italic; font-size: 16px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #tl-home .tlh-hint { margin-left: auto; color: var(--tl-mute); font-size: 13px; white-space: nowrap; }
@@ -623,7 +631,13 @@ html body #app .home-pvp-entry.lb3-home { background-image: none !important; }
   background: radial-gradient(55% 60% at 50% 45%, color-mix(in srgb, var(--rk) 20%, rgba(8,11,26,.9)), rgba(8,11,26,.96));
   animation: tlh-fade .25s ease both;
 }
-#tl-home .tlh-result-card { text-align: center; padding: 20px; animation: tlh-pop .45s cubic-bezier(.2,1.4,.4,1) both; }
+#tl-home .tlh-result-card {
+  --acc: var(--rk); width: min(640px, 100%); text-align: center; padding: clamp(18px, 3vh, 30px) clamp(18px, 3vw, 34px) 22px;
+  animation: tlh-pop .45s cubic-bezier(.2,1.4,.4,1) both;
+}
+#tl-home .tlh-res-vs { margin: -2px 0 14px; color: var(--tl-mute); font-size: 15px; }
+#tl-home .tlh-res-vs b { color: var(--tl-ink); }
+#tl-home .tlh-res-keys { margin: 14px 0 0; color: var(--tl-mute); font-size: 13px; }
 #tl-home .tlh-rank { margin: 0; font-size: 15px; font-weight: 900; letter-spacing: .4em; color: var(--rk); }
 #tl-home .tlh-big { margin: 4px 0 8px; display: flex; align-items: baseline; justify-content: center; gap: 10px; }
 #tl-home .tlh-big b {
@@ -631,8 +645,10 @@ html body #app .home-pvp-entry.lb3-home { background-image: none !important; }
   background: linear-gradient(180deg, #fff, var(--rk)); -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 #tl-home .tlh-big small { font-size: 22px; font-weight: 800; color: var(--tl-mute); letter-spacing: .1em; }
-#tl-home .tlh-result-nums { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 26px; color: var(--tl-mute); font-size: 15px; }
-#tl-home .tlh-result-nums b { color: var(--tl-ink); font-size: 22px; margin-right: 4px; }
+#tl-home .tlh-result-wrap { width: min(640px, 100%); }
+#tl-home .tlh-result-nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 10px; color: var(--tl-mute); font-size: 13px; }
+#tl-home .tlh-result-nums span { display: flex; flex-direction: column; padding: 10px 8px; border-radius: 14px; border: 1px solid var(--tl-line); background: rgba(8,11,26,.5); }
+#tl-home .tlh-result-nums b { color: var(--tl-ink); font-size: 22px; font-variant-numeric: tabular-nums; }
 #tl-home .tlh-result-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 22px; }
 
 /* ---------- yükleniyor / hata ---------- */
@@ -849,9 +865,7 @@ html body #app .home-pvp-entry.lb3-home { background-image: none !important; }
   #tl-home .tlh-sound { min-width: 44px; min-height: 44px; }
   #tl-home .tlh-edu-row .tlh-k-more { min-height: 44px; }
 }
-@media (max-height: 700px) and (min-width: 861px) {
-  #tl-home .tlh-arena-typer .tl-kb-wrap { display: none; }
-}
+@media (pointer: coarse) and (max-width: 860px) { #tl-home .tlh-res-keys { display: none; } }
 
 /* ---------- azaltılmış hareket ---------- */
 @media (prefers-reduced-motion: reduce) {

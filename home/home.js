@@ -271,7 +271,10 @@
   </header>
   <div class="tlh-write-body">
     <div class="tlh-arena">
-      <div class="tlh-modes" role="radiogroup" aria-label="Metin türü"></div>
+      <div class="tlh-arena-head">
+        <div class="tlh-modes" role="radiogroup" aria-label="Metin türü"></div>
+        <div class="tlh-arena-acts tl-edu"></div>
+      </div>
       <div class="tlh-arena-typer"><div class="tlh-loading">Yükleniyor…</div></div>
       <div class="tlh-arena-foot">
         <span class="tlh-src" data-s="src"></span>
@@ -338,7 +341,7 @@
     if (!g) { c.remove(); return; }
     g.scale(dpr, dpr);
     const colors = ['#ff7a2f', '#ffc861', '#3fe0ff', '#8b5cff', '#45e39a', '#eef1ff'];
-    const parts = Array.from({ length: 160 }, () => ({
+    const parts = Array.from({ length: 70 }, () => ({
       x: w * 0.35 + (Math.random() - 0.5) * w * 0.3, y: h * 0.5,
       vx: (Math.random() - 0.5) * 15, vy: -8 - Math.random() * 12,
       s: 5 + Math.random() * 6, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4,
@@ -1029,7 +1032,9 @@
   let mode = typeof data.mode === 'string' ? data.mode : 'atasozu';
   let combo = 0, lastTyped = 0, lastErr = 0, bestCombo = 0;
   const typerSfx = { key: () => sfx.key(), error: () => sfx.error(), win: () => {}, voice: (n) => sfx.voice(n), get enabled() { return sfx.enabled; } };
-  const wantKeyboard = () => window.innerHeight >= 800 && window.innerWidth >= 1000;
+  // Ekran klavyesi: üç yazma ekranında ortak, kalıcı tercih (typing.js kbWanted; tercih yoksa geniş ekranda açık).
+  let kbWantedFn = null;
+  const wantKeyboard = () => (kbWantedFn ? kbWantedFn() : window.innerHeight >= 620 && window.innerWidth >= 700);
   const isStream = (m) => !!(arenaMod && arenaMod.isStreamMode?.(m));
 
   /** arena.js + typing.js bir kez yüklenir (Merkez açılışında önden; Yazma açılınca hazır olsun). */
@@ -1040,6 +1045,11 @@
       arenaMod = am;
       mountTyperFn = typing.mountTyper;
       if (typeof typing.matchStartKey === 'function') matchStartFn = typing.matchStartKey;
+      if (typeof typing.kbWanted === 'function') kbWantedFn = typing.kbWanted;
+      const acts = $('.tlh-arena-acts');
+      if (acts && typeof typing.kbToggle === 'function' && !acts.firstChild) {
+        acts.appendChild(typing.kbToggle((on) => { try { arenaCtl?.setKeyboard?.(on); arenaCtl?.focus?.(); } catch { /* yok */ } }));
+      }
       if (!am.MODES.some(m => m.id === mode)) mode = am.MODES[0].id;
       renderModeButtons(modesEl);
       if (typeof am.itemsFor === 'function') idle(() => { litInfo = computeLit(am); renderLit(); });
@@ -1194,27 +1204,33 @@
     const secs = Math.round(num(s.elapsedMs) / 1000);
     const quests = [];
     if (!streamOn) { quests.push('daily'); if (current && current.mode === 'atasozu') quests.push('arena'); }
+    const prevBest = bestWpm();
     const { record } = progress({ quests, finished: true, wpm, acc, mode: current?.mode, weak: s.weakKeys });
     const [rank, col] = rankOf(wpm, acc);
+    // Yazma'da ders hedefi yok: kişisel rekora göre durum.
+    const vs = record ? `Önceki rekorun <b>${prevBest}</b> WPM idi`
+      : prevBest > 0 ? (wpm >= prevBest ? `Rekorunla aynı: <b>${prevBest}</b> WPM` : `Rekorun <b>${prevBest}</b> WPM · <b>${prevBest - wpm}</b> WPM geride`) : 'İlk sonucun kaydedildi';
     resultEl.hidden = false;
     resultEl.style.setProperty('--rk', col);
     resultEl.innerHTML = `
-      <div class="tlh-result-card" role="status">
+      <div class="tl-edu tlh-result-wrap"><div class="tlh-result-card tl-box" role="status">
         <p class="tlh-rank">${record ? '🏆 YENİ REKOR' : rank}</p>
         <p class="tlh-big"><b>${wpm}</b><small>WPM</small></p>
+        <p class="tlh-res-vs">${vs}</p>
         <div class="tlh-result-nums">
-          <span><b>%${acc}</b> doğruluk</span><span><b>${secs}</b> sn</span>
-          ${streamOn ? `<span><b>${num(s.chunks)}</b> tamamlanan metin</span>` : ''}
+          <span><b>%${acc}</b> doğruluk</span><span><b>${num(s.errors)}</b> hata</span><span><b>${secs}</b> sn</span>
+          ${streamOn ? `<span><b>${num(s.chunks)}</b> metin</span>` : ''}
           <span><b>${bestCombo}</b> en uzun kombo</span>
         </div>
         <div class="tlh-result-btns">
           <button type="button" class="tlh-btn tlh-btn--primary" data-tlh="next">${streamOn ? 'Yeni oturum' : 'Sonraki metin'} <kbd>Enter</kbd></button>
           ${streamOn ? '' : '<button type="button" class="tlh-btn tlh-btn--ghost" data-tlh="again">Aynısını tekrar</button>'}
-          <button type="button" class="tlh-btn tlh-btn--ghost" data-tlh="back">Merkeze dön</button>
+          <button type="button" class="tlh-btn tlh-btn--ghost" data-tlh="back">Merkez <kbd>Esc</kbd></button>
         </div>
-      </div>`;
+      </div></div>`;
     resultEl.querySelector('[data-tlh="next"]').focus({ preventScroll: true });
-    confetti();
+    // Kutlama abartısız: konfeti yalnız rekorda ya da USTA ve üstü derecede (azaltılmış harekette hiç).
+    if (record || (acc >= 92 && wpm >= 30)) confetti();
     sfx.win();
     if (acc >= 98) setTimeout(() => sfx.voice('great'), 1100);
   }

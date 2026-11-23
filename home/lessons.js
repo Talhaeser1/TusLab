@@ -1,6 +1,6 @@
 // TuşLab — Klavye dersleri + Serbest Alıştırma (İşçi E).
 import {
-  mountTyper, ensureStyles, h, fingerName, trLower, trUpper, shuffle, fmtTime, loadAll, bumpProgress,
+  mountTyper, ensureStyles, h, fingerName, fingerShort, trLower, trUpper, shuffle, fmtTime, loadAll, bumpProgress, kbWanted, kbToggle,
 } from './typing.js';
 import * as WD from './data/words.js';
 import * as LD from './data/lessons.js';
@@ -15,7 +15,8 @@ const FINGERS = LD.FINGERS || {};
 const SEEN_FREE = new Set();
 const SEEN_WEAK = new Set();
 const SEEN_DRILL = new Set();
-let kbOn = true;
+// Ünite renkleri (harita): sırayla, ana ekran kutu ailesinin vurgu renkleri.
+const UNIT_ACC = ['#ffc861', '#3fe0ff', '#b9a3ff', '#ff7a2f', '#45e39a', '#ff8fc7', '#3fb5ff', '#ffd23f'];
 
 /* ------------------------------------------------------------------ kelime seçimi */
 
@@ -108,8 +109,18 @@ export function rate(lesson, st) {
 
 function starsEl(n) {
   const el = h('span', { class: 'tl-stars', role: 'img', 'aria-label': n + ' yıldız' });
-  for (let i = 0; i < 3; i++) el.append(h('i', { class: i < n ? 'on' : '' }, '★'));
+  for (let i = 0; i < 3; i++) el.append(h('i', { class: i < n ? 'on' : '', 'aria-hidden': 'true' }, '★'));
   return el;
+}
+
+// Bir üst yıldız için gereken hız/doğruluk (rate() eşikleriyle aynı); 3 yıldızda null.
+export function nextStarGoal(lesson, stars) {
+  const gW = lesson.goalWpm || 0;
+  const gA = lesson.goalAcc || 0;
+  if (stars >= 3) return null;
+  if (stars <= 0) return { stars: 1, wpm: gW, acc: gA };
+  if (stars === 1) return { stars: 2, wpm: Math.ceil(gW * 1.3), acc: Math.max(97, gA + 1) };
+  return { stars: 3, wpm: Math.ceil(gW * 1.6), acc: 99 };
 }
 
 // Kilit kuralları ders-kilit.js'te (ana ekran yalnız onu yükler); buradan da dışa verilir (testler, eski çağıranlar).
@@ -126,6 +137,8 @@ export function mountLessons(host, ctx) {
   let typer = null;
   let alive = true;
   let boot = null;
+  let mapFocus = null; // haritada odaklanacak geçerli ders düğmesi
+  let curStats = null; // ders ekranının başlık satırındaki sayaç yuvası
   const timers = [];
   const view = { name: 'map', idx: 0, preview: false, last: '', sel: new Set(), custom: [], len: 120 };
   const root = h('div', { class: 'tl-edu tl-page tl-lessons' });
@@ -173,10 +186,12 @@ export function mountLessons(host, ctx) {
   function render(scroll) {
     clearTyper();
     boot = null;
+    mapFocus = null;
     let body;
     if (view.name === 'lesson') body = renderLesson();
     else if (view.name === 'free') body = renderFree();
     else body = renderMap();
+    root.classList.toggle('is-ws', view.name !== 'map');
     root.replaceChildren(topbar(), body);
     if (scroll) {
       try {
@@ -184,6 +199,20 @@ export function mountLessons(host, ctx) {
       } catch (e) {
         /* yoksay */
       }
+    }
+    if (mapFocus) {
+      const b = mapFocus;
+      mapFocus = null;
+      // Geçerli derse kaydır (ekranın dışındaysa ortala) ve odakla: Enter dersi başlatır. Tek düzen okuması, yalnız haritada.
+      later(() => {
+        try {
+          const r = b.getBoundingClientRect();
+          if (r.bottom > window.innerHeight - 40) b.scrollIntoView({ block: 'center' });
+          b.focus({ preventScroll: true });
+        } catch (e) {
+          /* yoksay */
+        }
+      }, 0);
     }
     if (boot) {
       const b = boot;
@@ -193,15 +222,17 @@ export function mountLessons(host, ctx) {
   }
 
   function topbar() {
-    const bar = h('div', { class: 'tl-top' },
+    // Kabuk kendi "← Merkez" düğmesini gösterir; bu düğme yalnız kabuksuz kullanımda görünür (egitim.css .tl-modback).
+    return h('div', { class: 'tl-top' },
       h('button', { class: 'tl-btn is-ghost tl-modback', type: 'button', onclick: () => ctx && ctx.back && ctx.back() }, '← Ana Sayfa'));
-    if (view.name !== 'map') {
-      bar.append(h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => go('map') }, 'Ders Haritası'));
-    }
-    return bar;
   }
 
   /* ---------------------------------------------------------- ders haritası */
+
+  function unitOf(l) {
+    const i = UNITS.findIndex((u) => u.id === l.unit);
+    return { unit: UNITS[i] || null, no: i + 1 };
+  }
 
   function renderMap() {
     const all = loadAll(ctx);
@@ -215,25 +246,30 @@ export function mountLessons(host, ctx) {
     });
     let resumeIdx = LESSONS.findIndex((l, i) => isUnlocked(i) && !(lessonRec(all, l.id).stars > 0));
     if (resumeIdx < 0) resumeIdx = Math.max(0, LESSONS.length - 1);
+    const resume = LESSONS[resumeIdx];
+    const pct = LESSONS.length ? Math.round((done / LESSONS.length) * 100) : 0;
 
-    const head = h('header', { class: 'tl-head' },
-      h('div', null,
-        h('h1', { class: 'tl-h1' }, 'Klavye Dersleri'),
-        h('p', { class: 'tl-lead' }, 'Parmaklarını klavyeye alıştır: ders ders ilerle, yıldız topla.')),
-      h('div', { class: 'tl-pills' },
-        h('span', { class: 'tl-pill' }, h('b', null, done + '/' + LESSONS.length), ' ders'),
-        h('span', { class: 'tl-pill' }, h('b', null, String(starSum)), ' yıldız'),
-        all.bestWpm ? h('span', { class: 'tl-pill' }, 'Rekor ', h('b', null, String(all.bestWpm)), ' WPM') : null,
-        all.streak ? h('span', { class: 'tl-pill' }, h('b', null, String(all.streak)), ' gün seri') : null));
-    wrap.append(head);
-
-    const actions = h('div', { class: 'tl-actions' },
-      LESSONS.length
-        ? h('button', { class: 'tl-btn is-primary', type: 'button', onclick: () => go('lesson', { idx: resumeIdx, preview: false, last: '' }) },
-          done ? 'Kaldığın yerden devam et' : 'İlk dersi başlat')
-        : null,
-      h('button', { class: 'tl-btn', type: 'button', onclick: () => go('free') }, 'Serbest Alıştırma (Ö Ğ Ş Ç Ü İ)'));
-    wrap.append(actions);
+    const tile = (v, l, cls) => h('div', { class: 'tl-map-tile ' + (cls || '') }, h('b', null, v), h('span', null, l));
+    const hero = h('header', { class: 'tl-map-hero tl-box' },
+      h('div', { class: 'tl-map-hero-id' },
+        h('p', { class: 'tl-eyebrow' }, 'Klavye Dersleri · Türkçe Q'),
+        h('h1', { class: 'tl-h1' }, 'Ders Haritası'),
+        h('p', { class: 'tl-lead' }, 'Parmaklarını klavyeye alıştır: ders ders ilerle, yıldız topla. Her ders bir öncekini geçince açılır.'),
+        h('div', { class: 'tl-map-prog', role: 'img', 'aria-label': 'Genel ilerleme yüzde ' + pct },
+          h('span', { class: 'tl-bar' }, h('i', { style: 'transform:scaleX(' + pct / 100 + ')' })),
+          h('small', null, '%' + pct))),
+      h('div', { class: 'tl-map-tiles' },
+        tile(done + '/' + LESSONS.length, 'ders', 'is-gold'),
+        tile(starSum + '/' + LESSONS.length * 3, 'yıldız', 'is-cyan'),
+        tile(all.bestWpm ? String(all.bestWpm) : '—', 'rekor WPM', 'is-ok'),
+        tile(all.streak ? String(all.streak) : '—', 'gün seri', 'is-ember')),
+      h('div', { class: 'tl-map-cta' },
+        resume
+          ? h('button', { class: 'tl-btn is-primary tl-map-resume', type: 'button', onclick: () => go('lesson', { idx: resumeIdx, preview: false, last: '' }) },
+            h('span', null, done ? 'Kaldığın yerden devam et' : 'İlk derse başla'), h('small', null, 'Ders ' + (resumeIdx + 1) + ' · ' + resume.title))
+          : null,
+        h('button', { class: 'tl-btn', type: 'button', onclick: () => go('free') }, 'Serbest Alıştırma (Ö Ğ Ş Ç Ü İ)')));
+    wrap.append(hero);
 
     if (!LESSONS.length) {
       wrap.append(h('div', { class: 'tl-panel' }, 'Ders verisi yüklenemedi.'));
@@ -249,101 +285,184 @@ export function mountLessons(host, ctx) {
     });
     if (extra.items.length) groups.push(extra);
 
-    groups.forEach((g) => {
+    // Ünite kısayolları (atlama çipleri)
+    const jump = h('nav', { class: 'tl-map-jump', 'aria-label': 'Üniteler' });
+    wrap.append(jump);
+
+    const nodes = []; // { btn, ui, li }
+    let curBtn = null;
+    groups.forEach((g, gi) => {
       if (!g.items.length) return;
-      const grid = h('div', { class: 'tl-lgrid' });
-      g.items.forEach(({ l, i }) => grid.append(lessonCard(all, l, i)));
-      wrap.append(h('section', { class: 'tl-unit' },
-        h('div', { class: 'tl-unit-head' }, h('h2', null, g.unit.title), g.unit.desc ? h('p', null, g.unit.desc) : null),
-        grid));
+      const acc = UNIT_ACC[gi % UNIT_ACC.length];
+      let uDone = 0;
+      let uStars = 0;
+      g.items.forEach(({ l }) => {
+        const r = lessonRec(all, l.id);
+        if (r.stars > 0) uDone++;
+        uStars += r.stars || 0;
+      });
+      const uid = 'tl-unit-' + g.unit.id;
+      const route = h('ol', { class: 'tl-route', 'aria-label': g.unit.title + ' dersleri' });
+      g.items.forEach(({ l, i }, li) => {
+        const n = lessonNode(all, l, i, resumeIdx);
+        const k = nodes.length;
+        n.btn.addEventListener('keydown', (e) => mapKey(e, k));
+        nodes.push({ btn: n.btn, ui: gi, li });
+        if (i === resumeIdx) curBtn = n.btn;
+        route.append(n.el);
+      });
+      const uPct = Math.round((uDone / g.items.length) * 100);
+      const full = uDone === g.items.length;
+      const sec = h('section', { class: 'tl-unit tl-box' + (full ? ' is-done' : ''), id: uid, style: '--acc:' + acc, 'aria-labelledby': uid + '-h' },
+        h('div', { class: 'tl-unit-head' },
+          h('span', { class: 'tl-unit-no', 'aria-hidden': 'true' }, full ? '✓' : String(gi + 1)),
+          h('div', { class: 'tl-unit-id' },
+            h('h2', { id: uid + '-h' }, h('small', null, 'Ünite ' + (gi + 1)), g.unit.title),
+            g.unit.desc ? h('p', null, g.unit.desc) : null),
+          h('div', { class: 'tl-unit-sum' },
+            h('span', null, h('b', null, uDone + '/' + g.items.length), ' ders · ', h('b', null, '★ ' + uStars), '/' + g.items.length * 3),
+            h('span', { class: 'tl-bar', 'aria-hidden': 'true' }, h('i', { style: 'transform:scaleX(' + uPct / 100 + ')' })))),
+        route);
+      wrap.append(sec);
+      jump.append(h('button', {
+        class: 'tl-chip tl-jump' + (full ? ' is-done' : ''), type: 'button', style: '--acc:' + acc,
+        onclick: () => {
+          const first = nodes.find((x) => x.ui === gi);
+          try {
+            sec.scrollIntoView({ block: 'start' });
+          } catch (e) {
+            /* yoksay */
+          }
+          if (first) focusNode(first.btn, true);
+        },
+      }, h('b', null, String(gi + 1)), h('span', null, g.unit.title), h('small', null, uDone + '/' + g.items.length)));
     });
+
+    // Klavye: harita tek sekme durağıdır (geçerli ders); ←/→ dersler arasında, ↑/↓ üniteler arasında, Home/End ilk/son ders.
+    function focusNode(btn, noScroll) {
+      nodes.forEach((x) => x.btn.setAttribute('tabindex', x.btn === btn ? '0' : '-1'));
+      try {
+        btn.focus({ preventScroll: true });
+        if (!noScroll) btn.scrollIntoView({ block: 'nearest' });
+      } catch (e) {
+        /* yoksay */
+      }
+    }
+    function mapKey(e, k) {
+      const cur = nodes[k];
+      if (!cur) return;
+      let to = -1;
+      if (e.key === 'ArrowRight') to = Math.min(nodes.length - 1, k + 1);
+      else if (e.key === 'ArrowLeft') to = Math.max(0, k - 1);
+      else if (e.key === 'Home') to = 0;
+      else if (e.key === 'End') to = nodes.length - 1;
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const ui = cur.ui + (e.key === 'ArrowDown' ? 1 : -1);
+        const inU = nodes.filter((x) => x.ui === ui);
+        to = inU.length ? nodes.indexOf(inU[Math.min(cur.li, inU.length - 1)]) : k;
+      } else return;
+      e.preventDefault();
+      if (to !== k) focusNode(nodes[to].btn);
+    }
+    if (curBtn) {
+      nodes.forEach((x) => x.btn.setAttribute('tabindex', x.btn === curBtn ? '0' : '-1'));
+      mapFocus = curBtn;
+    }
     return wrap;
   }
 
-  function lessonCard(all, l, i) {
+  function lessonNode(all, l, i, resumeIdx) {
     const rec = lessonRec(all, l.id);
     const locked = !isUnlocked(i);
-    const cls = 'tl-lcard' + (locked ? ' is-locked' : '') + (rec.stars >= 3 ? ' is-gold' : rec.stars > 0 ? ' is-done' : '');
-    const keys = h('span', { class: 'tl-lcard-keys' });
-    (l.newKeys || []).slice(0, 6).forEach((k) => keys.append(h('kbd', null, trUpper(k))));
-    const main = h('button', {
-      class: 'tl-lcard-main',
+    const stars = rec.stars || 0;
+    const cur = i === resumeIdx && !locked && !(stars > 0);
+    const state = locked ? 'is-locked' : stars >= 3 ? 'is-gold' : stars > 0 ? 'is-done' : cur ? 'is-cur' : 'is-open';
+    const keys = h('span', { class: 'tl-node-keys', 'aria-hidden': 'true' });
+    (l.newKeys || []).slice(0, 4).forEach((k) => {
+      const f = FINGERS[k];
+      keys.append(h('kbd', { class: f ? 'f-' + f : '' }, keyLabel(k)));
+    });
+    const prev = LESSONS[i - 1];
+    const label = 'Ders ' + (i + 1) + ': ' + l.title + ', ' +
+      (locked ? 'kilitli, önizle (önce "' + (prev ? prev.title : 'önceki ders') + '" geçilmeli)'
+        : stars > 0 ? stars + ' yıldız' + (rec.bestWpm ? ', en iyi ' + rec.bestWpm + ' WPM' : '')
+          : (cur ? 'sıradaki ders, ' : '') + 'hedef ' + (l.goalWpm || '?') + ' WPM');
+    const btn = h('button', {
+      class: 'tl-node-btn',
       type: 'button',
-      'aria-disabled': locked ? 'true' : null,
+      'aria-label': label,
+      'aria-current': cur ? 'step' : null,
+      dataset: { idx: String(i) },
       onclick: () => {
-        if (locked) {
-          const prev = LESSONS[i - 1];
-          toast('Kilitli: önce "' + (prev ? prev.title : 'önceki dersi') + '" dersini geç.');
-        } else {
-          go('lesson', { idx: i, preview: false, last: '' });
-        }
+        if (locked) toast('Önizleme: önce "' + (prev ? prev.title : 'önceki dersi') + '" dersini geç, bu ders açılsın.');
+        go('lesson', { idx: i, preview: locked, last: '' });
       },
     },
-    h('span', { class: 'tl-lcard-no' }, locked ? '\u{1F512}︎' : String(i + 1)),
-    h('span', { class: 'tl-lcard-title' }, l.title),
-    keys,
-    h('span', { class: 'tl-lcard-meta' }, starsEl(rec.stars || 0),
-      rec.bestWpm ? h('small', null, rec.bestWpm + ' WPM') : h('small', null, 'Hedef ' + (l.goalWpm || '?') + ' WPM')));
-    const card = h('div', { class: cls }, main);
-    if (locked) {
-      card.append(h('button', { class: 'tl-link', type: 'button', onclick: () => go('lesson', { idx: i, preview: true, last: '' }) }, 'Önizle'));
-    }
-    return card;
+    h('span', { class: 'tl-node-dot', 'aria-hidden': 'true' }, locked ? '\u{1F512}︎' : stars > 0 ? '✓' : String(i + 1)),
+    h('span', { class: 'tl-node-body' },
+      h('span', { class: 'tl-node-no' }, 'Ders ' + (i + 1) + (cur ? ' · Sıradaki' : '')),
+      h('span', { class: 'tl-node-title' }, l.title),
+      keys,
+      h('span', { class: 'tl-node-meta' }, starsEl(stars),
+        h('small', null, rec.bestWpm ? rec.bestWpm + ' WPM' : 'Hedef ' + (l.goalWpm || '?')))));
+    return { el: h('li', { class: 'tl-node ' + state }, btn), btn };
   }
 
   /* ---------------------------------------------------------- ders ekranı */
 
   function kbButton() {
-    const label = () => 'Klavye: ' + (kbOn ? 'açık' : 'kapalı');
-    const b = h('button', {
-      class: 'tl-btn is-ghost',
-      type: 'button',
-      'aria-pressed': String(kbOn),
-      onclick: () => {
-        kbOn = !kbOn;
-        b.setAttribute('aria-pressed', String(kbOn));
-        b.textContent = label();
-        if (typer) typer.setKeyboard(kbOn);
-      },
-    }, label());
-    return b;
+    return kbToggle((on) => {
+      if (typer) {
+        typer.setKeyboard(on);
+        typer.focus();
+      }
+    });
   }
 
+  // Ortak yazma ekranı iskeleti (Yazma ve Şiir & Atasözü ile aynı düzen): başlık satırı (kimlik · yeni tuşlar · sayaç
+  // şeridi · eylemler), sahne (yazıcı ya da sonuç), alt bilgi.
   function renderLesson() {
     const lesson = LESSONS[view.idx];
     if (!lesson) {
       view.name = 'map';
       return renderMap();
     }
+    const { unit, no } = unitOf(lesson);
     const stage = h('div', { class: 'tl-stage' });
-    const head = h('header', { class: 'tl-head' },
-      h('div', null,
-        h('p', { class: 'tl-eyebrow' }, 'Ders ' + (view.idx + 1)),
-        h('h1', { class: 'tl-h1' }, lesson.title),
-        lesson.desc ? h('p', { class: 'tl-lead' }, lesson.desc) : null),
-      h('div', { class: 'tl-pills' },
-        h('span', { class: 'tl-pill' }, 'Hedef ', h('b', null, String(lesson.goalWpm || '?')), ' WPM'),
-        h('span', { class: 'tl-pill' }, h('b', null, '%' + (lesson.goalAcc || '?')), ' doğruluk'),
-        h('span', { class: 'tl-pill', title: '2 yıldız: hedef hızın 1,3 katı ve en az %97 doğruluk. 3 yıldız: 1,6 katı ve en az %99.' },
-          '★★★ ', h('b', null, Math.ceil((lesson.goalWpm || 0) * 1.6) + ' WPM'), ' · %99'),
-        kbButton()));
-    const sec = h('section', { class: 'tl-lesson' }, head);
-    if (view.preview) {
-      sec.append(h('div', { class: 'tl-banner' }, 'Önizleme: bu ders kilitli, sonuçların kaydedilmez. Açmak için önceki dersi geç.'));
-    }
+    const statsHost = h('div', { class: 'tl-ws-stats' });
     const nk = lesson.newKeys || [];
-    if (nk.length) {
-      const list = h('div', { class: 'tl-newkeys' });
-      nk.forEach((k) => {
-        const f = FINGERS[k];
-        list.append(h('div', { class: 'tl-newkey' + (f ? ' f-' + f : '') },
-          h('kbd', null, trUpper(k)),
-          h('div', null, h('strong', null, 'Yeni: ' + keyLabel(k)), f ? h('span', null, ' — ' + fingerName(f)) : null)));
-      });
-      sec.append(list);
+    const newKeys = nk.length
+      ? h('div', { class: 'tl-ws-new', role: 'list', 'aria-label': 'Bu dersin yeni tuşları' },
+        nk.slice(0, 4).map((k) => {
+          const f = FINGERS[k];
+          return h('div', { class: 'tl-newkey' + (f ? ' f-' + f : ''), role: 'listitem' },
+            h('kbd', null, keyLabel(k)),
+            h('span', { title: f ? fingerName(f) : null }, h('strong', null, 'Yeni'), f ? fingerShort(f) : ''));
+        }))
+      : null;
+    const g3 = Math.ceil((lesson.goalWpm || 0) * 1.6);
+    const head = h('header', { class: 'tl-ws-head' },
+      h('div', { class: 'tl-ws-id' },
+        h('p', { class: 'tl-eyebrow', title: unit ? 'Ünite ' + no + ': ' + unit.title : null }, (unit ? unit.title + ' · ' : '') + 'Ders ' + (view.idx + 1) + '/' + LESSONS.length),
+        h('h1', { class: 'tl-h1' }, lesson.title),
+        h('p', { class: 'tl-ws-goal' },
+          'Hedef ', h('b', null, (lesson.goalWpm || '?') + ' WPM'), ' · ', h('b', null, '%' + (lesson.goalAcc || '?')),
+          h('span', { title: '2 yıldız: hedef hızın 1,3 katı ve en az %97 doğruluk. 3 yıldız: 1,6 katı ve en az %99.' },
+            ' · ★★★ ', h('b', null, g3 + ' WPM'), ' %99'))),
+      newKeys,
+      statsHost,
+      h('div', { class: 'tl-ws-acts' },
+        kbButton(),
+        h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => go('map') }, 'Ders Haritası')));
+    const sec = h('section', { class: 'tl-ws tl-ws--lesson tl-lesson' }, head);
+    if (view.preview) {
+      const prev = LESSONS[view.idx - 1];
+      sec.append(h('div', { class: 'tl-banner' }, 'Önizleme: bu ders kilitli, sonucun kaydedilmez. Açmak için önce "' + (prev ? prev.title : 'önceki ders') + '" dersini geç.'));
     }
-    sec.append(stage);
+    sec.append(stage, h('p', { class: 'tl-ws-foot' }, lesson.desc ? h('span', null, lesson.desc) : null,
+      h('span', { class: 'tl-ws-keys' }, h('kbd', null, 'Backspace'), ' düzelt · ', h('kbd', null, 'Esc'), ' Merkez')));
     boot = () => startAttempt(lesson, stage, {});
+    curStats = statsHost;
     return sec;
   }
 
@@ -357,32 +476,44 @@ export function mountLessons(host, ctx) {
     else stage.replaceChildren(tHost);
     typer = mountTyper(tHost, {
       text,
-      keyboard: kbOn,
+      keyboard: kbWanted(),
+      statsHost: curStats,
       sfx: ctx && ctx.sfx,
       onFinish: (st) => later(() => finishLesson(lesson, stage, st, opt), 350),
     });
   }
 
-  function statGrid(st) {
-    const cell = (v, l) => h('div', { class: 'tl-res-cell' }, h('b', null, String(v)), h('span', null, l));
+  // Sonuç kutucukları; goal verilirse kutucuğun altında hedefe göre durum (✓ / ✗).
+  function statGrid(st, goal) {
+    const cell = (v, l, sub, ok) => h('div', { class: 'tl-res-cell' + (ok === true ? ' is-ok' : ok === false ? ' is-bad' : '') },
+      h('b', null, String(v)), h('span', null, l), sub ? h('small', null, sub) : null);
+    const okW = goal ? st.wpm >= goal.wpm : undefined;
+    const okA = goal ? st.acc >= goal.acc : undefined;
     return h('div', { class: 'tl-res-grid' },
-      cell(st.wpm, 'WPM'), cell(Math.round(st.acc) + '%', 'Doğruluk'), cell(st.errors, 'Hata'), cell(fmtTime(st.elapsedMs), 'Süre'));
+      cell(st.wpm, 'WPM', goal ? (okW ? '✓ hedef ' : '✗ hedef ') + goal.wpm : null, okW),
+      cell('%' + Math.round(st.acc), 'Doğruluk', goal ? (okA ? '✓ hedef %' : '✗ hedef %') + goal.acc : null, okA),
+      cell(st.errors, 'Hata'), cell(fmtTime(st.elapsedMs), 'Süre'));
   }
 
   function weakChips(st) {
     const ent = Object.entries(st.weakKeys || {}).slice(0, 6);
-    if (!ent.length) return h('p', { class: 'tl-muted' }, 'Hiç hata yapmadın, harika.');
+    if (!ent.length) return h('p', { class: 'tl-muted tl-weak' }, 'Hiç hata yapmadın, harika.');
     const row = h('div', { class: 'tl-chip-row' });
     ent.forEach(([k, n]) => row.append(h('span', { class: 'tl-chip is-weak' }, h('b', null, keyLabel(k)), ' ×' + n)));
     return h('div', { class: 'tl-weak' }, h('p', { class: 'tl-muted' }, 'Zorlandığın tuşlar'), row);
   }
 
+  const backBtn = () => (ctx && ctx.back ? h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => ctx.back() }, 'Merkez') : null);
+  // Sonuç kartı açılınca birincil düğme odaklanır: Enter onu çalıştırır, Esc Merkez'e döner (kabuk).
+  const focusFirst = (el) => later(() => {
+    const b = el.querySelector && el.querySelector('.tl-res-actions .tl-btn.is-primary:not(:disabled)');
+    if (b) b.focus({ preventScroll: true });
+  }, 0);
+
   function finishLesson(lesson, stage, st, opt) {
     clearTyper();
-    const weakBtnFor = (len) => {
-      const w = weakText(lesson, st.weakKeys, len);
-      return w;
-    };
+    const weakBtnFor = (len) => weakText(lesson, st.weakKeys, len);
+    const eyebrow = h('p', { class: 'tl-eyebrow' }, 'Ders ' + (view.idx + 1) + ' · ' + lesson.title);
 
     // Zayıf tuş alıştırması: ders puanını etkilemez.
     if (opt.weak) {
@@ -392,17 +523,21 @@ export function mountLessons(host, ctx) {
       const acts = h('div', { class: 'tl-res-actions' },
         w ? h('button', { class: 'tl-btn is-primary', type: 'button',
           onclick: () => startAttempt(lesson, stage, { text: w.text, weak: true, note: 'Zayıf tuş alıştırması: ' + w.letters.map(trUpper).join(' ') }) }, 'Yeni zayıf tuş alıştırması') : null,
-        h('button', { class: 'tl-btn', type: 'button', onclick: () => startAttempt(lesson, stage, {}) }, 'Derse dön'));
-      stage.replaceChildren(h('div', { class: 'tl-result tl-panel' },
-        h('h2', null, 'Zayıf tuş alıştırması bitti'),
+        h('button', { class: 'tl-btn' + (w ? '' : ' is-primary'), type: 'button', onclick: () => startAttempt(lesson, stage, {}) }, 'Derse dön'),
+        backBtn());
+      const card = h('div', { class: 'tl-result tl-box', role: 'status' },
+        eyebrow, h('h2', null, 'Zayıf tuş alıştırması bitti'),
         res.record ? h('div', { class: 'tl-badge' }, 'Yeni rekor!') : null,
-        statGrid(st), weakChips(st), acts));
+        statGrid(st), weakChips(st), acts);
+      stage.replaceChildren(card);
+      focusFirst(card);
       return;
     }
 
     const r = rate(lesson, st);
     let record = false;
     let first = false;
+    let best = 0;
     if (!view.preview) {
       let old;
       const res = bumpProgress(ctx, st.wpm, st.acc, (all) => {
@@ -413,6 +548,7 @@ export function mountLessons(host, ctx) {
           bestWpm: Math.max(old.bestWpm || 0, st.wpm),
           bestAcc: Math.max(old.bestAcc || 0, st.acc),
         };
+        best = recs[lesson.id].stars;
         all.lessons = recs;
       });
       record = res.record;
@@ -426,14 +562,14 @@ export function mountLessons(host, ctx) {
     const acts = h('div', { class: 'tl-res-actions' });
     if (hasNext) {
       acts.append(h('button', {
-        class: 'tl-btn' + (r.pass ? ' is-primary' : ''),
+        class: 'tl-btn' + (r.pass && nextOpen ? ' is-primary' : ''),
         type: 'button',
         disabled: nextOpen ? null : 'disabled',
         title: nextOpen ? '' : 'Önce hedefi geç',
         onclick: () => go('lesson', { idx: nextIdx, preview: false, last: '' }),
       }, 'Sonraki ders →'));
     }
-    acts.append(h('button', { class: 'tl-btn' + (r.pass || !hasNext ? '' : ' is-primary'), type: 'button', onclick: () => startAttempt(lesson, stage, {}) }, 'Tekrar'));
+    acts.append(h('button', { class: 'tl-btn' + (r.pass && nextOpen ? '' : ' is-primary'), type: 'button', onclick: () => startAttempt(lesson, stage, {}) }, 'Tekrar'));
     const w = weakBtnFor(120);
     if (w) {
       acts.append(h('button', {
@@ -441,16 +577,26 @@ export function mountLessons(host, ctx) {
         onclick: () => startAttempt(lesson, stage, { text: w.text, weak: true, note: 'Zayıf tuş alıştırması: ' + w.letters.map(trUpper).join(' ') }),
       }, 'Zayıf tuşlarımı çalış'));
     }
+    acts.append(h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => go('map') }, 'Ders Haritası'), backBtn());
 
     const msg = r.pass
       ? (r.stars >= 3 ? 'Mükemmel! Üç yıldız.' : first && !view.preview ? 'Ders geçildi, yenisi açıldı!' : 'Ders geçildi.')
-      : 'Hedefe az kaldı: ' + (lesson.goalWpm || 0) + ' WPM ve %' + (lesson.goalAcc || 0) + ' doğruluk gerekli.';
-    stage.replaceChildren(h('div', { class: 'tl-result tl-panel' + (r.pass ? ' is-pass' : '') },
-      h('h2', null, msg),
+      : 'Hedefe az kaldı';
+    const goal = { wpm: lesson.goalWpm || 0, acc: lesson.goalAcc || 0 };
+    const nx = nextStarGoal(lesson, r.stars);
+    const tip = !r.pass
+      ? 'Geçmek için ' + goal.wpm + ' WPM ve %' + goal.acc + ' doğruluk gerekli. Önce doğruluk, hız sonra gelir.'
+      : nx ? nx.stars + ' yıldız için: ' + nx.wpm + ' WPM ve %' + nx.acc + ' doğruluk.' : 'Bu dersin bütün yıldızlarını topladın.';
+    const card = h('div', { class: 'tl-result tl-box' + (r.pass ? ' is-pass' : ' is-fail') + (r.stars >= 3 ? ' is-gold' : ''), role: 'status' },
+      eyebrow,
       starsEl(r.stars),
+      h('h2', null, msg),
       record ? h('div', { class: 'tl-badge' }, 'Yeni kişisel rekor!') : null,
+      h('p', { class: 'tl-res-tip' }, tip, best > r.stars ? ' Kayıtlı en iyin: ' + best + ' yıldız.' : ''),
       view.preview ? h('p', { class: 'tl-muted' }, 'Önizleme olduğu için kaydedilmedi.') : null,
-      statGrid(st), weakChips(st), acts));
+      statGrid(st, goal), weakChips(st), acts);
+    stage.replaceChildren(card);
+    focusFirst(card);
   }
 
   /* ---------------------------------------------------------- serbest alıştırma */
@@ -464,7 +610,7 @@ export function mountLessons(host, ctx) {
     const sum = h('p', { class: 'tl-muted tl-free-sum' });
     const startBtn = h('button', { class: 'tl-btn is-primary', type: 'button' }, 'Başla');
     const stage = h('div', { class: 'tl-stage' });
-    const opts = h('div', { class: 'tl-panel tl-free-opts' });
+    const opts = h('div', { class: 'tl-box tl-free-opts' });
     const chipEls = new Map();
 
     const tokens = () => Array.from(view.sel);
@@ -556,7 +702,6 @@ export function mountLessons(host, ctx) {
     startBtn.addEventListener('click', freeRun);
 
     opts.append(
-      h('h2', null, 'Serbest Alıştırma'),
       h('p', { class: 'tl-lead' }, 'Zorlandığın harfleri seç; sadece onları içeren kelimelerle çalış. Aynı kelime tükenene kadar tekrar gelmez.'),
       row('Harfler', SINGLES), row('Kombinasyonlar', COMBOS),
       h('div', { class: 'tl-free-group' }, h('p', { class: 'tl-muted' }, 'Kendi kombinasyonun'),
@@ -566,8 +711,10 @@ export function mountLessons(host, ctx) {
       sum, h('div', { class: 'tl-res-actions' }, startBtn));
     updateSummary();
 
-    return h('section', { class: 'tl-free' },
-      h('header', { class: 'tl-head' }, h('div', null, h('p', { class: 'tl-eyebrow' }, 'Ö Ğ Ş Ç Ü İ'), h('h1', { class: 'tl-h1' }, 'Serbest Alıştırma')), h('div', { class: 'tl-pills' }, kbButton())),
+    return h('section', { class: 'tl-ws tl-free' },
+      h('header', { class: 'tl-ws-head' },
+        h('div', { class: 'tl-ws-id' }, h('p', { class: 'tl-eyebrow' }, 'Klavye Dersleri · Ö Ğ Ş Ç Ü İ'), h('h1', { class: 'tl-h1' }, 'Serbest Alıştırma')),
+        h('div', { class: 'tl-ws-acts' }, kbButton(), h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => go('map') }, 'Ders Haritası'))),
       opts, stage);
   }
 
@@ -577,7 +724,7 @@ export function mountLessons(host, ctx) {
     stage.replaceChildren(h('div', { class: 'tl-banner' }, 'Seçimin: ' + toks.map(trUpper).join(' · ')), tHost);
     typer = mountTyper(tHost, {
       text,
-      keyboard: kbOn,
+      keyboard: kbWanted(),
       sfx: ctx && ctx.sfx,
       onFinish: (st) => later(() => {
         clearTyper();
@@ -592,11 +739,15 @@ export function mountLessons(host, ctx) {
         const acts = h('div', { class: 'tl-res-actions' },
           h('button', { class: 'tl-btn is-primary', type: 'button', onclick: again }, 'Yeni kelimeler'),
           w ? h('button', { class: 'tl-btn', type: 'button', onclick: () => runFree(stage, opts, w.text, w.letters) }, 'Zayıf tuşlarımı çalış') : null,
-          h('button', { class: 'tl-btn', type: 'button', onclick: () => { stage.replaceChildren(); opts.hidden = false; } }, 'Seçimi değiştir'));
-        stage.replaceChildren(h('div', { class: 'tl-result tl-panel' },
+          h('button', { class: 'tl-btn', type: 'button', onclick: () => { stage.replaceChildren(); opts.hidden = false; } }, 'Seçimi değiştir'),
+          backBtn());
+        const card = h('div', { class: 'tl-result tl-box', role: 'status' },
+          h('p', { class: 'tl-eyebrow' }, 'Serbest Alıştırma · ' + toks.map(trUpper).join(' ')),
           h('h2', null, 'Alıştırma bitti'),
           res.record ? h('div', { class: 'tl-badge' }, 'Yeni kişisel rekor!') : null,
-          statGrid(st), weakChips(st), acts));
+          statGrid(st), weakChips(st), acts);
+        stage.replaceChildren(card);
+        focusFirst(card);
       }, 350),
     });
   }

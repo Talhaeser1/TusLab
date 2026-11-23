@@ -1,7 +1,8 @@
 // TuşLab — yazma motoru (İşçi E). Saf JS, ES modülü.
 // Dışa açılan: mountTyper, ensureStyles, h, fingerName, fingerShort, trLower, trUpper,
-// shuffle, fmtTime, loadAll, bumpProgress, normalizeText, matchStartKey, setText
-// mountTyper(host, { text, keyboard, onProgress, onFinish, sfx, stream?, onChunk? }) -> { destroy, focus, setKeyboard, stop, stats, item, expected }
+// shuffle, fmtTime, loadAll, bumpProgress, normalizeText, matchStartKey, setText, kbPref, setKbPref, kbWanted, kbToggle
+// mountTyper(host, { text, keyboard, onProgress, onFinish, sfx, stream?, onChunk?, statsHost? }) -> { destroy, focus, setKeyboard, stop, stats, item, expected }
+//   statsHost: sayaç şeridi yazıcının içinde değil bu öğede durur (ör. başlık satırı).
 //   stream(): sıradaki parça ({ text } ya da metin; null = bitti). onChunk({ item, index, done, stats }). stats.chunks = biten parça.
 import * as LD from './data/lessons.js';
 
@@ -61,6 +62,54 @@ export function setText(el, v) {
   if (n && n.nodeType === 3 && !n.nextSibling) {
     if (n.data !== t) n.data = t;
   } else if (el.textContent !== t) el.textContent = t;
+}
+
+/* ------------------------------------------------------------------ ekran klavyesi tercihi (kalıcı) */
+// Üç yazma ekranı (Yazma, Klavye Dersleri, Şiir & Atasözü) aynı tercihi paylaşır: 'tuslab-home-kb' = '1' | '0'.
+// Kayıt yoksa geniş ekranda açık. Dar ekranda (telefon, < 700 px genişlik ya da < 620 px yükseklik) hiç gösterilmez.
+const KB_KEY = 'tuslab-home-kb';
+export function kbPref() {
+  try {
+    const v = globalThis.localStorage && globalThis.localStorage.getItem(KB_KEY);
+    if (v === '1') return true;
+    if (v === '0') return false;
+  } catch (e) {
+    /* depolama kapalı */
+  }
+  return null;
+}
+export function setKbPref(on) {
+  try {
+    if (globalThis.localStorage) globalThis.localStorage.setItem(KB_KEY, on ? '1' : '0');
+  } catch (e) {
+    /* depolama kapalı */
+  }
+}
+export function kbFits() {
+  const w = typeof window !== 'undefined' && window.innerWidth;
+  const hh = typeof window !== 'undefined' && window.innerHeight;
+  if (!w || !hh) return true;
+  return w >= 700 && hh >= 620;
+}
+/** Ekran klavyesi gösterilsin mi: tercih (yoksa açık) ve ekran yeterince büyük. */
+export function kbWanted() {
+  return kbPref() !== false && kbFits();
+}
+/** "Klavye: açık/kapalı" düğmesi; tercihi kaydeder, onChange(on) yazıcıya uygular. */
+export function kbToggle(onChange) {
+  const b = h('button', { class: 'tl-btn is-ghost tl-kbtoggle', type: 'button', title: 'Ekran klavyesini aç/kapat (tercih kaydedilir)' });
+  const paint = () => {
+    const on = kbPref() !== false;
+    b.setAttribute('aria-pressed', String(on));
+    b.textContent = 'Klavye: ' + (on ? 'açık' : 'kapalı');
+  };
+  b.addEventListener('click', () => {
+    setKbPref(kbPref() === false);
+    paint();
+    if (onChange) onChange(kbWanted());
+  });
+  paint();
+  return b;
 }
 
 export function shuffle(arr) {
@@ -142,13 +191,18 @@ export function bumpProgress(ctx, wpm, acc, patch) {
 
 /* ------------------------------------------------------------------ klavye eşlemesi */
 
-const SHIFT_SYM = { '!': '1', "'": '2', '^': '3', '+': '4', '%': '5', '&': '6', '/': '7', '(': '8', ')': '9', '=': '0', '?': '*', _: '-', ';': ',', ':': '.' };
+// Türkçe Q: Shift ile gelen işaretler → tuş. (é: " tuşu, >: < tuşu)
+const SHIFT_SYM = { '!': '1', "'": '2', '^': '3', '+': '4', '%': '5', '&': '6', '/': '7', '(': '8', ')': '9', '=': '0', '?': '*', _: '-', ';': ',', ':': '.', 'é': '"', '>': '<' };
+const SHIFT_OF = Object.fromEntries(Object.entries(SHIFT_SYM).map(([a, b]) => [b, a]));
+// Veride parmağı olmayan rakam sırası ve < tuşu için dokunarak yazma parmakları (yalnız renk).
+const EXTRA_FINGERS = { '"': 'L5', 1: 'L5', 2: 'L4', 3: 'L3', 4: 'L2', 5: 'L2', 6: 'R2', 7: 'R2', 8: 'R3', 9: 'R4', 0: 'R5', '*': 'R5', '-': 'R5', '<': 'L5' };
+const fingerOf = (k) => FINGERS[k] || EXTRA_FINGERS[k] || '';
 
 function keyFor(ch) {
   if (ch === ' ') return { key: ' ', shift: false };
   const lo = ch.toLocaleLowerCase('tr');
-  if (lo !== ch) return { key: lo, shift: true };
   if (SHIFT_SYM[ch]) return { key: SHIFT_SYM[ch], shift: true };
+  if (lo !== ch) return { key: lo, shift: true };
   return { key: ch, shift: false };
 }
 
@@ -197,6 +251,7 @@ export function mountTyper(host, opts = {}) {
   let endT = 0;
   let timer = 0;
   let lineH = 0;
+  let shakeT = 0;
 
   /* --- DOM --- */
   const stEls = {
@@ -233,7 +288,9 @@ export function mountTyper(host, opts = {}) {
   });
   const box = h('div', { class: 'tl-typer-box' }, view, hint, ta);
   const kbWrap = h('div', { class: 'tl-kb-wrap' });
-  const root = h('div', { class: 'tl-edu tl-typer' }, statsBar, progWrap, box, kbWrap);
+  const statsHost = opts.statsHost || null;
+  const root = h('div', { class: 'tl-edu tl-typer' + (statsHost ? ' has-ext-stats' : '') }, statsHost ? null : statsBar, progWrap, box, kbWrap);
+  if (statsHost) statsHost.replaceChildren(statsBar);
 
   let spans = [];
   function renderText() {
@@ -272,16 +329,18 @@ export function mountTyper(host, opts = {}) {
     KEY_ROWS.forEach((row, ri) => {
       const r = h('div', { class: 'tl-kb-row r' + ri });
       row.forEach((k) => {
-        const f = FINGERS[k];
-        const el = h('span', { class: 'tl-key' + (f ? ' f-' + f : '') }, trUpper(k));
+        const f = fingerOf(k);
+        // Shift ile gelen işaret küçük harfle tuşun üst köşesinde (Türkçe Q: 1/!, 2/', ,/; …)
+        const el = h('span', { class: 'tl-key' + (f ? ' f-' + f : '') }, trUpper(k), SHIFT_OF[k] ? h('small', { class: 'tl-key-s' }, SHIFT_OF[k]) : null);
         keyEls.set(k, el);
         r.append(el);
       });
       kb.append(r);
     });
-    shiftL = h('span', { class: 'tl-key tl-key-shift' }, 'Shift');
-    shiftR = h('span', { class: 'tl-key tl-key-shift' }, 'Shift');
-    const space = h('span', { class: 'tl-key tl-key-space f-T' }, '');
+    // Shift'e serçe parmakları basar: renkleri de serçe rengi.
+    shiftL = h('span', { class: 'tl-key tl-key-shift f-L5' }, '⇧ Shift');
+    shiftR = h('span', { class: 'tl-key tl-key-shift f-R5' }, 'Shift ⇧');
+    const space = h('span', { class: 'tl-key tl-key-space f-T' }, 'boşluk');
     keyEls.set(' ', space);
     kb.append(h('div', { class: 'tl-kb-row rb' }, shiftL, space, shiftR));
 
@@ -306,21 +365,23 @@ export function mountTyper(host, opts = {}) {
       nextEls.push(el);
     }
     if (shift) {
-      const f = FINGERS[key];
+      const f = fingerOf(key);
       const sh = f ? (f[0] === 'L' ? shiftR : shiftL) : shiftR;
       sh.classList.add('is-next');
       nextEls.push(sh);
     }
   }
 
+  // Basılan tuşun kısa geri bildirimi (doğru: yeşil, yanlış: kırmızı + titreme). Düzen okuması yok (eskiden
+  // animasyonu yeniden başlatmak için her tuşta offsetWidth okunuyordu): sınıf zaten varsa yalnız süre uzar.
   function flashKey(ch, bad) {
     if (!kbBuilt || !showKb) return;
     const el = keyEls.get(keyFor(ch).key);
     if (!el) return;
     const cls = bad ? 'is-bad' : 'is-press';
-    el.classList.remove('is-press', 'is-bad');
-    void el.offsetWidth;
-    el.classList.add(cls);
+    const other = bad ? 'is-press' : 'is-bad';
+    if (el.classList.contains(other)) el.classList.remove(other);
+    if (!el.classList.contains(cls)) el.classList.add(cls);
     clearTimeout(el._tlT);
     el._tlT = setTimeout(() => el.classList.remove(cls), 190);
   }
@@ -446,9 +507,9 @@ export function mountTyper(host, opts = {}) {
     paintChar(pos);
     sfxCall('error');
     flashKey(ch, true);
-    root.classList.remove('is-shake');
-    void root.offsetWidth;
-    root.classList.add('is-shake');
+    if (!root.classList.contains('is-shake')) root.classList.add('is-shake');
+    clearTimeout(shakeT);
+    shakeT = setTimeout(() => root.classList.remove('is-shake'), 200);
     tick();
     return false;
   }
@@ -511,7 +572,22 @@ export function mountTyper(host, opts = {}) {
   });
   ta.addEventListener('paste', (e) => e.preventDefault());
   ta.addEventListener('drop', (e) => e.preventDefault());
-  ta.addEventListener('focus', () => root.classList.add('is-focused'));
+  // Telefonda sanal klavye açılınca metin kutusu görünür kalsın (odakta ve görünür alan küçülünce bir kez kaydır).
+  const narrow = () => typeof window !== 'undefined' && window.innerWidth > 0 && window.innerWidth < 700;
+  const reveal = () => {
+    if (destroyed || !narrow() || document.activeElement !== ta) return;
+    try {
+      box.scrollIntoView({ block: 'nearest' });
+    } catch (e) {
+      /* yoksay */
+    }
+  };
+  const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+  if (vv && vv.addEventListener) vv.addEventListener('resize', reveal);
+  ta.addEventListener('focus', () => {
+    root.classList.add('is-focused');
+    if (narrow()) setTimeout(reveal, 350);
+  });
   ta.addEventListener('blur', () => root.classList.remove('is-focused'));
   box.addEventListener('click', () => focus());
 
@@ -634,6 +710,9 @@ export function mountTyper(host, opts = {}) {
       if (destroyed) return;
       destroyed = true;
       clearInterval(timer);
+      clearTimeout(shakeT);
+      if (vv && vv.removeEventListener) vv.removeEventListener('resize', reveal);
+      if (statsHost) statsBar.remove();
       if (ro) ro.disconnect();
       else window.removeEventListener('resize', onResize);
       keyEls.forEach((el) => clearTimeout(el._tlT));
