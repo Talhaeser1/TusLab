@@ -710,19 +710,33 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
 #pvp-root .lb3.sc .j2-skill-copy b{font-size:15px;font-weight:800;color:#fff}
 #pvp-root .lb3.sc .j2-skill-copy small{font-size:13px;color:var(--sc-muted);overflow-wrap:anywhere}
 
-/* KARAKTER DOCK'U: yuvarlak madalyonlar, zemine oturan ince ışık çizgisi */
-#pvp-root .lb3.sc .sc-dock{padding:clamp(6px,1.4vh,14px) 0 34px}
-#pvp-root .lb3.sc .sc-dock::after{content:'';position:absolute;left:0;right:0;bottom:30px;height:1px;background:linear-gradient(90deg,transparent,#ffffffb3 20%,#ffffffb3 80%,transparent)}
-#pvp-root .lb3.sc .j2-chars{display:flex;align-items:flex-end;justify-content:flex-start;gap:clamp(14px,2vw,32px);padding:10px 12px 6px;min-width:0;
-  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+/* KARAKTER ŞERİDİ (rapor 8): kutu içinde iki grup (Dövüşçüler · Padişahlar), yuvarlak madalyon + altında kısa ad.
+   Seçili: altın halka + parlama + altın ad. Sığmazsa şerit yatay kayar; kenarlar maskeyle solar (taşma yok). */
+#pvp-root .pvp6-panel.lb3.sc{--sc-med:clamp(52px,3.4vw,72px);--sc-fade:28px}
+#pvp-root .lb3.sc .sc-dock{padding:0;border:1px solid #ffffff1f;border-radius:8px;background:linear-gradient(180deg,#0d0a26d9,#07051af2);box-shadow:0 10px 30px #0006}
+#pvp-root .lb3.sc .sc-dock::after{content:none}
+#pvp-root .lb3.sc .j2-chars{display:flex;align-items:stretch;justify-content:flex-start;gap:0;padding:8px var(--sc-fade) 6px;min-width:0;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scroll-padding-inline:var(--sc-fade);
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 var(--sc-fade),#000 calc(100% - var(--sc-fade)),transparent 100%);
+  mask-image:linear-gradient(90deg,transparent 0,#000 var(--sc-fade),#000 calc(100% - var(--sc-fade)),transparent 100%)}
 #pvp-root .lb3.sc .j2-chars::-webkit-scrollbar{display:none}
-#pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter{--ring:var(--sc-fire);position:relative;flex:none;display:block;width:var(--sc-med);height:var(--sc-med);min-height:0;aspect-ratio:auto;padding:0;
-  border:0!important;border-radius:50%;clip-path:none;background:none!important;box-shadow:none!important;overflow:visible;transform:none!important;filter:none!important;isolation:auto}
-#pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter.rune{--ring:var(--sc-rune)}
+#pvp-root .lb3.sc .lb3-dock-grp{flex:none;display:flex;flex-direction:column;gap:2px;min-width:0}
+#pvp-root .lb3.sc .lb3-dock-grp:first-child{margin-left:auto}
+#pvp-root .lb3.sc .lb3-dock-grp:last-child{margin-right:auto}
+#pvp-root .lb3.sc .lb3-dock-grp+.lb3-dock-grp{margin-left:clamp(12px,1.2vw,22px);padding-left:clamp(12px,1.2vw,22px);border-left:1px solid #ffffff2e}
+#pvp-root .lb3.sc .lb3-dock-cap{padding:0 4px;font-size:12px;font-weight:800;line-height:1.2;letter-spacing:.18em;text-transform:uppercase;color:var(--sc-muted);white-space:nowrap}
+#pvp-root .lb3.sc .lb3-dock-grp[data-dock-group="padisah"] .lb3-dock-cap{color:#e8c15a}
+#pvp-root .lb3.sc .lb3-dock-row{display:flex;align-items:flex-start;gap:clamp(2px,.3vw,6px)}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter{--ring:var(--sc-gold);position:relative;flex:none;display:flex;flex-direction:column;align-items:center;gap:7px;
+  width:max(68px,calc(var(--sc-med) + 8px));height:auto;min-height:0;aspect-ratio:auto;padding:8px 0 2px;margin:0;
+  border:0!important;border-radius:50%;clip-path:none;background:none!important;box-shadow:none!important;overflow:visible;transform:none!important;filter:none!important;isolation:auto;
+  outline:none;cursor:pointer;scroll-snap-align:center}
 #pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter::before,#pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter::after{content:none!important}
-#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-f-art,#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art{position:absolute;inset:0;display:block;width:100%;height:100%;aspect-ratio:auto;margin:0;
-  border-radius:50%;overflow:hidden;background-color:#0b0820;background-size:cover;background-position:50% 16%;background-repeat:no-repeat;opacity:.78;filter:none;
-  box-shadow:0 0 0 2px #ffffff59;transform:scale(1);transition:transform 200ms var(--lb3-ease),opacity 160ms,box-shadow 160ms}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-f-art,#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art{position:relative;inset:auto;flex:none;display:block;
+  width:var(--sc-med);height:var(--sc-med);aspect-ratio:auto;margin:0;
+  border-radius:50%;overflow:hidden;background-color:#0b0820;background-size:cover;background-position:50% 16%;background-repeat:no-repeat;opacity:.8;filter:none;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--f-accent,#fff) 50%,#ffffff1f),0 4px 10px #0008;transform:none;
+  transition:transform 180ms var(--lb3-ease),opacity 160ms,box-shadow 160ms}
 /* Hacı Usta madalyonu: visual-enrich.css'in --ve-portrait:none değişkeni konyali portresini siliyordu → doğrudan, daha özgül kural. */
 #pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="vargr"]{background-image:url('../assets/higgsfield/final/portre-vargr.webp')}
 #pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="sira"]{background-image:url('../assets/higgsfield/final/portre-sira.webp')}
@@ -730,13 +744,16 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
 #pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="nyx"]{background-image:url('../assets/higgsfield/final/portre-nyx.webp')}
 #pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="konyali"]{background-image:url('../assets/models/konyali/portre-konyali.webp')}
 #pvp-root .lb3.sc .j2-chars .lb3-f-emblem{display:none}
-#pvp-root .lb3.sc .j2-chars button.lb3-fighter:hover .lb3-f-art{opacity:1}
-#pvp-root .lb3.sc .j2-chars button.lb3-fighter[aria-checked="true"] .lb3-f-art{opacity:1;transform:scale(1.2);box-shadow:0 0 0 3px var(--ring)}
-#pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter:focus-visible{outline:3px solid var(--lb3-focus);outline-offset:6px}
-#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-f-name{position:absolute;left:50%;top:calc(100% + 14px);transform:translateX(-50%);display:block;padding:0;white-space:nowrap;
-  font-size:14px;font-weight:800;line-height:1.2;color:#fff;background:none;opacity:0;transition:opacity 160ms}
-#pvp-root .lb3.sc .j2-chars button.lb3-fighter[aria-checked="true"] .lb3-f-name,#pvp-root .lb3.sc .j2-chars button.lb3-fighter:hover .lb3-f-name,
-#pvp-root .lb3.sc .j2-chars button.lb3-fighter:focus-visible .lb3-f-name{opacity:1}
+#pvp-root .lb3.sc .j2-chars button.lb3-fighter:hover .lb3-f-art{opacity:1;transform:translateY(-2px)}
+#pvp-root .lb3.sc .j2-chars button.lb3-fighter[aria-checked="true"] .lb3-f-art{opacity:1;transform:none;
+  box-shadow:0 0 0 3px var(--ring),0 0 0 6px #ffb02e38,0 0 18px 5px #ffb02e66}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter:focus-visible{outline:none}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter:focus-visible .lb3-f-art{opacity:1;outline:3px solid var(--lb3-focus);outline-offset:5px}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-f-name{position:static;left:auto;top:auto;transform:none;display:block;max-width:none;padding:0 0 2px;white-space:nowrap;
+  font-size:12px;font-weight:700;line-height:1.2;letter-spacing:.01em;color:var(--sc-muted);background:none;opacity:1;transition:color 160ms;
+  text-decoration:underline 2px transparent;text-underline-offset:4px}
+#pvp-root .lb3.sc .j2-chars button.lb3-fighter:hover .lb3-f-name,#pvp-root .lb3.sc .j2-chars button.lb3-fighter:focus-visible .lb3-f-name{color:#fff}
+#pvp-root .lb3.sc .j2-chars button.lb3-fighter[aria-checked="true"] .lb3-f-name{color:var(--sc-gold);font-weight:900;text-decoration-color:var(--sc-gold)}
 
 /* ARENA (sağ): etiket + büyük ad · eğik pencere (seçili arenanın görseli) · eğik şerit yelpazesi */
 #pvp-root .lb3.sc .j2-arena{display:flex;flex-direction:column;gap:clamp(6px,1.2vh,12px);padding-top:clamp(4px,1vh,12px)}
@@ -837,7 +854,7 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
 
 /* TELEFON (≤ 760): dikey kayma yok. Üstte mod şeridi; ortada portre + ad + tek satır silah; Yetenekler/Ayarlar alt sayfalarda; altta sabit başlat */
 @media (max-width:760px),(max-width:1000px) and (max-aspect-ratio:1/1){
-  #pvp-root .pvp6-panel.lb3.sc{--sc-top:44px;--sc-med:64px;grid-template-rows:88px minmax(0,1fr)}
+  #pvp-root .pvp6-panel.lb3.sc{--sc-top:44px;--sc-med:56px;grid-template-rows:88px minmax(0,1fr)}
   #pvp-root .lb3.sc .sc-top{grid-template-columns:minmax(0,1fr);grid-template-rows:var(--sc-top) var(--sc-top);gap:0;height:88px;padding:0 12px}
   #pvp-root .lb3.sc .sc-title{align-self:center;justify-self:start;width:max-content;font-size:16px}
   #pvp-root .lb3.sc .j2-modes .aui-modes .rui-seg button{min-height:var(--sc-top);height:var(--sc-top)}
@@ -852,11 +869,8 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
   #pvp-root .lb3.sc .j2-info-head b{font-size:clamp(30px,9vw,44px)}
   #pvp-root .lb3.sc .j2-info-head span,#pvp-root .lb3.sc .j2-info-head em{display:inline;font-size:14px}
   #pvp-root .lb3.sc .j2-weapon{justify-content:center;font-size:14px}
-  #pvp-root .lb3.sc .sc-dock{flex:none;width:100%;min-width:0;align-self:stretch;padding:6px 0 30px}
-  #pvp-root .lb3.sc .j2-chars{width:100%}
-  #pvp-root .lb3.sc .sc-dock::after{bottom:26px}
-  #pvp-root .lb3.sc .j2-chars{gap:20px;padding:12px 16px 4px;justify-content:flex-start}
-  #pvp-root .lb3.sc .j2-chars button.lb3-fighter{scroll-snap-align:center}
+  #pvp-root .lb3.sc .sc-dock{flex:none;width:100%;min-width:0;align-self:stretch}
+  #pvp-root .lb3.sc .j2-chars{width:100%;--sc-fade:20px}
   #pvp-root .lb3.sc .j2-arena{flex:none;padding:0}
   #pvp-root .lb3.sc .sc-label,#pvp-root .lb3.sc .sc-win,#pvp-root .lb3.sc .j2-arena .lb3-stage{display:none}
   #pvp-root .lb3.sc .sc-arena-row{justify-content:space-between;gap:0;min-height:48px}
@@ -881,7 +895,7 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
 }
 /* Düşük yükseklik (1366×650 gibi): sıkıştır, kaymasın */
 @media (min-width:761px) and (max-height:720px){
-  #pvp-root .pvp6-panel.lb3.sc{--sc-top:48px;--sc-med:60px}
+  #pvp-root .pvp6-panel.lb3.sc{--sc-top:48px;--sc-med:clamp(48px,3.4vw,60px)}
   #pvp-root .lb3.sc .sc-stage{row-gap:8px}
   #pvp-root .lb3.sc .j2-info-head b{font-size:clamp(34px,4.6vw,64px)}
   #pvp-root .lb3.sc .j2-skill-copy small{font-size:12px}
@@ -906,22 +920,58 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
 #pvp-root.pvp4-reduced .lb3.sc *,#pvp-root.pvp4-reduced .lb3.sc *::before,#pvp-root.pvp4-reduced .lb3.sc *::after{transition:none!important;animation:none!important}
 
 /* Osmanlı padişahları: yüz portresi yok → madalyon (assets/padisah/<id>.svg). Lobi kartı, büyük yüz ve madalyon dock'u. */
-#pvp-root .lb3-f-art[data-fighter-portrait="osman"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="osman"],#pvp-root .lb3.sc .sc-face[data-face="osman"]{background-image:url('../assets/padisah/osman.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="orhan"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="orhan"],#pvp-root .lb3.sc .sc-face[data-face="orhan"]{background-image:url('../assets/padisah/orhan.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="murad1"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="murad1"],#pvp-root .lb3.sc .sc-face[data-face="murad1"]{background-image:url('../assets/padisah/murad1.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="bayezid1"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="bayezid1"],#pvp-root .lb3.sc .sc-face[data-face="bayezid1"]{background-image:url('../assets/padisah/bayezid1.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="mehmed1"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="mehmed1"],#pvp-root .lb3.sc .sc-face[data-face="mehmed1"]{background-image:url('../assets/padisah/mehmed1.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="murad2"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="murad2"],#pvp-root .lb3.sc .sc-face[data-face="murad2"]{background-image:url('../assets/padisah/murad2.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="fatih"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="fatih"],#pvp-root .lb3.sc .sc-face[data-face="fatih"]{background-image:url('../assets/padisah/fatih.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="bayezid2"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="bayezid2"],#pvp-root .lb3.sc .sc-face[data-face="bayezid2"]{background-image:url('../assets/padisah/bayezid2.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="yavuz"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="yavuz"],#pvp-root .lb3.sc .sc-face[data-face="yavuz"]{background-image:url('../assets/padisah/yavuz.svg');background-position:center 30%}
-#pvp-root .lb3-f-art[data-fighter-portrait="kanuni"],#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="kanuni"],#pvp-root .lb3.sc .sc-face[data-face="kanuni"]{background-image:url('../assets/padisah/kanuni.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="osman"],#pvp-root .lb3.sc .sc-face[data-face="osman"]{background-image:url('../assets/padisah/osman.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="orhan"],#pvp-root .lb3.sc .sc-face[data-face="orhan"]{background-image:url('../assets/padisah/orhan.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="murad1"],#pvp-root .lb3.sc .sc-face[data-face="murad1"]{background-image:url('../assets/padisah/murad1.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="bayezid1"],#pvp-root .lb3.sc .sc-face[data-face="bayezid1"]{background-image:url('../assets/padisah/bayezid1.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="mehmed1"],#pvp-root .lb3.sc .sc-face[data-face="mehmed1"]{background-image:url('../assets/padisah/mehmed1.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="murad2"],#pvp-root .lb3.sc .sc-face[data-face="murad2"]{background-image:url('../assets/padisah/murad2.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="fatih"],#pvp-root .lb3.sc .sc-face[data-face="fatih"]{background-image:url('../assets/padisah/fatih.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="bayezid2"],#pvp-root .lb3.sc .sc-face[data-face="bayezid2"]{background-image:url('../assets/padisah/bayezid2.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="yavuz"],#pvp-root .lb3.sc .sc-face[data-face="yavuz"]{background-image:url('../assets/padisah/yavuz.svg');background-position:center 30%}
+#pvp-root .lb3-f-art[data-fighter-portrait="kanuni"],#pvp-root .lb3.sc .sc-face[data-face="kanuni"]{background-image:url('../assets/padisah/kanuni.svg');background-position:center 30%}
 #pvp-root .lb3.sc[data-fighter="osman"] .sc-face[data-face="osman"],#pvp-root .lb3.sc[data-fighter="orhan"] .sc-face[data-face="orhan"],#pvp-root .lb3.sc[data-fighter="murad1"] .sc-face[data-face="murad1"],#pvp-root .lb3.sc[data-fighter="bayezid1"] .sc-face[data-face="bayezid1"],#pvp-root .lb3.sc[data-fighter="mehmed1"] .sc-face[data-face="mehmed1"],#pvp-root .lb3.sc[data-fighter="murad2"] .sc-face[data-face="murad2"],#pvp-root .lb3.sc[data-fighter="fatih"] .sc-face[data-face="fatih"],#pvp-root .lb3.sc[data-fighter="bayezid2"] .sc-face[data-face="bayezid2"],#pvp-root .lb3.sc[data-fighter="yavuz"] .sc-face[data-face="yavuz"],#pvp-root .lb3.sc[data-fighter="kanuni"] .sc-face[data-face="kanuni"]{opacity:1;transform:none}
 
-/* Padişah bilgi kartı: saltanat satırı + söz. Dock: 15 madalyon tek sırada (temel 5 + 10 padişah, araya boşluk). */
+/* Padişah bilgi kartı: saltanat satırı + söz. */
 #pvp-root .lb3.sc .j2-soz{margin:0;font-size:15px;font-style:italic;color:var(--f-accent,#ffe08a)}
-@media (min-width:761px) and (min-aspect-ratio:1/1){
-  #pvp-root .pvp6-panel.lb3.sc{--sc-med:clamp(40px,3vw,62px)}
-  #pvp-root .lb3.sc .j2-chars{gap:clamp(8px,0.7vw,14px)}
+/* Şerit: padişahın yazısız küçük madalyonu (assets/padisah/<id>-kucuk.svg; büyük kart ve yüz <id>.svg kullanır). */
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="osman"]{background-image:url('../assets/padisah/osman-kucuk.svg');background-position:center;background-size:cover}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="orhan"]{background-image:url('../assets/padisah/orhan-kucuk.svg');background-position:center;background-size:cover}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="murad1"]{background-image:url('../assets/padisah/murad1-kucuk.svg');background-position:center;background-size:cover}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="bayezid1"]{background-image:url('../assets/padisah/bayezid1-kucuk.svg');background-position:center;background-size:cover}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="mehmed1"]{background-image:url('../assets/padisah/mehmed1-kucuk.svg');background-position:center;background-size:cover}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="murad2"]{background-image:url('../assets/padisah/murad2-kucuk.svg');background-position:center;background-size:cover}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="fatih"]{background-image:url('../assets/padisah/fatih-kucuk.svg');background-position:center;background-size:cover}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="bayezid2"]{background-image:url('../assets/padisah/bayezid2-kucuk.svg');background-position:center;background-size:cover}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="yavuz"]{background-image:url('../assets/padisah/yavuz-kucuk.svg');background-position:center;background-size:cover}
+#pvp-root .pvp6-panel.lb3.sc .j2-chars .lb3-fighter[data-fighter] .lb3-f-art[data-fighter-portrait="kanuni"]{background-image:url('../assets/padisah/kanuni-kucuk.svg');background-position:center;background-size:cover}
+
+
+/* Dar yatay pencere (rapor 8 · ≈800×546): bilgi kartı şeridin üstüne binmez, üst sekmeler sağdaki düğmelerin altına girmez,
+   arena kartları ayarların üstüne taşmaz. Bilgi kartı sığmazsa kendi içinde kayar. */
+#pvp-root .lb3.sc .sc-hero{min-height:0}
+#pvp-root .lb3.sc .j2-info{max-height:100%;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+@media (min-width:761px) and (max-width:1279.98px){
+  #pvp-root .lb3.sc .sc-top{padding-right:calc(var(--sc-pad) + 262px)}
 }
-#pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter[data-fighter="osman"]{margin-left:clamp(8px,1vw,20px)}
+@media (min-width:761px) and (max-width:1099.98px){
+  #pvp-root .lb3.sc .sc-stage{grid-template-columns:minmax(0,1fr) clamp(280px,36vw,340px);column-gap:20px}
+  #pvp-root .lb3.sc .sc-hero{gap:12px}
+  #pvp-root .lb3.sc .sc-faces{max-width:min(34%,240px)}
+  #pvp-root .lb3.sc .j2-info-head b{font-size:clamp(28px,4.4vw,44px);overflow-wrap:normal;word-break:normal}
+}
+@media (min-width:761px) and (max-height:620px){
+  #pvp-root .lb3.sc .j2-arena{gap:4px;padding-top:4px}
+  #pvp-root .pvp6-panel.lb3.sc .j2-arena .lb3-stage-strip{grid-template-columns:repeat(4,minmax(0,1fr)) 30px;gap:4px}
+  #pvp-root .pvp6-panel.lb3.sc .j2-arena .lb3-stage-strip button.lb3-stage-card,#pvp-root .pvp6-panel.lb3.sc .j2-arena .lb3-stage-strip button.lb3-stage-card[data-stage-pick="random"]{grid-column:auto;height:44px;min-height:44px}
+  /* kart adları bu genişlikte sığmaz: görsel olarak gizli (ekran okuyucuda kalır); seçili arenanın adı üstte büyük yazılı */
+  #pvp-root .pvp6-panel.lb3.sc .j2-arena .lb3-stage-strip .lb3-stage-name{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  #pvp-root .pvp6-panel.lb3.sc .j2-arena .lb3-stage-strip .lb3-stage-art[data-stage-art="random"]{justify-content:center;padding:0}
+  #pvp-root .pvp6-panel.lb3.sc .j2-arena .lb3-stage-strip button.lb3-stage-card[aria-checked="true"]::after{width:16px;height:16px;font-size:12px;right:2px;top:2px}
+  #pvp-root .lb3.sc .j2-settings{overflow-y:auto;min-height:0;scrollbar-width:thin}
+}
+@media (prefers-reduced-motion:reduce){
+  #pvp-root .lb3.sc .j2-chars button.lb3-fighter:hover .lb3-f-art{transform:none}
+  #pvp-root .lb3.sc .j2-chars{scroll-behavior:auto}
+}
+#pvp-root.pvp4-reduced .lb3.sc .j2-chars button.lb3-fighter:hover .lb3-f-art{transform:none}

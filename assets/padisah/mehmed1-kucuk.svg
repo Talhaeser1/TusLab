@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+<defs><radialGradient id="g" cx="50%" cy="36%" r="68%"><stop offset="0" stop-color="#1d7f6e"/><stop offset="1" stop-color="#0b0820"/></radialGradient></defs>
+<circle cx="100" cy="100" r="100" fill="url(#g)"/>
+<circle cx="100" cy="100" r="91" fill="none" stroke="#bfe9a8" stroke-width="7"/>
+<circle cx="100" cy="100" r="80" fill="none" stroke="#bfe9a8" stroke-width="2" opacity=".5"/>
+<g fill="#bfe9a8" transform="translate(100 70) scale(.36) translate(-400 -245)"><path d="M362 170 a92 92 0 1 0 0 150 a74 74 0 1 1 0 -150z"/><path d="M432 214 l9 27 h28 l-23 17 9 27 -23 -17 -23 17 9 -27 -23 -17 h28z"/></g>
+<text x="100" y="152" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-size="64" font-weight="700" fill="#fff7e6">V</text>
+</svg>

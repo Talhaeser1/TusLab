@@ -38,3 +38,12 @@ export function portraitImg(doc, player, cls) {
   img.src = p.url;
   return img;
 }
+
+/** Lobi şeridi (dövüşçü seçim madalyonları): madalyonun altındaki kısa ad. Listede yoksa dövüşçünün kendi adı. */
+export const DOCK_NAMES = Object.freeze({
+  osman: 'Osman', orhan: 'Orhan', murad1: 'I. Murad', bayezid1: 'Yıldırım', mehmed1: 'Çelebi',
+  murad2: 'II. Murad', fatih: 'Fatih', bayezid2: 'II. Bayezid', yavuz: 'Yavuz', kanuni: 'Kanuni'
+});
+export const dockName = id => DOCK_NAMES[id] || getFighter(id)?.name || String(id);
+/** Şeritteki küçük padişah madalyonu (yazısız sürüm; scripts/padisah-madalyon.mjs üretir). Temel dövüşçüde null. */
+export const dockMedallionUrl = id => (PADISAH_IDS.includes(id) ? `./assets/padisah/${id}-kucuk.svg` : null);

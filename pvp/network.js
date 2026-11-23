@@ -3,6 +3,7 @@ import {normalizeTyping,wordsMatch} from './shared/typing-rules.js';
 import {normalizeAssist,partnerName} from './shared/assist-rules.js';
 import {FIGHTERS,FIGHTER_IDS,isFighterId,normalizeFighter,defaultFighter} from './shared/fighters.js';
 import {STAGES,RANDOM_STAGE,DEFAULT_STAGE,normalizeStageChoice} from './shared/stages.js';
+import {dockName} from './portraits.js';
 import {ClockSynchronizer, SnapshotOrder} from './net-sync.js';
 import {initProfileUI, profilePanelHTML} from './phase16-ui.js';
 import {initSocialUI,friendPanelHTML} from './phase17-social.js';
@@ -60,12 +61,15 @@ export function fighterInfoHTML(id){
 }
 /** Karakter dock'u: yuvarlak madalyonlar (radyo grubu; ok tuşlarıyla gezilir) + bilgi kartı `<template>`'leri. */
 export function fighterDockHTML(selected=defaultFighter('fire')){
-  const cards=FIGHTER_IDS.map(id=>{const f=FIGHTERS[id],on=id===selected;
-    return `<button type="button" role="radio" aria-checked="${on}" tabindex="${on?0:-1}" class="lb3-fighter ${f.archetype}" data-lobby-action="fighter" data-fighter="${id}" data-side="${f.archetype}" style="${fighterStyle(f)}" aria-label="${esc(`${f.name} · ${f.title} · ${f.archetype==='fire'?'Ateş':'Rün'}`)}">`
+  const card=id=>{const f=FIGHTERS[id],on=id===selected;
+    return `<button type="button" role="radio" aria-checked="${on}" tabindex="${on?0:-1}" class="lb3-fighter ${f.archetype}" data-lobby-action="fighter" data-fighter="${id}" data-side="${f.archetype}" style="${fighterStyle(f)}" aria-label="${esc(`${f.name} · ${f.title} · ${f.archetype==='fire'?'Ateş':'Rün'}`)}" title="${esc(f.name)}">`
       +`<span class="lb3-f-art" data-fighter-portrait="${id}" aria-hidden="true"><span class="lb3-f-emblem">${esc(f.name[0])}</span></span>`
-      +`<b class="lb3-f-name">${esc(f.name)}</b></button>`
-      +`<template data-fighter-card="${id}">${fighterInfoHTML(id)}</template>`;}).join('');
-  return `<div class="lb3-fighters j2-chars" role="radiogroup" aria-labelledby="lb3-hero-title" data-fighter-group="lobby">${cards}</div>`;
+      +`<b class="lb3-f-name" aria-hidden="true">${esc(dockName(id))}</b></button>`
+      +`<template data-fighter-card="${id}">${fighterInfoHTML(id)}</template>`;};
+  // Şerit iki grup: temel dövüşçüler + padişahlar (küçük başlık; ok tuşları gruplar arasında kesintisiz gezer).
+  const group=(key,cap,ids)=>ids.length?`<div class="lb3-dock-grp" data-dock-group="${key}"><span class="lb3-dock-cap" aria-hidden="true">${cap}</span><div class="lb3-dock-row">${ids.map(card).join('')}</div></div>`:'';
+  const base=FIGHTER_IDS.filter(id=>!FIGHTERS[id].padisah),pad=FIGHTER_IDS.filter(id=>FIGHTERS[id].padisah);
+  return `<div class="lb3-fighters j2-chars" role="radiogroup" aria-labelledby="lb3-hero-title" data-fighter-group="lobby">${group('base','Dövüşçüler',base)}${group('padisah','Padişahlar',pad)}</div>`;
 }
 /** Bilgi kartı kutusu: seçili karakterin adı, unvanı, silahı ve Q/E/R satırları (`showFighterInfo` doldurur). */
 export const fighterInfoBoxHTML=()=>`<div class="j2-info" data-fighter-info aria-live="polite"></div>`;
@@ -275,6 +279,9 @@ export class PvPNetworkConsole {
     // Arena yelpazesi: tekerlek komşu arenaya geçer (sahne kaymaz; 220 ms kısıtlı).
     let wheelAt=0;
     root.addEventListener('wheel',e=>{
+      // Dövüşçü şeridi sığmıyorsa dikey tekerlek şeridi yatay kaydırır (sayfa kaymaz).
+      const dock=e.target.closest?.('[data-fighter-group="lobby"]');
+      if(dock&&dock.scrollWidth>dock.clientWidth&&Math.abs(e.deltaY)>Math.abs(e.deltaX)){e.preventDefault();dock.scrollLeft+=e.deltaY;return;}
       if(!e.target.closest?.('[data-sc-arena]')||Math.abs(e.deltaY)+Math.abs(e.deltaX)<4)return;
       e.preventDefault();const now=Date.now();if(now-wheelAt<220)return;wheelAt=now;
       this.stepStage('practice',(Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY)>0?1:-1);
@@ -849,6 +856,10 @@ export class PvPNetworkConsole {
       const on=b.dataset.fighter===shownFighter;b.setAttribute('aria-checked',String(on));b.tabIndex=on?0:-1;
       if(b.closest('[data-fighter-group="room"]'))b.disabled=!(Boolean(this.myId)&&!this.practice)||this.phase!=='waiting';
     });
+    // Lobi şeridi yatay kayıyorsa seçili madalyon görünür alana getirilir (sayfa kaymaz; yalnız şerit).
+    const dock=panel.querySelector('[data-fighter-group="lobby"]'),sel=dock?.querySelector(`[data-fighter="${shownFighter}"]`);
+    if(sel&&dock.clientWidth&&dock.dataset.shownSel!==shownFighter){dock.dataset.shownSel=shownFighter;const d=dock.getBoundingClientRect(),r=sel.getBoundingClientRect();
+      if(r.left<d.left+24||r.right>d.right-24)dock.scrollLeft+=r.left+r.width/2-(d.left+d.width/2);}
     this.showFighterInfo(shownFighter);
     // Sahne: büyük portre (data-fighter), arena penceresi + adı (data-stage), çekmece ve alt sayfa durumu.
     if(!joined){panel.dataset.fighter=shownFighter;}
