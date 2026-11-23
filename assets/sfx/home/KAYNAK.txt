@@ -1,0 +1,4 @@
+Ana sayfa sesleri — 23 Kas 2026, Higgsfield MCP ile üretildi.
+welcome/great/lesson/record.mp3: text2speech_v2 (ElevenLabs), ses "Isla" (preset).
+chime.mp3, fanfare.mp3: mirelo_text_to_audio (Mirelo SFX).
+Toplam ~2,9 kredi.

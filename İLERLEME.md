@@ -286,3 +286,15 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 - Karar: vali, kademe düşürmek ortalamayı %8 iyileştirmediyse ve yavaşlık hafifse (≤ 25,5 ms) son kademeyi geri alır ve kilitler; 48 Hz üst sınırı 21,5 → 22,6 ms. Sonuç: kademe 1 (yüksek kalite, bloom kapalı) kalıyor.
 - Bulgu (yapılmadı): yayında tüm dosyalar Cache-Control: no-cache (kök _headers, testli karar); müzikler WAV (5 × ~700 KB) — MP3'e çevrilirse ilk yükleme ~3 MB azalır; maç sayfası toplam ~10,3 MB / 249 istek.
 - Karar (15 Kas): sahne müzikleri .mp3 (64 kb/sn, 22,05 kHz mono) olarak iner, .wav yedek olarak durur (music23.js önce .mp3 dener). 4,45 MB → 0,81 MB. Kanıt: .playwright-mcp/muzik-mp3-probe.js (süre ve döngü uçları .wav ile aynı). Efekt sesleri (assets/sfx/*.wav) çevrilmedi.
+
+## 23 Kas 2026 — Yeni ana sayfa (3B) + Klavye Dersleri + Şiir/Atasözü
+- Karar: yeni ana sayfa ayrı `home/` klasöründe, sabit tam ekran katman (#tl-home) olarak mevcut uygulamanın üstünde açılır; app.js, pvp/ ve eski CSS'lere dokunulmadı. `?pvp=` varken hiç açılmaz, #pvp-root görünürken gizlenir. Sözleşme: docs/codex/ANASAYFA-SOZLESME.md.
+- Karar: index.html'e yalnız 2 satır (home/home.css link — compact-height.css'ten önce; home/home.js defer). docs/codex/00-ORTAK.md'ye istisna notu düşüldü. cloudflare/build-assets.mjs keep listesine 'home' eklendi.
+- Karar: tek tema = mevcut "Neon Arena" paleti, --tl-* belirteçleri (home.css :root); eğitim ekranları yalnız bunları kullanır.
+- 3B: three.js (pvp/vendor) ile ada + Meshy GLB'leri (harf-muhafizi, nyx, konyali) + yörüngede Türkçe harfli tuşlar + parçacıklar; fare paralaksı; gizli sekmede/reduced-motion'da durur.
+- Meshy: MCP bağlantısı YOK; mevcut Meshy modelleri kullanıldı. Higgsfield MCP bağlı (ücretsiz plan, 6,25 kredi): ElevenLabs (text2speech_v2, ses "Isla") ile 4 Türkçe replik + Mirelo ile 2 efekt üretildi → assets/sfx/home/ (~2,9 kredi).
+- Eğitim: 47 ders / 8 ünite (temel sıra → üst/alt sıra → Ö Ğ Ş Ç Ü I/İ → kombinasyonlar → büyük harf/noktalama → hız → ustalık), yıldız, kilit, parmak renkli ekran klavyesi, zayıf tuş çalışması, serbest alıştırma. Araştırma: docs/EGITIM-ARASTIRMA.md (keybr kademeli harf açma, eşikler, parmak haritası).
+- İçerik: 8073 benzersiz kelime (oturumda tekrar edilmez), 290 atasözü (205'i zorluk 3–4, zincirler), 26 telifsiz şiir, 88 deyim, 44 tekerleme, 30 özdeyiş; Atasözü Maratonu. Eski ana sayfadaki hızlı yazma yerine "Günün Dizesi" (beyit ya da zor atasözü).
+- Ölçüm: npm test 974/974; Playwright (Edge) uçtan uca: ana sayfa, günün dizesi, ders 1 (3 yıldız), tekrar farklı metin, atasözü, Hız Arenası geçişi + ⌂ dönüş, PvP açılışı etkilenmiyor, 390 px'te yatay kaydırma yok; sayfa hatası 0.
+- Ortam: makinede node/git yoktu → node v22.23.5 (nodejs.org, SHA256 doğrulandı) ve playwright 1.56.1 oturumun geçici klasörüne kuruldu. git bulunamadığı için COMMIT YAPILAMADI.
+- Açık: şiirler hafızadan yazıldı, bir Türkçe okurun gözden geçirmesi iyi olur; telefonda Backspace/IME davranışı gerçek cihazda denenmedi; GitHub'dan beceri kurulmadı (CLAUDE.md: dışarıdan kod indirip çalıştıran komutlar yasak).
