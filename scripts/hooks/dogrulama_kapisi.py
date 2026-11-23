@@ -18,7 +18,7 @@ import sys
 
 KOD_UZANTI = re.compile(r"\.(m?js|css|html?|py)$", re.I)
 GORSEL = re.compile(r"(^|[\\/])(home|pvp)[\\/]|\.(css|html?)$", re.I)
-TEST_KOMUT = re.compile(r"node(\.exe)?[\"']?\s+--test|npm\s+(run\s+)?test", re.I)
+TEST_KOMUT = re.compile(r"node(\.exe)?[\"']?\s+--test|--test\s+[\"']?tests[\\/]|npm\s+(run\s+)?test", re.I)
 SHOT_BASH = re.compile(r"screenshot|sshot|bandshot", re.I)
 OKUYAN_AJAN = {"Explore", "Plan", "claude-code-guide", "statusline-setup"}
 YAZAN_BASH = re.compile(r"sed\s+-i|>\s*\S+\.(m?js|css|html?)\b|tee\s+\S+\.(m?js|css|html?)\b", re.I)
