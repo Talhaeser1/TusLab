@@ -88,6 +88,8 @@
 .rui-medal.is-urgent .rui-ring-fill{stroke:var(--rui-danger)}
 .rui-medal.is-urgent .rui-secs{color:#ff8ea2;animation:none /* denetim: sonsuz yanıp sönme kaldırıldı; renk aciliyeti gösteriyor */}
 .rui-medal.is-frozen .rui-ring-fill{stroke:#9b93c6}
+/* DEVIR-PVP 1: çözüm / sonuç sırasında geri sayım yok (oynanacak bir şey yok); yer korunur, üst şerit kaymaz. */
+.rui-medal.is-result .rui-clock{visibility:hidden}
 @keyframes rui-tick{50%{opacity:.55}}
 
 /* Ani ölüm: madalyon ve şerit kızıl. */
@@ -285,7 +287,7 @@
 .rui-rule-hint{grid-column:1 / -1;display:block;font-size:12px;line-height:1.35;color:#c9c2ee;overflow-wrap:anywhere}
 .rui-side-hp{display:flex;gap:8px;min-width:0;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;color:#e9e4ff;white-space:nowrap}
 .rui-side-2 .rui-side-hp{flex-direction:row-reverse}
-.rui-side-hp .rui-dmg{color:#b9b2e6}.rui-side-hp .rui-dmg.is-capped{color:#ffcf5a}
+.rui-side-hp .rui-dmg{color:#b9b2e6}
 #pvp-root .m33-result .m33-hpline{font-size:13px;font-weight:700;color:#e9e4ff;font-variant-numeric:tabular-nums}
 @media (max-width:767.98px){.rui-side-hp{flex-wrap:wrap;gap:0 6px}.rui-side-hp .rui-dmg{font-size:12px}}
 @media (hover:hover){.rui-seg button:not(:disabled):not([aria-pressed="true"]):hover{background:#ffffff12;color:#fff}}

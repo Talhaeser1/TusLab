@@ -98,8 +98,9 @@ export function createImpactDirector({now,isReduced,contact,deliver}) {
       if(pending.length>=128)hit(pending.shift().event,false);
       pending.push({event,ready,deadline:now()+(deadlineMs||(event.skill==='r'?5000:2400))});
     },
-    flush() { let full=0; for(let i=0;i<pending.length;i++) {
-      const p=pending[i], ready=p.ready(); if(!ready&&now()<p.deadline)continue;
+    // force (DEVIR-PVP 1, raund geçişi): temas beklemeden HEPSİ sahnesiz (yalnız sayı/can) teslim edilir; sonra bekleyen kalmaz.
+    flush(force=false) { let full=0; for(let i=0;i<pending.length;i++) {
+      const p=pending[i], ready=!force&&p.ready(); if(!force&&!ready&&now()<p.deadline)continue;
       // İş 12: toplu sahnede ~25 vuruş aynı temas karesinde çözülüyor; hepsine tepki/efekt/ses 258 ms'lik kare
       // donması yaptı. Aynı karede en çok 3 tam darbe; kalanı aynı karede yalnız sayı + can (sahne zaten oynuyor).
       pending.splice(i--,1); hit(p.event,ready&&full++<3);
@@ -107,5 +108,25 @@ export function createImpactDirector({now,isReduced,contact,deliver}) {
     hit,
     silent(event) { hit(event,false); },
     clear() { pending.length=0; resetImpact(state); },
+    get pending() { return pending.length; },
+  };
+}
+
+/** DEVIR-PVP 1: raund geçişi temizliğinden (settle) sonra, maç boş bir fazdayken (tur arası / arena özeti / hazırlık)
+ *  gelen hasar gösterimi ESKİ raunda aittir: o fazlarda sunucu hasar uygulamaz. Kapı kapanır; maç yazma/çözüm fazına
+ *  geçince kendiliğinden açılır. Saf (test edilir). */
+export const SETTLED_IDLE_PHASES = Object.freeze(['intermission', 'summary', 'prep']);
+export function createSettleGate() {
+  let closed = false;
+  return {
+    close() { closed = true; },
+    /** match: o anki maç anlık görüntüsü. false → gösterim atlanır (eski raundun gecikmeli geri çağrısı). */
+    allows(match) {
+      if (!closed) return true;
+      if (match && (match.status === 'running' || match.status === 'paused') && SETTLED_IDLE_PHASES.includes(match.round?.phase)) return false;
+      closed = false;
+      return true;
+    },
+    get closed() { return closed; },
   };
 }

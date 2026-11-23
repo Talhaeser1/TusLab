@@ -244,14 +244,15 @@ export function arenaResultModel(result,myId,{record=null}={}){
 // ------------------------------------------------------------ mod seçici ---
 export const MODE_OPTIONS=Object.freeze([
   {id:'classic',label:'Klasik',hint:'120 sn düello'},
-  {id:'rounds',label:'Zamana Karşı',hint:'tur · 40 sn'},
+  {id:'rounds',label:'Zamana Karşı',hint:'7 raund · 30 sn'},
   {id:'arena',label:'Arena',hint:'6 raund · skill + eşya'}
 ].map(Object.freeze));
 /** İçerik modları (yazma içeriği değişir, dövüş kuralları raund modu ile aynı). Seçici düğmeleri mod seçiciyle aynı satırda. */
 export const CONTENT_OPTIONS=Object.freeze([
   {id:'atasozu',label:'Atasözü',hint:'sıralı atasözleri'},
   {id:'siir',label:'Şiir',hint:'eski şiirler · şair adı'},
-  {id:'osmanlica',label:'Osmanlıca',hint:'kelime + anlam ipucu'}
+  {id:'osmanlica',label:'Osmanlıca',hint:'kelime + anlam ipucu'},
+  {id:'rastgele',label:'Rastgele',hint:'her raund başka içerik'}
 ].map(Object.freeze));
 export const PRACTICE_MODE_KEY='tuslab-pvp-practice-mode';
 export const PRACTICE_CONTENT_KEY='tuslab-pvp-practice-content';
@@ -314,7 +315,7 @@ const secsOf=ms=>Math.max(0,Math.ceil(ms/1000));
  * hudHost: üst HUD satırı (.pvp2-announce); stageHost: üst yazma panelindeki yuva; overlayHost: özet kartı.
  */
 export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),doc=globalThis.document,timers=globalThis,
-  isReduced=()=>false,send=()=>{},onLockChange=null,holdTransition=null}={}){
+  isReduced=()=>false,send=()=>{},onLockChange=null,holdTransition=null,settleVisuals=null}={}){
   const h=builder(doc);
   // ---------------- HUD: [taraf 1] [madalyon] [taraf 2]
   const sides=[1,2].map(seat=>{
@@ -637,6 +638,8 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
         const gate=state.summaryGate={key,ready:false,timer:null};
         const open=()=>{
           if(state.destroyed||state.summaryGate!==gate||gate.ready)return;
+          // DEVIR-PVP 1 (rounds-ui ile aynı ilke): özet açılırken kuyrukta kalan vuruşlar animasyonsuz uygulanır.
+          try{settleVisuals?.('summary');}catch{}
           gate.ready=true;
           if(gate.timer!==null){timers.clearTimeout(gate.timer);gate.timer=null;}
           tick();
@@ -647,7 +650,7 @@ export function createArenaUi({hudHost,stageHost,overlayHost,now=()=>Date.now(),
           // Hold tavanı rounds-ui ile aynı (ROUND_HOLD_MAX_MS): ARENA_SUMMARY_MS(7 sn) içinde özet en az ~5 sn görünür.
           gate.timer=timers.setTimeout(open,ROUND_HOLD_MAX_MS);
           hold.then(open,open);
-        }else gate.ready=true;
+        }else{try{settleVisuals?.('summary');}catch{}gate.ready=true;}
       }
     }else if(state.summaryGate){
       if(state.summaryGate.timer!==null)timers.clearTimeout(state.summaryGate.timer);

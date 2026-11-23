@@ -27,6 +27,14 @@ export function roundEndText({reason, winnerSeat, round, players = [], suddenDea
   return {title: suddenDeath ? 'ANİ ÖLÜM BİTTİ' : `RAUND ${round || ''} BİTTİ`.replace('  ', ' '), sub, tone: 'end'};
 }
 
+/** DEVIR-PVP 1: yazma süresi bitti, çözüm başlıyor (ROUND_RESOLVE) bandı (saf; test edilir).
+ *  Zamana karşı: "SÜRE!" · kelime raundu (ilk bitiren kapattı): "RAUND N BİTTİ". Kazanan henüz belli değil (vuruşlar oynamadı). */
+export function roundResolveText({round, style, turns, suddenDeath = false} = {}) {
+  const sub = Number(turns) > 0 ? 'Vuruşlar sırayla geliyor' : 'Vuruş yok';
+  if (style !== 'counted') return {title: 'SÜRE!', sub, tone: 'time'};
+  return {title: suddenDeath ? 'ANİ ÖLÜM BİTTİ' : `RAUND ${round || ''} BİTTİ`.replace('  ', ' ').trim(), sub, tone: 'end'};
+}
+
 /** VS girişi için iki tarafın görünen bilgisi (saf; test edilir). */
 export function vsModel(match) {
   const players = Array.isArray(match?.players) ? match.players : [];
@@ -180,12 +188,24 @@ export function attachCinematic({root, isReduced = () => false, scheduler = glob
     if (d.type === 'COUNTDOWN' && d.match) { countdownAt = Date.now(); playVs(d.match); }
     else if (d.type === 'MATCH_START' && d.match && Date.now() - countdownAt > 15000) playVs(d.match, {lite: true});
   };
+  // DEVIR-PVP 1: raund sonu bandı yazma süresi bitince (ROUND_RESOLVE = çözümün BAŞI) oynar; ROUND_END çözümün SONUdur
+  // (vuruşlar bitti, tur arası açılıyor) → orada "SÜRE!" yeniden çıkmaz, yalnız K.O. ya da çözüm paketi görülmediyse
+  // (çevrimiçi oda: vuruşlar yazarken çözülür, ROUND_RESOLVE yok) eski bant oynar.
+  let resolvedRound = null;
   const onRound = e => {
     const {type, payload: p = {}} = e.detail || {};
-    if (type === 'ROUND_END') {
-      const m = p.match || {};
-      playBanner(roundEndText({reason: p.reason, winnerSeat: p.winnerSeat, round: p.round, players: m.players || players(), suddenDeath: p.suddenDeath}));
+    if (type === 'ROUND_RESOLVE') {
+      const r = p.match?.round || {};
+      resolvedRound = `${p.match?.matchId ?? ''}:${p.round ?? r.index}`;
+      playBanner(roundResolveText({round: p.round ?? r.index, style: r.style, turns: p.turns, suddenDeath: r.suddenDeath}));
       roundEndSequence();
+    } else if (type === 'ROUND_END') {
+      const m = p.match || {};
+      const seen = resolvedRound === `${m.matchId ?? ''}:${p.round}`;
+      if (p.reason === 'KO' || !seen) {
+        playBanner(roundEndText({reason: p.reason, winnerSeat: p.winnerSeat, round: p.round, players: m.players || players(), suddenDeath: p.suddenDeath}));
+        if (!seen) roundEndSequence();
+      }
     } else if (type === 'ROUND_START') {
       // "RAUND n · BAŞLA!" yazısını rounds-ui zaten gösteriyor; burada yalnız panel geri iner.
       roundStartSequence();

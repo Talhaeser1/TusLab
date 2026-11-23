@@ -22,7 +22,8 @@ import {createFightMotion} from './fight-motion.js';
 import {createParticleLayer} from './fx-particles.js';
 import {createLowHpFeedback} from './lowhp.js';
 // Tur sistemi arayüzü (docs/TUR-SISTEMI.md §10). Klasik maçta gizli kalır.
-import {createRoundsUi,renderRoundsResult,roundInputLock,isRoundMatch} from './rounds-ui.js';
+import {createRoundsUi,renderRoundsResult,roundInputLock,isRoundMatch,ROUND_HOLD_MAX_MS} from './rounds-ui.js';
+import {createSettleGate} from './impact-feel.js';
 import {createMatchInfo} from './match-info.js'; // görev I2: SEN rozeti, yazılan kelime şeritleri, classic sayacı
 // Arena modu arayüzü (docs/ARENA-MODU.md §8.2) ve tüm modlarda ortak üst yazma paneli.
 import {createArenaUi,renderArenaResult,arenaInputLock,arenaTarget,arenaCombatActions,isArenaMatch,looksScrambled} from './arena-ui.js';
@@ -242,13 +243,27 @@ function fighterSkillCue(side,cue,action){
   return playFighterSfx(side==='rune'?2:1,action,action==='r'?.88:1);
 }
 let reducedEffects=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches??false;
+/** DEVIR-PVP 1: raund geçişi (tur arası paneli açılırken / yeni raund başlarken). Görsel kuyrukta, temas bekleyen
+ *  (impactFeel) ya da ertelenmiş ulti hasarı ANİMASYONSUZ teslim edilir ve sahne temizlenir (arena3d.settle: ulti zinciri,
+ *  zamanlanmış tepkiler, tamponlar; kuyruk boş olsa da — 1. turda kuyruk boşken ulti zinciri ~1,4 sn sonra sayı doğuruyordu).
+ *  Sessiz teslimin doğurduğu uçan sayılar silinir, can bekletmesi bırakılır. Kapı (impactGate) kapanır: maç tur arası /
+ *  özet / hazırlık fazındayken gelen hasar gösterimi eskidir, atlanır. Oyun durumuna dokunmaz. */
+const impactGate=createSettleGate();
+function settleRoundVisuals(){
+  try{const a=arena3d.instance;if(a)(a.settle||a.clear)();}catch{}
+  impactGate.close();
+  fx24.damage?.clear();
+  fx24.shownHp?.model?.release?.();fx24.shownHp?.sync?.();
+}
+// Sekme arka plana geçince arena3d kuyruğu boşaltır (clear); doğan sessiz hasar sayıları da gitsin (arena dinleyicisinden SONRA).
+document.addEventListener('visibilitychange',()=>{if(document.hidden)setTimeout(()=>fx24.damage?.clear(),0);});
 // Tur HUD'u: .pvp2-announce satırına yerleşir; süreler network.serverNow() (saat eşitlemesi) ile sayılır.
 let roundsUi=null;
 function roundsUiCreate(){
   roundsUi?.destroy();roundsUi=null;
   const host=root?.querySelector('.pvp2-announce');if(!host)return;
   roundsUi=createRoundsUi(host,{now:()=>network.serverNow(),isReduced:fx24Reduced,send:(type,payload)=>network.send(type,payload),
-    holdTransition:()=>arena3d.instance?.visualQueue?.whenIdle(4500),onLockChange:()=>{textUpdate('fire');textUpdate('rune');}});
+    holdTransition:()=>arena3d.instance?.visualQueue?.whenIdle(ROUND_HOLD_MAX_MS),settleVisuals:settleRoundVisuals,onLockChange:()=>{textUpdate('fire');textUpdate('rune');}});
   roundsUi.update(network.match,network.myId);
 }
 // Arena HUD'u .pvp2-announce satırına, hazırlık kartları ve D/Y şeridi üst yazma paneline yerleşir.
@@ -258,7 +273,7 @@ function arenaUiCreate(){
   const hud=root?.querySelector('.pvp2-announce'),stage=root?.querySelector('[data-tt-arena]'),overlay=root?.querySelector('.pvp2-shell');
   if(!hud||!stage)return;
   arenaUi=createArenaUi({hudHost:hud,stageHost:stage,overlayHost:overlay,now:()=>network.serverNow(),isReduced:fx24Reduced,
-    holdTransition:()=>arena3d.instance?.visualQueue?.whenIdle(4500),
+    holdTransition:()=>arena3d.instance?.visualQueue?.whenIdle(ROUND_HOLD_MAX_MS),settleVisuals:settleRoundVisuals,
     send:(type,payload)=>{if(type==='ARENA_PICK')network.sendArenaPick(payload?.skill,payload?.item);},
     onLockChange:()=>{textUpdate('fire');textUpdate('rune');}});
   arenaUi.update(network.match,network.myId);
@@ -436,6 +451,7 @@ function playerHTML(p){
     <div class="pvp2-stage" aria-label="${p.name} karakter görseli"><span class="pvp2-rune-ring pvp2-ring-one"></span><span class="pvp2-rune-ring pvp2-ring-two"></span><span class="pvp2-stage-ember"></span><span class="pvp2-floor"></span>${rigMarkup(p.id)}<div class="pvp3-vfx" aria-hidden="true"><span class="pvp3-slash"></span><span class="pvp3-shock"></span><span class="pvp3-ward"></span><span class="pvp3-flare"></span><span class="pvp3-spark"></span></div><div class="pvp4-effects" aria-hidden="true"></div><div class="pvp21-layer" aria-hidden="true"></div><div class="pvp4-cue-label" data-fx-label aria-hidden="true"></div><div class="pvp3-motion-label" data-motion-label="${p.id}">Bekleme</div>${DEBUG_TOOLS?`<div class="pvp3-stage-tests" aria-label="Karakter animasyon testleri"><span>TEST</span><button type="button" class="pvp3-mini" data-demo-action="hit" data-target="${p.id}" title="Karakter hasar tepkisi">Darbe</button><button type="button" class="pvp3-mini" data-demo-action="victory" data-target="${p.id}">Zafer</button><button type="button" class="pvp3-mini" data-demo-action="defeat" data-target="${p.id}">Yenilgi</button><button type="button" class="pvp3-mini" data-demo-action="idle" data-target="${p.id}">↺</button><button type="button" class="pvp3-mini pvp4-demo-combo" data-demo-combo="${p.id}" title="Q E R kombosunu sırayla göster">Q→E→R</button></div>`:''}<div class="pvp2-role">${p.role}</div></div>
     <div class="pvp22-passive" data-pvp22-passive>Rün: klasik · pasif kapalı</div><div class="pvp13-defense" data-server-defense>🛡 BLOK 0 · ✦ PERFECT 0 · ⚔ PARRY 0 · ↯ COUNTER 0</div><div class="pvp7-combo" data-server-combo>Henüz maç yok</div><div class="pvp8-score" data-server-score>Sunucu istatistiği bekleniyor</div><div class="pvp2-skillrow" aria-label="Yetenek göstergeleri (maçtan önce önizleme)">
       ${ability(p.id,'Q',isFire?'Alev Kesişi':'Rün Kesişi',2)}
+      ${ability(p.id,'W',isFire?'Yer Yaran Darbe':'Sarsıcı Darbe',5).replace('<button ','<button hidden ')}
       ${ability(p.id,'E',isFire?'Yer Yaran Darbe':'Sarsıcı Darbe',4)}
       ${ability(p.id,'S',isFire?'Kor Kalkanı':'Mavi Mühür',0)}
       ${ability(p.id,'R',isFire?'Kızıl Fırtına':'Sonsuz Mühür',5)}
@@ -464,7 +480,7 @@ function topbarArrangeStatus(){
 }
 function screen(){
   return `<main class="pvp2-shell" aria-label="PvP Ruh Düellosu ikiye bölünmüş arena önizlemesi">
-   <header class="pvp2-toolbar"><div class="pvp-topbar-start"><div class="pvp2-brand"><span class="pvp2-brand-logo" aria-hidden="true">⚔</span><div><strong>TUŞLAB <em>· RUH DÜELLOSU</em></strong><small>PvP Arena · ${RELEASE_LABEL}</small></div></div>${networkConsoleHTML()}</div><div class="pvp-topbar-center"><div class="pvp-status-group" role="status" aria-label="Maç ve bağlantı durumu"><span class="pvp2-network" data-match-status>⚔ MAÇ BEKLENİYOR</span><span class="pvp12-ping" data-pvp12-ping data-quality="unknown">◌ Ping ölçülüyor</span></div><span class="pvp-topbar-clock">Süre <strong data-match-timer>—</strong><span aria-hidden="true">·</span>Sıra <strong data-match-sequence>—</strong></span><span class="pvp12-windup" data-pvp12-windup hidden></span><span class="pvp11-reconnect" data-reconnect-banner role="status" aria-live="polite" hidden></span></div><div class="pvp2-actions">${howtoButtonHTML()}<details class="pvp4-settings" data-pvp-settings><summary class="pvp4-icon-btn" aria-label="Ayarları aç: müzik, ses, efekt, 3B"><span aria-hidden="true">⚙</span><span class="pvp4-tip" aria-hidden="true">Ayarları aç · müzik, ses, efekt, 3B</span></summary><div class="pvp4-aux-buttons pvp4-settings-pop" role="group" aria-label="PvP ayarları"><div class="pvp23-audio" role="group" aria-label="Dinamik PvP müzik kontrolleri"><button type="button" class="pvp4-toggle" data-pvp-action="music" data-pvp23-music-toggle aria-pressed="false">♫ Müziği kapat</button><input type="range" min="0" max="100" step="5" value="20" data-pvp23-music aria-label="Müzik ses seviyesi"/><small data-pvp23-music-label>20%</small></div><div class="pvp10-audio-controls" role="group" aria-label="PvP ses kontrolleri"><button type="button" class="pvp4-toggle pvp10-sound-toggle" data-pvp-action="sound" aria-pressed="false">🔊 Sesi kapat</button><input type="range" class="pvp10-volume" data-pvp-volume aria-label="PvP ses seviyesi" min="0" max="100" step="5" value="55"/><span class="pvp10-volume-label" data-pvp-volume-label>55%</span></div><button type="button" class="pvp4-toggle" data-pvp-action="effects" aria-pressed="false">✧ Efektleri azalt</button><button type="button" class="pvp4-toggle" data-pvp-action="arena3d" aria-pressed="false">◈ 3B arenayı aç</button><button type="button" class="pvp4-toggle" data-pvp-action="fullscreen" aria-pressed="false">⛶ Tam ekran</button><span class="pvp4-perf">GPU dostu · ≤6 parçacık</span></div></details><button type="button" class="pvp15-surrender" data-pvp15-action="surrender" hidden>Teslim ol</button><button type="button" class="pvp2-back" data-pvp-action="close" aria-label="PvP'den çık, Yazma Arenasına dön">← Arenaya dön</button></div></header>
+   <header class="pvp2-toolbar"><div class="pvp-topbar-start"><div class="pvp2-brand"><span class="pvp2-brand-logo" aria-hidden="true">⚔</span><div><strong>TUŞLAB <em>· RUH DÜELLOSU</em></strong><small>PvP Arena · ${RELEASE_LABEL}</small></div></div>${networkConsoleHTML()}</div><div class="pvp-topbar-center"><div class="pvp-status-group" role="status" aria-label="Maç ve bağlantı durumu"><span class="pvp2-network" data-match-status>⚔ MAÇ BEKLENİYOR</span><span class="pvp12-ping" data-pvp12-ping data-quality="unknown">◌ Ping ölçülüyor</span></div><span class="pvp-topbar-clock">Süre <strong data-match-timer>—</strong><span aria-hidden="true">·</span>Sıra <strong data-match-sequence>—</strong></span><span class="pvp12-windup" data-pvp12-windup hidden></span><span class="pvp11-reconnect" data-reconnect-banner role="status" aria-live="polite" hidden></span></div><div class="pvp2-actions">${howtoButtonHTML()}<details class="pvp4-settings" data-pvp-settings><summary class="pvp4-icon-btn" aria-label="Ayarları aç: müzik, ses, efekt, 3B"><span aria-hidden="true">⚙</span><span class="pvp4-tip" aria-hidden="true">Ayarları aç · müzik, ses, efekt, 3B</span></summary><div class="pvp4-aux-buttons pvp4-settings-pop" role="group" aria-label="PvP ayarları"><div class="pvp23-audio" role="group" aria-label="Dinamik PvP müzik kontrolleri"><button type="button" class="pvp4-toggle" data-pvp-action="music" data-pvp23-music-toggle aria-pressed="false">♫ Müziği kapat</button><input type="range" min="0" max="100" step="5" value="20" data-pvp23-music aria-label="Müzik ses seviyesi"/><small data-pvp23-music-label>20%</small></div><div class="pvp10-audio-controls" role="group" aria-label="PvP ses kontrolleri"><button type="button" class="pvp4-toggle pvp10-sound-toggle" data-pvp-action="sound" aria-pressed="false">🔊 Sesi kapat</button><input type="range" class="pvp10-volume" data-pvp-volume aria-label="PvP ses seviyesi" min="0" max="100" step="5" value="55"/><span class="pvp10-volume-label" data-pvp-volume-label>55%</span></div><button type="button" class="pvp4-toggle" data-pvp-action="effects" aria-pressed="false">✧ Efektleri azalt</button><button type="button" class="pvp4-toggle" data-pvp-action="arena3d" aria-pressed="false">◈ 3B arenayı aç</button><button type="button" class="pvp4-toggle" data-pvp-action="fullscreen" aria-pressed="false">⛶ Tam ekran</button><span class="pvp4-perf">GPU dostu · ≤6 parçacık</span></div></details><button type="button" class="pvp15-surrender" data-pvp15-action="surrender" hidden>Teslim ol</button><button type="button" class="pvp2-back" data-pvp-action="close" aria-label="PvP'den çık, ana sayfaya dön">← Ana Sayfa</button></div></header>
    <div class="pvp2-announce"><span class="pvp2-announce-icon" aria-hidden="true">✦</span><span><strong>RUH DÜELLOSU</strong><span class="pvp2-announce-sep" aria-hidden="true"> · </span>İki savaşçı, tek arena</span></div>
    <section class="tt" data-typetop aria-label="Yazma alanı">
      <div class="tt-arena" data-tt-arena></div>
@@ -635,6 +651,9 @@ root?.addEventListener('click',event=>{
   const action=event.target.closest('[data-pvp-action]');if(!action)return;
   if(action.dataset.pvpAction==='music'){const muted=pvpMusic.setMuted(!pvpMusic.getState().muted);action.setAttribute('aria-pressed',String(muted));action.textContent=muted?'♫ Müziği aç':'♫ Müziği kapat';if(!muted)void pvpMusic.unlock();}
   else if(action.dataset.pvpAction==='close'){
+    // Araç çubuğu "← Ana Sayfa" ve lobi "← Ana Sayfa" aynı yol: PvP kapanır, home/home.js yeni ana sayfayı açar (eski #app asla).
+    if(['running','paused'].includes(network.match?.status)&&!window.confirm("PvP'den çıkarsan maçtan ayrılırsın. Çıkılsın mı?"))return;
+    if(network.myId&&!network.practice&&network.ws&&!window.confirm('Odadan ayrılıp ana sayfaya dönülsün mü?'))return;
     store.dispatch({type:'PVP_CLOSE'});
     document.querySelector('[data-action="nav"][data-mode="arena"]')?.focus({preventScroll:true});
   } else if(action.dataset.pvpAction==='effects'){
@@ -757,9 +776,13 @@ function playCombat(action){
     fxDirectors[kind]?.play({cue:'damage-react'});choreographers[kind]?.onDefense('SHIELD_BROKEN');
     pvpAudio.play('shatter',{character:kind,gain:1});
     pvp13Banner(action.seat,'✹ SHIELD BREAK!', 'shatter');
+  }else if(action.type==='HEAL_APPLIED'&&action.kind==='shield'){
+    // Rounds E kalkanı: 2B sahnede de kalkan halkası (aegis; azaltılmış harekette choreography21 sessiz kalır).
+    choreographers[action.seat===2?'rune':'fire']?.onDefense('BLOCK');
   }
 }
 function playImpactFeedback(action, scenePresented = true){
+  if(!impactGate.allows(network.match))return; // DEVIR-PVP 1: settle sonrası eski raundun gecikmeli gösterimi (sayı/ses/tepki) yok
   fx24.damage?.handle(action);
   fx24.shownHp?.impact?.(action); // temas karesi: şimdi gerçekten düşer
   if(!scenePresented)return; // Sıkıştırılan sahne: yalnız hasar sayısı, yeni darbe/tepki yok.
@@ -928,7 +951,7 @@ function focusTypingWhenReady(attempt=0){
 root?.addEventListener('tuslab:pvp-recovered',()=>arena3d.instance?.clear());
 root?.addEventListener('tuslab:pvp-arena',event=>{
   // İş 1, 3. tur: hazırlık (PREP) kartlarının arkasında bekleyen sahneler animasyonla biter; temizlik yeni raund başında.
-  if(event.detail?.type==='ARENA_ROUND_START')arena3d.instance?.clear();
+  if(event.detail?.type==='ARENA_ROUND_START'){settleRoundVisuals();arena3d.instance?.clear();} // DEVIR-PVP 1: eski vuruş/sayı yeni raunda taşmaz
   if(event.detail?.type==='ARENA_PREP_START'||event.detail?.type==='ARENA_ROUND_START')arena3d.instance?.settleCamera?.(500); // İş 12
   // İş 12: ARENA_ROUND_END çözümün BAŞIDIR; süre motor planında (≤ 20 sn) — burada boşaltma yok (12 sn sonra kalanlar sahnesiz biterdi).
 });
@@ -988,6 +1011,8 @@ document.addEventListener('keydown',event=>{
     store.dispatch({type:'PVP_CLOSE'});
   }
 },true);
+// Ayarlar paneli dışına tıklanınca kapanır (Esc yukarıda). Panel içi ve ⚙ düğmesi hariç.
+document.addEventListener('pointerdown',event=>{const settings=root?.querySelector('[data-pvp-settings][open]');if(settings&&!settings.contains(event.target))settings.open=false;},true);
 // Declare phase-15 scorecard timer before show(false), which can access it.
 let phase15StartedId=null,phase15RevealTimer=null,phase15TerminalQueued=null;
 show(false);
@@ -1043,8 +1068,12 @@ root?.addEventListener('tuslab:pvp-match',()=>roundsUi?.update(network.match,net
 root?.addEventListener('tuslab:pvp-match',()=>matchInfo?.update(network.match,network.myId));
 root?.addEventListener('tuslab:pvp-round',event=>{
   const detail=event.detail||{};
+  // Yeni raund: sahne sıfırlanır (kalkan balonu, pozlar); kalan vuruşlar animasyonsuz biter. Sessiz teslimin doğurduğu
+  // hasar sayılarını rounds-ui (aşağıda handle → settleRoundVisuals) siler (DEVIR-PVP 1).
   if(detail.type==='ROUND_START')arena3d.instance?.clear();
-  if(detail.type==='ROUND_END')arena3d.instance?.visualQueue?.drain(12000); // İş 1, 3. tur: bekleyenler sıralı ve animasyonlu; gerekirse raund arası kartının arkasında sürer
+  // ROUND_END: bekleyen sahneler sıkıştırılır (koltuk başına tek sahne, kısa ara); kart en çok ROUND_HOLD_MAX_MS bekler,
+  // tavanda kalanlar animasyonsuz biter — raund arası kartının ARKASINDA vuruş oynamaz (önceden drain 12 sn: oynuyordu).
+  if(detail.type==='ROUND_END')arena3d.instance?.visualQueue?.drain(ROUND_HOLD_MAX_MS);
   if(detail.type==='ROUND_START'){pvpAudio.play('round-start',{character:'center',gain:.6});roundVoice();}
   // "Süre doluyor" anonsu kapalı (KESINYAP 19): ses dosyası duruyor, tetikleme yok.
   if(detail.type==='ROUND_SKILL_ACK'){

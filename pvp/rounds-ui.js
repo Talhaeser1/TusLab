@@ -9,10 +9,13 @@
 import {FIGHTERS,normalizeFighter} from './shared/fighters.js';
 import {portraitImg} from './portraits.js';
 import {ROUND_DURATION_MS,ROUND_CAP_WARN_MS,roundDurationMs,ROUND_SUMMARY_MS,ROUND_INTRO_MS,ROUND_SETTLE_MS,RESOLVE_BUDGET_MS,roundSkillMs,
-  ROUND_STYLES,DEFAULT_ROUND_STYLE,normalizeRoundStyle,ROUND_TOTAL,ROUND_HP,ROUND_DAMAGE_CAP,roundWordsFor,streakSkill,STREAK_SKILLS,ROUND_HEAL_CAP,MULTIPLIER_START} from './shared/match.js';
+  ROUND_STYLES,DEFAULT_ROUND_STYLE,normalizeRoundStyle,ROUND_TOTAL,ROUND_HP,roundWordsFor,streakSkill,STREAK_SKILLS,ROUND_HEAL_CAP,MULTIPLIER_START,MULTIPLIER_CAP,ULTIMATE_MULTIPLIER_CAP,DEFENSE_AMOUNT,CHAIN_EVERY,CHAIN_EVERY_LONG,SHIELD_AMOUNT} from './shared/match.js';
 import {SKILL_KEY} from './shared/fighters.js';
+import {CONTENT_LABELS} from './shared/content-modes.js';
+/** Rastgele içerik maçında raundun seçilen içeriği (iki oyuncu da aynı yazıyı görür): ' · ŞİİR'. */
+export const roundContentTag=round=>round?.content&&CONTENT_LABELS[round.content]?` · ${CONTENT_LABELS[round.content].toLocaleUpperCase('tr-TR')}`:'';
 export {ROUND_DURATION_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,STREAK_SKILLS};
-// KESINYAP 11: maç uzunluğu ve kelime sayısı seçeneği yok; her rounds maçı 7 raund, 4000 taşınan can.
+// KESINYAP 11: maç uzunluğu ve kelime sayısı seçeneği yok; her rounds maçı 7 raund, ROUND_HP taşınan can (raund hasar tavanı YOK).
 export const ROUND_OPTIONS=Object.freeze([ROUND_TOTAL]);
 export const DEFAULT_ROUNDS=ROUND_TOTAL;
 export const ROUND_WORDS=10; // seri göstergesi hücre sayısı ve kelime şeridi penceresi
@@ -23,8 +26,8 @@ export const PRACTICE_ROUND_STYLE_KEY='tuslab-pvp-practice-round-style';
 export const ROUND_STYLE_LABELS=Object.freeze({timed:'Zamana karşı',counted:'Kelime raundu'});
 export const ROUND_STYLE_TITLES=Object.freeze({timed:'ZAMANA KARŞI',counted:'KELİME RAUNDU'});
 /** Tek satırlık hasar kuralı ipucu (lobi MAÇ AYARLARI). */
-export const DAMAGE_RULE_HINT=`Seri 3 → Q · 5 → W · 7 → E (can) · 10 → R · sonra her doğru kelime Q · 10. seriden sonra hasar çarpanı artar · yanlış kelime serinin yarısını götürür · raund başına en çok ${ROUND_DAMAGE_CAP} hasar, ${ROUND_HEAL_CAP} can`;
-export {DEFAULT_ROUND_STYLE,normalizeRoundStyle,ROUND_HP,ROUND_DAMAGE_CAP};
+export const DAMAGE_RULE_HINT=`Seri 3 → Q · 5 → W · 7 → E (kalkan ${SHIELD_AMOUNT} ya da can ${DEFENSE_AMOUNT}) · 10 → R (en çok ×${String(ULTIMATE_MULTIPLIER_CAP).replace('.',',')}) · sonra ${10+CHAIN_EVERY}. ve her ${CHAIN_EVERY_LONG}. doğru kelime Q · 10. seriden sonra hasar çarpanı artar (en çok ×${String(MULTIPLIER_CAP).replace('.',',')}) · yanlış kelime serinin yarısını götürür · raund başına en çok ${ROUND_HEAL_CAP} kalkan/can`;
+export {DEFAULT_ROUND_STYLE,normalizeRoundStyle,ROUND_HP};
 const START_FLASH_MS=900;
 /** Raund arası: "RAUND X" yazısı önce tek başına bu kadar görünür; sonra kompakt özet/seçim paneli açılır. */
 export const ROUND_TITLE_MS=900;
@@ -55,10 +58,9 @@ const END_REASON_LABELS=Object.freeze({ROUNDS:'KALAN CAN ÜSTÜNLÜĞÜ',ROUNDS_
 export function normalizeRounds(){return DEFAULT_ROUNDS;}
 const validRounds=value=>ROUND_OPTIONS.includes(Number(value));
 export function isRoundMatch(match){return Boolean(match&&match.mode==='rounds'&&match.round&&typeof match.round==='object');}
-/** Raund hasarı metni: '640/1300' ya da tavanda '1300/1300 · TAVAN'. */
+/** Raund hasarı metni: '640' (raund hasar tavanı kaldırıldı). */
 export function roundDamageText(damage){
-  const d=Math.max(0,Math.round(Number(damage)||0));
-  return `${d}/${ROUND_DAMAGE_CAP}${d>=ROUND_DAMAGE_CAP?' · TAVAN':''}`;
+  return String(Math.max(0,Math.round(Number(damage)||0)));
 }
 /** Raund ilerleme noktaları: 7 nokta, oynanmış (bitmiş) raundlar dolu. */
 export function roundDots(index,total,phase){
@@ -74,11 +76,11 @@ export function nextRoundText(next,style,total=ROUND_TOTAL){
   return `Sıradaki: ${idx>total?'ANİ ÖLÜM':`RAUND ${idx}`} · ${tail}`;
 }
 
-/** M(seri) = seri<10 ? 1 : min(2.5, 1.5 × 1.2^(seri−10)) — 2 ondalığa yuvarlanmış gösterim değeri (KESINYAP 21: eşik 7 → 10). */
+/** M(seri) = seri<10 ? 1 : min(MULTIPLIER_CAP=2, 1.5 × 1.2^(seri−10)) — 2 ondalığa yuvarlanmış gösterim değeri (motorla aynı tavan; önceden 2,5 gösteriyordu). */
 export function streakMultiplier(streak){
   const s=Math.max(0,Math.floor(Number(streak)||0));
   if(s<MULTIPLIER_START)return 1;
-  return Math.min(2.5,Math.round(1.5*1.2**(s-MULTIPLIER_START)*100)/100);
+  return Math.min(MULTIPLIER_CAP,Math.round(1.5*1.2**(s-MULTIPLIER_START)*100)/100);
 }
 export function multiplierLabel(multiplier){
   const m=Number(multiplier)||1;
@@ -159,8 +161,13 @@ function timerOf(match,serverNow,seat){
     hidden,urgent:active&&!hidden&&remaining<=ROUND_LAST_CALL_MS,frozen};
 }
 
-/** Saf görünüm modeli: HUD'un tüm metinleri buradan gelir (test edilebilir). */
-export function roundsViewModel(match,myId,serverNow,marks,{lastCallRound=null}={}){
+/** DEVIR-PVP 1: çözüm (settling/resolve) ve vuruşların bitmesi beklenen tur arası başı "RAUND N SONUCU" der; geri sayım yok. */
+export function roundResultTitle(index,suddenDeath=false){return suddenDeath?'ANİ ÖLÜM SONUCU':`RAUND ${Number(index)||1} SONUCU`;}
+/** Saf: raund sonucu gösterimi mi? settling/resolve her zaman; intermission yalnız görsel kuyruk bitmeyi beklerken (resultHold). */
+export function isResultPhase(phase,resultHold=false){return phase==='settling'||phase==='resolve'||(phase==='intermission'&&Boolean(resultHold));}
+/** Saf görünüm modeli: HUD'un tüm metinleri buradan gelir (test edilebilir).
+ *  resultHold: tur arası geldi ama raundun vuruşları henüz ekranda bitmedi (rounds-ui geçiş kapısı açılmadı). */
+export function roundsViewModel(match,myId,serverNow,marks,{lastCallRound=null,resultHold=false}={}){
   if(!isRoundMatch(match)||!['running','paused'].includes(match.status))return {visible:false};
   const round=match.round;
   const total=Number(round.total??match.totalRounds)||DEFAULT_ROUNDS;
@@ -198,15 +205,18 @@ export function roundsViewModel(match,myId,serverNow,marks,{lastCallRound=null}=
     return {seat,name:nameOf(match,seat),isMe:Boolean(p&&p.playerId===myId),clock:countedRound&&round.phase==='round'?'':clock.text,badge,
       progress:timed?`Kelime ${idx}`:`Kelime ${idx}/${wordTotal}`,progressValue:idx,done:Boolean(p?.roundDone),doneText:p?.roundDone?'Tamamlandı ✓':'',
       streak:streakModel(streakOf(p),p?.nextSkill),pips:dots,
-      hp,maxHp,hpText:`Can ${num(hp)}/${num(maxHp)}`,damage,capped:damage>=ROUND_DAMAGE_CAP,damageText:`Raund hasarı ${roundDamageText(damage)}`};
+      hp,maxHp,hpText:`Can ${num(hp)}/${num(maxHp)}`,damage,damageText:`Raund hasarı ${roundDamageText(damage)}`};
   });
   const styleTitle=ROUND_STYLE_TITLES[timed?'timed':'counted'];
-  const phaseLabel=['settling','resolve'].includes(round.phase)?'ÇÖZÜLÜYOR':round.phase==='intermission'?'TUR ARASI':match.status==='paused'?'DURAKLADI':'SANİYE';
+  // DEVIR-PVP 1: çözüm sırasında oynanacak bir şey yok → "RAUND N SONUCU", sayaç (çözüm planının bitişine kalan süre) gizli.
+  const result=isResultPhase(round.phase,resultHold);
+  if(result)for(const s of sides)s.clock='';
+  const phaseLabel=result?roundResultTitle(index,suddenDeath):round.phase==='intermission'?'TUR ARASI':match.status==='paused'?'DURAKLADI':'SANİYE';
   // Madalyon: faz birimi her zaman kısa "sn"; başlık alanında yalnız TEK yazı (raund adı YA DA faz adı) görünür.
   const title=suddenDeath?'ANİ ÖLÜM':`RAUND ${index} / ${total}`;
   let medalTitle=match.status==='paused'?'DURAKLADI':round.phase==='round'?title:phaseLabel;
   // Üst bilgi: 'ZAMANA KARŞI · RAUND 2/7' ya da 'KELİME RAUNDU · RAUND 2/7 · 7 kelime'.
-  const headline=`${styleTitle} · ${suddenDeath?'ANİ ÖLÜM':`RAUND ${index}/${total}`}${timed?'':` · ${wordTotal} kelime`}`;
+  const headline=`${styleTitle} · ${suddenDeath?'ANİ ÖLÜM':`RAUND ${index}/${total}`}${roundContentTag(round)}${timed?'':` · ${wordTotal} kelime`}`;
   // KELİME RAUNDU: geri sayım yok; medalda ilerleme 'x/7' ve 'Sen 4/7 · Rakip 5/7'. Gizli 120 sn sınırı yalnız son 10 sn'de uyarır.
   // 13 Kas 2026 (KESINYAP 19): "süre doluyor" / "SON ÇAĞRI" / "Raund kapanıyor" uyarısı kalktı; lastCall hep kapalı (süre kuralları değişmedi).
   void lastCallActive;
@@ -218,7 +228,8 @@ export function roundsViewModel(match,myId,serverNow,marks,{lastCallRound=null}=
     unit='';
     if(match.status!=='paused')medalTitle=progressText; // başlık yuvasında 'Sen 4/7 · Rakip 5/7'
   }
-  return {visible:true,index,total,title,medalTitle,headline,style:timed?'timed':'counted',dots,unit,suddenDeath,phase:round.phase,phaseLabel,
+  if(result){timerOut={...timer,text:'',seconds:-1,fraction:0,hidden:true,urgent:false};unit='';}
+  return {visible:true,index,total,title,medalTitle,headline,style:timed?'timed':'counted',dots,unit,suddenDeath,phase:round.phase,phaseLabel,result,
     timer:timerOut,progressText,lastCall,sides,words,mySeat};
 }
 
@@ -258,7 +269,7 @@ export function summaryModel(roundEnd,match,myId){
   const who=seat=>mySeat?(seat===mySeat?'Sen':'Rakip'):nameOf(match,seat);
   const dmg=seat=>Number(scores[seat-1].damageDealt)||0;
   const hpOf=seat=>Number(roundEnd?.hp?.[seat]??scores[seat-1].hpLeft??playerBySeat(match,seat)?.hp)||0;
-  const damageLine=`Bu raund: ${order.map(s=>`${who(s)} ${num(dmg(s))} hasar${dmg(s)>=ROUND_DAMAGE_CAP?' (TAVAN)':''}`).join(' · ')}`;
+  const damageLine=`Bu raund: ${order.map(s=>`${who(s)} ${num(dmg(s))} hasar`).join(' · ')}`;
   const hpLine=`Kalan can: ${order.map(s=>`${who(s)} ${num(hpOf(s))}`).join(' · ')}`;
   const ko=roundEnd?.reason==='KO';
   const pres=ko?summaryPresentation(winnerSeat,match,myId):{mine:false,tone:winnerSeat&&mySeat?(winnerSeat===mySeat?'win':'loss'):'draw',headline:damageLine};
@@ -268,7 +279,7 @@ export function summaryModel(roundEnd,match,myId){
   const stat=seat=>{const s=scores[seat-1];return `${num(s.correct)} doğru · ${num(s.wrong)} yanlış · seri ${num(s.bestStreak)}`;};
   const duel=(mySeat?[mySeat===1?2:1,mySeat]:[1,2]).map(seat=>({seat,me:seat===mySeat,winner:winnerSeat===seat,
     label:mySeat?(seat===mySeat?'Sen vurdun':'Rakip vurdu'):`${nameOf(match,seat)} vurdu`,
-    damage:num(dmg(seat)),capped:dmg(seat)>=ROUND_DAMAGE_CAP,detail:stat(seat),color:colors[seat-1]}));
+    damage:num(dmg(seat)),detail:stat(seat),color:colors[seat-1]}));
   const nextIdx=Number(next?.round)||round+1;
   return {round,title:`RAUND ${round} BİTTİ`,winnerSeat,draw:winnerSeat===null,duel,progress:roundDots(round,total,'intermission'),
     countText:next&&!roundEnd?.matchOver?(nextIdx>total?'Ani ölüm başlıyor':`Raund ${nextIdx} başlıyor`):'Sonuç hazırlanıyor',
@@ -399,7 +410,7 @@ export function createRoundEndCard(doc,model){
     return h('article',{cls:`m33-player${d.winner?' is-winner':''}${d.me?' is-me':''}${portrait?' has-portrait':''}`,attrs:{style:`--m33-player:${d.color||'#e4dcff'}`,'data-seat':String(d.seat)}},portrait,
       h('div',{cls:'m33-body'},
         h('span',{cls:'m33-who',text:d.label}),
-        h('div',{cls:'m33-dmgrow'},h('strong',{cls:'m33-dmg',text:d.damage,attrs:{'data-round-damage':''}}),d.capped?h('span',{cls:'m33-cap',text:'tavan'}):null),
+        h('div',{cls:'m33-dmgrow'},h('strong',{cls:'m33-dmg',text:d.damage,attrs:{'data-round-damage':''}})),
         h('small',{cls:'m33-detail',text:d.detail})));
   }));
   const d=model.progress||model.pips[0];
@@ -424,7 +435,7 @@ export function createRoundEndCard(doc,model){
  * createRoundsUi(root,{now}) → {update(match,myId), handle(packet), tick(), destroy()}
  * DOM tek kökte (`[data-rounds-ui]`) üretilir.
  */
-export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,timers=globalThis,isReduced=()=>false,onLockChange=null,send=()=>{},holdTransition=null}={}){
+export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,timers=globalThis,isReduced=()=>false,onLockChange=null,send=()=>{},holdTransition=null,settleVisuals=null}={}){
   const h=builder(doc);
   const el=h('div',{cls:'rui',attrs:{'data-rounds-ui':''},hidden:true});
   // Üst şerit: [taraf 1] [madalyon] [taraf 2]
@@ -495,6 +506,9 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     marks:new Map(),marksKey:null,lastRoundEnd:null,lastCallRound:null,announced:null,lockKey:'',summaryKey:null,shownClash:null,
     selected:null,pending:false,pickKey:null,gate:null,pickerVisible:false,panelOpen:false,revealUntil:0,endCard:null,skillCards:[]};
   const later=(fn,ms)=>timers.setTimeout(fn,ms);
+  // DEVIR-PVP 1: tur arası paneli açılırken / yeni raund başlarken görsel kuyrukta kalan vuruşlar animasyonsuz uygulanır
+  // (index.js: arena3d.clear + uçan hasar sayıları silinir + can barı son değere). Kozmetik; hata oyunu bozmaz.
+  const settle=reason=>{try{settleVisuals?.(reason);}catch{}};
   const announce=text=>{live.textContent='';live.textContent=text;};
 
   function ensureTicker(on){
@@ -537,7 +551,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     if(side.pipCount!==vm.pips.total){side.pipCount=vm.pips.total;side.pips.replaceChildren(...Array.from({length:vm.pips.total},()=>doc.createElement('i')));}
     side.pips.children&&Array.from(side.pips.children).forEach((pip,i)=>setFlag(pip,'is-won',i<vm.pips.filled));
     side.pips.setAttribute?.('aria-label',`Oynanan raund ${vm.pips.filled}/${vm.pips.total}`);
-    setText(side.hp,vm.hpText);setText(side.dmg,vm.damageText);setFlag(side.dmg,'is-capped',vm.capped);
+    setText(side.hp,vm.hpText);setText(side.dmg,vm.damageText);
     const s=vm.streak;
     side.cells.forEach((c,i)=>setFlag(c,'is-on',i<s.filled));
     side.ticks.forEach((t,i)=>setFlag(t,'is-reached',s.ticks[i].reached));
@@ -617,6 +631,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     let sync=true;
     const open=()=>{
       if(state.destroyed||state.gate!==gate||gate.ready)return;
+      settle('intermission'); // bekleme tavanı dolduysa kalan vuruşlar şimdi, animasyonsuz (panel eski vuruşla karışmaz)
       gate.ready=true;
       // Uzun bekletme (veya yeniden bağlanma): "RAUND X" yazısını atla, özet doğrudan açılsın.
       gate.openedAt=(late||now()-t>ROUND_HOLD_TITLE_SKIP_MS)?-Infinity:now();
@@ -633,7 +648,12 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
   function tick(){
     if(state.destroyed)return;
     const match=state.match;const t=now();
-    const vm=roundsViewModel(match,state.myId,t,state.marks,{lastCallRound:state.lastCallRound});
+    // Tur arası kapısı vuruşlar bitene dek kapalıysa üst başlık hâlâ "RAUND N SONUCU" (sayaç yok).
+    const inter0=isRoundMatch(match)&&match.round.phase==='intermission';
+    const src0=inter0?currentSummarySource(match):null;
+    const nextAt0=inter0?Number(match.round.nextRoundAt??src0?.nextRoundAt)||null:null;
+    const gate0=inter0&&nextAt0&&['running','paused'].includes(match.status)?openIntermission(match,t,nextAt0):null;
+    const vm=roundsViewModel(match,state.myId,t,state.marks,{lastCallRound:state.lastCallRound,resultHold:inter0&&!gate0?.ready});
     // Kilit değişimi index.js'e bildirilir (giriş alanı sunucu saatine göre kapanır).
     const lock=roundInputLock(match,state.myId,t);const lockKey=`${lock.locked}:${lock.reason}`;
     if(lockKey!==state.lockKey){state.lockKey=lockKey;try{onLockChange?.(lock);}catch{}}
@@ -643,7 +663,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
     setText(secs,tm.text);setText(secsUnit,tm.hidden?'':vm.unit);setText(title,vm.medalTitle);
     sideEls.forEach((side,i)=>setText(side.clock,vm.sides[i].clock));
     ringFill.setAttribute('stroke-dashoffset',(RING_C*(1-tm.fraction)).toFixed(2));
-    setFlag(medal,'is-urgent',tm.urgent);setFlag(medal,'is-frozen',tm.frozen);
+    setFlag(medal,'is-urgent',tm.urgent);setFlag(medal,'is-frozen',tm.frozen);setFlag(medal,'is-result',Boolean(vm.result));
     setText(lastCall,vm.lastCall.text);setHidden(lastCall,!vm.lastCall.active);    // Saniye anonsu (ekran okuyucu dahil) kalktı (KESINYAP 19).
     // Katmanlar
     const round=match.round;
@@ -664,7 +684,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
       }else if(stage==='panel'){panelOpen=true;if(src){showSummary=true;renderSummary(src,match);}}
     }else if(src&&round.phase!=='round'){showSummary=true;panelOpen=true;renderSummary(src,match);}
     else if(round.phase==='round'&&Number.isFinite(round.startedAt)&&t>=round.startedAt&&t-round.startedAt<START_FLASH_MS&&match.status==='running'){
-      showFlash=true;setText(flashTitle,vm.suddenDeath?'ANİ ÖLÜM':`RAUND ${vm.index}`);
+      showFlash=true;setText(flashTitle,(vm.suddenDeath?'ANİ ÖLÜM':`RAUND ${vm.index}`)+roundContentTag(round));
     }
     state.panelOpen=panelOpen;
     setHidden(summary,!showSummary);setHidden(intro,!showIntro);setHidden(flash,!showFlash);setHidden(banner,!showBanner);
@@ -708,7 +728,9 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
   function render(){
     if(state.destroyed)return;
     const match=state.match;
-    const vm=roundsViewModel(match,state.myId,now(),state.marks,{lastCallRound:state.lastCallRound});
+    const inter0=isRoundMatch(match)&&match.round.phase==='intermission';
+    const vm=roundsViewModel(match,state.myId,now(),state.marks,{lastCallRound:state.lastCallRound,
+      resultHold:inter0&&!(state.gate?.key===`${match.matchId}:${match.round.index}`&&state.gate.ready)});
     state.visible=vm.visible;
     setHidden(el,!vm.visible);
     if(!vm.visible){hideOverlays();setHidden(clash,true);ensureTicker(false);tick();return;}
@@ -750,6 +772,7 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
       const p=packet.payload&&typeof packet.payload==='object'?packet.payload:{};
       try{
         if(packet.type==='ROUND_START'){
+          settle('round-start'); // önceki raunddan kalan vuruş yeni raundda oynamaz
           state.lastRoundEnd=null;announce(`${p.suddenDeath?'Ani ölüm turu':`Raund ${p.round}`} başladı`);
           const seat=mySeatOf(p.match||state.match,state.myId);
           const rival=p.skills?.[seat===1?2:1];

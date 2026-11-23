@@ -67,6 +67,10 @@ import {
 const SEATS = Object.freeze([1, 2]);
 const CHARACTER_OF_SEAT = Object.freeze({1: 'fire', 2: 'rune'});
 
+/** Rounds E kalkanı kubbesi: iki tarafta da camgöbeği (klasik turuncu/mor blok kabarcığından ve yeşil iyileşmeden ayrı). */
+export const E_SHIELD_COLOR = 0x5ee3f5;
+const E_SHIELD_OPACITY = 0.38;
+const E_SHIELD_MAX_MS = 45000; // güvence: raund temizliği gelmezse kubbe kendiliğinden söner
 /** Colour identity: seat 1 fire = orange/red, seat 2 rune = violet/cyan. */
 const PALETTE = Object.freeze({
   fire: Object.freeze({main: 0xff6a2a, accent: 0xffb347, shield: 0xff8a3c}),
@@ -1526,6 +1530,7 @@ export async function createArena3D({
       tracks: [],          // timed pose contributions
       bubblePulses: [],    // {start, dur, strength}
       shatter: null,       // {start, dur}
+      eShield: null,       // rounds E kalkanı: {start} — kırılana / raund temizlenene dek camgöbeği kubbe
       ko: null,            // {start, dur}
       victory: null,       // {start}
       lastPose: null,
@@ -1877,6 +1882,10 @@ export async function createArena3D({
     if (kind && kind !== 'idle') return false;
     return Math.abs(f.actor?.position?.x || 0) < 0.05;
   };
+  // KESINYAP 21 sahne tamponu (seat -> olay listesi; holdSceneEvent) ve DEVIR-PVP 1 nesil sayacı: clear() her çağrıda
+  // artar, eski raunda ait zamanlayıcılar kendini yok sayar. clear()'dan önce tanımlı olsun diye burada.
+  const sceneHold = new Map();
+  let visualGen = 0;
   const timeline = createVisualTimeline({now, isReduced: reduced, breathMs: TURN.breathMs,
     isSettled: () => fighterSettled(fighters.get(1)) && fighterSettled(fighters.get(2)),
     setTimer: (fn, ms) => env?.setTimeout?.(fn, ms), clearTimer: id => env?.clearTimeout?.(id)});
@@ -2753,9 +2762,20 @@ export async function createArena3D({
     if (fighter.bubblePulses.length > 3) fighter.bubblePulses.shift();
   }
 
+  /** Rounds E kalkanı (HEAL_APPLIED kind:'shield'): mevcut kubbe ağı/malzemesi camgöbeği renkle açık kalır. */
+  function raiseEShield(seat) {
+    const fighter = fighters.get(seat);
+    if (!fighter || fighter.ko) return;
+    fighter.shatter = null;
+    fighter.eShield = {start: now()};
+    fighter.bubblePulses.push({start: now(), dur: 650, strength: 1.2});
+    if (fighter.bubblePulses.length > 3) fighter.bubblePulses.shift();
+  }
+
   function shatterBubble(seat) {
     const fighter = fighters.get(seat);
     if (!fighter) return;
+    fighter.eShield = null;
     fighter.bubblePulses.length = 0;
     fighter.shatter = {start: now(), dur: 300};
   }
@@ -3211,6 +3231,17 @@ export async function createArena3D({
       bubbleScale = Math.max(bubbleScale, 1 + 0.12 * bump(p) * (quiet ? 0.3 : 1));
     }
     const bubbleColor = fighter.bubbleMaterial.uniforms.uColor.value;
+    if (fighter.eShield && !fighter.shatter) {
+      const age = tNow - fighter.eShield.start;
+      if (age > E_SHIELD_MAX_MS || fighter.ko) {
+        fighter.eShield = null;
+        bubbleColor.setHex(fighter.palette.shield);
+      } else {
+        // Sabit taban opaklık (+ yalnız açılışta 250 ms belirme); kare başına ek nesne yok.
+        opacity = Math.max(opacity, E_SHIELD_OPACITY * Math.min(1, age / 250));
+        bubbleColor.setHex(E_SHIELD_COLOR);
+      }
+    }
     if (fighter.shatter) {
       const p = (tNow - fighter.shatter.start) / fighter.shatter.dur;
       if (p >= 1) {
@@ -3862,6 +3893,7 @@ export async function createArena3D({
       if (isSeat(seat) && !reduced()) {
         const f = fighters.get(seat);
         addTrack(f, 760, (p, o, m) => { o.glow += 0.9 * bump(p); o.squash -= 0.05 * bump(p) * m; }, {replace: false});
+        if (event.kind === 'shield') raiseEShield(seat); // kalkan: camgöbeği kubbe (iyileşmenin yeşil motifinden ayrı)
         // Karakterin kendi "kendine can" klibi (clips.heal): yalnız boştayken, sırada sahnesi yokken (sahne kesilmez).
         if (f?.model && !f.ko && !f.victory && !f.castQueue.some(e => !e.dead)) safeCall(() => f.model.play('heal'));
       }
@@ -3995,7 +4027,6 @@ export async function createArena3D({
   // ilk vuruş (yuva 0) anında başlarsa sonraki yuva (ör. menzilli Q'nun ardındaki yakın W) karma zincire katılamaz.
   // Bu yüzden boş kuyrukta sahne olayları koltuk başına SCENE_HOLD_MS tamponlanıp sırayla işlenir (göze görünmez).
   const SCENE_HOLD_MS = 40;
-  const sceneHold = new Map(); // seat -> olay listesi
   function holdSceneEvent(event) {
     if (reduced() || event.resolve !== true || event.skill === 'r' || typeof env?.setTimeout !== 'function') return false;
     if (event.type !== 'SKILL_CAST' && event.type !== 'DAMAGE_APPLIED') return false;
@@ -4004,7 +4035,9 @@ export async function createArena3D({
     if (held) { held.push(event); return true; }
     if (event.type !== 'SKILL_CAST' || Number(event.sceneSlot) !== 0 || timeline.isBusy() || !isSeat(seat)) return false;
     sceneHold.set(seat, [event]);
+    const gen = visualGen;
     env?.setTimeout?.(() => {
+      if (gen !== visualGen) return; // DEVIR-PVP 1: arada raund geçişi temizliği oldu → eski tampon oynamaz
       const list = sceneHold.get(seat) || [];
       sceneHold.delete(seat);
       const casts = list.filter(e => e.type === 'SKILL_CAST' && (e.skill === 'q' || e.skill === 'e'));
@@ -4085,8 +4118,23 @@ export async function createArena3D({
     // Plugins get the KNOCKOUT event through handle(); index.js sends it itself.
   }
 
+  /** DEVIR-PVP 1 — raund geçişi: kuyrukta / temas bekleyen / ertelenmiş ulti hasarı ANİMASYONSUZ teslim edilir (sayı+can),
+   *  sonra sahne temizlenir (ulti zinciri, zamanlanmış tepkiler, tamponlar). Sonradan eski raunda ait gösterim doğmaz. */
+  function settle() {
+    if (destroyed) return;
+    timeline.flush();
+    for (const fighter of fighters.values()) {
+      for (const ev of (fighter.pendingUltEvents || []).splice(0)) if (ev.type === 'DAMAGE_APPLIED') silentDamage(ev, 'settle');
+    }
+    for (const list of sceneHold.values()) for (const ev of list) if (ev.type === 'DAMAGE_APPLIED') silentDamage(ev, 'settle');
+    impactFeel.flush(true);
+    clear();
+  }
+
   function clear(notifyPlugins = true) {
     if (destroyed) return;
+    visualGen++;
+    sceneHold.clear();
     timeline.flush();      // raund geçişi: kuyruk bitmediyse son durumu anında uygula
     impactFeel.flush();    // bekleyen hasar gösterimleri teslim edilir (kayıp yok)
     if (deferredHpSync) { forwardToPlugins(deferredHpSync); deferredHpSync = null; }
@@ -4099,6 +4147,7 @@ export async function createArena3D({
       fighter.tracks.length = 0;
       fighter.bubblePulses.length = 0;
       fighter.shatter = null;
+      fighter.eShield = null;
       fighter.ko = null;
       fighter.victory = null;
       fighter.bubbleMaterial.uniforms.uColor.value.setHex(fighter.palette.shield);
@@ -4668,6 +4717,7 @@ export async function createArena3D({
     setQuality,
     setStage,
     clear,
+    settle,
     destroy,
     registerPlugin,
     api,

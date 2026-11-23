@@ -166,12 +166,13 @@ function viewOf(phase,extra={},roundExtra={}){
     round:{index:2,total:5,suddenDeath:false,phase,words:['a','b'],startedAt:1000,endsAt:41_000,settleUntil:null,nextRoundAt:null,style:'timed',...roundExtra},
     players:[{seat:1,playerId:'me',name:'A',roundWordIndex:0,roundEndsAt:41_000},{seat:2,playerId:'op',name:'B',roundWordIndex:0,roundEndsAt:41_000}],...extra};
 }
-test('F2: sayaç her fazda doğru — round: kalan süre, settling/resolve/intermission: sonraki faza kalan süre',()=>{
+test('F2: sayaç her fazda doğru — round: kalan süre, intermission: sonraki raunda kalan süre; settling/resolve: sayaç YOK (DEVIR-PVP 1)',()=>{
   const r=roundsViewModel(viewOf('round'),'me',31_000);assert.equal(r.timer.seconds,10);
+  // DEVIR-PVP 1: çözümde oynanacak bir şey yok → geri sayım gösterilmez (kalan süre yine hesaplanır: takılma algısı için).
   const s=roundsViewModel(viewOf('settling',{},{settleUntil:42_000}),'me',41_400);
-  assert.equal(s.timer.remaining,600);assert.equal(s.timer.text,'1');assert.ok(s.timer.fraction>0&&s.timer.fraction<=1);
+  assert.equal(s.timer.remaining,600);assert.equal(s.timer.text,'');assert.equal(s.timer.hidden,true);assert.equal(s.timer.fraction,0);
   const v=roundsViewModel(viewOf('resolve',{},{resolveEndsAt:47_000}),'me',44_000);
-  assert.equal(v.timer.seconds,3);assert.ok(Math.abs(v.timer.fraction-3000/RESOLVE_BUDGET_MS)<1e-9);
+  assert.equal(v.timer.remaining,3000);assert.equal(v.timer.text,'');assert.equal(v.unit,'');void RESOLVE_BUDGET_MS;
   const i=roundsViewModel(viewOf('intermission',{},{nextRoundAt:50_000}),'me',45_000);
   assert.equal(i.timer.seconds,5);assert.ok(i.timer.fraction<=1);
   assert.notEqual(i.timer.text,'0');
@@ -277,7 +278,7 @@ test('F4: madalyonda başlık ve birim çakışmaz — birim hep kısa "sn", ba�
   const inter=roundsViewModel(viewOf('intermission',{},{nextRoundAt:50_000}),'me',45_000);
   assert.equal(inter.unit,'sn');assert.equal(inter.medalTitle,'TUR ARASI');
   const res=roundsViewModel(viewOf('resolve',{},{resolveEndsAt:47_000}),'me',44_000);
-  assert.equal(res.medalTitle,'ÇÖZÜLÜYOR');
+  assert.equal(res.medalTitle,'RAUND 2 SONUCU'); // DEVIR-PVP 1 ("ÇÖZÜLÜYOR" değil)
   assert.ok(inter.unit.length<=3,'58px dairede taşmaz');
   const js=readFileSync(new URL('../pvp/rounds-ui.js',import.meta.url),'utf8');
   assert.match(js,/setText\(secsUnit,tm\.hidden\?'':vm\.unit\);setText\(title,vm\.medalTitle\)/);
