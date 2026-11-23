@@ -147,3 +147,33 @@ test('Şiir & Atasözü: liste yok, her kategori tek düğme; oturum kesintisiz 
   assert.equal(saved.litStreams.atasozu.items, 3);
   m.destroy();
 });
+
+test('Şiir oturumu: kıta kutusu dize dize, yazılan dize vurgulu; deyimde anlam kutusu; boş Esc ana ekrana döner', async () => {
+  const saved = {};
+  let backs = 0;
+  const host = new El('div');
+  const ctx = { back() { backs++; }, sfx: {}, save: (o) => Object.assign(saved, o), load: () => saved, toast() {}, intent: { cat: 'siir' } };
+  const m = mountLiterature(host, ctx);
+  await new Promise((r) => setTimeout(r, 5));
+  const dizeler = () => host.all().filter((e) => e.classList.contains('tl-lit-dize'));
+  assert.ok(dizeler().length >= 2, 'kıta kutusu yok');
+  assert.ok(dizeler()[0].classList.contains('is-cur'));
+  const first = dizeler()[0].textContent;
+  const text = host.find((e) => e.classList.contains('tl-typer-text')).textContent;
+  typeInto(host, Array.from(text).slice(0, Array.from(first).length + 2).join(''));
+  assert.ok(dizeler()[1].classList.contains('is-cur'), 'ikinci dize vurgulanmadı');
+  assert.ok(dizeler()[0].classList.contains('is-done'));
+  m.destroy();
+
+  const h2 = new El('div');
+  const m2 = mountLiterature(h2, Object.assign({}, ctx, { intent: { cat: 'deyim' } }));
+  await new Promise((r) => setTimeout(r, 5));
+  const deyim = h2.find((e) => e.classList.contains('tl-lit-deyim'));
+  const anlam = h2.find((e) => e.classList.contains('tl-lit-anlam'));
+  assert.ok(deyim && anlam, 'deyim/anlam kutusu yok');
+  assert.ok(h2.find((e) => e.classList.contains('tl-typer-text')).textContent.startsWith(deyim.textContent + ': '));
+  h2.find((e) => e.classList.contains('tl-typer-stop')).dispatch('click');
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal(backs, 1, 'hiç yazmadan bitirince ana ekrana dönmeli');
+  m2.destroy();
+});

@@ -150,19 +150,29 @@
     { id: 'pvp', icon: '⚔️', label: 'PvP Düello' },
     { id: 'performans', icon: '📈', label: 'Performans' },
   ];
-  // Kokpit (24 Kas 2026): solda metrikler, ortada Yazma (ana odak) + altında Atasözü/Deyim/Şiir/Tekerleme şeridi,
-  // sağda Klavye Dersleri + PvP girişi. Şerit çipleri Şiir & Atasözü akışını o türle doğrudan açar (intent.cat).
+  // Kokpit (24 Kas 2026): solda metrikler, ortada Yazma (ana odak) + altında "Edebiyatla yaz" kartları,
+  // sağda Klavye Dersleri + PvP girişi. Kartlar Şiir & Atasözü akışını o türle doğrudan açar (intent.cat).
+  // Edip (24 Kas): beş tür kartı (özdeyiş dahil); her kartta tür motifi (assets/home/lit-*.svg, CSS maskesi),
+  // o türden kısa bir örnek satır (her açılışta farklı) ve bu türdeki ilerleme. Tür seçimi Merkez'de YALNIZ burada.
   const LIT = [
-    { id: 'atasozu', icon: '🧿', label: 'Atasözleri', unit: 'atasözü' },
-    { id: 'deyim', icon: '💬', label: 'Deyimler', unit: 'deyim' },
-    { id: 'siir', icon: '🪶', label: 'Şiirler', unit: 'şiir' },
-    { id: 'tekerleme', icon: '🌀', label: 'Tekerlemeler', unit: 'tekerleme' },
+    { id: 'atasozu', label: 'Atasözleri', unit: 'atasözü' },
+    { id: 'deyim', label: 'Deyimler', unit: 'deyim' },
+    { id: 'siir', label: 'Şiirler', unit: 'şiir' },
+    { id: 'tekerleme', label: 'Tekerlemeler', unit: 'tekerleme' },
+    { id: 'ozdeyis', label: 'Özdeyişler', unit: 'özdeyiş' },
   ];
   const litChipHTML = (c) => `
         <li><button type="button" class="tlh-lit-chip tlh-lit--${c.id}" data-lit="${c.id}">
-          <span class="tlh-lit-ic" aria-hidden="true">${c.icon}</span>
-          <span class="tlh-lit-t"><b>${esc(c.label)}</b><small data-s="lit-${c.id}">…</small></span>
-          <span class="tlh-lit-go" aria-hidden="true">→</span>
+          <span class="tlh-lit-row">
+            <span class="tlh-lit-ic" aria-hidden="true"></span>
+            <span class="tlh-lit-go">Başla <span aria-hidden="true">→</span></span>
+          </span>
+          <b class="tlh-lit-name">${esc(c.label)}</b>
+          <span class="tlh-lit-ex" id="tlh-litex-${c.id}" data-s="litex-${c.id}">&nbsp;</span>
+          <span class="tlh-lit-foot">
+            <span class="tlh-lit-bar" aria-hidden="true"><i data-s="litbar-${c.id}"></i></span>
+            <span class="tlh-lit-p" data-s="litp-${c.id}">&nbsp;</span>
+          </span>
         </button></li>`;
 
   const root = document.createElement('div');
@@ -199,18 +209,17 @@
         <span class="tlh-pw-text"><span class="tlh-pw-caret" aria-hidden="true"></span><span data-s="pwtext">Damlaya damlaya göl olur.</span></span>
         <span class="tlh-pw-src" data-s="pwsrc">— Atasözü</span>
       </button>
-      <div class="tlh-modes tlh-modes--hub" role="radiogroup" aria-label="Yazma türü"></div>
       <div class="tlh-pw-foot">
         <p id="tlh-pw-tip" class="tlh-pw-tip"><kbd>A</kbd><kbd>Ş</kbd><kbd>İ</kbd> Herhangi bir harfe bas, hemen başla</p>
         <button type="button" class="tlh-btn tlh-btn--primary tlh-btn--lg" data-tlh="write"><span aria-hidden="true">▶</span> Yazmaya başla</button>
       </div>
     </section>
     <section class="tlh-k tlh-k-lit" aria-labelledby="tlh-lit-h">
-      <header class="tlh-k-head">
-        <h2 id="tlh-lit-h" class="tlh-k-h">Atasözü · Deyim · Şiir · Tekerleme</h2>
-        <button type="button" class="tlh-k-more" data-tlh="lit-all">Tüm türler <span aria-hidden="true">→</span></button>
+      <header class="tlh-k-head tlh-lit-head">
+        <h2 id="tlh-lit-h" class="tlh-k-h">Edebiyatla yaz <span class="tlh-lit-kinds">Atasözü · Deyim · Şiir · Tekerleme · Özdeyiş</span></h2>
+        <p class="tlh-lit-tip">Bir türe gir: metinler durmadan akar, <kbd>Esc</kbd> ile bitir</p>
       </header>
-      <ul class="tlh-lit-chips" aria-label="İçerik türleri">${LIT.map(litChipHTML).join('')}
+      <ul class="tlh-lit-chips" aria-label="Edebiyat türleri">${LIT.map(litChipHTML).join('')}
       </ul>
     </section>
     <aside class="tlh-k tlh-k-met" aria-labelledby="tlh-met-h">
@@ -299,7 +308,6 @@
   const arenaHost = $('.tlh-arena-typer');
   const resultEl = $('.tlh-result');
   const modesEl = $('.tlh-write .tlh-modes');
-  const hubModesEl = $('.tlh-modes--hub');
   const pathEl = $('.tlh-path');
   const metEl = $('[data-slot="metrik-grafik"]');
   const mqEl = $('[data-s-mq]');
@@ -351,7 +359,7 @@
 
   /* ---------- durum çizimi ---------- */
   let lessonData = null;   // { LESSONS, UNITS, lessonUnlocked } — data/lessons.js + lessons.js yüklenince
-  let litCounts = null;    // { atasozu: n, siir: n, … } — arena.js yüklenince
+  let litInfo = null;      // { atasozu: { n, ex }, … } — arena.js yüklenince bir kez (boşta) hesaplanır
   const setAll = (k, v) => root.querySelectorAll(`[data-s="${k}"]`).forEach(el => { el.textContent = v; });
 
   /** Klavye Dersleri: biten ders sayısı ve sıradaki açık ders (lessons.js "Kaldığın yerden devam et" kuralıyla aynı). */
@@ -603,6 +611,64 @@
           <span aria-hidden="true">${m.icon}</span>${esc(m.label)}</button>`).join('');
   }
 
+  /* ---------- Edebiyatla yaz kartları ----------
+   * Sayı + örnek satır: her tür için itemsFor() bir kez, ilk boyamadan sonra boşta çalışır (açılışı geciktirmez).
+   * Örnek her açılışta rastgele; karta sığsın diye kısa olanlar seçilir, şiirde ilk iki dize. */
+  const idle = (fn) => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 1200 }) : setTimeout(fn, 200));
+  function litSample(id, items) {
+    if (!items.length) return null;
+    // deyimde kalıp kısa olsun ki anlamı da görünsün ("Göz atmak — …")
+    const short = items.filter(it => it.text.length <= (id === 'deyim' ? 96 : 84) && (id !== 'deyim' || it.text.indexOf(': ') <= 15));
+    const pool = short.length ? short : items;
+    const it = pool[Math.floor(Math.random() * pool.length)];
+    let text = it.text;
+    if (id === 'siir') {   // ilk iki dize (dizeler virgülle birleştirilmiş)
+      const parts = text.split(/(?<=[,;.!?]) /);
+      text = parts.slice(0, 2).join(' ');
+      if (text.length > 90) text = text.slice(0, 88).replace(/\s+\S*$/, '');
+      if (parts.length > 2 || text.length < it.text.length) text = text.replace(/[,;:]$/, '') + ' …';
+    }
+    return { text, source: it.source || '' };
+  }
+  function computeLit(am) {
+    const out = {};
+    for (const c of LIT) {
+      let items = [];
+      try { items = am.itemsFor(c.id) || []; } catch { items = []; }
+      out[c.id] = { n: items.length, ex: litSample(c.id, items) };
+    }
+    return out;
+  }
+  function renderLit() {
+    const recs = (data.sec && data.sec.edebiyat && data.sec.edebiyat.litStreams) || {};
+    for (const c of LIT) {
+      const info = litInfo && litInfo[c.id];
+      const r = recs[c.id] || {};
+      const items = Math.max(0, num(r.items));
+      if (info) {
+        const ex = root.querySelector(`[data-s="litex-${c.id}"]`);
+        if (ex && info.ex && !ex.dataset.on) {
+          ex.dataset.on = '1';
+          const t = info.ex.text;
+          const k = c.id === 'deyim' ? t.indexOf(': ') : -1;
+          ex.innerHTML = k > 0 ? `<b>${esc(t.slice(0, k))}</b> — ${esc(t.slice(k + 2))}` : `“${esc(t.replace(/\.$/, ''))}”`;
+          if (info.ex.source && c.id !== 'deyim') ex.title = info.ex.source;
+        }
+      }
+      if (info || items) setAll('litp-' + c.id, items ? `${items} metin yazdın` : `${info.n} ${c.unit}`);
+      const bar = root.querySelector(`[data-s="litbar-${c.id}"]`);
+      if (bar) bar.style.width = info && items ? Math.max(4, Math.min(100, Math.round((items / Math.max(1, info.n)) * 100))) + '%' : '0%';
+      const btn = root.querySelector(`[data-lit="${c.id}"]`);
+      if (btn) {
+        const best = r.best && num(r.best.wpm);
+        btn.title = `${c.label}: kesintisiz yaz${items ? ` · ${items} metin yazdın` : ''}${best ? ` · en iyi ${best} WPM` : ''}`;
+        // ekran okuyucu: önce tür adı (görsel sırada "Başla" önde), örnek satır ayrıca okunur
+        btn.setAttribute('aria-label', `${c.label}, başla${info ? ` (${info.n} ${c.unit})` : ''}${items ? `, ${items} metin yazdın` : ''}${best ? `, en iyi ${best} WPM` : ''}`);
+        btn.setAttribute('aria-describedby', 'tlh-litex-' + c.id);
+      }
+    }
+  }
+
   function renderStats() {
     const xp = xpOf();
     const lv = levelOf(xp);
@@ -628,7 +694,7 @@
       setAll('unit', ui >= 0 ? `Ünite ${ui + 1}/${units} · ${lessonData.UNITS[ui].title}` : '');
       renderPath(li);
     }
-    if (litCounts) for (const c of LIT) if (litCounts[c.id]) setAll('lit-' + c.id, `${litCounts[c.id]} ${c.unit}`);
+    renderLit();
     const last = data.history[data.history.length - 1];
     setAll('card-yazma', last && num(last.wpm) ? `Son yazışın ${num(last.wpm)} WPM` : 'Kesintisiz akış');
     renderMetrics();
@@ -959,11 +1025,7 @@
       if (typeof typing.matchStartKey === 'function') matchStartFn = typing.matchStartKey;
       if (!am.MODES.some(m => m.id === mode)) mode = am.MODES[0].id;
       renderModeButtons(modesEl);
-      renderModeButtons(hubModesEl);
-      if (typeof am.itemsFor === 'function') {
-        litCounts = {};
-        for (const m of am.MODES) { try { litCounts[m.id] = am.itemsFor(m.id).length; } catch { /* yok */ } }
-      }
+      if (typeof am.itemsFor === 'function') idle(() => { litInfo = computeLit(am); renderLit(); });
       renderPreview();
       renderStats();
       return am;

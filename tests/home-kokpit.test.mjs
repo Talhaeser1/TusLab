@@ -15,8 +15,8 @@ test('masaüstü üç sütun; dar ekranda iki sütun; telefonda sıra Yazma → 
   assert.match(css, /\.tlh-menu \{[^}]*overflow-x: hidden; overflow-y: auto;/);
 });
 
-test('tür şeridi: dört tür çipi Şiir & Atasözü akışını o türle açar', () => {
-  for (const id of ['atasozu', 'deyim', 'siir', 'tekerleme']) assert.match(js, new RegExp(`\\{ id: '${id}', icon: '[^']+', label: '[^']+', unit: '[^']+' \\}`));
+test('tür şeridi: beş tür kartı (özdeyiş dahil) Şiir & Atasözü akışını o türle açar', () => {
+  for (const id of ['atasozu', 'deyim', 'siir', 'tekerleme', 'ozdeyis']) assert.match(js, new RegExp(`\\{ id: '${id}', label: '[^']+', unit: '[^']+' \\}`));
   assert.match(js, /openView\('edebiyat', \{ intent: \{ cat: t\.dataset\.lit \} \}\)/);
   assert.match(lit, /ctx\.intent && typeof ctx\.intent\.cat === 'string'/);
   assert.match(lit, /if \(CATEGORIES\.some\(\(c\) => c\.id === startCat\)\) startSession\(startCat\);\s*else renderMenu\(\);/);
