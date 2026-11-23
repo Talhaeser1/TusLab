@@ -310,3 +310,7 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 - Karar: "oyuna ekle" = PvP dövüşçüsü (yazma içeriği denemesi geri alındı, de9b436).
 - Karar: kendi 3B modeli/portresi olmadığı için her padişah temel kadrodan bir gövdeyi (model, klip, efekt, ses) kullanır; ad, unvan, renk, beceri adları/açıklamaları, sözler ve tarih notu padişahın kendisinin. Portre yerine yüzsüz renkli madalyon (SVG). Uydurma yüz/model üretilmedi.
 - Karar: hasar ve E türü (can/kalkan) gövde arketipinden; sunucu kuralları değişmedi. Sözler sesli değil, ekranda yazı (quote-bubble). Rapor: docs/4-osmanli-padisahlari-pvp.md.
+
+## 23 Kas 2026 — Ana ekran kartları (kutular) güzelleştirme
+- Karar: "kutular" = ana ekrandaki 4 bölüm kartı + istatistik kutusu + görev çipi. Yazma/Dersler/Edebiyat kartlarına elle yazılmış SVG görsel (`assets/home/kart-*.svg`, CSS arka planı), eşit hiza, odak halkası, azaltılmış harekette dönüşüm yok. Rapor: docs/5-ana-ekran-kartlari.md.
+- Optimizasyon: ana ekrandaki ağır yük home/'dan değil `index.html`'deki pvp modülü ve `pvp/cinematic.js:96` portre ön yüklemesinden geliyor; dokunulmadı, ayrı iş.
