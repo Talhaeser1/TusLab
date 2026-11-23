@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {SKILL_THRESHOLDS,SKILL_INFO,skillCardHTML,readSkillState,skillMeter,skillStatusText} from '../pvp/skillbar.js';
 
 const css=readFileSync(new URL('../pvp/skillbar.css',import.meta.url),'utf8');
-const indexJs=readFileSync(new URL('../pvp/index.js',import.meta.url),'utf8');
+const indexJs=readFileSync(new URL('../pvp/pvp-main.js',import.meta.url),'utf8');
 
 test('eşikler: klasik 2/4/5, tur modu 3/5/7/10, S eşiksiz',()=>{
   // KESINYAP 21 (dört yetenek, ulti yalnız 10 seride): klasik kural aynı (W = eski E kartı, 4); rounds Q3 W5 E7 R10.

@@ -222,7 +222,7 @@ test('wiring: network.js routes arena packets, ARENA_PICK and practice mode; ind
   assert.match(net,/tuslab:pvp-arena/);
   assert.match(net,/mode:this\.practiceMode/);
   assert.match(net,/'ARENA_PICK'/);
-  const idx=readFileSync(new URL('../pvp/index.js',import.meta.url),'utf8');
+  const idx=readFileSync(new URL('../pvp/pvp-main.js',import.meta.url),'utf8');
   assert.match(idx,/createArenaUi\(/);assert.match(idx,/arenaCombatActions\(/);assert.match(idx,/renderArenaResult\(/);
   const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
   assert.match(html,/pvp\/arena-ui\.css/);assert.match(html,/pvp\/typing-top\.css/);

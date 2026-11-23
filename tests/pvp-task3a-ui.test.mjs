@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 const read=path=>readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('desktop typing focus waits for visible unlocked input and respects coarse pointer and active controls',()=>{
-  const js=read('pvp/index.js');
+  const js=read('pvp/pvp-main.js');
   assert.match(js,/function focusTypingWhenReady\(/);
   assert.match(js,/matchMedia\?\.\('\(pointer: coarse\)'\)/);
   assert.match(js,/getClientRects\(\)\.length/);
@@ -15,7 +15,7 @@ test('desktop typing focus waits for visible unlocked input and respects coarse 
 });
 
 test('typing focus calls focus only for an unobstructed desktop input',()=>{
-  const js=read('pvp/index.js');
+  const js=read('pvp/pvp-main.js');
   const body=js.slice(js.indexOf('function focusTypingWhenReady('),js.indexOf("root?.addEventListener('tuslab:pvp-recovered'",js.indexOf('function focusTypingWhenReady(')));
   const run=({coarse=false,active='body',visible=true,modal=false}={})=>{
     let focused=0;

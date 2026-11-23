@@ -357,7 +357,7 @@ test('network.js wires the picker, MATCH_CONFIG, practice rounds and round packe
   assert.match(net,/rounds:this\.practiceRounds/);
   for(const t of ['ROUND_START','ROUND_LAST_CALL','ROUND_END'])assert.ok(net.includes(`'${t}'`),t);
   assert.match(net,/tuslab:pvp-round/);
-  const idx=readFileSync(new URL('../pvp/index.js',import.meta.url),'utf8');
+  const idx=readFileSync(new URL('../pvp/pvp-main.js',import.meta.url),'utf8');
   assert.match(idx,/createRoundsUi\(/);assert.match(idx,/WORD_CLASH/);assert.match(idx,/renderRoundsResult\(/);
 });
 

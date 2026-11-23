@@ -53,7 +53,7 @@ test('VFX bounds never exceed six effects; bad values rejected',()=>{
 });
 test('new FX is independent of multiplayer, HP and existing single-player engine',async()=>{
   const fs=await import('node:fs');
-  const js=fs.readFileSync(new URL('../pvp/index.js',import.meta.url),'utf8');
+  const js=fs.readFileSync(new URL('../pvp/pvp-main.js',import.meta.url),'utf8');
   const css=fs.readFileSync(new URL('../pvp/combat-fx.css',import.meta.url),'utf8');
   assert.match(js,/createCombatFxDirector/);
   assert.match(js,/data-pvp-action="effects"/);

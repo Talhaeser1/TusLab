@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 const read=p=>readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 
 test('typing panel: one shared box above the duel, wired to the existing input handler',()=>{
-  const js=read('pvp/index.js');
+  const js=read('pvp/pvp-main.js');
   const top=js.indexOf('data-typetop'),duel=js.indexOf('<div class="pvp2-duel"');
   assert.ok(top>0&&top<duel,'panel arenadan önce (üstte)');
   assert.equal((js.match(/data-tt-input/g)||[]).length>=1,true);
@@ -24,7 +24,7 @@ test('typing panel: readable sizes (target ≥20px, input ≥44px) and old per-s
   for(const m of arena.matchAll(/font(?:-size)?:[^;}]*?(\d+(?:\.\d+)?)px/g))assert.ok(Number(m[1])>=12,`12px altı metin: ${m[0]}`);
 });
 test('toolbar: settings grouped in a popover with an icon button; surrender only during a match',()=>{
-  const js=read('pvp/index.js');
+  const js=read('pvp/pvp-main.js');
   assert.match(js,/<details class="pvp4-settings" data-pvp-settings><summary class="pvp4-icon-btn" aria-label="Ayarları aç/);
   for(const action of ['music','sound','effects','arena3d'])assert.ok(js.lastIndexOf(`data-pvp-action="${action}"`)>js.indexOf('data-pvp-settings'),action);
   assert.match(js,/data-pvp15-action="surrender" hidden/);

@@ -42,7 +42,7 @@ test('dispose prevents timers and actions; invalid id and action are rejected',(
  assert.equal(h.ctrl.getState().disposed,true);assert.equal(h.calls.size,0);assert.equal(h.ctrl.trigger('r'),false);
 });
 test('characters use distinct art layers, and ability cards trigger real motion previews',()=>{
- const js=readFileSync(resolve(root,'pvp/index.js'),'utf8');
+ const js=readFileSync(resolve(root,'pvp/pvp-main.js'),'utf8');
  for(const id of ['fire','rune']){
   const markup=rigMarkup(id);
   for(const layer of ['core','weapon','guard']){

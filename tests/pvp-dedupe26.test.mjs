@@ -7,7 +7,7 @@ const root=resolve(import.meta.dirname,'..');
 const read=path=>readFile(join(root,path),'utf8');
 
 test('phase26: combat events go to the 3D arena OR the 2D motion/particle layers, never both',async()=>{
-  const js=await read('pvp/index.js');
+  const js=await read('pvp/pvp-main.js');
   assert.match(js,/if\(arena3d\.instance\)arena3d\.instance\.handle\(action\);\s*else\{fx24\.motion\?\.handle\(action\);fx24\.particles\?\.handle\(action\);\}/);
   assert.doesNotMatch(js,/fx24\.particles\?\.handle\(action\);arena3d\.instance\?\.handle\(action\)/);
   assert.match(js,/if\(!arena3d\.instance\)fx24\.motion\?\.onMatchEnd/);
@@ -16,7 +16,7 @@ test('phase26: combat events go to the 3D arena OR the 2D motion/particle layers
 });
 
 test('phase26: text banners and ultimate phase marks yield to pixel labels',async()=>{
-  const js=await read('pvp/index.js');
+  const js=await read('pvp/pvp-main.js');
   assert.match(js,/function pvp13Banner\(seat,text,kind\)\{\s*if\(!root\|\|reducedEffects\|\|fx24\.damage\)return;/);
   assert.match(js,/if\(side&&!fx24\.damage\)/);
 });

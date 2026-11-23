@@ -26,7 +26,7 @@ test('heavy images ship as small webp (slow connections load the arena)', async 
 });
 
 test('pvp music is not fetched while the arena images load (deferred to idle)', () => {
-  const js = readFileSync(resolve(root, 'pvp/index.js'), 'utf8');
+  const js = readFileSync(resolve(root, 'pvp/pvp-main.js'), 'utf8');
   assert.doesNotMatch(js, /void pvpMusic\.preload\(\);pvpMusic\.setScene/);
   assert.match(js, /deferMusicPreload\(\);pvpMusic\.setScene\('lobby'\)/);
   assert.match(js, /requestIdleCallback/);

@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
-const source = read('pvp/index.js');
+const source = read('pvp/pvp-main.js');
 const css = read('pvp/fullscreen33.css');
 const compact = read('pvp/compact-height.css');
 const scope = '#pvp-root[data-layout="fullscreen"]';

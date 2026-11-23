@@ -44,7 +44,7 @@ test('kart ızgarası: grid-area bağlama, 40px ikon, metin minmax(0,1fr), rozet
 
 test('özet/sonuç açıkken alt yazma paneli ve ARENA · RAUND etiketi tamamen gizli (üç mod)',()=>{
   const rounds=read('pvp/rounds-ui.css');
-  const idx=read('pvp/index.js');
+  const idx=read('pvp/pvp-main.js');
   assert.match(rounds,/#pvp-root\.rui-inter-open:not\(\.cin-round-end\) \.tt,/);
   assert.match(rounds,/#pvp-root\.aui-summary-open \.tt,/);
   assert.match(rounds,/#pvp-root\.pvp15-results-open \.tt\{display:none\}/);
@@ -128,7 +128,7 @@ test('arena odağı: saldırı sırasında yazma paneli katlanır; odak modülü
   const css = read('pvp/cinematic.css');
   assert.match(css, /#pvp-root\.stage-focus \.tt\{display:none\}/);
   assert.match(css, /#pvp-root\.rui-inter-open \.rui-words\{display:none\}/);
-  const idx = read('pvp/index.js');
+  const idx = read('pvp/pvp-main.js');
   assert.ok(idx.indexOf('attachStageFocus({root') < idx.indexOf('attachResolveUi({root'));
 });
 

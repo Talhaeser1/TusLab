@@ -71,7 +71,7 @@ test('sound engine is optional and does not require AudioContext or fetch',async
   engine.setMuted(true);await engine.dispose();
 });
 test('sound event integration is cosmetic and never sends damage',()=>{
-  const html=readFileSync(join(base,'pvp/index.js'),'utf8');
+  const html=readFileSync(join(base,'pvp/pvp-main.js'),'utf8');
   assert.match(html,/pvpAudio\.combat\(action\)/);
   assert.match(html,/pvpAudio\.playCue\(id,cue,action\)/);
   assert.match(html,/projectiles\?\.launch/);

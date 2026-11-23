@@ -228,7 +228,7 @@ test('DEVIR-PVP 1: arena özeti açılırken settleVisuals çağrılır (özet e
 
 // ---------- Bağlantı (index.js) ----------
 test('DEVIR-PVP 1: index.js — kart arkasında 12 sn boşaltma yok; settleVisuals bağlı; ROUND_START sahneyi sıfırlar',()=>{
-  const idx=read('pvp/index.js');
+  const idx=read('pvp/pvp-main.js');
   assert.doesNotMatch(idx,/drain\(12000\)/,'raund arası kartının arkasında vuruş oynatan 12 sn boşaltma kalktı');
   assert.match(idx,/detail\.type==='ROUND_END'\)arena3d\.instance\?\.visualQueue\?\.drain\(ROUND_HOLD_MAX_MS\)/);
   assert.equal((idx.match(/settleVisuals:settleRoundVisuals/g)||[]).length,2,'rounds-ui ve arena-ui');

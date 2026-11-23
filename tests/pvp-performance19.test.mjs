@@ -68,6 +68,6 @@ test('phase 19 scope: no combat values edited, static publication references per
 });
 
 test('phase 19 PvP entry initializes phase-15 timers before first show',()=>{
-  const script=readFileSync(new URL('../pvp/index.js',import.meta.url),'utf8');
+  const script=readFileSync(new URL('../pvp/pvp-main.js',import.meta.url),'utf8');
   assert.ok(script.indexOf('let phase15StartedId=') < script.indexOf('show(false);'));
 });

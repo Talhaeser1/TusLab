@@ -32,7 +32,7 @@ test('mod ve tur seçenekleri klavye ile erişilen düğmeler ve durum bildirimi
     assert.match(html,/aria-pressed=/);
     assert.match(html,/title=/);
   }
-  assert.match(read('../pvp/index.js'),/class="pvp-status-group" role="status"/);
+  assert.match(read('../pvp/pvp-main.js'),/class="pvp-status-group" role="status"/);
 });
 
 test('yeni stiller en sonda yüklenir ve görünür odak sağlanır',()=>{

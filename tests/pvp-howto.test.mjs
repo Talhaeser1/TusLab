@@ -32,7 +32,7 @@ test('howto: Esc closes only the panel and stops other Esc handlers', () => {
 
 test('howto: wired in index.js and css linked; css has no infinite animation', async () => {
   const [js, html, css] = await Promise.all([
-    readFile(new URL('../pvp/index.js', import.meta.url), 'utf8'),
+    readFile(new URL('../pvp/pvp-main.js', import.meta.url), 'utf8'),
     readFile(new URL('../index.html', import.meta.url), 'utf8'),
     readFile(new URL('../pvp/howto.css', import.meta.url), 'utf8')
   ]);

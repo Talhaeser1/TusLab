@@ -7,7 +7,7 @@ import {getTypingPreview} from '../pvp/preview.js';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 
 test('phase 2 arena has two isolated sides, four skills, and per-player typing areas',()=>{
-  const js=readFileSync(resolve(root,'pvp/index.js'),'utf8');
+  const js=readFileSync(resolve(root,'pvp/pvp-main.js'),'utf8');
   assert.ok(js.includes('data-player="${p.id}"'));
   assert.ok(js.includes('data-input="${p.id}"'));
   for(const key of ['Q','E','S','R'])assert.ok(js.includes(`ability(p.id,'${key}'`));
@@ -34,7 +34,7 @@ test('local preview never grants damage or online connection',()=>{
   assert.equal(s.ready.R,true);
   assert.equal(s.damage,undefined);
   assert.equal(s.connection,undefined);
-  const js=readFileSync(resolve(root,'pvp/index.js'),'utf8');
+  const js=readFileSync(resolve(root,'pvp/pvp-main.js'),'utf8');
   assert.match(js,/MAÇ BEKLENİYOR/);
   assert.match(js,/data-server-hp/);
   assert.match(js,/YEREL YAZMA TESTİ/);

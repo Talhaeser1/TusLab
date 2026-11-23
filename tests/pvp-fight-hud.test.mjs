@@ -371,7 +371,7 @@ test('API yoksa sessizce atlanır; clear/destroy her şeyi siler', () => {
 });
 
 test('index.js entegrasyonu', () => {
-  const src = readFileSync(new URL('../pvp/index.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../pvp/pvp-main.js', import.meta.url), 'utf8');
   assert.match(src, /import \{createFightHud\} from '\.\/fight-hud\.js'/);
   assert.match(src, /function playCombat\(action\)\{\n  fx24\.hud\?\.handle\(action\);/);
   assert.match(src, /getArenaApi:\(\)=>arena3d\.instance\?\.api/);

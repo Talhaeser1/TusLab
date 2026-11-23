@@ -70,7 +70,7 @@ test('engine contract: a word sent during resolve is rejected with EXCHANGE_NOT_
 });
 
 test('wiring: index.js routes space through wordCommit, re-queues on reject, flushes + refocuses on window start',()=>{
-  const js=read('pvp/index.js');
+  const js=read('pvp/pvp-main.js');
   assert.match(js,/from '\.\/word-queue\.js'/);
   assert.match(js,/wordCommit\(/);
   assert.match(js,/afterReject\(/);

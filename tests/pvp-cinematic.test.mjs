@@ -94,7 +94,7 @@ test('cinematic: bağlantılar ve performans kuralları', () => {
   assert.doesNotMatch(css, /infinite|backdrop-filter|filter:blur/);
   assert.doesNotMatch(css, /font:[^;}]*\binherit\b/, 'font kısaltmasında inherit geçersiz (yazılar küçülüyordu)');
   assert.match(css, /prefers-reduced-motion/);
-  assert.match(read('pvp/index.js'), /attachCinematic\(\{root,isReduced:/);
+  assert.match(read('pvp/pvp-main.js'), /attachCinematic\(\{root,isReduced:/);
   assert.match(read('index.html'), /pvp\/cinematic\.css/);
   const net = read('pvp/network.js');
   assert.match(net, /'tuslab:pvp-cinematic',\{detail:\{type:'COUNTDOWN'/);
@@ -122,7 +122,7 @@ test('cinematic: güçlü vuruş efekti ve sesler (ayarlara bağlı), sarsıntı
   e.scheduler.flush(); e.scheduler.flush(); // iç içe kurulan zamanlayıcılar (sarsıntı kaldırma) ikinci turda
   assert.deepEqual(played.map(p => p[0]), ['shatter', 'critical']);
   assert.ok(!e.rootCls.has('cin-shake'), 'sarsıntı kendiliğinden kalkar');
-  assert.match(read('pvp/index.js'), /sfx:\(name,gain\)=>pvpAudio\.play\(name,\{character:'center',gain\}\)/);
+  assert.match(read('pvp/pvp-main.js'), /sfx:\(name,gain\)=>pvpAudio\.play\(name,\{character:'center',gain\}\)/);
   const css = read('pvp/cinematic.css');
   assert.match(css, /#pvp-root\.cin-shake \.pvp2-shell\{animation:cin-shake/);
   assert.doesNotMatch(css, /infinite/);

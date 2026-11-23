@@ -55,7 +55,7 @@ test('phase24: health stage comes from the shared release constant and local dep
   assert.equal(pkg.scripts['cf:deploy'],undefined);
 });
 test('phase24: animation test buttons render only behind ?debug=1',async()=>{
-  const js=await readFile(join(root,'pvp','index.js'),'utf8');
+  const js=await readFile(join(root,'pvp','pvp-main.js'),'utf8');
   assert.match(js,/\$\{DEBUG_TOOLS\?`<div class="pvp3-stage-tests"/);
   assert.doesNotMatch(js,/FAZ 21/);
 });

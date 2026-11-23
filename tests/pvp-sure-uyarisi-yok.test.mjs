@@ -26,7 +26,7 @@ test('süre doluyor: sayaç görünür kalır, son 5 sn yalnız renk (urgent) de
 });
 
 test('süre doluyor: anons tetikleme noktaları kapalı, ses dosyası/adı duruyor', () => {
-  assert.ok(!/announce\?\.\('spiker-sure'/.test(src('pvp/index.js')), 'index.js spiker-sure çağırmamalı');
+  assert.ok(!/announce\?\.\('spiker-sure'/.test(src('pvp/pvp-main.js')), 'index.js spiker-sure çağırmamalı');
   assert.ok(!/saniye kaldı/.test(src('pvp/arena-ui.js')), 'arena ekran okuyucu "N saniye kaldı" kalktı');
   assert.ok(/name==='spiker-sure'\)return false/.test(src('pvp/sound.js')), 'sound.announce spiker-sure sessiz');
   assert.ok(/spiker-sure/.test(src('pvp/sound.js')), 'ses adı silinmedi');

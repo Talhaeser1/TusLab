@@ -107,7 +107,7 @@ test('J2 SAHNE: tam ekran sahne (lobi-sahne.webp), eğik arena yelpazesi + paral
 });
 
 test('J2: ok tuşları belge yakalayıcısı sonrası lobi yönlendiricisinden geçer (kök dinleyicisine ulaşmaz)', () => {
-  const idx = read('pvp/index.js');
+  const idx = read('pvp/pvp-main.js');
   assert.match(idx, /event\.stopImmediatePropagation\(\);\s*if\(network\.lobbyKey\?\.\(event\)\)return;/);
   const net = Object.create(PvPNetworkConsole.prototype), calls = [];
   net.fighterKey = () => calls.push('f'); net.stageKey = () => calls.push('s'); net.modeKey = e => { calls.push('m'); e.defaultPrevented = true; };
@@ -170,7 +170,7 @@ test('J2: fighter2 botu — kök neden: lobi başlatma yolu botFighter\'ı oturu
 });
 
 test('J2: HUD etiketi ile 3B model aynı kaynaktan (match.players[].fighter); URL zorlaması yalnız arketip uyuşunca', () => {
-  const idx = read('pvp/index.js');
+  const idx = read('pvp/pvp-main.js');
   assert.match(idx, /if\(isFighterId\(forced\)&&\(!p\|\|FIGHTERS\[forced\]\.archetype===side\)\)return forced;/);
   assert.match(idx, /return normalizeFighter\(p\?\.fighter,side\);/);
   // Beceri çubuğu adları da aynı alandan: applyFighterNames(section, player.fighter)
@@ -178,7 +178,7 @@ test('J2: HUD etiketi ile 3B model aynı kaynaktan (match.players[].fighter); UR
 });
 
 test('J2: maça girişte 2B/eski model parlaması yok — yükleniyor sınıfı + 2B rig gizli + gösterge', () => {
-  const idx = read('pvp/index.js'), css = read('pvp/arena3d.css'), a3 = read('pvp/arena3d.js');
+  const idx = read('pvp/pvp-main.js'), css = read('pvp/arena3d.css'), a3 = read('pvp/arena3d.js');
   assert.match(idx, /root\.classList\.add\('pvp-models-pending'\)/);
   assert.match(idx, /root\?\.classList\.remove\('pvp-models-pending'\)/);
   assert.match(css, /#pvp-root\.pvp-models-pending \.pvp3-rig\{visibility:hidden\}/);

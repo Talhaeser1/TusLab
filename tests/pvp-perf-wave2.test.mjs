@@ -20,7 +20,7 @@ test('typing focus uses explicit classes, with no relational focus selector', ()
   assert.doesNotMatch(source('pvp/pvp.css'), /\.pvp2-typebox:has\(/);
   assert.match(source('pvp/typing-top.css'), /\.tt\.is-input-focused\{/);
   assert.doesNotMatch(source('pvp/typing-top.css'), /\.tt:has\(/);
-  const js = source('pvp/index.js');
+  const js = source('pvp/pvp-main.js');
   assert.match(js, /addEventListener\('focusin'/);
   assert.match(js, /addEventListener\('focusout'/);
   assert.match(js, /classList\.add\('is-input-focused'\)/);
@@ -39,7 +39,7 @@ test('word state changes and typing focus avoid paint-property transitions', () 
 });
 
 test('audio is prepared in the first pointer gesture and focus needs user activation', () => {
-  const js = source('pvp/index.js');
+  const js = source('pvp/pvp-main.js');
   assert.match(js, /addEventListener\('pointerdown',prepareTypingAudio/);
   assert.match(js, /navigator\.userActivation\?\.isActive\)prepareTypingAudio\(\)/);
   assert.match(js, /pvpAudio\.unlock\(\)/);

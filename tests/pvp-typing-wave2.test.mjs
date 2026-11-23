@@ -60,7 +60,7 @@ test('notice: lock, exchange resolve, Harf Kaosu and plain hint are distinct',()
 });
 
 test('markup: visible label bound to the input, helper status, preview, exchange slot hidden by default',()=>{
-  const js=read('pvp/index.js');
+  const js=read('pvp/pvp-main.js');
   const s=js.slice(js.indexOf('<section class="tt" data-typetop'),js.indexOf('<div class="pvp2-duel"'));
   assert.match(s,/<label class="tt-label" for="tt-input"/);
   assert.match(s,/id="tt-input"/);

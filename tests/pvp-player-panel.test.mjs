@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 const read=path=>readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('player panels expose live identity and authoritative HP without a fixed preview maximum',()=>{
-  const template=read('pvp/index.js').match(/function playerHTML\(p\)[\s\S]*?(?=\nfunction screen\()/)?.[0];
+  const template=read('pvp/pvp-main.js').match(/function playerHTML\(p\)[\s\S]*?(?=\nfunction screen\()/)?.[0];
   assert.ok(template,'playerHTML exists');
   for(const field of ['data-server-player-name','data-player-connection','data-server-hp-track','data-server-hp-fill','data-server-hp-trail','data-server-shield-layer']){
     assert.ok(template.includes(field),`${field} is present`);

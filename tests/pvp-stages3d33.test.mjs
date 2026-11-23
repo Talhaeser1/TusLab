@@ -238,7 +238,7 @@ test('stages33: growing stage boxes increases fighter scale without moving feet 
 });
 
 test('stages33: index forwards match stage and limits the URL override to local development', () => {
-  const source = readFileSync(new URL('../pvp/index.js', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../pvp/pvp-main.js', import.meta.url), 'utf8');
   const sync = source.match(/function arena3dSyncStage\(\)\{([\s\S]*?)\n\}/);
   assert.ok(sync, 'stage synchronizer exists');
   for (const [hostname, search, expected] of [['localhost', '?stage=skyforge', 'skyforge'], ['127.0.0.1', '?stage=harbor', 'harbor'], ['tuslab.example', '?stage=skyforge', 'runegarden'], ['localhost.example', '?stage=harbor', 'runegarden'], ['localhost', '', 'runegarden']]) {

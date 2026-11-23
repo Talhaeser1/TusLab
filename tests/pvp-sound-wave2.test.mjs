@@ -47,7 +47,7 @@ test('muted engines create no context or playback source',async()=>{
 });
 
 test('new arena, round and word events have audio call sites',()=>{
- const src=readFileSync(join(root,'pvp/index.js'),'utf8');
+ const src=readFileSync(join(root,'pvp/pvp-main.js'),'utf8');
  for(const cue of ['prep','skill-lock','round-start','scramble','time-thief','time-freeze','blind-clock','clash','attack-turn','word-correct','word-wrong'])
   assert.ok(src.includes(cue),cue);
  assert.match(src,/setOnPlay\(\(\)=>pvpMusic\.duck\(\)\)/);

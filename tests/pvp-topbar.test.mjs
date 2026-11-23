@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
 
 test('üst bar maç bilgisini tek merkez grupta toplar',()=>{
-  const source=read('../pvp/index.js');
+  const source=read('../pvp/pvp-main.js');
   const screen=source.slice(source.indexOf('function screen(){'),source.indexOf('function textUpdate('));
   assert.match(screen,/class="pvp-topbar-start"/);
   assert.match(screen,/class="pvp-topbar-center"/);

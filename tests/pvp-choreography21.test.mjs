@@ -60,7 +60,7 @@ test('phase21: overload bounded and no delayed animations after dispose/reduced'
  h.director.dispose();h.fastForward(5000);assert.equal(h.pending.size,0);
 });
 test('phase21: integration keeps keyboard and server-owned damage separate',()=>{
- const entry=readFileSync(new URL('../pvp/index.js',import.meta.url),'utf8');
+ const entry=readFileSync(new URL('../pvp/pvp-main.js',import.meta.url),'utf8');
  const css=readFileSync(new URL('../pvp/choreography21.css',import.meta.url),'utf8');
  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(entry,/choreographers\[kind\]\?\.onUltimateBeat\(action\.phase\)/);
