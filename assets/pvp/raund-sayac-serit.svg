@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 28" width="180" height="28" preserveAspectRatio="none">
+  <!-- TuşLab raund sayacı başlık şeridi ("RAUND 1 / 7" bu şeridin üstüne HTML olarak yazılır). -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff3c9"/>
+      <stop offset=".5" stop-color="#f6c460"/>
+      <stop offset="1" stop-color="#a8611a"/>
+    </linearGradient>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a1a72"/>
+      <stop offset="1" stop-color="#12082e"/>
+    </linearGradient>
+  </defs>
+  <!-- kuyruklar -->
+  <path d="M2 6 L22 6 L22 24 L2 24 L9 15 Z" fill="#241050" stroke="url(#g)" stroke-width="1.4" stroke-linejoin="round"/>
+  <path d="M178 6 L158 6 L158 24 L178 24 L171 15 Z" fill="#241050" stroke="url(#g)" stroke-width="1.4" stroke-linejoin="round"/>
+  <!-- gövde -->
+  <path d="M16 2 L164 2 L170 14 L164 26 L16 26 L10 14 Z" fill="url(#b)" stroke="url(#g)" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M20 5.5 L160 5.5 M20 22.5 L160 22.5" stroke="#c77dff" stroke-width=".8" opacity=".6"/>
+</svg>

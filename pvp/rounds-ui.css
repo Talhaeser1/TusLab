@@ -861,3 +861,94 @@
   #pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card{transition:none!important;animation:none!important;transform:none!important}
 }
 #pvp-root.pvp4-reduced .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card{transition:none!important;animation:none!important;transform:none!important}
+
+/* ---------- Raund sayacı madalyonu (docs/7-raund-sayaci.md) ----------
+ * Tam ekran maçta üst orta: elle çizilmiş altın-mor madalyon (assets/pvp/raund-sayac.svg) + başlık şeridi
+ * (raund-sayac-serit.svg). Halka ve saniye madalyonun iç çekirdeğine (SVG'de merkez 100,84 / 200×140) oturur.
+ * Bu dosya fight-hud.css, fullscreen33.css, typing-top.css, compact-height.css ve match-info.css'ten ÖNCE
+ * yüklenir; o yüzden seçiciler iki kimlikli (#pvp-root#pvp-root) — sıradan bağımsız kazanır.
+ * Ölçek: --rs (1 = 200×140 px). İki can barı arasındaki boşluk her genişlikte 224 px; madalyon 200 px. */
+#pvp-root#pvp-root[data-layout="fullscreen"] .pvp2-announce:has(> [data-rounds-ui]:not([hidden])){
+  --rs:1;position:fixed;z-index:35;top:34px;right:auto;left:calc(50% - 100px * var(--rs));width:calc(200px * var(--rs));
+  min-height:0;margin:0;padding:0;background:none;border:0;box-shadow:none;visibility:visible}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal{
+  position:relative;display:block;isolation:isolate;box-sizing:border-box;
+  width:calc(200px * var(--rs,1));height:calc(140px * var(--rs,1));min-width:0;min-height:0;margin:0 auto;padding:0;gap:0;
+  background:none;border:0;border-radius:0;box-shadow:none;filter:drop-shadow(0 6px 12px rgba(4,1,14,.8))}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal::before{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:url("../assets/pvp/raund-sayac.svg") center/100% 100% no-repeat;
+  transition:opacity 200ms var(--rui-ease-out),filter 200ms var(--rui-ease-out)}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal :is(.rui-title,.rui-lastcall){
+  position:absolute;top:calc(4px * var(--rs,1));bottom:auto;left:50%;transform:translateX(-50%);z-index:2;
+  box-sizing:border-box;display:grid;place-items:center;min-width:calc(180px * var(--rs,1));height:calc(28px * var(--rs,1));
+  margin:0;padding:0 calc(24px * var(--rs,1));border:0;border-radius:0;white-space:nowrap;
+  font:900 max(12px,calc(13px * var(--rs,1)))/1 system-ui,"Segoe UI",sans-serif;font-style:normal;letter-spacing:.14em;
+  font-variant-numeric:tabular-nums}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal .rui-title{
+  background:url("../assets/pvp/raund-sayac-serit.svg") center/100% 100% no-repeat;
+  color:#ffe6a8;text-shadow:0 1px 0 #2a1404,0 0 8px rgba(246,196,96,.55)}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal .rui-lastcall{
+  height:calc(26px * var(--rs,1));padding:0 12px;border:1.5px solid var(--rui-danger);border-radius:7px;
+  background:linear-gradient(180deg,#8a1634,#3a0716);color:#ffe3e9;text-shadow:0 1px 0 #2a0010;
+  box-shadow:0 0 12px rgba(255,77,109,.55)}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal .rui-clock{
+  position:absolute;z-index:1;left:50%;top:calc(84px * var(--rs,1));
+  width:calc(92px * var(--rs,1));height:calc(92px * var(--rs,1));margin:calc(-46px * var(--rs,1)) 0 0 calc(-46px * var(--rs,1))}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal .rui-ring{
+  display:block;width:100%;height:100%;transform:rotate(-90deg);filter:drop-shadow(0 0 3px rgba(255,200,122,.75))}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal .rui-ring-track{fill:none;stroke:rgba(255,255,255,.13);stroke-width:5}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal .rui-ring-fill{stroke:#ffd27a;stroke-width:5}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal .rui-clock-text{
+  position:absolute;inset:0;display:grid;place-content:center;justify-items:center;text-align:center;line-height:1}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal .rui-secs{
+  display:block;font:900 calc(38px * var(--rs,1))/1 system-ui,"Segoe UI",sans-serif;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 2px 0 #1a0b3a,0 0 12px rgba(199,125,255,.8)}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal .rui-secs-unit{
+  display:block;margin-top:2px;max-width:44px;font:800 12px/1.1 system-ui,"Segoe UI",sans-serif;letter-spacing:.12em;color:#e9d9ff}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal .rui-secs-unit:empty{display:none}
+/* Son 5 sn: kırmızı halka + kızıl hale; tek seferlik büyüme, sonsuz yanıp sönme YOK. */
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal.is-urgent::before{filter:drop-shadow(0 0 9px rgba(255,45,85,.85))}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal.is-urgent .rui-ring{filter:drop-shadow(0 0 4px rgba(255,77,109,.95))}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal.is-urgent .rui-ring-fill{stroke:var(--rui-danger)}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal.is-urgent .rui-secs{
+  color:#ff7088;text-shadow:0 2px 0 #3a0010,0 0 14px rgba(255,45,85,.9);animation:rui-pulse 300ms var(--rui-ease-out) 1}
+/* Duraklatma: soluk mor-gri halka, madalyon biraz sönük. */
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal.is-frozen::before{filter:saturate(.45) brightness(.8)}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal.is-frozen .rui-ring{filter:none}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal.is-frozen .rui-ring-fill{stroke:#9b93c6}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal.is-frozen .rui-secs{color:#d6d0f2;text-shadow:0 2px 0 #1a0b3a}
+/* Çözüm / sonuç: saat gizli (taban kural .rui-medal.is-result .rui-clock), madalyon gövdesi de çekilir; yalnız "RAUND N SONUCU" şeridi. */
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal.is-result::before{opacity:0}
+/* Ani ölüm: şerit ve hale kızıl. */
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui].is-sudden .rui-medal::before{filter:drop-shadow(0 0 10px rgba(255,45,85,.8))}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui].is-sudden .rui-medal .rui-title{filter:hue-rotate(-40deg) saturate(1.5);color:#ffd0d8}
+#pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui].is-sudden .rui-medal .rui-ring-fill{stroke:var(--rui-danger)}
+/* KÖK NEDEN (soluk görünüm): .pvp2-shell "isolation:isolate" (pvp/pvp.css:7) kendi yığın bağlamını kurar; madalyonun z 35'i kabuk
+   dışına çıkamaz ve kardeş .fhud2 (z 25) tüm kabuğun ÜSTÜNDE boyanır. .fhud2::before'un üst karartması (fight-hud.css:331,
+   rgba(8,5,18,.86)→.5) madalyonun tam üstüne düşüyordu. Kabuk yalıtımına dokunmadan, raund maçında bu karartmaya madalyon
+   büyüklüğünde yumuşak kenarlı elips bir pencere açılır; barların arkasındaki karartma aynen kalır. */
+#pvp-root#pvp-root.fhud-on[data-layout="fullscreen"]:has(.pvp2-announce > [data-rounds-ui]:not([hidden]) .rui-medal) > .fhud2::before{
+  --rs-rx:118px;--rs-ry:104px;--rs-cy:72px; /* elips pencere: merkez madalyon çekirdeği, kenarı yumuşak (sert sütun izi yok) */
+  -webkit-mask:radial-gradient(var(--rs-rx) var(--rs-ry) at 50% var(--rs-cy),transparent 70%,#000 100%);
+  mask:radial-gradient(var(--rs-rx) var(--rs-ry) at 50% var(--rs-cy),transparent 70%,#000 100%)}
+/* Çözüm / sonuç: saat gizli; pencere yalnız "RAUND N SONUCU" şeridi kadar daralır (yoksa şerit karartma altında soluk kalır). */
+#pvp-root#pvp-root.fhud-on[data-layout="fullscreen"]:has(.pvp2-announce > [data-rounds-ui]:not([hidden]) .rui-medal.is-result) > .fhud2::before{--rs-rx:130px;--rs-ry:30px;--rs-cy:52px}
+/* Telefon dikey: can barları arası dar → madalyon barların ve kelime şeritlerinin altında, küçük.
+   top 240px match-info.css:38 ile aynı (orada !important; şeritlere yer açar) — bilerek korunur. */
+@media (max-width:600px){
+  #pvp-root#pvp-root[data-layout="fullscreen"] .pvp2-announce:has(> [data-rounds-ui]:not([hidden])){--rs:.72;top:240px}
+  #pvp-root#pvp-root.fhud-on[data-layout="fullscreen"]:has(.pvp2-announce > [data-rounds-ui]:not([hidden]) .rui-medal:not(.is-result)) > .fhud2::before{--rs-rx:86px;--rs-ry:76px;--rs-cy:300px}
+  #pvp-root#pvp-root.fhud-on[data-layout="fullscreen"]:has(.pvp2-announce > [data-rounds-ui]:not([hidden]) .rui-medal.is-result) > .fhud2::before{--rs-rx:94px;--rs-ry:22px;--rs-cy:253px}
+}
+/* Alçak ekran (telefon yatay): üst şeritle aynı hizada, küçük. */
+@media (max-height:500px){
+  #pvp-root#pvp-root[data-layout="fullscreen"] .pvp2-announce:has(> [data-rounds-ui]:not([hidden])){--rs:.62;top:4px}
+  #pvp-root#pvp-root.fhud-on[data-layout="fullscreen"]:has(.pvp2-announce > [data-rounds-ui]:not([hidden]) .rui-medal:not(.is-result)) > .fhud2::before{--rs-rx:74px;--rs-ry:66px;--rs-cy:20px}
+  #pvp-root#pvp-root.fhud-on[data-layout="fullscreen"]:has(.pvp2-announce > [data-rounds-ui]:not([hidden]) .rui-medal.is-result) > .fhud2::before{--rs-rx:82px;--rs-ry:20px;--rs-cy:15px}
+}
+@media (prefers-reduced-motion:reduce){
+  #pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal::before{transition:none}
+  #pvp-root#pvp-root[data-layout="fullscreen"] [data-rounds-ui] .rui-medal.is-urgent .rui-secs{animation:none}
+}
+#pvp-root.pvp4-reduced[data-layout="fullscreen"] [data-rounds-ui] .rui-medal::before{transition:none}
