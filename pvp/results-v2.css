@@ -184,3 +184,15 @@
   #pvp-root .pvp15-scene .pvp15-card small,#pvp-root .pvp15-scene .pvp15-rd b,#pvp-root .pvp15-scene .pvp15-rd small,#pvp-root .pvp15-scene .rui-res-len,#pvp-root .pvp15-scene .aui-res-len{font-size:15px}
   #pvp-root .pvp15-scene .pvp15-buttons button{font-size:17px;min-height:52px}
 }
+
+/* ===== TELEFONCU (docs/24): telefon yatay sonuç ekranı ===== */
+/* 740×360 gibi dar yatay ekranda (≤760 px) iki oyuncu kartı alt alta diziliyor, düğmelerin üstünde yalnız biri
+   görünüyordu. Yatayda kartlar 844×390'daki gibi yan yana. */
+@media (max-width:760px) and (orientation:landscape) and (max-height:520px){
+  #pvp-root .pvp15-scene .pvp15-scorecards{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #pvp-root .pvp15-scene{--r3-ph:clamp(72px,24vh,110px)}
+}
+/* Telefon dikey: teslim satırı ("Teslim · Raund 4/7'de çekildin") 26 px + nowrap ile kartın sağından taşıp kırpılıyordu. */
+@media(max-width:600px){
+  #pvp-root .pvp15-scene .rui-res-line.is-surrender{font-size:18px;white-space:normal}
+}

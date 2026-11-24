@@ -2,7 +2,7 @@ import {createVisualTimeline, TURN} from './visual-timeline.js';
 import {ASSIST_FX} from './arena3d-assist.js';
 import {createImpactDirector, stepImpact, addTrauma, beginHitstop, restoreHitstop, hitReaction} from './impact-feel.js';
 import {createArenaBloom} from './arena3d-bloom.js';
-import {budgetRatio, createFrameGovernor, PIXEL_BUDGETS} from './perf-governor.js';
+import {budgetRatio, createFrameGovernor, PIXEL_BUDGETS, deviceStartStep, readDeviceHints} from './perf-governor.js';
 import {buildStage} from './stages3d.js';
 import {DEFAULT_STAGE, normalizeStage} from './shared/stages.js';
 import {fighterBody} from './shared/fighters.js';
@@ -594,7 +594,9 @@ export async function createArena3D({
     const name = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl?.getParameter?.(gl.RENDERER);
     return /swiftshader|llvmpipe|softpipe/i.test(String(name || ''));
   }) || false;
-  if (softwareRenderer) governor.setStep(AUTO_QUALITY.lowStep);
+  // Telefoncu (docs/24): telefonda / zayıf cihazda otomatik kalite daha ucuz kademeden başlar (elle seçim ezer).
+  const deviceStep = safeCall(() => deviceStartStep(readDeviceHints(env))) || 0;
+  governor.setStep(softwareRenderer ? AUTO_QUALITY.lowStep : deviceStep);
   const autoStep = () => (qualityMode === 'auto' ? governor.step : 0);
   const startTime = now();
   let lastTime = startTime;
@@ -4316,7 +4318,7 @@ export async function createArena3D({
   function setQuality(mode) {
     if (destroyed || !['high', 'low', 'auto'].includes(mode)) return;
     qualityMode = mode;
-    if (mode === 'auto') governor.setStep(softwareRenderer ? AUTO_QUALITY.lowStep : 0);
+    if (mode === 'auto') governor.setStep(softwareRenderer ? AUTO_QUALITY.lowStep : deviceStep);
     applyQuality();
   }
 

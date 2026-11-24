@@ -40,6 +40,36 @@ export function budgetRatio(cssWidth, cssHeight, dpr, {maxRatio = 2, budget = PI
   return Math.max(minRatio, Math.floor(ratio * 100) / 100);
 }
 
+/**
+ * Telefoncu (docs/24): cihazın başlangıç kademesi (yalnız 'auto' kalite). Vali tek yönlü indiği için telefonda ilk
+ * saniyeler bloom + tam dpr ile takılıp sonra düşüyordu; zayıf cihaz baştan daha ucuz kademede başlar, yavaşsa vali
+ * yine iner. Oyuncunun elle seçtiği 'high'/'low' bunu her zaman ezer (arena3d setQuality).
+ *   0 → masaüstü / güçlü tablet
+ *   1 → telefon (dokunmatik + kısa kenar ≤ 500 CSS px): bloom kapalı (tam ekran ek hedef + birleştirme geçişi yok)
+ *   2 → zayıf telefon (≤ 4 çekirdek ya da ≤ 3 GB bellek): ayrıca çözünürlük ≤ 1,25 / 1,4 MP
+ *   1 → telefon olmayan ama çok zayıf cihaz (≤ 2 çekirdek ya da ≤ 2 GB)
+ */
+export function deviceStartStep({coarse = false, shortSide = 0, cores = 0, memoryGb = 0} = {}) {
+  const c = Number(cores) || 0;
+  const m = Number(memoryGb) || 0;
+  const side = Number(shortSide) || 0;
+  const phone = Boolean(coarse) && side > 0 && side <= 500;
+  const weak = (c > 0 && c <= 4) || (m > 0 && m <= 3);
+  if (phone) return weak ? 2 : 1;
+  if ((c > 0 && c <= 2) || (m > 0 && m <= 2)) return 1;
+  return 0;
+}
+
+/** Tarayıcı ortamından deviceStartStep girdisi (hata/eksik alan → 0). */
+export function readDeviceHints(env = globalThis) {
+  const nav = env?.navigator || {};
+  let coarse = false;
+  try { coarse = Boolean(env?.matchMedia?.('(pointer: coarse)').matches); } catch { coarse = false; }
+  const sw = Number(env?.screen?.width) || Number(env?.innerWidth) || 0;
+  const sh = Number(env?.screen?.height) || Number(env?.innerHeight) || 0;
+  return {coarse, shortSide: Math.min(sw, sh), cores: Number(nav.hardwareConcurrency) || 0, memoryGb: Number(nav.deviceMemory) || 0};
+}
+
 /** Backing store piksel sayısı (ölçüm/test için). */
 export function backingPixels(cssWidth, cssHeight, ratio) {
   return Math.round(cssWidth * ratio) * Math.round(cssHeight * ratio);

@@ -985,3 +985,27 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
 @media (max-width:600px){
   #pvp-root .lb3.sc:has([data-sc-back]:not([hidden])) .sc-title{visibility:hidden}
 }
+
+/* ===== TELEFONCU (docs/24): telefon lobisi ===== */
+/* Yetenekler alt sayfası telefonda arena kartlarının ALTINDA kalıyordu (tıklama perdeye gidiyor, Q/W satırları kartların
+   arkasında). Sebep: .j2-info'nun açılış animasyonu (opacity, fill:both) yığılma bağlamı kuruyor; içindeki sabit
+   konumlu alt sayfanın z-index'i o bağlama hapsoluyor. Alt sayfa açıkken animasyon kalkar → sayfa perdenin üstünde. */
+@media (max-width:760px),(max-width:1000px) and (max-aspect-ratio:1/1){
+  #pvp-root .lb3.sc[data-sheet="skills"] .j2-info{animation:none}
+  #pvp-root .lb3.sc .j2-skills,#pvp-root .lb3.sc .j2-settings{padding-bottom:calc(28px + env(safe-area-inset-bottom,0px))}
+  #pvp-root .pvp6-panel.lb3.sc .j2-arena button.lb3-stage-card[data-stage-pick="random"]{min-height:44px}
+}
+/* Telefon yatay (740×360 gibi; ≤760 px dar düzen): dövüşçü bilgisi 0 px'e eziliyor, SAVAŞA BAŞLA ekranın altında
+   kırpılıyordu (panel kaymıyor). Bilgi + dövüşçü şeridi yan yana, arenalar tam satır, Yetenekler/Ayarlar + BAŞLA tek satır. */
+@media (max-width:760px) and (orientation:landscape) and (max-height:500px){
+  #pvp-root .lb3.sc .sc-stage{flex-flow:row wrap;align-content:flex-start;column-gap:8px}
+  #pvp-root .lb3.sc .sc-stage>.sc-hero{flex:0 0 clamp(150px,26vw,200px);min-width:0;align-self:center;padding-top:34px}
+  #pvp-root .lb3.sc .sc-stage>.sc-dock{flex:1 1 0;min-width:0;width:auto}
+  #pvp-root .lb3.sc .sc-stage>.j2-arena{flex:0 0 100%}
+  #pvp-root .lb3.sc .sc-stage>.sc-phone-tools{flex:1 1 0;min-width:0}
+  #pvp-root .lb3.sc .sc-stage>.sc-go{flex:1 1 0;min-width:0;width:auto}
+  #pvp-root .pvp6-panel.lb3.sc button.sc-start{min-height:48px}
+  #pvp-root .lb3.sc .sc-faces{display:none}
+  /* alt sayfalar başlığın (sekmeler + bağlantı durumu, ≈122 px) altında kalır, içerik kendi içinde kayar */
+  #pvp-root .lb3.sc .j2-skills,#pvp-root .lb3.sc .j2-settings{max-height:calc(100dvh - 124px)}
+}

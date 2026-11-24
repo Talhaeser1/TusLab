@@ -561,3 +561,46 @@ html.tlh-app-off #app{visibility:hidden!important;pointer-events:none!important}
 }
 /* ayar panelinde ses kaydırıcısı ≤1050 px'te (eski araç çubuğu kuralı) gizleniyordu, müzik kaydırıcısı görünüyordu: ikisi de görünür */
 #pvp-root .pvp4-settings-pop .pvp10-volume{display:block}
+
+/* ===== TELEFONCU (docs/24): telefon ve dokunmatik ===== */
+/* Çift dokunma yakınlaştırması, lastik etkisi ve yatayda iOS yazı büyütmesi yok (iki parmakla yakınlaştırma serbest). */
+#pvp-root{overscroll-behavior:none;touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+@media (pointer:coarse){
+  /* iOS Safari 16 px altı yazı kutusuna odaklanınca sayfayı yakınlaştırır */
+  #pvp-root :is(#pvp6-name,#lb3-join-code,#lb3-invite,#pvp17-input,.pvp2-input){font-size:16px}
+  /* dokunma hedefleri ≥ 44 px: ayar paneli, Profil/Arkadaşlar düğmeleri */
+  #pvp-root .pvp2-toolbar .pvp4-settings-pop[class] .pvp4-toggle{min-height:44px}
+  #pvp-root .pvp2-toolbar .pvp4-settings-pop[class] input[type=range]{min-height:44px}
+  #pvp-root .pvp2-toolbar :is(.pvp16-modal,.pvp17-modal)[class] :is(button,select){min-height:44px;min-width:44px}
+  #pvp-root .pvp-confirm-actions :is(.pvp-confirm-no,.pvp-confirm-yes){min-height:44px}
+}
+/* Dokunmatik araç çubuğu: düğmeler 32–36 px'ti. Çubuk 40 px kalır (HUD 44 px'ten başlar); düğmeler üst kenara yaslanıp
+   44×44 olur, alt 4 px çubuk ile HUD arasındaki boşluğa taşar. */
+@media (pointer:coarse){
+  #pvp-root .pvp2-toolbar{align-items:flex-start}
+  #pvp-root .pvp2-toolbar :is(.pvp-topbar-start,.pvp2-actions){align-self:flex-start}
+  #pvp-root#pvp-root .pvp2-toolbar :is(.pvp5-net-button,.pvp4-icon-btn,.pvp15-surrender,.pvp2-back){min-height:44px;height:44px;min-width:44px;max-width:none;margin-block:0}
+}
+/* ≤ 600 px: Lobi/Profil/Arkadaşlar yalnız simge (32 px sabit genişlikti) → 44 px */
+@media (pointer:coarse) and (max-width:600px){
+  #pvp-root#pvp-root[data-layout="fullscreen"] .pvp5-network-controls .pvp5-net-button{width:44px;min-width:44px;max-width:44px}
+}
+/* 601–820 px: "Arkadaşlar" yalnız 👥 simgesi olmalıydı (topbar.css font-size:0, 40 px) ama tam ekran kuralı yazıyı 12 px'e
+   geri getiriyordu → "Arkadaşlar" yazısı düğmeden taşıp Profil'in yanına biniyordu (768×1024, 740×360). */
+@media (max-width:820px){
+  #pvp-root#pvp-root .pvp5-network-controls [data-social-action="toggle"]{font-size:0}
+}
+/* Ekran klavyesi açık (pvp/phone-viewport.js): kök görsel görüntü alanına oturur; yazma paneli alta yapışır,
+   altındaki istatistik satırı ve beceri rayları gizlenir, raund madalyonu kelime şeritlerinin altına çıkar.
+   transform → içerideki position:fixed öğeler kökün kutusuna göre yerleşir (klavye kaydırması onları kaçırmaz). */
+#pvp-root.pvp-kb-open{top:var(--pvp-vv-top,0px);bottom:auto;height:var(--pvp-vv-h,100%);transform:translateZ(0);overflow:hidden}
+#pvp-root.pvp-kb-open .pvp2-shell{min-height:0;height:100%}
+#pvp-root.pvp-kb-open[data-layout="fullscreen"] .pvp2-duel{grid-template-rows:0 minmax(0,1fr) 0;min-height:0}
+html #pvp-root.pvp-kb-open.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt{bottom:4px;padding-block:6px}
+html #pvp-root.pvp-kb-open.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .tt-meta{display:none}
+#pvp-root.pvp-kb-open .fhud2-rail{display:none}
+#pvp-root#pvp-root.pvp-kb-open[data-layout="fullscreen"] .pvp2-announce{top:158px!important}
+/* 440 px altı (küçük telefon + klavye): madalyon küçülür */
+#pvp-root#pvp-root.pvp-kb-short[data-layout="fullscreen"] .pvp2-announce:has(> [data-rounds-ui]:not([hidden])){--rs:.5;top:150px!important}
+/* Çok kısa görünür alan (telefon yatay + klavye, < 300 px): yalnız araç çubuğu ve yazma paneli; HUD süsleri gizli. */
+#pvp-root.pvp-kb-tight :is(.fhud2,.mi,.pvp2-announce){display:none!important}

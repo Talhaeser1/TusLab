@@ -37,6 +37,7 @@ import {attachResolveUi} from './resolve-ui.js';
 import {attachHowto,howtoButtonHTML} from './howto.js';
 import {attachCinematic} from './cinematic.js';
 import {attachStageFocus} from './stage-focus.js';
+import {installPhoneViewport} from './phone-viewport.js'; // Telefoncu (docs/24): ekran klavyesi + panele dokununca odak
 
 // Animasyon test düğmeleri yalnızca ?debug=1 ile görünür.
 const DEBUG_TOOLS = typeof location!=='undefined' && new URLSearchParams(location.search).get('debug')==='1';
@@ -60,6 +61,7 @@ const root = document.getElementById('pvp-root');
 const network = new PvPNetworkConsole(root);
 // Arena odağı: saldırı sırasında yazma paneli katlanır, arena ekranı doldurur.
 attachStageFocus({root,isReduced:()=>reducedEffects||Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)});
+installPhoneViewport(root);
 // Sıralı saldırı göstergesi (U3): "SALDIRI SIRASI 3/8", saldıran/SİPER vurgusu, pencere özeti.
 // Geçiş sesleri (attack-turn) oyuncunun SFX ayarına uyar; pvpAudio satır sonunda tanımlanır, çağrı anında hazırdır.
 attachResolveUi({root,getSeat:()=>network.seat,isReduced:()=>reducedEffects||Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches),

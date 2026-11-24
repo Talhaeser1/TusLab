@@ -35,3 +35,7 @@ docs/RAPOR-PVP-MEKANIK.md, RAPOR-PVP-KALANLAR.md, RAPOR-BECERI-SATIRI.md, RAPOR-
 14. Ses efektleri genel olarak kötü (yalnız düşme sesi değişti).
 15. Harita başına atmosfer / hareketli arka plan yok.
 16. Belgeler eski: mdler/07-ara-ekranlar.md, docs/KONTROL-LISTESI.md.
+
+(24 Kas, Telefoncu — docs/24-pvp-telefon-turu.md: telefon turu. Yetenekler alt sayfası yığılma hatası, 740×360 lobi ve sonuç düzeni, ekran klavyesi düzeni (`pvp/phone-viewport.js`), yazma paneline dokununca odak, dokunmatikte 44 px düğmeler, teslim satırı taşması, 601–820 px "Arkadaşlar" taşması ve telefonda otomatik kalite başlangıç kademesi düzeltildi.)
+20. (Telefoncu) Gerçek telefonda (iOS Safari, Android Chrome) ekran klavyesiyle maç hiç denenmedi; düzen sahte `visualViewport` ile doğrulandı. Raund sonunda klavye kapanıyor, oyuncu panele yeniden dokunuyor (iOS otomatik odağa izin vermez).
+21. (Telefoncu) `index.html` viewport etiketinde `viewport-fit=cover` yok → `env(safe-area-inset-*)` hep 0 (içerik çentikte kesilmez ama kenardan kenara da değil). index.html kararı kullanıcıda.
