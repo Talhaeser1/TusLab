@@ -7,12 +7,11 @@ import { createStream, itemsFor } from './arena.js';
 import * as T from './data/texts.js';
 
 const POEMS = T.POEMS || [];
-const PROVERBS = T.PROVERBS || [];
 
 const cleanLine = (s) => String(s == null ? '' : s).replace(/\s*\/\s*$/, '').replace(/\s+/g, ' ').trim();
 
 // Sıra ve renkler ana ekrandaki "Edebiyatla yaz" kartlarıyla aynı (home.css .tlh-lit--<id>: --acc rengi, --motif SVG'si).
-export const CATEGORIES = [
+const CATEGORIES = [
   { id: 'atasozu', label: 'Atasözleri', unit: 'atasözü', desc: 'Önce uzun, noktalamalı ve zincirli atasözleri.' },
   { id: 'deyim', label: 'Deyimler', unit: 'deyim', desc: 'Deyim ve anlamı birlikte, art arda.' },
   { id: 'siir', label: 'Şiirler', unit: 'şiir', desc: 'Kıta kıta: İstiklal Marşı, Yunus Emre, halk şiiri.' },
@@ -49,42 +48,6 @@ const STREAMS = new Map();
 function streamOf(cat) {
   if (!STREAMS.has(cat)) STREAMS.set(cat, createStream(cat));
   return STREAMS.get(cat);
-}
-
-/* ------------------------------------------------------------------ günün satırı */
-
-function mix(n) {
-  let x = (n ^ 0x9e3779b9) >>> 0;
-  x = Math.imul(x ^ (x >>> 16), 0x85ebca6b) >>> 0;
-  x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35) >>> 0;
-  return (x ^ (x >>> 16)) >>> 0;
-}
-
-export function dailyLine() {
-  const d = new Date();
-  const day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
-  const poems = POEMS.filter((p) => p && Array.isArray(p.lines) && p.lines.some((l) => cleanLine(l)));
-  const hard = PROVERBS.filter((p) => p && p.text && (Number(p.level) || 0) >= 3);
-  const poemLine = () => {
-    const p = poems[mix(day) % poems.length];
-    const lines = p.lines.map(cleanLine).filter(Boolean);
-    // Ardışık iki dize (beyit) — tek dize günlük yazma için çok kısa kalıyordu.
-    const i = mix(day * 31 + 7) % Math.max(1, lines.length - 1);
-    const pair = lines.slice(i, i + 2).join(', ').replace(/[,;:]\s*,/g, ',');
-    return {
-      text: pair,
-      source: [p.author, p.title].filter(Boolean).join(' — ') || 'Şiir',
-    };
-  };
-  const proverb = () => ({ text: hard[mix(day * 17 + 3) % hard.length].text, source: 'Atasözü' });
-  if (day % 2 === 0) {
-    if (poems.length) return poemLine();
-    if (hard.length) return proverb();
-  } else {
-    if (hard.length) return proverb();
-    if (poems.length) return poemLine();
-  }
-  return { text: 'Damlaya damlaya göl olur.', source: 'Atasözü' };
 }
 
 /* ------------------------------------------------------------------ ana modül */

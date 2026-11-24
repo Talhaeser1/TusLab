@@ -1,6 +1,6 @@
 // TuşLab — yazma motoru (İşçi E). Saf JS, ES modülü.
 // Dışa açılan: mountTyper, ensureStyles, h, fingerName, fingerShort, trLower, trUpper,
-// shuffle, fmtTime, loadAll, bumpProgress, normalizeText, matchStartKey, setText, kbPref, setKbPref, kbWanted, kbToggle
+// shuffle, fmtTime, loadAll, bumpProgress, normalizeText, matchStartKey, setText, kbPref, setKbPref, kbWanted, kbToggle, heatKeyboard
 // mountTyper(host, { text, keyboard, onProgress, onFinish, sfx, stream?, onChunk?, statsHost? }) -> { destroy, focus, setKeyboard, stop, stats, item, expected }
 //   statsHost: sayaç şeridi yazıcının içinde değil bu öğede durur (ör. başlık satırı).
 //   stream(): sıradaki parça ({ text } ya da metin; null = bitti). onChunk({ item, index, done, stats }). stats.chunks = biten parça.
@@ -86,7 +86,7 @@ export function setKbPref(on) {
     /* depolama kapalı */
   }
 }
-export function kbFits() {
+function kbFits() {
   const w = typeof window !== 'undefined' && window.innerWidth;
   const hh = typeof window !== 'undefined' && window.innerHeight;
   if (!w || !hh) return true;
@@ -170,7 +170,7 @@ function dayKey(offset) {
   d.setDate(d.getDate() + (offset || 0));
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
-export function bumpStreak(all) {
+function bumpStreak(all) {
   const today = dayKey(0);
   if (all.streakDay === today) return;
   all.streak = all.streakDay === dayKey(-1) ? (Number(all.streak) || 0) + 1 : 1;
@@ -214,6 +214,32 @@ function keyFor(ch) {
 
 const FINGER_ORDER = ['L5', 'L4', 'L3', 'L2', 'L1', 'T', 'R1', 'R2', 'R3', 'R4', 'R5'];
 
+/** Zorlanılan tuşların ısı haritası (Performans): ekran klavyesinin durağan kopyası — aynı KEY_ROWS ve .tl-kb/.tl-key
+ *  stilleri (egitim.css). weak: { 'a': 3, 'ş': 5, '!': 1 }; Shift ile gelen işaret kendi tuşuna yazılır.
+ *  Hatalı tuş is-heat sınıfı ve --heat (0–1, en çok hatalı tuşa göre) alır. Görsel: aria-hidden (metin listesi ayrıca verilir). */
+export function heatKeyboard(weak) {
+  const sum = new Map();
+  for (const [ch, v] of Object.entries(weak || {})) {
+    const n = Number(v) || 0;
+    if (n <= 0 || !String(ch).trim()) continue;
+    const k = keyFor(String(ch)).key;
+    sum.set(k, (sum.get(k) || 0) + n);
+  }
+  const max = Math.max(1, ...sum.values());
+  const kb = h('div', { class: 'tl-kb tl-kb--heat', 'aria-hidden': 'true' });
+  const key = (k, cls, label) => {
+    const n = sum.get(k) || 0;
+    const el = h('span', { class: 'tl-key' + (cls ? ' ' + cls : '') + (n ? ' is-heat' : ''), title: n ? trUpper(k) + ': ' + n + ' hata' : null }, label);
+    if (n) el.style.setProperty('--heat', String(Math.round((n / max) * 100) / 100));
+    return el;
+  };
+  KEY_ROWS.forEach((row, ri) => {
+    kb.append(h('div', { class: 'tl-kb-row r' + ri }, row.map((k) => key(k, '', trUpper(k)))));
+  });
+  kb.append(h('div', { class: 'tl-kb-row rb' }, key('', 'tl-key-shift', '⇧'), key(' ', 'tl-key-space', ''), key('', 'tl-key-shift', '⇧')));
+  return kb;
+}
+
 /* ------------------------------------------------------------------ yazıcı */
 
 export function mountTyper(host, opts = {}) {
@@ -256,6 +282,7 @@ export function mountTyper(host, opts = {}) {
   let startT = 0;
   let endT = 0;
   let timer = 0;
+  let pausedAt = 0; // sekme gizliyken süre durur (visibilitychange): WPM haksız düşmesin
   let lineH = 0;
   let shakeT = 0;
 
@@ -435,7 +462,7 @@ export function mountTyper(host, opts = {}) {
 
   function stats() {
     const now = performance.now();
-    const elapsedMs = started ? (finished ? endT : now) - startT : 0;
+    const elapsedMs = started ? (finished ? endT : pausedAt || now) - startT : 0;
     const mins = Math.max(elapsedMs, 1000) / 60000;
     const wpm = started ? Math.round((doneChars + pos) / 5 / mins) : 0;
     const acc = keystrokes ? Math.round((hits / keystrokes) * 1000) / 10 : 100;
@@ -484,7 +511,7 @@ export function mountTyper(host, opts = {}) {
       started = true;
       startT = performance.now();
       timer = setInterval(tick, 250);
-    }
+    } else if (pausedAt) resume();
     keystrokes++;
     const exp = chars[pos];
     if (ch === exp) {
@@ -654,7 +681,7 @@ export function mountTyper(host, opts = {}) {
 
   function finish() {
     finished = true;
-    endT = performance.now();
+    endT = pausedAt || performance.now();
     clearInterval(timer);
     ta.readOnly = true;
     root.classList.add('is-done');
@@ -666,6 +693,30 @@ export function mountTyper(host, opts = {}) {
     if (onProgress) onProgress(s);
     if (onFinish) onFinish(s);
   }
+
+  /* --- sekme gizlenince duraklat ---
+   * Gizli sekmede yazılamaz: süre (ve 250 ms sayacı) durur, sekmeye dönünce kaldığı yerden sürer. */
+  function pause() {
+    if (pausedAt || !started || finished || destroyed) return;
+    pausedAt = performance.now();
+    clearInterval(timer);
+    timer = 0;
+  }
+  function resume() {
+    if (!pausedAt) return;
+    startT += performance.now() - pausedAt;
+    pausedAt = 0;
+    if (!finished && !destroyed && !timer) timer = setInterval(tick, 250);
+  }
+  const onVis = () => {
+    if (document.hidden) pause();
+    else if (pausedAt) {
+      resume();
+      tick();
+    }
+  };
+  const hasDoc = typeof document !== 'undefined' && typeof document.addEventListener === 'function';
+  if (hasDoc) document.addEventListener('visibilitychange', onVis);
 
   /* --- kurulum --- */
   host.replaceChildren(root);
@@ -717,6 +768,7 @@ export function mountTyper(host, opts = {}) {
       destroyed = true;
       clearInterval(timer);
       clearTimeout(shakeT);
+      if (hasDoc) document.removeEventListener('visibilitychange', onVis);
       if (vv && vv.removeEventListener) vv.removeEventListener('resize', reveal);
       if (statsHost) statsBar.remove();
       if (ro) ro.disconnect();
@@ -734,6 +786,10 @@ export function mountTyper(host, opts = {}) {
     /** Sıradaki beklenen karakter (bittiyse ''). */
     get expected() {
       return finished || destroyed ? '' : chars[pos] || '';
+    },
+    /** Sekme gizliyken duraklatıldı mı (test/teşhis). */
+    get paused() {
+      return !!pausedAt;
     },
   };
 }

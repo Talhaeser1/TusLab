@@ -123,16 +123,18 @@
     const t = today();
     return d.quests && d.quests.date === t ? d.quests : { date: t, done: {}, count: {} };
   }
+  // need: kilitliyken gösterilen koşul; cur: koşula doğru ilerleme (Performans rozet vitrini), goal: hedef sayı.
   const BADGES = [
-    { id: 'ilk', icon: '🌱', name: 'İlk Adım', test: d => num(d.stats.finished) >= 1 },
-    { id: 'seri3', icon: '🔥', name: '3 Gün Seri', test: d => streakNow(d) >= 3 },
-    { id: 'seri7', icon: '🌋', name: '7 Gün Seri', test: d => streakNow(d) >= 7 },
-    { id: 'hiz40', icon: '⚡', name: '40 WPM', test: d => bestWpm(d) >= 40 },
-    { id: 'hiz60', icon: '🚀', name: '60 WPM', test: d => bestWpm(d) >= 60 },
-    { id: 'kusursuz', icon: '💎', name: 'Kusursuz', test: d => num(d.stats.perfect) >= 1 },
-    { id: 'yildiz10', icon: '⭐', name: '10 Yıldız', test: d => lessonStars(d) >= 10 },
-    { id: 'gorev', icon: '🏅', name: 'Görev Avcısı', test: d => num(d.stats.allQuests) >= 1 },
+    { id: 'ilk', icon: '🌱', name: 'İlk Adım', need: 'İlk metnini bitir', goal: 1, cur: d => num(d.stats.finished) },
+    { id: 'seri3', icon: '🔥', name: '3 Gün Seri', need: '3 gün üst üste yaz', goal: 3, cur: d => streakNow(d) },
+    { id: 'seri7', icon: '🌋', name: '7 Gün Seri', need: '7 gün üst üste yaz', goal: 7, cur: d => streakNow(d) },
+    { id: 'hiz40', icon: '⚡', name: '40 WPM', need: '40 WPM hıza ulaş', goal: 40, cur: d => bestWpm(d) },
+    { id: 'hiz60', icon: '🚀', name: '60 WPM', need: '60 WPM hıza ulaş', goal: 60, cur: d => bestWpm(d) },
+    { id: 'kusursuz', icon: '💎', name: 'Kusursuz', need: 'Bir metni hatasız bitir', goal: 1, cur: d => num(d.stats.perfect) },
+    { id: 'yildiz10', icon: '⭐', name: '10 Yıldız', need: 'Derslerde 10 yıldız topla', goal: 10, cur: d => lessonStars(d) },
+    { id: 'gorev', icon: '🏅', name: 'Görev Avcısı', need: 'Bir günün 3 görevini bitir', goal: 1, cur: d => num(d.stats.allQuests) },
   ];
+  const badgeOk = (bd, d) => bd.cur(d) >= bd.goal;
 
   /* ---------- ses cephesi (modül yüklenene kadar sessiz) ---------- */
   let S = null;
@@ -367,7 +369,8 @@
   /* ---------- durum çizimi ---------- */
   let lessonData = null;   // { LESSONS, UNITS, lessonUnlocked } — data/lessons.js + lessons.js yüklenince
   let litInfo = null;      // { atasozu: { n, ex }, … } — arena.js yüklenince bir kez (boşta) hesaplanır
-  const setAll = (k, v) => root.querySelectorAll(`[data-s="${k}"]`).forEach(el => { el.textContent = v; });
+  // yalnız değişince yazar: renderStats açılışta 4–5 kez çağrılır, aynı metni yeniden yazmak düğüm değiştirip stil hesabı tetikliyordu
+  const setAll = (k, v) => root.querySelectorAll(`[data-s="${k}"]`).forEach(el => { if (el.textContent !== v) el.textContent = v; });
 
   /** Klavye Dersleri: biten ders sayısı ve sıradaki açık ders (lessons.js "Kaldığın yerden devam et" kuralıyla aynı). */
   function lessonInfo(d = data) {
@@ -435,21 +438,23 @@
       const [y, mo, da] = String(d.streak.last).split('-').map(Number);
       for (let i = 0; i < Math.min(sc, 60); i++) run.add(dayKey(new Date(y, mo - 1, da - i)));
     }
-    const week = [];
+    // son 30 gün (Performans ısı şeridi); son 7'si haftalık görünüm
+    const month = [];
     const now = new Date();
-    for (let i = 6; i >= 0; i--) {
+    for (let i = 29; i >= 0; i--) {
       const dt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
       const k = dayKey(dt);
       const c = counts[k] || 0;
-      week.push({ key: k, label: DAY_SHORT[dt.getDay()], date: dt.getDate() + ' ' + MONTH_SHORT[dt.getMonth()], count: c, on: c > 0 || run.has(k), today: i === 0 });
+      month.push({ key: k, label: DAY_SHORT[dt.getDay()], dn: dt.getDate(), date: dt.getDate() + ' ' + MONTH_SHORT[dt.getMonth()], count: c, on: c > 0 || run.has(k), today: i === 0 });
     }
+    const week = month.slice(-7);
     const weak = Object.entries(d.weak).filter(([k, v]) => k.trim() && num(v) > 0).sort((a, b) => b[1] - a[1]);
     const accs = accHist.map(x => num(x.acc));
     return {
       hist, wpms, total: all.length,
       avgW: mean(wpms), maxW: wpms.length ? Math.max(...wpms) : 0, lastW: wpms.length ? wpms[wpms.length - 1] : 0,
       accHist, accs, avgA: mean(accs),
-      week, activeDays: week.filter(w => w.on).length, weak, streak: sc,
+      week, month, activeDays: week.filter(w => w.on).length, weak, streak: sc,
     };
   }
 
@@ -503,39 +508,6 @@
       ? `<p class="tlh-ch-lg"><span class="is-avg">ort. <b>${m.avgW}</b></span><span class="is-best">en iyi <b>${m.maxW}</b></span>${big ? `<span class="is-last">son <b>${m.lastW}</b></span>` : ''}</p>`
       : `<p class="tlh-ch-lg tlh-ch-lg--one"><span>Bir yazış daha: eğilim çizilsin.</span></p>`;
     return chart + legend;
-  }
-
-  /** Doğruluk eğilimi (küçük). */
-  function accHTML(m, big) {
-    const a = m.accs;
-    if (!a.length) return '';
-    const lo = Math.max(0, Math.min(90, Math.floor((Math.min(...a) - 2) / 5) * 5));
-    return lineChart({
-      vals: a, lo, hi: 100, ticks: big ? [lo, Math.round((lo + 100) / 2), 100] : [lo, 100], cls: 'tlh-ch--acc', uid: big ? 'tlh-ga-p' : 'tlh-ga-h',
-      refs: a.length > 1 ? [{ v: m.avgA, cls: 'is-avg' }] : [], fmt: (v) => '%' + Math.round(v),
-      aria: `Doğruluk eğilimi: son ${a.length} yazışta ortalama yüzde ${m.avgA}`,
-      titles: m.accHist.map(histTitle),
-    });
-  }
-
-  /** 7 günlük etkinlik çubukları (seriyle tutarlı: serinin günleri her zaman etkin görünür). */
-  function weekHTML(m) {
-    const max = Math.max(1, ...m.week.map(w => w.count));
-    return `<ol class="tlh-week" aria-label="Son 7 gün: ${m.activeDays} gün etkin">${m.week.map(w => {
-      const h = w.count ? Math.max(24, Math.round(w.count / max * 100)) : w.on ? 24 : 0;
-      const what = w.count ? `${w.count} metin` : w.on ? 'etkin' : 'boş';
-      return `<li class="tlh-day${w.on ? ' is-on' : ''}${w.today ? ' is-today' : ''}" title="${esc(w.date)} · ${what}"><span class="tlh-day-b" aria-hidden="true"><i style="height:${h}%"></i></span><small aria-hidden="true">${w.today ? 'Bu' : w.label}</small><span class="tlh-sr">${esc(w.date)}: ${what}</span></li>`;
-    }).join('')}</ol>`;
-  }
-
-  /** En çok hata yapılan tuşlar: küçük çipler (Merkez) ya da çubuklu liste (Performans). */
-  function weakHTML(m, big) {
-    const list = m.weak.slice(0, big ? 10 : 5);
-    if (!list.length) return '';
-    const max = list[0][1];
-    const K = (k) => esc(k.toLocaleUpperCase('tr'));
-    if (!big) return `<ul class="tlh-wk" aria-label="En çok hata yapılan tuşlar">${list.map(([k, v]) => `<li title="${K(k)}: ${v} hata"><kbd>${K(k)}</kbd><small>${v}<span class="tlh-sr"> hata</span></small></li>`).join('')}</ul>`;
-    return `<ul class="tlh-wk-list">${list.map(([k, v]) => `<li><kbd>${K(k)}</kbd><span class="tlh-weak-bar"><i style="width:${Math.round(v / max * 100)}%"></i></span><small>${v} hata</small></li>`).join('')}</ul>`;
   }
 
   /** Günlük görev satırları. Bitmeyen görev bir düğmedir (o işi açar: data-quest). */
@@ -740,7 +712,6 @@
     }
     renderLit();
     const last = data.history[data.history.length - 1];
-    setAll('card-yazma', 'metinler durmadan akar');
     // Yazma kartı rozetleri: son yazış · rekor · bugün biten metin (veri yoksa "—")
     setAll('cw-last', last && num(last.wpm) ? `${num(last.wpm)} WPM` : '—');
     setAll('cw-best', bestWpm() ? `${bestWpm()} WPM` : '—');
@@ -753,19 +724,19 @@
     setAll('qcount', `${done}/${ids.length}`);
     const ql = $('.tlh-quest-list');   // yalnız Performans açıkken var
     if (ql) ql.innerHTML = questRows(true);
-    const bl = $('.tlh-badges');
-    if (bl) bl.innerHTML = BADGES.map(bd => {
-      const got = !!data.badges[bd.id];
-      return `<li class="tlh-badge${got ? ' is-got' : ''}" title="${esc(bd.name)}${got ? '' : ' (kilitli)'}"><span class="tlh-badge-ic" aria-hidden="true">${bd.icon}</span><small>${esc(bd.name)}</small>${got ? '' : '<span class="tlh-sr"> (kilitli)</span>'}</li>`;
-    }).join('');
+    const bl = $('.tlh-pf-bd');
+    if (bl) bl.innerHTML = badgesHTML(data);
 
     soundBtn.setAttribute('aria-pressed', String(sfx.enabled));
     soundBtn.setAttribute('aria-label', sfx.enabled ? 'Sesi kapat' : 'Sesi aç');
     soundBtn.firstElementChild.textContent = sfx.enabled ? '🔊' : '🔇';
   }
 
-  /** İlerleme olaylarını işler: görevler, seri, rozetler, geçmiş, zayıf tuşlar. */
-  function progress({ quests = [], finished = false, wpm = 0, acc = 0, mode = '', weak = null } = {}) {
+  /** İlerleme olaylarını işler: görevler, seri, rozetler, geçmiş, zayıf tuşlar.
+   *  finished: bir METİN bitti (biten metin sayacı, gün sayacı, seri). hist: hız geçmişine yaz (varsayılan finished;
+   *  metin bitmeden ≥ 20 harflik Yazma denemesi yalnız hız olarak kaydedilir). accOk: "%98 doğrulukla bir metin" görevine
+   *  sayılabilir mi (metin bitmediyse hayır). */
+  function progress({ quests = [], finished = false, wpm = 0, acc = 0, mode = '', weak = null, hist = finished, accOk = true } = {}) {
     const msgs = [];
     let record = false;
     update(d => {
@@ -779,10 +750,10 @@
         const cut = new Date(); cut.setDate(cut.getDate() - 60);
         for (const k of Object.keys(days)) if (k < dayKey(cut)) delete days[k];
         d.days = days;
-        if (wpm > 0) {
-          d.history.push({ t: Date.now(), wpm: Math.round(wpm), acc: Math.round(acc * 10) / 10, m: mode });
-          if (d.history.length > 40) d.history = d.history.slice(-40);
-        }
+      }
+      if (hist && wpm > 0) {
+        d.history.push({ t: Date.now(), wpm: Math.round(wpm), acc: Math.round(acc * 10) / 10, m: mode });
+        if (d.history.length > 40) d.history = d.history.slice(-40);
       }
       if (weak && typeof weak === 'object') {
         for (const [k, v] of Object.entries(weak)) if (k.trim()) d.weak[k] = num(d.weak[k]) + num(v);
@@ -792,7 +763,7 @@
         d.bestWpm = Math.max(num(d.bestWpm), Math.round(wpm));
       }
       if (wpm >= 35) quests.push('wpm35');
-      if (acc >= 98) quests.push('acc98');
+      if (acc >= 98 && accOk) quests.push('acc98');
       const ids = todaysQuestIds();
       const q = questState(d);
       if (!q.count || typeof q.count !== 'object') q.count = {};
@@ -813,7 +784,7 @@
       }
       d.quests = q;
       for (const bd of BADGES) {
-        if (!d.badges[bd.id] && bd.test(d)) { d.badges[bd.id] = today(); msgs.push(`Yeni rozet: ${bd.icon} ${bd.name}`); }
+        if (!d.badges[bd.id] && badgeOk(bd, d)) { d.badges[bd.id] = today(); msgs.push(`Yeni rozet: ${bd.icon} ${bd.name}`); }
       }
     });
     if (record) { toast('Yeni rekor! ' + Math.round(wpm) + ' WPM'); setTimeout(() => sfx.voice('record'), 900); }
@@ -832,59 +803,264 @@
   }
   const normAcc = (a) => { a = num(a); return a > 0 && a <= 1 ? a * 100 : a; };
 
-  /* ---------- Performans (yerel görünüm; günlük görevler, seviye ve rozetler de burada) ---------- */
+  /* ---------- Performans görünümü (Terazi, 24 Kas): pano ----------
+   * Üstte özet (seviye + 4 sayı, Ders Haritası başlığıyla aynı aile), solda büyük hız/doğruluk grafiği (tür süzgeci),
+   * sağda günlük görevler ve 7/30 günlük etkinlik şeridi, altta zorlanılan tuşlar (ekran klavyesi ısı haritası),
+   * son yazışlar tablosu ve rozet vitrini. Hepsi elle HTML/SVG; süzgeç ve şerit seçimi yalnız ilgili kutuyu yeniden çizer. */
+  const two = (v) => String(v).padStart(2, '0');
+  const timeOf = (t) => { const d = new Date(t); return two(d.getHours()) + ':' + two(d.getMinutes()); };
+  const modeOf = (x) => (x && MODE_NAME[x.m] ? x.m : 'diger');
+  const modeLabel = (id) => MODE_NAME[id] || 'Diğer';
+  const isoDate = (k) => { const [y, mo, da] = String(k).split('-').map(Number); return y && mo && da ? da + ' ' + MONTH_SHORT[mo - 1] : ''; };
+
+  /** Büyük grafik: hız (sol eksen, WPM, alan + çizgi + ortalama) ve doğruluk (sağ eksen, %) aynı zaman ekseninde.
+   *  SVG yüzde ölçekli (yeniden boyutlanınca JS yok); değer kutusu tek dinleyiciyle (üzerine gelince / ok tuşları). */
+  function perfChartHTML(list) {
+    const n = list.length;
+    if (!n) {
+      return `<div class="tlh-ch-empty tlh-pc-empty">
+          <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true" focusable="false"><polyline points="0,34 16,28 32,30 48,20 64,22 80,12 100,8" vector-effect="non-scaling-stroke"/></svg>
+          <p><b>Hız eğrin burada çizilecek.</b><span>Her bitirdiğin metin bir nokta olur; doğruluğun yanında yeşil çizgiyle görünür.</span></p>
+          <button type="button" class="tlh-btn tlh-btn--primary tlh-ch-cta" data-tlh="write"><span aria-hidden="true">▶</span> İlk yazını yap</button>
+        </div>`;
+    }
+    const w = list.map(x => num(x.wpm));
+    const accs = list.map(x => num(x.acc)).filter(v => v > 0);
+    const hi = niceMax(Math.max(...w) * 1.12);
+    const lo = accs.length ? Math.max(0, Math.min(90, Math.floor((Math.min(...accs) - 2) / 5) * 5)) : 90;
+    const X = (i) => (n === 1 ? 50 : pct(i / (n - 1) * 100));
+    const YW = (v) => pct(100 - Math.min(hi, Math.max(0, v)) / hi * 100);
+    const YA = (v) => pct(100 - (Math.min(100, Math.max(lo, v)) - lo) / Math.max(1, 100 - lo) * 100);
+    const parts = hi % 4 === 0 ? 4 : hi % 3 === 0 ? 3 : 2;
+    const wt = Array.from({ length: parts + 1 }, (_, i) => Math.round(hi / parts * i));
+    const at = [lo, Math.round((lo + 100) / 2), 100];
+    const avg = Math.round(w.reduce((a, v) => a + v, 0) / n);
+    const pw = w.map((v, i) => X(i) + ',' + YW(v));
+    const pa = list.map((x, i) => (num(x.acc) > 0 ? X(i) + ',' + YA(num(x.acc)) : '')).filter(Boolean);
+    const xi = n === 1 ? [0] : [...new Set([0, Math.round((n - 1) / 4), Math.round((n - 1) / 2), Math.round((n - 1) * 3 / 4), n - 1])];
+    const svg = (n > 1 ? `<path class="tlh-ch-area" fill="url(#tlh-pc-g)" d="M${X(0)},100 L${pw.join(' L')} L${X(n - 1)},100 Z"/>`
+      + `<line class="tlh-ch-ref is-avg" x1="0" x2="100" y1="${YW(avg)}" y2="${YW(avg)}" vector-effect="non-scaling-stroke"/>`
+      + (pa.length > 1 ? `<polyline class="tlh-pc-acc" points="${pa.join(' ')}" vector-effect="non-scaling-stroke"/>` : '')
+      + `<polyline class="tlh-ch-ln" points="${pw.join(' ')}" vector-effect="non-scaling-stroke"/>` : '');
+    // tek kayıtta noktaların yanında değerleri yazılı (eğri yok, yalnız iki nokta)
+    const lab = (v) => (n === 1 ? `<b>${esc(v)}</b>` : '');
+    const dots = list.map((x, i) => `<i class="tlh-pc-d is-w" style="left:${X(i)}%;top:${YW(num(x.wpm))}%">${lab(num(x.wpm) + ' WPM')}</i>`
+      + (num(x.acc) > 0 ? `<i class="tlh-pc-d is-a" style="left:${X(i)}%;top:${YA(num(x.acc))}%">${lab('%' + Math.round(num(x.acc)))}</i>` : '')).join('');
+    return `<div class="tlh-pc">
+        <div class="tlh-pc-y" aria-hidden="true">${wt.map(t => `<span style="top:${YW(t)}%">${t}</span>`).join('')}</div>
+        <div class="tlh-pc-plot" tabindex="0" role="group" aria-roledescription="grafik"
+          aria-label="Hız ve doğruluk: ${n} yazış, ortalama ${avg} WPM. Tek tek okumak için sol ve sağ ok tuşları.">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false"><defs><linearGradient id="tlh-pc-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="tlh-ch-g0"/><stop offset="1" class="tlh-ch-g1"/></linearGradient></defs>${wt.map(t => `<line class="tlh-ch-grid" x1="0" x2="100" y1="${YW(t)}" y2="${YW(t)}" vector-effect="non-scaling-stroke"/>`).join('')}${svg}</svg>
+          <div class="tlh-pc-dots" aria-hidden="true">${dots}</div>
+          <span class="tlh-pc-guide" aria-hidden="true" hidden></span>
+          <div class="tlh-pc-tip" role="status" hidden></div>
+          ${n === 1 ? '<p class="tlh-pc-one">Bir yazış daha: eğilim çizilsin.</p>' : ''}
+        </div>
+        <div class="tlh-pc-y is-acc" aria-hidden="true">${at.map(t => `<span style="top:${YA(t)}%">%${t}</span>`).join('')}</div>
+        <div class="tlh-pc-x" aria-hidden="true">${xi.map(i => `<span style="left:${X(i)}%">${esc(num(list[i].t) ? shortDate(list[i].t) : '')}</span>`).join('')}</div>
+      </div>
+      <p class="tlh-ch-lg tlh-pc-lg"><span class="is-w">son hız <b>${w[n - 1]}</b> WPM</span><span class="is-acc">doğruluk${accs.length ? ` <b>%${Math.round(accs[accs.length - 1])}</b>` : ''}</span>${n > 1 ? `<span class="is-avg">ort. <b>${avg}</b> WPM</span>` : ''}</p>`;
+  }
+
+  /** Etkinlik ısı şeridi: 7 gün (geniş hücre, sayı ve gün adı) ya da 30 gün (ince şerit). Seri günleri en az 1. düzey. */
+  function heatStripHTML(days, span) {
+    const list = days.slice(-span);
+    const max = Math.max(1, ...list.map(x => x.count));
+    const on = list.filter(x => x.on).length;
+    const sum = list.reduce((a, x) => a + x.count, 0);
+    return `<ol class="tlh-hm is-${span}" aria-label="Son ${span} gün: ${on} gün etkin, ${sum} metin">${list.map((x, i) => {
+      const lv = x.count ? Math.max(1, Math.ceil(x.count / max * 4)) : x.on ? 1 : 0;
+      const what = x.count ? `${x.count} metin` : x.on ? 'etkin' : 'boş';
+      const lab = x.today ? 'Bugün' : span === 7 ? x.label : i % 7 === 1 ? String(x.dn) : '';
+      return `<li class="tlh-hm-c lv-${lv}${x.today ? ' is-today' : ''}" title="${esc(x.date)} · ${what}"><span class="tlh-hm-b" aria-hidden="true">${span === 7 && x.count ? x.count : ''}</span><small aria-hidden="true">${lab}</small><span class="tlh-sr">${esc(x.date)}: ${what}</span></li>`;
+    }).join('')}</ol>`;
+  }
+
+  /** Zorlanılan tuşlar: ilk 5 (metin listesi; ısı haritası klavyesi ayrıca typing.js heatKeyboard ile gelir). */
+  function weakListHTML(weak) {
+    const list = weak.slice(0, 5);
+    if (!list.length) return '<p class="tlh-empty">Hata yaptıkça zorlandığın tuşlar klavyede kızarır.</p>';
+    const max = list[0][1];
+    return `<ol class="tlh-pf-wk" aria-label="En çok hata yapılan tuşlar">${list.map(([k, v]) => `<li><kbd>${esc(k.toLocaleUpperCase('tr'))}</kbd><span class="tlh-weak-bar" aria-hidden="true"><i style="width:${Math.round(v / max * 100)}%"></i></span><small>${v} hata</small></li>`).join('')}</ol>`;
+  }
+
+  /** Rozet vitrini: kazanılan parlak (+ tarih), kazanılmayan kilitli + koşulu ve ilerlemesi. */
+  function badgesHTML(d) {
+    return BADGES.map(bd => {
+      const got = !!d.badges[bd.id];
+      const cur = Math.min(bd.goal, Math.max(0, bd.cur(d)));
+      const when = got && typeof d.badges[bd.id] === 'string' ? isoDate(d.badges[bd.id]) : '';
+      return `<li class="tlh-pf-b${got ? ' is-got' : ''}"><span class="tlh-pf-b-ic" aria-hidden="true">${bd.icon}</span>`
+        + `<b>${esc(bd.name)}</b><small>${got ? `Kazanıldı${when ? ' · ' + esc(when) : ''}` : esc(bd.need)}</small>`
+        + (got ? '' : `<span class="tlh-pf-b-bar" aria-hidden="true"><i style="width:${Math.round(cur / bd.goal * 100)}%"></i></span><span class="tlh-pf-b-n"><span aria-hidden="true">🔒 </span>${cur}/${bd.goal}</span>`)
+        + `<span class="tlh-sr">${got ? ' (kazanıldı)' : ' (kilitli)'}</span></li>`;
+    }).join('');
+  }
+
+  /** Son yazışlar (yeniden eskiye, en çok 8). */
+  function recentRows(list, best) {
+    if (!list.length) return '<tr><td colspan="4" class="tlh-pf-none">Henüz yazış yok. Bir metin bitirince burada listelenir.</td></tr>';
+    const max = Math.max(1, ...list.map(x => num(x.wpm)));
+    return list.slice(-8).reverse().map(x => {
+      const wv = num(x.wpm);
+      return `<tr><td>${num(x.t) ? `${esc(shortDate(x.t))} <small>${timeOf(x.t)}</small>` : '—'}</td><td>${esc(modeLabel(modeOf(x)))}</td>`
+        + `<td class="is-num"><span class="tlh-pf-wb" aria-hidden="true"><i style="width:${Math.round(wv / max * 100)}%"></i></span><b>${wv}</b>${wv && wv >= best ? '<em title="Rekor">★<span class="tlh-sr"> rekor</span></em>' : ''}</td>`
+        + `<td class="is-num">${num(x.acc) ? '%' + Math.round(num(x.acc)) : '—'}</td></tr>`;
+    }).join('');
+  }
+
   function mountPerf(host) {
     const d = readStore();
     data = d;
-    const m = computeMetrics(d, 20);
-    const m10 = computeMetrics(d, 10);
-    const n = m.hist.length;
-    const tiles = [
-      ['⚡', 'En iyi hız', bestWpm(d) ? bestWpm(d) + ' WPM' : '—', 'var(--tl-gold)'],
-      ['📊', 'Son 10 ortalama', m10.avgW == null ? '—' : m10.avgW + ' WPM', 'var(--tl-cyan)'],
-      ['🎯', 'Ortalama doğruluk', m10.avgA == null ? '—' : '%' + m10.avgA, 'var(--tl-ok)'],
-      ['✅', 'Biten metin', String(num(d.stats.finished)), 'var(--tl-violet-ink)'],
-      ['🔥', 'Günlük seri', streakNow(d) + ' gün', 'var(--tl-ember)'],
-      ['⭐', 'Ders yıldızı', String(lessonStars(d)), 'var(--tl-gold)'],
-    ];
+    const m = computeMetrics(d, 40);
+    const all = m.hist;   // geçmişin tamamı (en çok 40 kayıt)
+    const best = bestWpm(d);
+    const acc = avgAcc(d);
+    const todayN = num(d.days && d.days[today()]);
+    const types = [...new Set(all.map(modeOf))];
+    let filter = 'all', span = 30;
+    const tile = (v, l, c) => `<div class="tl-map-tile ${c}"><b>${esc(v)}</b><span>${esc(l)}</span></div>`;
+    const typeChips = types.length > 1 ? `<div class="tlh-pf-filter" role="group" aria-label="Türe göre süz">${['all', ...types].map(t => {
+      const cnt = t === 'all' ? all.length : all.filter(x => modeOf(x) === t).length;
+      return `<button type="button" class="tl-chip${t === filter ? ' is-on' : ''}" data-pf="${t}" aria-pressed="${t === filter}">${esc(t === 'all' ? 'Tümü' : modeLabel(t))} <small>${cnt}</small></button>`;
+    }).join('')}</div>` : '';
     host.innerHTML = `
-      <div class="tlh-perf">
-        <div class="tlh-perf-tiles">${tiles.map(([i, l, v, c]) => `<div class="tlh-perf-tile" style="--acc:${c}"><span aria-hidden="true">${i}</span><b>${esc(v)}</b><small>${esc(l)}</small></div>`).join('')}</div>
-        <div class="tlh-perf-row">
-          <section class="tlh-panel tlh-perf-chart${n ? '' : ' is-empty'}" aria-labelledby="tlh-pc-h">
-            <div class="tlh-panel-head"><h3 id="tlh-pc-h">${n > 1 ? `Son ${n} metin · hız` : 'Hız eğrin'}</h3><small class="tlh-panel-note">WPM${m.total > n ? ` · toplam ${m.total} kayıt` : ''}</small></div>
-            ${speedHTML(m, true)}
-          </section>
-          <div class="tlh-perf-stack">
-            <section class="tlh-panel tlh-perf-acc" aria-labelledby="tlh-pa-h">
-              <div class="tlh-panel-head"><h3 id="tlh-pa-h">Doğruluk eğilimi</h3>${m.avgA != null ? `<small class="tlh-panel-note">ort. <b>%${m.avgA}</b></small>` : ''}</div>
-              ${m.accs.length > 1 ? accHTML(m, true) : `<p class="tlh-empty">${m.accs.length ? `İlk yazışında doğruluğun %${m.accs[0]}. Bir metin daha bitir, eğilim çizilsin.` : 'Metin bitirdikçe doğruluğun burada çizilir.'}</p>`}
-            </section>
-            <section class="tlh-panel tlh-perf-week" aria-labelledby="tlh-pw7-h">
-              <div class="tlh-panel-head"><h3 id="tlh-pw7-h">Son 7 gün</h3><small class="tlh-panel-note"><b>${m.activeDays}</b>/7 gün etkin · seri ${m.streak} gün</small></div>
-              ${weekHTML(m)}
-            </section>
+      <div class="tl-edu tlh-pf">
+        <header class="tl-box tlh-pf-hero">
+          <div class="tlh-pf-id">
+            <p class="tl-eyebrow">Performans · <span data-s="lv">Sv. 1</span></p>
+            <h1 class="tl-h1">Gelişimin</h1>
+            <div class="tlh-pf-lv"><span class="tl-bar" aria-hidden="true"><i data-s="xp"></i></span><small data-s="xptext"></small></div>
           </div>
-        </div>
-        <div class="tlh-perf-row tlh-perf-goals">
-          <section class="tlh-panel tlh-quests" aria-labelledby="tlh-quests-h">
-            <div class="tlh-panel-head"><h3 id="tlh-quests-h">🗓️ Günlük Görevler</h3><span class="tlh-quest-count" data-s="qcount"></span></div>
-            <ul class="tlh-quest-list tlh-mq tlh-mq--big"></ul>
-            <p class="tlh-panel-foot">Bir göreve tıkla, o iş hemen açılsın. Görevler her gün yenilenir.</p>
-          </section>
-          <section class="tlh-panel tlh-perf-weak" aria-labelledby="tlh-pk-h">
-            <div class="tlh-panel-head"><h3 id="tlh-pk-h">En çok zorlandığın tuşlar</h3></div>
-            ${m.weak.length ? weakHTML(m, true) : '<p class="tlh-empty">Hata yaptıkça zayıf tuşların burada listelenir.</p>'}
-          </section>
-        </div>
-        <section class="tlh-panel tlh-level" aria-labelledby="tlh-level-h">
-          <div class="tlh-panel-head"><h3 id="tlh-level-h">Seviye ve rozetler</h3><b class="tlh-level-badge" data-s="lv">Sv. 1</b></div>
-          <div class="tlh-level-xp"><span class="tlh-xp"><i data-s="xp"></i></span><small data-s="xptext"></small></div>
-          <ul class="tlh-badges" aria-label="Rozetler"></ul>
+          <div class="tlh-pf-tiles">
+            ${tile(best ? best + ' WPM' : '—', 'en iyi hız', 'is-gold')}
+            ${tile(acc == null ? '—' : '%' + acc, 'ort. doğruluk · son 10', 'is-ok')}
+            ${tile(String(num(d.stats.finished)), todayN ? `biten metin · bugün ${todayN}` : 'biten metin', 'is-cyan')}
+            ${tile(m.streak + ' gün', 'gün serisi', 'is-ember')}
+          </div>
+        </header>
+        <section class="tl-box tlh-pf-p tlh-pf-chart" aria-labelledby="tlh-pf-ch">
+          <div class="tlh-pf-head"><h2 id="tlh-pf-ch">Hız ve doğruluk</h2><small class="tlh-pf-note" data-pf-note></small>${typeChips}</div>
+          <div class="tlh-pf-chartbox" data-pf-chart></div>
+        </section>
+        <section class="tl-box tlh-pf-p tlh-pf-quests" aria-labelledby="tlh-pf-qh">
+          <div class="tlh-pf-head"><h2 id="tlh-pf-qh">Günlük görevler</h2><b class="tlh-pf-count" data-s="qcount"></b></div>
+          <ul class="tlh-quest-list tlh-mq tlh-mq--big"></ul>
+          <p class="tlh-pf-foot">Bir göreve tıkla, o iş hemen açılsın. Görevler her gün yenilenir.</p>
+        </section>
+        <section class="tl-box tlh-pf-p tlh-pf-act" aria-labelledby="tlh-pf-ah">
+          <div class="tlh-pf-head"><h2 id="tlh-pf-ah">Etkinlik</h2>
+            <div class="tlh-pf-seg" role="group" aria-label="Dönem">${[7, 30].map(n => `<button type="button" class="tl-chip${n === span ? ' is-on' : ''}" data-span="${n}" aria-pressed="${n === span}">${n} gün</button>`).join('')}</div></div>
+          <div class="tlh-pf-hmbox" data-pf-act></div>
+          <p class="tlh-pf-foot" data-pf-actnote></p>
+        </section>
+        <section class="tl-box tlh-pf-p tlh-pf-keys" aria-labelledby="tlh-pf-kh">
+          <div class="tlh-pf-head"><h2 id="tlh-pf-kh">Zorlandığın tuşlar</h2>${m.weak.length ? `<small class="tlh-pf-note">toplam <b>${m.weak.reduce((a, x) => a + num(x[1]), 0)}</b> hata · ${m.weak.length} tuş</small>` : ''}</div>
+          <div class="tlh-pf-kbrow"><div class="tlh-pf-kb" data-pf-kb></div>${weakListHTML(m.weak)}</div>
+        </section>
+        <section class="tl-box tlh-pf-p tlh-pf-recent" aria-labelledby="tlh-pf-rh">
+          <div class="tlh-pf-head"><h2 id="tlh-pf-rh">Son yazışlar</h2><small class="tlh-pf-note" data-pf-rnote></small></div>
+          <table class="tlh-pf-tbl"><thead><tr><th scope="col">Tarih</th><th scope="col">Tür</th><th scope="col" class="is-num">WPM</th><th scope="col" class="is-num">Doğruluk</th></tr></thead><tbody data-pf-rows></tbody></table>
+        </section>
+        <section class="tl-box tlh-pf-p tlh-pf-badges" aria-labelledby="tlh-pf-bh">
+          <div class="tlh-pf-head"><h2 id="tlh-pf-bh">Rozetler</h2><small class="tlh-pf-note"><b>${BADGES.filter(bd => d.badges[bd.id]).length}</b>/${BADGES.length} kazanıldı</small></div>
+          <ul class="tlh-pf-bd" aria-label="Rozetler"></ul>
         </section>
       </div>`;
+    const q = (sel) => host.querySelector(sel);
+    const chartBox = q('[data-pf-chart]');
+    let shown = all;
+    let sel = -1;
+    function paintChart() {
+      shown = filter === 'all' ? all : all.filter(x => modeOf(x) === filter);
+      sel = -1;
+      chartBox.innerHTML = perfChartHTML(shown);
+      q('[data-pf-note]').textContent = shown.length > 1 ? `son ${shown.length} yazış` : '';
+      q('[data-pf-rows]').innerHTML = recentRows(shown, best);
+      q('[data-pf-rnote]').textContent = filter === 'all' ? (all.length > 8 ? `son 8 / ${all.length}` : '') : modeLabel(filter);
+    }
+    function paintAct() {
+      const list = m.month.slice(-span);
+      q('[data-pf-act]').innerHTML = heatStripHTML(m.month, span);
+      const on = list.filter(x => x.on).length;
+      q('[data-pf-actnote]').innerHTML = `<b>${on}</b>/${span} gün etkin · <b>${list.reduce((a, x) => a + x.count, 0)}</b> metin · seri <b>${m.streak}</b> gün`;
+    }
+    paintChart();
+    paintAct();
     renderStats();
-    return { destroy() { host.innerHTML = ''; } };
+    // ısı haritası: ekran klavyesi bileşeni (typing.js; Merkez açılışında zaten inmiş olur)
+    loadMod('typing.js').then(t => {
+      const slot = q('[data-pf-kb]');
+      if (slot && typeof t.heatKeyboard === 'function') slot.replaceChildren(t.heatKeyboard(d.weak));
+    }).catch(() => { /* klavye görseli olmadan da liste var */ });
+
+    // değer kutusu: üzerine gelince / ok tuşlarıyla en yakın yazış (tek dinleyici; nokta başına düğme yok)
+    const isPlot = (el) => !!(el && el.classList && el.classList.contains('tlh-pc-plot'));
+    function pick(i) {
+      const plot = q('.tlh-pc-plot');
+      if (!plot || !shown.length) return;
+      const tip = plot.querySelector('.tlh-pc-tip');
+      const guide = plot.querySelector('.tlh-pc-guide');
+      plot.querySelectorAll('.tlh-pc-d.is-sel').forEach(e => e.classList.remove('is-sel'));
+      if (i < 0) { sel = -1; tip.hidden = true; guide.hidden = true; return; }
+      sel = Math.max(0, Math.min(shown.length - 1, i));
+      const x = shown[sel];
+      const left = shown.length === 1 ? 50 : sel / (shown.length - 1) * 100;
+      guide.hidden = false;
+      guide.style.left = left + '%';
+      tip.hidden = false;
+      tip.style.left = left + '%';
+      tip.classList.toggle('is-r', left > 72);
+      tip.classList.toggle('is-l', left < 28);
+      tip.innerHTML = `<b>${num(x.wpm)} WPM</b><span>doğruluk %${Math.round(num(x.acc))}</span><small>${esc(modeLabel(modeOf(x)))}${num(x.t) ? ' · ' + esc(shortDate(x.t)) + ' ' + timeOf(x.t) : ''}</small>`;
+      const dots = plot.querySelectorAll('.tlh-pc-d.is-w');
+      if (dots[sel]) dots[sel].classList.add('is-sel');
+    }
+    const onMove = (e) => {
+      const plot = e.target.closest && e.target.closest('.tlh-pc-plot');
+      if (!plot) return;
+      const r = plot.getBoundingClientRect();
+      const f = r.width ? (e.clientX - r.left) / r.width : 0;
+      const i = shown.length === 1 ? 0 : Math.round(Math.max(0, Math.min(1, f)) * (shown.length - 1));
+      if (i !== sel) pick(i);
+    };
+    const onOut = (e) => {
+      const plot = e.target.closest && e.target.closest('.tlh-pc-plot');
+      if (plot && !plot.contains(e.relatedTarget) && document.activeElement !== plot) pick(-1);
+    };
+    const onKey = (e) => {
+      if (!isPlot(e.target)) return;
+      const k = e.key;
+      if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'Home' || k === 'End') {
+        e.preventDefault();
+        pick(k === 'Home' ? 0 : k === 'End' ? shown.length - 1 : sel < 0 ? shown.length - 1 : sel + (k === 'ArrowLeft' ? -1 : 1));
+      }
+    };
+    const onFocus = (e) => { if (isPlot(e.target) && sel < 0) pick(shown.length - 1); };
+    const onBlur = (e) => { if (isPlot(e.target)) pick(-1); };
+    const onClick = (e) => {
+      const f = e.target.closest('[data-pf]');
+      if (f && f.dataset.pf !== filter) {
+        filter = f.dataset.pf;
+        host.querySelectorAll('[data-pf]').forEach(b => { const on = b.dataset.pf === filter; b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', String(on)); });
+        paintChart();
+        return;
+      }
+      const s2 = e.target.closest('[data-span]');
+      if (s2 && Number(s2.dataset.span) !== span) {
+        span = Number(s2.dataset.span);
+        host.querySelectorAll('[data-span]').forEach(b => { const on = Number(b.dataset.span) === span; b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', String(on)); });
+        paintAct();
+      }
+    };
+    const evs = [['pointermove', onMove], ['pointerout', onOut], ['keydown', onKey], ['focusin', onFocus], ['focusout', onBlur], ['click', onClick]];
+    evs.forEach(([t, f]) => host.addEventListener(t, f));
+    return {
+      destroy() {
+        evs.forEach(([t, f]) => host.removeEventListener(t, f));
+        host.innerHTML = '';
+      },
+    };
   }
 
   /* ---------- bölümler ---------- */
@@ -1116,8 +1292,13 @@
       if (!am.MODES.some(m => m.id === mode)) mode = am.MODES[0].id;
       renderModeButtons(modesEl);
       if (typeof am.itemsFor === 'function') idle(() => { litInfo = computeLit(am); renderLit(); });
-      renderPreview();
       renderStats();
+      // Canlı satırın ilk çizimi (satır ölçümü = sayfanın ilk tam düzeni, ≈45 ms) ilk boyamadan sonraya ertelenir.
+      // (Gizli sekmede rAF gelmez: 250 ms'lik yedek zamanlayıcı yine de türü/önizlemeyi hazırlar; satır sekme görünür olunca yazılır.)
+      let liveKick = false;
+      const kick = () => { if (liveKick) return; liveKick = true; const t1 = performance.now(); renderPreview(); measure('tlh-live', t1); };
+      requestAnimationFrame(() => setTimeout(kick, 0));
+      setTimeout(kick, 250);
       return am;
     });
     arenaP = p;
@@ -1265,16 +1446,20 @@
     const wpm = Math.round(num(s.wpm));
     const acc = Math.round(normAcc(s.acc));
     const secs = Math.round(num(s.elapsedMs) / 1000);
+    // Metin bitti mi: akışta en az bir parça, Kelime'de metnin sonuna kadar (Esc ile yarıda bırakılan Kelime metni bitmemiştir).
+    const complete = streamOn ? num(s.chunks) >= 1 : num(s.total) > 0 && num(s.typed) >= num(s.total);
     const quests = [];
-    if (!streamOn) { quests.push('daily'); if (current && current.mode === 'atasozu') quests.push('arena'); }
+    if (!streamOn && complete) { quests.push('daily'); if (current && current.mode === 'atasozu') quests.push('arena'); }
     const prevBest = bestWpm();
-    // Akışta hiç metin bitmeden ve 20 harfe varmadan Bitir/Esc: kısa deneme. Sonuç gösterilir ama rekora, geçmişe ve
+    // Hiç metin bitmeden ve 20 harfe varmadan Bitir/Esc: kısa deneme. Sonuç gösterilir ama rekora, geçmişe ve
     // görevlere sayılmaz (birkaç harflik hızlı başlangıç "en iyi WPM"i şişiriyordu).
-    const short = streamOn && !num(s.chunks) && num(s.typed) < 20;
-    const { record } = short ? { record: false } : progress({ quests, finished: true, wpm, acc, mode: current?.mode, weak: s.weakKeys });
+    const short = !complete && num(s.typed) < 20;
+    // Metin bitmeden ≥ 20 harf: hız geçmişe ve rekora yazılır, ama "biten metin", gün serisi ve metin görevleri artmaz.
+    const { record } = short ? { record: false } : progress({ quests, finished: complete, hist: true, accOk: complete, wpm, acc, mode: current?.mode, weak: s.weakKeys });
     const [rank, col] = rankOf(wpm, acc);
     // Yazma'da ders hedefi yok: kişisel rekora göre durum.
     const vs = short ? 'Kısa deneme: en az 20 harf ya da bir metin yazınca kaydedilir'
+      : !complete ? 'Metin bitmedi: hızın kaydedildi, biten metne sayılmadı'
       : record ? `Önceki rekorun <b>${prevBest}</b> WPM idi`
       : prevBest > 0 ? (wpm >= prevBest ? `Rekorunla aynı: <b>${prevBest}</b> WPM` : `Rekorun <b>${prevBest}</b> WPM · <b>${prevBest - wpm}</b> WPM geride`) : 'İlk sonucun kaydedildi';
     resultEl.hidden = false;
@@ -1406,8 +1591,19 @@
     if (ta && !ta.readOnly && document.activeElement !== ta) { try { ta.focus({ preventScroll: true }); } catch { ta.focus(); } }
     return false;
   }
+  /** Esc: Yazma'da yazı sürüyorsa önce oturumu bitirip sonuç kartını gösterir (akış ve Kelime aynı); sonuçta ya da
+   *  başka görünümde Merkez'e döner. Hiç yazılmadıysa finishArena kendisi Merkez'e döner. */
+  function escView() {
+    if (view && view.id === 'yazma' && arenaCtl && resultEl.hidden) {
+      const c = arenaCtl;
+      try { c.stop?.(); } catch { /* yok */ }
+      if (view && view.id === 'yazma' && arenaCtl === c && resultEl.hidden) closeView();
+      return;
+    }
+    closeView();
+  }
   root.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && view && !e.defaultPrevented) { e.preventDefault(); closeView(); }
+    if (e.key === 'Escape' && view && !e.defaultPrevented) { e.preventDefault(); escView(); }
     if (e.key === 'Enter' && view && view.id === 'yazma' && !resultEl.hidden && !e.target.closest?.('button,a')) { e.preventDefault(); newText(); }
     typeToStart(e);
     if (!isField(e.target)) e.stopPropagation();
@@ -1416,7 +1612,7 @@
   document.addEventListener('keydown', (e) => {
     if (e.target !== document.body && e.target !== document.documentElement) return;
     // (eski site / PvP dinleyicileri Esc'yi önceden preventDefault edebiliyor; Merkez görünürken gövdedeki Esc bizimdir)
-    if (e.key === 'Escape' && view && !root.hidden && !pvpVisible()) { e.preventDefault(); closeView(); return; }
+    if (e.key === 'Escape' && view && !root.hidden && !pvpVisible()) { e.preventDefault(); escView(); return; }
     typeToStart(e);
   });
 
@@ -1450,7 +1646,11 @@
   }
 
   /* ---------- başlat ---------- */
+  // Açılış ölçümü (DevTools Performance / performance.getEntriesByType('measure')): tlh-boot = Merkez'in kurulup ilk kez
+  // boyanmaya hazır olması, tlh-arena = yazma modülleri + önizleme. Ölçüm yoksa (eski tarayıcı) sessiz geçer.
+  const measure = (name, start) => { try { performance.measure(name, { start }); } catch { /* yok */ } };
   function boot() {
+    const t0 = performance.now();
     document.body.appendChild(root);
     document.body.appendChild(fab);
     document.documentElement.classList.add('tlh-lock');   // ana sayfa açıkken alttaki eski sayfa kaymasın
@@ -1461,12 +1661,19 @@
     }
     renderStats();
     if (!root.hidden) root.focus({ preventScroll: true });
+    measure('tlh-boot', t0);
 
-    loadMod('sfx.js').then(m => {
-      S = m.sfx;
-      S.setEnabled(data.sound !== false);
-      renderStats();
-    }).catch(err => { try { console.warn('[home] ses modülü yüklenemedi:', err); } catch { /* yok */ } });
+    // Ses modülü açılışta inmez (tarayıcı sesi zaten ilk dokunuş/tuştan önce çalmaz): ilk etkileşimde yüklenir → açılışta bir istek az.
+    let sfxP = null;
+    const loadSfx = () => {
+      if (sfxP) return;
+      sfxP = loadMod('sfx.js').then(m => {
+        S = m.sfx;
+        S.setEnabled(data.sound !== false);
+        renderStats();
+      }).catch(err => { sfxP = null; try { console.warn('[home] ses modülü yüklenemedi:', err); } catch { /* yok */ } });
+    };
+    for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, loadSfx, { capture: true, once: true, passive: true });
 
     // Merkez'deki gerçek sayılar: ders listesi (kaldığın ders, yıldız üst sınırı) ve metin havuzu (kart sayıları).
     Promise.all([loadMod('data/lessons.js'), loadMod('ders-kilit.js')]).then(([ld, lm]) => {

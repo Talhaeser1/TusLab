@@ -5,7 +5,8 @@ import { readFileSync, existsSync, statSync } from 'node:fs';
 
 const css = readFileSync(new URL('../home/home.css', import.meta.url), 'utf8');
 const js = readFileSync(new URL('../home/home.js', import.meta.url), 'utf8');
-const ARTS = { yazma: 'kart-yazma.svg', egitim: 'kart-dersler.svg', edebiyat: 'kart-edebiyat.svg' };
+// kart-yazma.svg / kart-edebiyat.svg Merkez'de kullanılmıyordu: _to_delete/terazi-home/ altına taşındı (Terazi, 24 Kas)
+const ARTS = { egitim: 'kart-dersler.svg' };
 
 test('kart görselleri: dosyalar var, küçük, betik/dış kaynak yok', () => {
   for (const file of Object.values(ARTS)) {
@@ -21,7 +22,7 @@ test('kart görselleri: dosyalar var, küçük, betik/dış kaynak yok', () => {
 test('kart görselleri: Dersler kartı kendi görseline bağlı, Yazma kartı elle SVG klavye, PvP afişi ayrı kalır', () => {
   assert.match(css, /\.tlh-c-edu::after \{[^}]*background: url\("\.\.\/assets\/home\/kart-dersler\.svg"\)/);
   assert.match(css, /mask-image: linear-gradient\(200deg/);
-  // kart-edebiyat.svg / kart-yazma.svg içindeki "Damlaya damlaya…" yazısı sözle çakışır: Merkez'de kullanılmaz (dosyalar yerinde)
+  // kart-edebiyat.svg / kart-yazma.svg içindeki "Damlaya damlaya…" yazısı sözle çakışıyordu: Merkez'de kullanılmaz (dosyalar _to_delete/'te)
   assert.doesNotMatch(css, /kart-edebiyat\.svg"|kart-yazma\.svg"/);
   assert.match(js, /class="tlh-cw-kb" viewBox=/);
   assert.match(css, /url\("\.\.\/assets\/home\/pvp-kart\.webp"\)/);   // lobi afişinin kart boyu kopyası (Tuşçu)

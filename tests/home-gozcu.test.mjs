@@ -47,7 +47,8 @@ test('görevler: üçü bitince kutlama, sekmeye dönünce gün değiştiyse yen
   // görev havuzu: 2 sabit + 4'lü dönüşüm; rozet listesi 8
   assert.match(js, /const rot = \['daily', 'wpm35', 'lit', 'arena'\];/);
   assert.match(js, /return \['lesson', 'acc98', rot\[h % rot\.length\]\];/);
-  assert.equal((js.match(/\{ id: '[a-z0-9]+', icon: '[^']+', name: '[^']+', test: d =>/g) || []).length, 8);
+  // rozet listesi 8: her birinin koşulu (need), hedefi (goal) ve ilerlemesi (cur) var (Performans vitrini, Terazi)
+  assert.equal((js.match(/\{ id: '[a-z0-9]+', icon: '[^']+', name: '[^']+', need: '[^']+', goal: \d+, cur: d =>/g) || []).length, 8);
 });
 
 test('Yazma kartı: bölüm + 6 işlevli tür çipi (data-wmode) + kişisel rozetler + "Yazmaya başla" düğmesi', () => {
@@ -97,7 +98,7 @@ test('ekran klavyesi düğmesi: tercih ortak, sayfadaki bütün düğmeler aynı
 });
 
 test('kısa deneme rekoru şişirmez: Yazma akışında <20 harf ve 0 metin, Şiir & Atasözü\'nde 0 metin', () => {
-  assert.match(js, /const short = streamOn && !num\(s\.chunks\) && num\(s\.typed\) < 20;/);
+  assert.match(js, /const short = !complete && num\(s\.typed\) < 20;/);
   assert.match(js, /const \{ record \} = short \? \{ record: false \} : progress\(/);
   assert.match(js, /else \{ wpm = 0; acc = 0; \}/);
   assert.match(lit, /bumpProgress\(ctx, \(st\.chunks \|\| 0\) >= 1 \? st\.wpm : 0, st\.acc,/);

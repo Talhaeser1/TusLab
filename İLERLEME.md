@@ -335,3 +335,10 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 - Karar (kullanıcı: "eski düzen olsun, Fable 5.2'nin yaratıcılığına bırakalım"): üç sütunlu kokpit kaldırıldı; eski iskelet geri geldi — solda kahraman alanı (başlık, iki düğme, kendi kendine yazılan canlı satır, 4 sayı), sağda 5 kartlık bento (Yazma, Dersler, Şiir & Atasözü, PvP, Performans). Tasarım: docs/18; uygulama raporu: docs/19.
 - Kokpit işlevleri korundu (harfle başlama, 5 tür, görev satırları, ertelenmiş yüklemeler); ayrıntılı metrikler Performans görünümünde.
 - Yazma ekranları ortak düzen (docs/16); PvP kalanlar (docs/17).
+
+## 24 Kas 2026 — Tuş/görev turları, PvP cilası, Performans panosu
+- Görev/seri/geçmiş sayımı: ders tekrarı (geçilirse) ve Şiir & Atasözü oturumları artık sayılır; metin bitmeden çıkış "biten metin" saymaz ama 20+ harfte hız kaydı tutulur; 20 harften kısa deneme hiç kaydedilmez (docs/21, 23).
+- Sekme gizlenince yazıcı süresi duraklar (oturum bitmez). Kelime kipinde Esc önce sonuç kartını açar.
+- PvP: maç üstünde lobi açılınca HUD gizlenir + "Maça dön"; süre becerisi seçimi raunddan 700 ms önce kendiliğinden kilitlenir (kural değişikliği değil; oyuncunun seçtiği kart). Kutu ailesi 18/12/10 px, seçili = altın (docs/20, 22).
+- `home/scene3d.js`, `kart-yazma.svg`, `kart-edebiyat.svg` ve 6 `pvp/page-*.css` kullanılmıyordu → `_to_delete/`.
+- Yerel sunucu bağlantı kuyruğu 128 (`scripts/serve.py`).

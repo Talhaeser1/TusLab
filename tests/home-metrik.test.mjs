@@ -62,12 +62,13 @@ test('Merkez Performans kartı: hız eğrisinin küçük hâli sabit yükseklikt
   for (const m of css.matchAll(/font-size: (\d+(?:\.\d+)?)px/g)) assert.ok(Number(m[1]) >= 12, 'font-size ' + m[1]);
 });
 
-test('Performans: aynı bileşenlerin geniş hâli', () => {
+test('Performans: pano (özet, grafik, görevler, etkinlik, tuş ısı haritası, son yazışlar, rozetler)', () => {
   const perf = js.slice(js.indexOf('function mountPerf('), js.indexOf('/* ---------- bölümler ---------- */'));
-  assert.match(perf, /computeMetrics\(d, 20\)/);
-  assert.match(perf, /speedHTML\(m, true\)/);
-  assert.match(perf, /accHTML\(m, true\)/);
-  assert.match(perf, /weekHTML\(m\)/);
-  assert.match(perf, /weakHTML\(m, true\)/);
+  assert.match(perf, /computeMetrics\(d, 40\)/);
+  assert.match(perf, /perfChartHTML\(shown\)/);
+  assert.match(perf, /heatStripHTML\(m\.month, span\)/);
+  assert.match(perf, /t\.heatKeyboard\(d\.weak\)/);
+  assert.match(perf, /recentRows\(shown, best\)/);
   assert.match(perf, /tlh-quest-list tlh-mq tlh-mq--big/);
+  assert.match(perf, /<ul class="tlh-pf-bd" aria-label="Rozetler"><\/ul>/);
 });
