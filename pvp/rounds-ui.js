@@ -318,6 +318,23 @@ export function roundStylePickDecision({scope,kind='style',value,isHost,phase,cu
   if(scope!=='room'||!isHost||!['waiting','countdown'].includes(phase)||value===current)return null;
   return {type:'MATCH_CONFIG',payload:{roundStyle:value}};
 }
+/** Cilacı (docs/22): kural özeti tek gri paragraf yerine okunaklı maddeler. Aynı bilgiler; tam cümle `title`'da (DAMAGE_RULE_HINT). */
+const fmtX=v=>`×${String(v).replace('.',',')}`;
+export function ruleHintHTML(){
+  const full=`7 raund · ${num(ROUND_HP)} can (raundlar arası taşınır) · ${DAMAGE_RULE_HINT}`;
+  const ladder=STREAK_TICKS.map(t=>`<li><kbd>${t.key}</kbd><span>${t.at}</span></li>`).join('');
+  const items=[
+    `<b>7 raund</b> · ${num(ROUND_HP)} can, taşınır`,
+    `<b>E</b> kalkan ${SHIELD_AMOUNT} ya da can ${DEFENSE_AMOUNT}`,
+    `<b>R</b> en çok ${fmtX(ULTIMATE_MULTIPLIER_CAP)}`,
+    `${10+CHAIN_EVERY}. ve her ${CHAIN_EVERY_LONG}. doğru → <b>Q</b>`,
+    `10+ seri: çarpan artar (en çok ${fmtX(MULTIPLIER_CAP)})`,
+    `Yanlış kelime: seri yarıya iner`,
+    `Raund başı en çok ${ROUND_HEAL_CAP} kalkan/can`];
+  return `<div class="rui-rule-hint rui-rules" data-damage-rules title="${full}">`
+    +`<div class="rui-rules-ladder"><span class="rui-rules-cap">Seri</span><ol aria-label="Seriyle açılan beceriler">${ladder}</ol></div>`
+    +`<ul class="rui-rules-list">${items.map(t=>`<li>${t}</li>`).join('')}</ul></div>`;
+}
 const STYLE_TITLES=Object.freeze({timed:'Her raund 30 sn; süre bitene kadar kelime akar, kim çok doğru yazarsa o kadar vurur',
   counted:'Raund başına 5-7-9-10-10-10-15 kelime · süre yok, ilk bitiren raundu bitirir; iki oyuncuya aynı kelimeler'});
 export function roundStylePickerHTML(scope){
@@ -325,7 +342,7 @@ export function roundStylePickerHTML(scope){
   return `<div class="rui-picker" data-style-picker="${s}"><span class="rui-picker-label" id="rui-style-${s}">Raund biçimi</span>`
     +`<div class="rui-seg" role="group" aria-labelledby="rui-style-${s}">`
     +ROUND_STYLES.slice().reverse().map(k=>`<button type="button" data-lobby-action="roundstyle" data-style-scope="${s}" data-round-style="${k}" aria-pressed="${k===DEFAULT_ROUND_STYLE}" title="${STYLE_TITLES[k]}">${ROUND_STYLE_LABELS[k]}</button>`).join('')
-    +`</div><small class="rui-rule-hint" data-damage-rules>7 raund · ${num(ROUND_HP)} can (raundlar arası taşınır) · ${DAMAGE_RULE_HINT}</small>`
+    +`</div>${ruleHintHTML()}`
     +`<small class="rui-picker-note" data-style-note></small></div>`;
 }
 /** Biçim seçicisini eşitle. */
