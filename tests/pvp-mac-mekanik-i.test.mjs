@@ -64,8 +64,8 @@ test('I1 rounds: 7 raund sonunda canı fazla olan kazanır; sonuç ekranı kalan
   }
   assert.equal(m.status,'ended');assert.equal(m.winnerSeat,1);assert.equal(m.endReason,'ROUNDS');assert.equal(m.roundHistory.length,7);
   const view=publicMatch(m,1),model=roundsResultModel(view.result,'a');
-  const hp2=seatOf(m,2).hp;assert.ok(hp2<4000);
-  assert.equal(model.scoreline,`4.000 – ${hp2.toLocaleString('tr-TR')} · 7 raund`);assert.equal(model.mySeat,1);
+  const hp2=seatOf(m,2).hp;assert.ok(hp2<ROUND_HP);
+  assert.equal(model.scoreline,`${ROUND_HP.toLocaleString('tr-TR')} – ${hp2.toLocaleString('tr-TR')} · 7 raund`);assert.equal(model.mySeat,1);
   assert.ok(model.rows.every(r=>/^\d+ – 0$/.test(r.damage)));
 });
 

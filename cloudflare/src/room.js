@@ -41,6 +41,27 @@ const encode=async value=>{
 };
 const validTicket=t=>typeof t==='string'&&/^[a-f0-9-]{36,80}$/.test(t);
 const safeSend=(ws,type,payload)=>{try{ws.send(wrap(type,payload));}catch{/* disconnected */}};
+// Arena has its own clock fields, so its persisted pause must move every pending deadline.
+const pauseArena=(match,at,offlineSeats)=>{
+  if(match.status==='ended')return match;
+  const next=structuredClone(match);
+  if(next.status==='running'){next.status='paused';next.pausedAt=at;}
+  next.offlineSeats=[...new Set(offlineSeats)].sort();next.sequence++;
+  return next;
+};
+const resumeArena=(match,at)=>{
+  if(match.status!=='paused')return match;
+  const next=structuredClone(match),delta=Math.max(0,at-next.pausedAt);
+  const shift=(object,keys)=>{if(!object)return;for(const key of keys)if(Number.isFinite(object[key]))object[key]+=delta;};
+  shift(next,['startedAt','clockAt','endsAt']);
+  shift(next.round,['startedAt','endsAt','prepEndsAt','resolveAt','summaryEndsAt','finishedAt','endedAt','resolveLastAt','resolveUntil']);
+  for(const player of next.participants)shift(player,['personalEndsAt','frozenUntil','overtimeUntil','finishedAt','lastWordAt','lastSubmittedAt']);
+  for(const attack of next.pendingAttacks)shift(attack,['issuedAt','resolveAt']);
+  next.status='running';next.pausedAt=null;next.offlineSeats=[];next.sequence++;
+  return next;
+};
+const pauseForDisconnect=(match,at,offline)=>match.mode==='arena'?pauseArena(match,at,offline):pauseMatch(match,at,offline);
+const resumeAfterDisconnect=(match,at)=>match.mode==='arena'?resumeArena(match,at):resumeMatch(match,at);
 
 export class PvPRoom {
   constructor(ctx,env){
@@ -134,9 +155,9 @@ export class PvPRoom {
     ws.serializeAttachment({...session,verified:true,playerId:player.playerId,seat:player.seat});
     await this.save(data);
     let match=['started','rematch_countdown'].includes(data.phase)?await this.ctx.storage.get('match'):null;
-    if(match?.status==='paused'&&match.mode!=='arena'){
+    if(match?.status==='paused'){
       const offline=data.players.filter(p=>!this.connectedIds().has(p.playerId)).map(p=>p.seat);
-      const changed=offline.length===0?resumeMatch(match,Date.now()):pauseMatch(match,Date.now(),offline);
+      const changed=offline.length===0?resumeAfterDisconnect(match,Date.now()):pauseForDisconnect(match,Date.now(),offline);
       if(changed!==match){match=changed;await this.ctx.storage.put('match',match);}
     }
     await this.schedule(data);
@@ -256,7 +277,7 @@ export class PvPRoom {
       return safeSend(ws,'ERROR',{code:'MATCH_NOT_ACTIVE'});
     const player=match.participants.find(p=>p.playerId===session.playerId);
     if(!player)return safeSend(ws,'ERROR',{code:'NOT_MATCH_PARTICIPANT'});
-    const ended=match.mode==='arena'?surrenderArenaMatch(match,player.seat,Date.now()):surrenderMatch(match,player.seat,Date.now());
+    const ended=match.mode==='arena'&&match.status==='running'?surrenderArenaMatch(match,player.seat,Date.now()):surrenderMatch(match,player.seat,Date.now());
     await this.ctx.storage.put('match',ended);await this.publishEnd(ended);await this.schedule(lobby);
   }
   broadcastCombat(events){
@@ -426,14 +447,13 @@ export class PvPRoom {
       p.reservedUntil=now+REJOIN_GRACE;
       // Deliberately leaving an active duel is an immediate surrender, not a reconnect timeout.
       let next;
-      if(match.mode==='arena'){
-        next=explicit?surrenderArenaMatch(match,p.seat,now):match;
-      }else if(explicit){
+      if(explicit){
         const offline=[p.seat,...data.players.filter(x=>x.playerId!==p.playerId&&!this.connectedIds().has(x.playerId)).map(x=>x.seat)];
-        next=endDisconnectedMatch(pauseMatch(match,now,offline),now,offline.length===2?null:p.seat);
+        next=match.mode==='arena'&&match.status==='running'?surrenderArenaMatch(match,p.seat,now):
+          endDisconnectedMatch(pauseForDisconnect(match,now,offline),now,offline.length===2?null:p.seat);
       }else{
         const offline=data.players.filter(x=>!this.connectedIds().has(x.playerId)).map(x=>x.seat);
-        next=pauseMatch(match,now,offline);
+        next=pauseForDisconnect(match,now,offline);
       }
       await this.ctx.storage.put('match',next);
       if(next.status==='ended')await this.recordResult(next);
@@ -441,7 +461,7 @@ export class PvPRoom {
       await this.publish(data);
       if(match.mode==='arena'){
         if(next.status==='ended')await this.publishEnd(next,now);
-        else this.broadcastMatch('STATE_UPDATE',{serverTime:now,graceMs:REJOIN_GRACE},next);
+        else this.broadcastMatch('MATCH_PAUSED',{serverTime:now,graceMs:REJOIN_GRACE},next);
       }else{
         this.broadcastMatch(next.status==='ended'?'MATCH_END':'MATCH_PAUSED',{serverTime:now,graceMs:REJOIN_GRACE},next);
         this.broadcastMatch('STATE_UPDATE',{serverTime:now},next);
@@ -598,7 +618,7 @@ export class PvPRoom {
         const now=Date.now();const online=this.connectedIds();
         const offline=data.players.filter(p=>!online.has(p.playerId));
         let updated=stored;
-        if(!offline.length)updated=resumeMatch(stored,now);
+        if(!offline.length)updated=resumeAfterDisconnect(stored,now);
         else if(offline.some(p=>p.reservedUntil>0&&p.reservedUntil<=now)){
           updated=endDisconnectedMatch(stored,now,offline.length===2?null:offline[0].seat);
         }

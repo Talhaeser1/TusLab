@@ -42,6 +42,50 @@ test('arena config is host only, strict, and classic and rounds remain available
   assert.ok(!JSON.stringify(f.a.messages).includes('roundPlan'));
 });
 
+test('arena disconnect pauses the server clock and awards a forfeit after grace',async()=>{
+  const f=await lobby();const started=await start(f);
+  const remaining=started.round.prepEndsAt-Date.now();
+  f.b.close();await f.room.webSocketClose(f.b);
+  const paused=await f.ctx.storage.get('match');
+  assert.equal(paused.status,'paused');
+  assert.equal(latest(f.a,'MATCH_PAUSED').payload.match.status,'paused');
+  assert.ok(f.alarm<=Date.now()+21000);
+  const data=await f.room.roster();data.players[1].reservedUntil=Date.now()-1;await f.room.save(data);
+  await f.room.alarm();
+  const ended=await f.ctx.storage.get('match');
+  assert.equal(ended.status,'ended');
+  assert.equal(ended.winnerSeat,1);
+  assert.equal(ended.endReason,'DISCONNECT_FORFEIT');
+  assert.equal(latest(f.a,'MATCH_END').payload.match.winnerSeat,1);
+  assert.ok(remaining>0);
+});
+
+test('arena rejoin after hibernation restores both seats and frozen deadline',async()=>{
+  const f=await lobby();const started=await start(f);
+  f.b.close();await f.room.webSocketClose(f.b);
+  const paused=await f.ctx.storage.get('match');
+  paused.pausedAt-=5000;await f.ctx.storage.put('match',paused);
+  f.room=new PvPRoom(f.ctx,{});
+  f.b=await join(f,2);
+  const resumed=await f.ctx.storage.get('match');
+  assert.equal(resumed.status,'running');
+  assert.ok(resumed.round.prepEndsAt-started.round.prepEndsAt>=4900);
+  assert.equal(latest(f.a,'MATCH_RESUMED').payload.match.status,'running');
+  assert.equal(latest(f.b,'MATCH_START').payload.match.status,'running');
+});
+
+test('arena player can surrender while waiting for the disconnected opponent',async()=>{
+  const f=await lobby();await start(f);
+  f.b.close();await f.room.webSocketClose(f.b);
+  assert.equal((await f.ctx.storage.get('match')).status,'paused');
+  await send(f,f.a,'SURRENDER');
+  const ended=await f.ctx.storage.get('match');
+  assert.equal(ended.status,'ended');
+  assert.equal(ended.winnerSeat,2);
+  assert.equal(ended.endReason,'SURRENDER');
+  assert.equal(latest(f.a,'MATCH_END').payload.match.status,'ended');
+});
+
 test('arena picks stay private; scramble and blind clock are personal in every snapshot and reconnect',async()=>{
   const f=await lobby();let m=await start(f);
   await send(f,f.a,'ARENA_PICK',{skill:'scramble',item:null});

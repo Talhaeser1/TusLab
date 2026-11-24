@@ -2,7 +2,7 @@ import test,{beforeEach,afterEach} from 'node:test';
 import assert from 'node:assert/strict';
 import worker,{codeOK,generateRoomCode,sameOrigin} from '../cloudflare/src/index.js';
 import {PvPRoom} from '../cloudflare/src/room.js';
-import {inviteLink,invitedRoom} from '../pvp/network.js';
+import {PvPNetworkConsole,inviteLink,invitedRoom,errorText} from '../pvp/network.js';
 import {RELEASE_STAGE} from '../pvp/release.js';
 
 const saved={Response:globalThis.Response,WebSocketPair:globalThis.WebSocketPair,WebSocketRequestResponsePair:globalThis.WebSocketRequestResponsePair};
@@ -47,6 +47,25 @@ test('room ids, origin checks and invitation URL',()=>{
   assert.equal(invitedRoom(url),'ABCDEFGHJKLMNPQR');
   assert.equal(new URL(url).pathname,'/');
   assert.equal(invitedRoom('https://example.test/?pvpRoom=bad'),null);
+});
+
+test('expired invitation is rejected in Turkish before opening a reconnecting socket',async()=>{
+  const originalFetch=globalThis.fetch;
+  const calls=[];globalThis.fetch=async url=>{calls.push(url);return {ok:false,status:404,json:async()=>({error:'ROOM_NOT_FOUND'})};};
+  const view={readName:()=> 'Oyuncu B',disconnect:()=>calls.push('disconnect'),connect:()=>calls.push('connect'),log:message=>calls.push(message),render:()=>{}};
+  try{await PvPNetworkConsole.prototype.join.call(view,'ABCDEFGHJKLMNPQR');}
+  finally{globalThis.fetch=originalFetch;}
+  assert.equal(calls.some(x=>x==='connect'),false);
+  assert.match(view.status,/Oda bulunamadı/);
+  assert.equal(calls[0],'/api/pvp/rooms/ABCDEFGHJKLMNPQR');
+});
+
+test('room protocol errors shown to players never expose raw server codes',()=>{
+  for(const code of ['RATE_LIMIT','MATCH_PAUSED','MATCH_ID_MISMATCH','INVALID_WORD','INVALID_READY','REMATCH_NOT_AVAILABLE','SECURITY_SERVICE_UNAVAILABLE']){
+    assert.notEqual(errorText(code),code);
+    assert.match(errorText(code),/[çğıöşüÇĞİÖŞÜa-z]/);
+  }
+  assert.notEqual(errorText('FUTURE_SERVER_ERROR'),'FUTURE_SERVER_ERROR');
 });
 test('HTTP endpoints handle health, room creation, status and malformed IDs',async()=>{
   const {room}=await makeRoom();
@@ -98,7 +117,7 @@ test('countdown alarm produces authoritative initial match with fixed HP',async(
   assert.equal((await room.roster()).phase,'started');
   assert.equal(sent(a,'MATCH_START').length,1);
   assert.equal(sent(b,'MATCH_START')[0].payload.match.status,'running');
-  assert.deepEqual(sent(a,'MATCH_START')[0].payload.match.players.map(p=>p.hp),[4000,4000]); // round mode: ROUND_HP (KESINYAP 11: 4000 taşınan can)
+  assert.deepEqual(sent(a,'MATCH_START')[0].payload.match.players.map(p=>p.hp),[6000,6000]); // round mode: ROUND_HP (6000 taşınan can, RAPOR-PVP-MEKANIK)
   assert.equal(JSON.stringify(await room.roster()).includes('hp'),false); // lobby does not store fake HP
   assert.equal((await ctx.storage.get('match')).sequence,1);
 });

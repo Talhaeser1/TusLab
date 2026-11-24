@@ -13,12 +13,27 @@ import {OSMANLICA} from './content-osmanlica.js';
 import {createRng} from './words.js';
 
 export const DEFAULT_CONTENT = 'kelime';
-export const CONTENT_MODES = Object.freeze(['atasozu', 'siir', 'osmanlica']);
+/** Rastgele (karışık): her raundun içeriği maç tohumundan seçilir (kelime · atasözü · şiir · Osmanlıca); iki oyuncu aynısını görür. */
+export const RANDOM_CONTENT = 'rastgele';
+export const CONTENT_MODES = Object.freeze(['atasozu', 'siir', 'osmanlica', RANDOM_CONTENT]);
 export const CONTENT_IDS = Object.freeze([DEFAULT_CONTENT, ...CONTENT_MODES]);
-export const CONTENT_LABELS = Object.freeze({kelime: 'Kelime', atasozu: 'Atasözü', siir: 'Şiir', osmanlica: 'Osmanlıca'});
+export const CONTENT_LABELS = Object.freeze({kelime: 'Kelime', atasozu: 'Atasözü', siir: 'Şiir', osmanlica: 'Osmanlıca', rastgele: 'Rastgele'});
 export const isContentId = v => CONTENT_IDS.includes(v);
 export const isContentMode = v => CONTENT_MODES.includes(v);
 export const normalizeContent = v => (isContentMode(v) ? v : DEFAULT_CONTENT);
+/** Rastgele karışımın raund raund içerik sırası (tohumlu): her 4'lük blokta dört içeriğin hepsi bir kez, art arda aynısı yok.
+ *  Sunucu ve bot motoru aynı tohumdan aynı sırayı üretir. */
+export const MIX_CONTENTS = Object.freeze([DEFAULT_CONTENT, 'atasozu', 'siir', 'osmanlica']);
+export function contentMixPlan(seed, rounds) {
+  const rng = createRng(`${seed}:mix`), plan = [];
+  while (plan.length < rounds) {
+    const block = [...MIX_CONTENTS];
+    for (let i = block.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [block[i], block[j]] = [block[j], block[i]]; }
+    if (plan.length && block[0] === plan.at(-1)) [block[0], block[1]] = [block[1], block[0]];
+    plan.push(...block);
+  }
+  return plan.slice(0, rounds);
+}
 
 const tokens = list => list.split(/\s+/u).filter(Boolean);
 // Akışlar tembel kurulur (yalnız içerik modunda).
@@ -67,22 +82,27 @@ function sequential(content, start, count, seed) {
 let sortedOsmanlica = null;
 const osmanlicaPool = () => (sortedOsmanlica ??= [...OSMANLICA].map((e, i) => [e, i]).sort((a, b) => a[0].kelime.length - b[0].kelime.length || a[1] - b[1]).map(x => x[0]));
 
+// 1. raund havuzun ortasından başlar (kolay dilim yok), son raund en uzun dilimdir.
+export const OSMANLICA_START = 0.5;
+
 /** Osmanlıca: raund ilerledikçe havuzun daha uzun/zor dilimi; dilim içinden tohumlu, tekrarsız seçim. */
 function osmanlica({seed, round, total, count, exclude, salt}) {
   const pool = osmanlicaPool(), n = pool.length;
   const band = Math.min(n, Math.max(count * 4, 48));
   const progress = Math.min(1, Math.max(0, (round - 1) / Math.max(1, total - 1)));
-  const lo = Math.round((n - band) * progress);
+  const lo = Math.round((n - band) * (OSMANLICA_START + (1 - OSMANLICA_START) * progress));
   const banned = new Set(exclude || []);
   const slice = pool.slice(lo, lo + band).filter(e => !banned.has(e.kelime));
   const rng = createRng(`${seed}:osm:${round}${salt ? ':' + salt : ''}`);
   for (let i = slice.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [slice[i], slice[j]] = [slice[j], slice[i]]; }
   let chosen = slice.slice(0, count);
-  if (chosen.length < count) { // dilim tükendi: tüm havuzdan tamamla
-    const have = new Set(chosen.map(e => e.kelime));
-    chosen = chosen.concat(pool.filter(e => !have.has(e.kelime) && !banned.has(e.kelime)).slice(0, count - chosen.length));
+  if (chosen.length < count) { // dilim tükendi: dilime en yakın (önce daha uzun) kullanılmamış kelimelerle tamamla
+    const have = new Set(chosen.map(e => e.kelime)), mid = lo + band / 2;
+    const near = pool.map((e, i) => [e, i]).filter(([e]) => !have.has(e.kelime) && !banned.has(e.kelime))
+      .sort((a, b) => Math.abs(a[1] - mid) - Math.abs(b[1] - mid) || b[1] - a[1]).map(x => x[0]);
+    chosen = chosen.concat(near.slice(0, count - chosen.length));
   }
-  if (!chosen.length) chosen = pool.slice(0, count);
+  if (!chosen.length) chosen = pool.slice(lo, lo + count);
   return {words: chosen.map(e => e.kelime), hints: chosen.map(e => `Anlamı: ${e.anlam}`)};
 }
 

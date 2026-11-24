@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {createMatch,submitWord,advanceMatch,nextDeadline,publicMatch,pickRoundSkill,roundDurationMs,ROUND_COUNTED_CAP_MS,ROUND_CAP_WARN_MS,ROUND_DURATION_MS,ROUND_HP,ROUND_DAMAGE_CAP,ROUND_TOTAL,ROUND_WORD_PLAN} from '../pvp/shared/match.js';
+import {createMatch,submitWord,advanceMatch,nextDeadline,publicMatch,pickRoundSkill,roundDurationMs,ROUND_COUNTED_CAP_MS,ROUND_CAP_WARN_MS,ROUND_DURATION_MS,ROUND_HP,ROUND_TOTAL,ROUND_WORD_PLAN} from '../pvp/shared/match.js';
 import * as cf from '../cloudflare/src/match.js';
 import {roundsViewModel,roundInputLock,roundSkillPickerModel,roundStylePickerHTML} from '../pvp/rounds-ui.js';
 import {createPracticeSession,HUMAN_ID,BOT_ID} from '../pvp/practice.js';
@@ -51,10 +51,10 @@ test('kelime raundu: gizli 120 sn üst sınırı kimse bitirmezse yazılan kadar
   assert.notEqual(end.round.phase,'round');assert.equal(seatOf(end,1).roundWordIndex,1);assert.equal(seatOf(end,2).roundWordIndex,1);
 });
 
-test('kelime raundu: kelime planı, 4000 can, raund hasar tavanı ve 7 raund değişmedi', () => {
+test('kelime raundu: kelime planı ve 7 raund değişmedi; can 6000, raund hasar tavanı YOK', async () => {
   assert.deepEqual([...ROUND_WORD_PLAN],[5,7,9,10,10,10,15]);assert.equal(ROUND_TOTAL,7);
-  assert.equal(ROUND_HP,4000);assert.equal(ROUND_DAMAGE_CAP,1300);
-  const m=make();assert.equal(m.round.words.length,5);assert.equal(seatOf(m,1).hp,4000);
+  assert.equal(ROUND_HP,6000);assert.equal('ROUND_DAMAGE_CAP' in await import('../pvp/shared/match.js'),false);
+  const m=make();assert.equal(m.round.words.length,5);assert.equal(seatOf(m,1).hp,6000);
 });
 
 test('zamana karşı değişmedi: 30 sn, kelime tükenmez, süre becerileri çalışır', () => {

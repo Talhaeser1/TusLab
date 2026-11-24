@@ -13,10 +13,10 @@ import {pickWords as bankPickWords,pickSentence as bankSentence,createSeed} from
 import {planResolve,RESOLVE_SCENE} from './resolve-timing.js';
 export {planResolve,resolveDurationMs,RESOLVE_SCENE} from './resolve-timing.js';
 import {normalizeTyping,wordsMatch,charScore} from './typing-rules.js';
-import {normalizeContent,contentWords,DEFAULT_CONTENT} from './content-modes.js';
+import {normalizeContent,contentWords,DEFAULT_CONTENT,RANDOM_CONTENT,contentMixPlan} from './content-modes.js';
 import {ARENA_SKILLS,ARENA_MAX_USES} from './arena-skills.js';
 import {ASSIST_RULES,assistPartner,assistDamage,assistGainFromDamage} from './assist-rules.js';
-import {normalizeFighter} from './fighters.js';
+import {normalizeFighter,fighterDefense} from './fighters.js';
 import {normalizeStage,pickStage} from './stages.js';
 // Phase 22 — intentionally opt-in. Legacy / unselected matches remain unchanged.
 export const RUNES=Object.freeze({
@@ -62,6 +62,9 @@ export const DEFENSE_RULES=Object.freeze({
 });
 export const COOLDOWNS=Object.freeze({q:1300,e:2500,r:4500,s:2500});
 export const DAMAGE=Object.freeze({fire:Object.freeze({q:105,e:175,r:305}),rune:Object.freeze({q:95,e:185,r:305})});
+// Raund modu taban hasarı (iki arketip EŞİT). Tavan kalkınca (RAPOR-PVP-MEKANIK §2) Q zinciri baskın oldu ve klasik
+// tablodaki Q 105/95 farkı ateşe ~%60 kazanma veriyordu. Klasik (DAMAGE) değişmedi; R (305) ULTIMATE_PHASES ile aynı.
+export const ROUND_DAMAGE=Object.freeze({q:100,e:180,r:305});
 // Phase 14: ultimates have three actual server-side impact events, not just a GIF.
 // The combined R damage equals the original 305, preserving both fighters' 585/5-word cycle.
 export const ULTIMATE_PHASES=Object.freeze({
@@ -124,21 +127,44 @@ export function resolveStepMs(count,extraMs=0){
 }
 // Ultiden sonra kısa toparlanma: ulti sinematiği bitmeden rakibin vuruşu araya girmesin.
 export const ULTIMATE_RECOVERY_MS=800;
-export const ROUND_HP=4000;          // maç canı: 4000, raundlar arasında sıfırlanmaz
-export const ROUND_DAMAGE_CAP=1300;  // tek raundda verilebilecek en çok hasar: 3×1300 < 4000 → nakavt en erken 4. raundda
+export const ROUND_HP=6000;          // maç canı: 6000 (tavan kalktı, RAPOR-PVP-MEKANIK §2), raundlar arasında sıfırlanmaz
 export const SUDDEN_DEATH_MAX=3;
 // KESINYAP 21 — dört yetenek (rounds). MOTOR ANAHTARLARI: q = Q (menzilli), e = W (yakın dövüş; klasikteki eski E vuruşu,
-// görsel/ses hattı bu anahtarla çalışır), h = E (kendine can), r = R (ulti). Tuş ↔ motor eşlemesi: shared/fighters.js SKILL_KEY.
+// görsel/ses hattı bu anahtarla çalışır), h = E (savunma: kalkan YA can, karaktere göre), r = R (ulti). Tuş ↔ motor eşlemesi: shared/fighters.js SKILL_KEY.
 export const STREAK_SKILLS=Object.freeze({3:'q',5:'e',7:'h',10:'r'});
-/** Seri → beceri: 3 Q, 5 W, 7 E (can), 10 R; 11 ve sonrası her doğru kelime Q. */
-export const streakSkill=streak=>STREAK_SKILLS[streak]||(streak>10?'q':null);
+/** 10'dan sonraki zincir: ilk zincir Q CHAIN_EVERY kelime sonra (13). Önceden her kelime Q'ydu (×2,5) ve
+ * tavan kalkınca raund başına 2000+ hasar çıkıyordu (RAPOR-PVP-MEKANIK.md §2).
+ * Sonrası seyrek (RAPOR-PVP-KALANLAR §2): CHAIN_LONG_AFTER'dan (13) sonra her CHAIN_EVERY_LONG kelimede bir Q (19, 25 …).
+ * Seri her raund sıfırlandığından yalnız raundda 13'ü aşan çok hızlı + isabetli yazanı etkiler (zor–zor 3 → ~5 raund). */
+export const CHAIN_EVERY=3;
+export const CHAIN_LONG_AFTER=13;
+export const CHAIN_EVERY_LONG=8;
+/** Seri > 10 iken zincir ilerlemesi {pos, every}; pos 0 = bu kelimede zincir Q. Seri ≤ 10 → null. */
+export function chainProgress(streak){
+  const s=Math.floor(Number(streak)||0);
+  if(s<=10)return null;
+  return s<=CHAIN_LONG_AFTER?{pos:(s-10)%CHAIN_EVERY,every:CHAIN_EVERY}:{pos:(s-CHAIN_LONG_AFTER)%CHAIN_EVERY_LONG,every:CHAIN_EVERY_LONG};
+}
+/** Seri → beceri: 3 Q, 5 W, 7 E (kalkan ya da can), 10 R; sonra 13, 19, 25 … Q. */
+export const streakSkill=streak=>STREAK_SKILLS[streak]||(chainProgress(streak)?.pos===0?'q':null);
 export const MULTIPLIER_START=10;
 export const MULTIPLIER_STEP=1.2;
-export const MULTIPLIER_CAP=2.5;
-/** E (kendine can): eski E temel hasarının %80'i, çarpansız; can azami cana kadar, raund başına en çok ROUND_HEAL_CAP. */
-export const HEAL_RATIO=0.8;
-export const ROUND_HEAL_CAP=400;
-export const healAmount=character=>Math.round(DAMAGE[character==='rune'?'rune':'fire'].e*HEAL_RATIO);
+export const MULTIPLIER_CAP=2;
+/** Ulti (R) en çok ×2 kombo alır (kullanıcı isteği: "ultide de max 2 kombo"). */
+export const ULTIMATE_MULTIPLIER_CAP=2;
+/** E savunma becerisi (karakter başına YA kalkan YA can; fighters.js `skills.e.defense`): çarpansız sabit miktar.
+ * Can: azami cana kadar; can doluyken (ör. 1. raund, hasar raund sonunda iner) fazlası bekletilir ve o raundun ilk
+ * yenen darbesinden hemen sonra uygulanır. Kalkan: o raundun çözümünde gelen hasarı miktarı kadar emer, raund sonunda söner.
+ * İkisi birlikte raund başına en çok ROUND_HEAL_CAP. */
+export const DEFENSE_AMOUNT=300;
+export const ROUND_HEAL_CAP=500;
+/** Raund modunda partner desteği raund başına en çok bu kadar (hızlı yazanlarda destek raund başına 2–3 kez çıkıp
+ * zor–zor maçı 3 raunda indiriyordu; RAPOR-PVP-KALANLAR §2). Klasik mod etkilenmez. */
+export const ROUND_ASSIST_CAP=2;
+/** Kalkan (Sira, Doran) candan biraz fazla emer: kalkan yalnız o raundun çözümünde gelen hasara işler, can ise anında
+ * ve raund dışına taşar. 300'lük kalkan bot simülasyonunda canlı karakterlere %40–46 kaybediyordu (RAPOR-PVP-KALANLAR §2). */
+export const SHIELD_AMOUNT=330;
+export const healAmount=(kind='heal')=>kind==='shield'?SHIELD_AMOUNT:DEFENSE_AMOUNT;
 // Yetenek eşikleri tek kaynak: rounds eşikleri STREAK_SKILLS'ten türetilir; skillbar.js buradan okur (anahtarlar TUŞ harfidir).
 const firstStreakAt=k=>Number(Object.entries(STREAK_SKILLS).find(([,v])=>v===k)[0]);
 export const SKILL_THRESHOLDS=Object.freeze({
@@ -179,6 +205,9 @@ function wordRule(r,total){
   return r<=Math.ceil(total/2)?{minLen:3,maxLen:7,difficulty:'easy'}:{minLen:4,maxLen:9,difficulty:'normal'};
 }
 const isContentMatch=m=>Boolean(m?.content)&&m.content!==DEFAULT_CONTENT;
+/** Raundun gerçek içeriği: Rastgele maçta tohumlu plandan (contentMix), değilse maçın içeriği. */
+const roundContentOf=(m,index)=>m?.content===RANDOM_CONTENT?(m.contentMix?.[index-1]||DEFAULT_CONTENT):(m?.content||DEFAULT_CONTENT);
+const isContentRound=(m,r=m?.round)=>Boolean(r)&&(r.content||roundContentOf(m,r.index))!==DEFAULT_CONTENT;
 const cleanWords=list=>Array.from(list||[],w=>String(w).trim().normalize('NFC')).filter(w=>w&&!/\s/u.test(w));
 function dealWords(pick,seed,r,total,used,count=ROUND_WORDS){
   const rule=wordRule(r,total);
@@ -198,8 +227,8 @@ function ensureRoundWords(match,needed){
   if(match.roundStyle!=='timed')return;
   while(r.words.length<needed){
     const k=(r.extended||0)+1;r.extended=k;
-    if(isContentMatch(match)){ // atasözü/şiir: kaldığı yerden sıra; Osmanlıca: aynı dilimden yeni kelimeler
-      const more=contentWords(match.content,{start:(r.contentStart||0)+r.words.length,seed:match.seed,salt:`x${k}`,round:r.index,total:match.totalRounds,count:ROUND_EXTEND_CHUNK,exclude:[...(match.usedWords||[]),...r.words]});
+    if(isContentRound(match,r)){ // atasözü/şiir: kaldığı yerden sıra; Osmanlıca: aynı dilimden yeni kelimeler
+      const more=contentWords(r.content||match.content,{start:(r.contentStart||0)+r.words.length,seed:match.seed,salt:`x${k}`,round:r.index,total:match.totalRounds,count:ROUND_EXTEND_CHUNK,exclude:[...(match.usedWords||[]),...r.words]});
       r.words.push(...more.words);r.hints.push(...more.hints);match.usedWords.push(...more.words);continue;
     }
     const rule=wordRule(r.index,match.totalRounds);
@@ -212,25 +241,32 @@ function ensureRoundWords(match,needed){
   }
 }
 function resetForRound(p,words,first){
-  // Can yalnız 1. raundda 4000'e kurulur; sonraki raundlara TAŞINIR.
+  // Can yalnız 1. raundda ROUND_HP'ye kurulur; sonraki raundlara TAŞINIR.
   if(first)Object.assign(p,{hp:ROUND_HP,maxHp:ROUND_HP});
   Object.assign(p,{combo:0,runeEnergy:0,lastSkill:null,parryCharge:false,lastStandUsed:false,
     skillCharge:{q:0,e:0,h:0,s:0,r:0},cooldownUntil:{q:0,e:0,s:0,r:0},shieldUntil:null,staggerUntil:0,lastWordAt:null,
     lastCorrectAt:null,lastCorrectRoundIndex:null,roundWordIndex:0,roundCorrect:0,roundWrong:0,roundBestStreak:0,
-    roundDamage:0,roundHeal:0,roundDone:false,finishedAt:null,activeText:words.join(' '),currentWord:words[0]});
+    roundDamage:0,roundHeal:0,healBank:0,shieldHp:0,roundAssists:0,roundDone:false,finishedAt:null,activeText:words.join(' '),currentWord:words[0]});
 }
 /** Mutates `match`: opens the next round at `at`. */
 function startRound(match,at){
   const index=(match.round?.index||0)+1;
   let words,extra={};
-  if(isContentMatch(match)){
+  const content=roundContentOf(match,index),mixed=match.content===RANDOM_CONTENT;
+  if(content!==DEFAULT_CONTENT){
     // Sıralı içerik bir önceki raundun en çok yazılan kelimesinden devam eder (sunucu ve bot aynı sonucu görür).
+    // Rastgele maçta her içeriğin kaldığı yer ayrı tutulur (contentPos).
     const prev=match.round;
     const typed=prev?Math.min(prev.words.length,Math.max(0,...match.participants.map(p=>p.roundWordIndex||0))):0;
-    const contentStart=prev?(prev.contentStart||0)+typed:0;
-    const c=contentWords(match.content,{start:contentStart,seed:match.seed,round:index,total:match.totalRounds,count:roundWordsFor(index),exclude:match.usedWords});
-    words=[...c.words];extra={hints:[...c.hints],contentStart};
-  }else words=[...(match.roundPlan[index-1]||match.roundPlan.at(-1))];
+    if(mixed&&prev?.content&&prev.content!==DEFAULT_CONTENT)(match.contentPos??={})[prev.content]=(prev.contentStart||0)+typed;
+    const contentStart=mixed?(match.contentPos?.[content]||0):prev?(prev.contentStart||0)+typed:0;
+    const c=contentWords(content,{start:contentStart,seed:match.seed,round:index,total:match.totalRounds,count:roundWordsFor(index),exclude:match.usedWords});
+    words=[...c.words];extra={hints:[...c.hints],contentStart,...(mixed?{content}:{})};
+  }else{
+    if(mixed&&match.round?.content&&match.round.content!==DEFAULT_CONTENT){const prev=match.round;const typed=Math.min(prev.words.length,Math.max(0,...match.participants.map(p=>p.roundWordIndex||0)));(match.contentPos??={})[prev.content]=(prev.contentStart||0)+typed;}
+    words=[...(match.roundPlan[index-1]||match.roundPlan.at(-1))];
+    if(mixed)extra={content};
+  }
   const durationMs=roundDurationMs({roundStyle:match.roundStyle,roundWords:roundWordsFor(index)});
   match.round={index,total:match.totalRounds,suddenDeath:index>match.totalRounds,phase:'round',words,...extra,
     ...(match.roundStyle==='timed'?{}:{wordCount:words.length}),
@@ -254,9 +290,9 @@ function startRound(match,at){
 export function roundStartPayload(match){
   const r=match?.round;if(!r)return null;
   return {round:r.index,totalRounds:match.totalRounds,suddenDeath:r.suddenDeath,words:[...r.words],
-    ...(isContentMatch(match)?{content:match.content,...(match.content!=='atasozu'?{hints:[...r.hints]}:{})}:{}),
+    ...(isContentMatch(match)?{content:match.content,...(r.content?{roundContent:r.content}:{}),...(isContentRound(match,r)&&(r.content||match.content)!=='atasozu'?{hints:[...r.hints]}:{})}:{}),
     startedAt:r.startedAt,endsAt:r.endsAt,roundHp:ROUND_HP,style:normalizeRoundStyle(match.roundStyle),
-    ...(match.roundStyle==='timed'?{}:{wordCount:r.words.length}),damageCap:ROUND_DAMAGE_CAP,
+    ...(match.roundStyle==='timed'?{}:{wordCount:r.words.length}),
     hp:Object.fromEntries(match.participants.map(p=>[p.seat,p.hp])),
     skills:Object.fromEntries(match.participants.map(p=>[p.seat,p.roundSkill]))};
 }
@@ -268,8 +304,9 @@ function setupRounds(match,options,at){
   const roundStyle=normalizeRoundStyle(options.roundStyle);
   const content=normalizeContent(options.content);
   const plan=[],used=[];
-  if(content===DEFAULT_CONTENT)for(let r=1;r<=total+SUDDEN_DEATH_MAX;r++){const words=dealWords(pick,seed,r,total,used,roundWordsFor(r));plan.push(words);used.push(...words);}
+  if(content===DEFAULT_CONTENT||content===RANDOM_CONTENT)for(let r=1;r<=total+SUDDEN_DEATH_MAX;r++){const words=dealWords(pick,seed,r,total,used,roundWordsFor(r));plan.push(words);used.push(...words);}
   Object.assign(match,{mode:'rounds',totalRounds:total,roundStyle,seed,roundPlan:plan,...(content===DEFAULT_CONTENT?{}:{content}),usedWords:[],
+    ...(content===RANDOM_CONTENT?{contentMix:contentMixPlan(seed,total+SUDDEN_DEATH_MAX)}:{}),
     roundHistory:[],clashes:{},activeMs:0,round:null,roundSkillPicks:{1:null,2:null},roundSkillPickLocked:{1:false,2:false}});
   if(options.resolveAtEnd===true)match.resolveAtEnd=true;
   for(const p of match.participants)p.roundSkillUses={timethief:0,blindclock:0,freeze:0};
@@ -331,7 +368,7 @@ export function pickRoundSkill(match,{playerId,skill},at=Date.now()){
 /** counted: tüm kelimeler (en çok 20). timed: yalnız görünen pencere; pencere öncesi indeksler '' ile doldurulur,
  * böylece words[roundWordIndex] her istemci kodunda doğru kelimeyi verir ve anlık görüntü küçük kalır (geçmiş kelime metni gitmez). */
 function publicWords(match,viewer){
-  const r=match.round,hinted=isContentMatch(match)&&match.content!=='atasozu'; // atasözünde ipucu yok (bayt tasarrufu)
+  const r=match.round,hinted=isContentRound(match,r)&&(r.content||match.content)!=='atasozu'; // atasözünde ipucu yok (bayt tasarrufu)
   if(match.roundStyle!=='timed')return {words:[...r.words],...(hinted?{hints:[...r.hints]}:{})};
   const idx=Math.max(0,viewer?.roundWordIndex||0);
   const from=Math.max(0,idx-ROUND_VIEW_BEHIND);
@@ -355,7 +392,7 @@ export function publicMatch(match,viewerSeat){
   return {matchId:id,version,sequence,status,startedAt,endsAt,endedAt,winnerSeat,endReason,
     mode:rounds?'rounds':'classic',...(rounds&&isContentMatch(match)?{content:match.content}:{}),stage:normalizeStage(match.stage),typing:normalizeTyping(match.typing),assistEnabled:match.assistEnabled===true,
     ...(match.exchange?{exchange:{index:match.exchange.index,endsAt:match.exchange.endsAt,phase:match.exchange.phase}}:{}),
-    round:rounds&&r?{index:r.index,total:r.total,suddenDeath:r.suddenDeath,phase:r.phase,...publicWords(match,viewer),
+    round:rounds&&r?{index:r.index,total:r.total,suddenDeath:r.suddenDeath,phase:r.phase,...(r.content?{content:r.content}:{}),...publicWords(match,viewer),
       style:normalizeRoundStyle(match.roundStyle),...(Number.isInteger(r.wordCount)?{wordCount:r.wordCount}:{}),
       startedAt:victim?null:r.startedAt,endsAt:victim?null:r.endsAt,settleUntil:r.settleUntil,nextRoundAt:r.nextRoundAt,
       ...(r.phase==='resolve'||r.phase==='settling'?{resolveEndsAt:resolveEndsAt(match)}:{}),
@@ -366,7 +403,7 @@ export function publicMatch(match,viewerSeat){
         roundSkillPick:r.phase==='intermission'?match.roundSkillPicks?.[viewerSeat]??null:null,
         roundSkillPickLocked:r.phase==='intermission'?!!match.roundSkillPickLocked?.[viewerSeat]:false}:{}),
       ...(victim?{endsAt:null}:{})}:{}),
-    ...(rounds?{totalRounds:match.totalRounds,damageCap:ROUND_DAMAGE_CAP,roundHistory:structuredClone(match.roundHistory||[])}:{}),
+    ...(rounds?{totalRounds:match.totalRounds,roundHistory:structuredClone(match.roundHistory||[])}:{}),
     result: status==='ended'?matchResult(match):null,
     pausedAt:match.pausedAt??null,offlineSeats:match.offlineSeats||[],
     pendingAttackCount:match.pendingAttacks?.length||0,
@@ -379,7 +416,7 @@ export function publicMatch(match,viewerSeat){
       staggerUntil:p.staggerUntil||0,combatStats:{...(p.combatStats||{})},defenseStats:{...(p.defenseStats||{})},
       ...(match.assistEnabled===true?{assist:publicAssist(p)}:{}),
       ...(rounds?{streak:p.combo,multiplier:streakMultiplier(p.combo),nextSkill:nextSkillOf(p),roundWordIndex:p.roundWordIndex,
-        roundCorrect:p.roundCorrect,roundWrong:p.roundWrong,roundBestStreak:p.roundBestStreak,roundDamage:p.roundDamage,roundHeal:p.roundHeal||0,
+        roundCorrect:p.roundCorrect,roundWrong:p.roundWrong,roundBestStreak:p.roundBestStreak,roundDamage:p.roundDamage,roundHeal:p.roundHeal||0,healBank:p.healBank||0,shieldHp:p.shieldHp||0,
         roundDone:p.roundDone,finishedAt:p.finishedAt,...(viewer?{roundEndsAt:victim?null:p.roundEndsAt}:{})}:{})}))};
 }
 /** Tohumlu klasik maç: oyuncunun sıradaki cümlesi (iki oyuncu farklı, hiçbir cümle tekrarlanmaz). */
@@ -411,6 +448,9 @@ function assistStep(match,mine,target,correct,at,extra){
   if(!correct){a.meter=Math.max(0,a.meter-ASSIST_RULES.wrong);return null;}
   if(a.meter<ASSIST_RULES.max){a.meter=Math.min(ASSIST_RULES.max,a.meter+ASSIST_RULES.correct);return null;}
   if(at<a.cooldownUntil||at<(mine.staggerUntil||0))return null;
+  // Raund modu: raund başına en çok ROUND_ASSIST_CAP destek (bar dolu bekler, sonraki raundda çıkar).
+  if(extra?.round!==undefined&&(mine.roundAssists||0)>=ROUND_ASSIST_CAP)return null;
+  if(extra?.round!==undefined)mine.roundAssists=(mine.roundAssists||0)+1;
   a.meter=0;a.cooldownUntil=at+ASSIST_RULES.cooldownMs;
   const partner=assistPartner(mine.character);
   return {fromSeat:mine.seat,toSeat:target.seat,skill:'assist',assist:true,partner,character:partner,
@@ -500,8 +540,14 @@ function scheduleAlternating(match,at){
   const queues={1:[],2:[]};
   for(const attack of match.pendingAttacks)queues[attack.fromSeat].push(attack);
   for(const seat of [1,2])queues[seat].sort((a,b)=>a.issuedAt-b.issuedAt||a.roundWordIndex-b.roundWordIndex);
+  // Sıra koltuktan değil hızdan: ilk BECERİSİNİ (destek hariç) ÖNCE yazan ilk vurur (önceden hep 1. koltuk başlıyordu; iki taraf da
+  // düşük candayken "kim ilk vurursa o kazanır" 1. koltuğu kayırıyordu). Eşitlikte raund/pencere numarasına göre dönüşümlü.
+  const head=seat=>queues[seat].find(a=>!a.assist)?.issuedAt??Infinity;
+  const turnNo=match.round?.index??match.exchange?.index??1;
+  const first=head(1)<head(2)?1:head(2)<head(1)?2:(turnNo%2?1:2);
+  const order=first===1?[1,2]:[2,1];
   const ordered=[];
-  while(queues[1].length||queues[2].length)for(const seat of [1,2])if(queues[seat].length)ordered.push(queues[seat].shift());
+  while(queues[1].length||queues[2].length)for(const seat of order)if(queues[seat].length)ordered.push(queues[seat].shift());
   // KESINYAP iş 12: çözüm süresi bekleyen vuruşlardan SAF planla (pvp/shared/resolve-timing.js; görsel kuyrukla aynı sabitler).
   // Sahnedeki vuruşlar sahne başında (1 ms arayla, sıra korunur) çözülür; görsel katman temas karesinde gösterir.
   const plan=planResolve(ordered,{maxMs:match.exchange?RESOLVE_SCENE.exchangeMaxMs:RESOLVE_SCENE.maxMs});
@@ -543,17 +589,25 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
   let cast=null;
   const skill=correct?streakSkill(mine.combo):null;
   if(skill==='h'){
-    // E (kendine can): hemen uygulanır (sahne kuyruğuna girmez; vuruş sırası/çözüm planı değişmez). Çarpan yok;
-    // can azami canı ve raund iyileşme tavanını (ROUND_HEAL_CAP) aşamaz → hasar tavanı/4. raund nakavt sınırı korunur.
+    // E savunma: karakterine göre KALKAN ya da CAN (fighters.js skills.e.defense). Hemen kurulur (sahne kuyruğuna girmez).
+    // Olay adı geriye uyum için HEAL_APPLIED; kind:'shield'|'heal' ayırır (görsel katman motifini oynatır).
     mine.combatStats??={damageDealt:0,damageTaken:0,casts:{q:0,e:0,h:0,r:0},counterDamage:0};
     mine.combatStats.casts.h=(mine.combatStats.casts.h||0)+1;
-    const base=healAmount(mine.character);
-    const room=Math.max(0,Math.min((mine.maxHp||ROUND_HP)-mine.hp,ROUND_HEAL_CAP-(mine.roundHeal||0)));
-    const amount=mine.hp>0?Math.min(base,room):0;
-    mine.hp+=amount;mine.roundHeal=(mine.roundHeal||0)+amount;
-    mine.combatStats.healDone=(mine.combatStats.healDone||0)+amount;
-    cast=addEvent(next,'HEAL_APPLIED',{seat:mine.seat,fromSeat:mine.seat,toSeat:mine.seat,skill:'h',character:mine.character,
-      fighter:mine.fighter,amount,base,capped:amount<base,hpAfter:mine.hp,round:round.index,streak:mine.combo,at});
+    const kind=fighterDefense(mine.fighter);
+    const base=healAmount(kind);
+    const budget=Math.max(0,ROUND_HEAL_CAP-(mine.roundHeal||0)-(mine.healBank||0));
+    let amount=0,banked=0,shield=0;
+    if(mine.hp>0&&kind==='shield'){
+      shield=Math.min(base,budget);mine.shieldHp=(mine.shieldHp||0)+shield;mine.roundHeal=(mine.roundHeal||0)+shield;
+    }else if(mine.hp>0){
+      const room=Math.max(0,(mine.maxHp||ROUND_HP)-mine.hp);
+      amount=Math.min(base,budget,room);banked=Math.min(base,budget)-amount;
+      mine.hp+=amount;mine.roundHeal=(mine.roundHeal||0)+amount;mine.healBank=(mine.healBank||0)+banked;
+      mine.combatStats.healDone=(mine.combatStats.healDone||0)+amount;
+    }
+    cast=addEvent(next,'HEAL_APPLIED',{seat:mine.seat,fromSeat:mine.seat,toSeat:mine.seat,skill:'h',kind,character:mine.character,
+      fighter:mine.fighter,amount,base,capped:amount+banked+shield<base,...(banked?{banked}:{}),...(kind==='shield'?{shield:mine.shieldHp,shieldAdded:shield}:{}),
+      hpAfter:mine.hp,round:round.index,streak:mine.combo,at});
   }else if(skill&&at>=(mine.staggerUntil||0)){
     mine.combatStats??={damageDealt:0,damageTaken:0,casts:{q:0,e:0,h:0,r:0},counterDamage:0};
     mine.combatStats.casts[skill]=(mine.combatStats.casts[skill]||0)+1;
@@ -561,9 +615,9 @@ function submitRoundWord(match,playerId,wordIndex,attempt,at){
     if(skill==='q'&&mine.parryCharge)mine.parryCharge=false;
     if(skill==='e'&&mine.character==='rune'&&mine.rune!=='none'&&mine.runeEnergy>=4)mine.runeEnergy=0;
     mine.lastSkill={skill,at};
-    const multiplier=streakMultiplier(mine.combo);
+    const multiplier=skill==='r'?Math.min(ULTIMATE_MULTIPLIER_CAP,streakMultiplier(mine.combo)):streakMultiplier(mine.combo);
     const amount=skill==='r'?ultimateTotal(mine.character,empowered.bonus,multiplier)
-      :Math.round((DAMAGE[mine.character][skill]+empowered.bonus)*multiplier);
+      :Math.round((ROUND_DAMAGE[skill]+empowered.bonus)*multiplier);
     const attack={fromSeat:mine.seat,toSeat:target.seat,skill,character:mine.character,amount,
       bonus:empowered.bonus,bonusTags:empowered.tags,issuedAt:at,resolveAt:at+SHIELD_WINDOW_MS,
       multiplier,streak:mine.combo,round:round.index,roundWordIndex:index,chain:mine.combo>10,
@@ -669,7 +723,7 @@ export function resolveDueAttacks(match,at=Date.now(),rng=Math.random){
     let amount=ultimate?phases[attack.phaseIndex].damage+(attack.phaseIndex===phases.length-1?(attack.bonus||0):0):attack.amount;
     // Round-mode streak multiplier: each ultimate phase is rounded separately (spec 4).
     if(ultimate&&Number.isFinite(attack.multiplier))amount=Math.round(amount*attack.multiplier);
-    let blocked=false,blockKind=null,capped=false;
+    let blocked=false,blockKind=null,absorbed=0;
     // Subsequent hits of one ultimate reuse the FIRST hit's defense verdict.
     // Otherwise one five-word R could roll three unrelated 30% parries.
     if(remembered){
@@ -723,8 +777,11 @@ export function resolveDueAttacks(match,at=Date.now(),rng=Math.random){
         amount=Math.round(amount*.8);defender.lastStandUsed=true;
         events.push(addEvent(next,'RUNE_TRIGGERED',{seat:defender.seat,rune:'laststand',at:attack.resolveAt}));
       }
-      // Raund hasar tavanı: bir oyuncu tek raundda en çok ROUND_DAMAGE_CAP verir; fazlası verilmez.
-      if(rounds){const room=Math.max(0,ROUND_DAMAGE_CAP-(attacker.roundDamage||0));if(amount>room){amount=room;capped=true;}}
+      // E kalkanı (rounds): gelen hasarı kalkan puanı kadar emer; biterse SHIELD_BROKEN.
+      if(rounds&&defender.shieldHp>0&&amount>0){
+        absorbed=Math.min(defender.shieldHp,amount);amount-=absorbed;defender.shieldHp-=absorbed;
+        if(!defender.shieldHp)events.push(addEvent(next,'SHIELD_BROKEN',{seat:defender.seat,bySeat:attacker.seat,skill:attack.skill,kind:'e-shield',at:attack.issuedAt}));
+      }
       const before=defender.hp;
       defender.hp=Math.max(0,before-amount);
       const dealt=before-defender.hp;
@@ -748,8 +805,19 @@ export function resolveDueAttacks(match,at=Date.now(),rng=Math.random){
     }
     events.push(addEvent(next,'DAMAGE_APPLIED',{fromSeat:attack.fromSeat,toSeat:defender.seat,
       skill:attack.skill,amount,blocked,blockKind,shieldBreak,counter:Boolean(attack.counter),bonusTags:attack.bonusTags||[],
-      at:attack.issuedAt,hpAfter:defender.hp,...(capped?{capped:true}:{}),...(attack.assist?{assist:true,partner:attack.partner}:{}),
+      at:attack.issuedAt,hpAfter:defender.hp,...(absorbed?{absorbed}:{}),...(attack.assist?{assist:true,partner:attack.partner}:{}),
       ...(ultimate?{ultimateId:attack.ultimateId,phase:attack.phaseIndex+1,totalPhases:phases.length}: {})}));
+    // Bekletilen can (E, can doluyken atıldı): ilk yenen darbeden hemen sonra uygulanır.
+    let bankHeal=null;
+    if(rounds&&defender.hp>0&&defender.healBank>0&&defender.hp<defender.maxHp){
+      const heal=Math.min(defender.healBank,defender.maxHp-defender.hp);
+      defender.hp+=heal;defender.healBank-=heal;defender.roundHeal=(defender.roundHeal||0)+heal;
+      defender.combatStats??={damageDealt:0,damageTaken:0,casts:{q:0,e:0,h:0,r:0},counterDamage:0};
+      defender.combatStats.healDone=(defender.combatStats.healDone||0)+heal;
+      bankHeal=addEvent(next,'HEAL_APPLIED',{seat:defender.seat,fromSeat:defender.seat,toSeat:defender.seat,skill:'h',kind:'heal',
+        character:defender.character,fighter:defender.fighter,amount:heal,base:heal,banked:true,hpAfter:defender.hp,round:next.round.index,at:attack.resolveAt});
+    }
+    if(bankHeal)events.push(bankHeal);
     if(defender.hp===0&&rounds){
       // KO: advanceMatch closes the round and, since HP carries over, the match (NAKAVT).
       next.round.koSeat=attack.fromSeat;next.round.koAt=attack.resolveAt;next.pendingAttacks=[];

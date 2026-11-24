@@ -4,7 +4,7 @@ import {createMatch,publicMatch,submitWord,advanceMatch,nextDeadline,roundScore,
   pauseMatch,resumeMatch,surrenderMatch,matchResult,finishMatch,
   ROUND_OPTIONS,ROUND_WORDS,roundDurationMs,ROUND_LAST_CALL_MS,ROUND_SETTLE_MS,ROUND_SUMMARY_MS,ROUND_INTRO_MS,
   ROUND_HP,SUDDEN_DEATH_MAX,STREAK_SKILLS,MULTIPLIER_START,MULTIPLIER_STEP,MULTIPLIER_CAP,ROUND_SCORE,
-  RUNE_IDS,MATCH_DURATION_MS,MATCH_HP,SERVER_ONLY_EVENTS,ROUND_WORD_PLAN,ROUND_DAMAGE_CAP,streakSkill} from '../pvp/shared/match.js';
+  RUNE_IDS,MATCH_DURATION_MS,MATCH_HP,SERVER_ONLY_EVENTS,ROUND_WORD_PLAN,ULTIMATE_MULTIPLIER_CAP,CHAIN_EVERY,streakSkill} from '../pvp/shared/match.js';
 // KESINYAP 11: kelime raundu planı [5,7,9,10,10,10,15]; 1. raund 5 kelime × 6 sn = 30 sn (zamana karşı da 30 sn).
 const ROUND_DURATION_MS=roundDurationMs({roundStyle:'counted',roundWords:ROUND_WORD_PLAN[0]}); // 30 sn
 const W1=ROUND_WORD_PLAN[0]; // 1. raund kelime sayısı (5)
@@ -48,14 +48,14 @@ function perfectRound(character,rune,qOffset=0){
 }
 
 test('rounds: constants match the specification',()=>{
-  // KESINYAP 11: tek seçenek 7 raund; timed 30 sn; counted kelime × 6 sn (5→30); can 4000 taşınır; raund tavanı 1300.
+  // KESINYAP 11: tek seçenek 7 raund; timed 30 sn; counted gizli 120 sn; RAPOR-PVP-MEKANIK: can 6000 taşınır, raund hasar tavanı YOK.
   assert.deepEqual([...ROUND_OPTIONS],[7]);assert.deepEqual([...ROUND_WORD_PLAN],[5,7,9,10,10,10,15]);
   assert.equal(ROUND_WORDS,10);assert.equal(roundDurationMs({roundStyle:'timed'}),30_000);for(const n of [5,10,15])assert.equal(roundDurationMs({roundStyle:'counted',roundWords:n}),120_000,'kelime raundu: kelime başına süre yok, yalnız gizli 120 sn sınır');assert.equal(ROUND_LAST_CALL_MS,5_000);
   assert.equal(ROUND_SETTLE_MS,1_000);assert.equal(ROUND_SUMMARY_MS,6_000);assert.equal(ROUND_INTRO_MS,3_000);
-  assert.equal(ROUND_HP,4000);assert.equal(ROUND_DAMAGE_CAP,1300);assert.equal(SUDDEN_DEATH_MAX,3);
+  assert.equal(ROUND_HP,6000);assert.equal(SUDDEN_DEATH_MAX,3);
   // KESINYAP 21: 3 Q · 5 W (motor 'e') · 7 E can (motor 'h') · 10 R; çarpan 10. seriden.
   assert.deepEqual({...STREAK_SKILLS},{3:'q',5:'e',7:'h',10:'r'});
-  assert.equal(MULTIPLIER_START,10);assert.equal(MULTIPLIER_STEP,1.2);assert.equal(MULTIPLIER_CAP,2.5);
+  assert.equal(MULTIPLIER_START,10);assert.equal(MULTIPLIER_STEP,1.2);assert.equal(MULTIPLIER_CAP,2);assert.equal(ULTIMATE_MULTIPLIER_CAP,2);assert.equal(CHAIN_EVERY,3);
   assert.deepEqual({...ROUND_SCORE},{correct:100,bestStreak:50,damageDiv:10});
   for(const t of ['ROUND_START','ROUND_LAST_CALL','ROUND_END','WORD_CLASH'])assert.ok(SERVER_ONLY_EVENTS.has(t),t);
 });
@@ -124,9 +124,9 @@ test('rounds: publicMatch never leaks the seed or future words',()=>{
   const json=JSON.stringify(view);
   assert.ok(!json.includes('4242424'));
   assert.ok(!m.roundPlan[1].some(w=>view.round.words.includes(w)));
-  // KESINYAP 11: counted raund wordCount yayınlar; raund galibiyeti (roundsWon) yok, raund hasar tavanı yayınlanır.
+  // KESINYAP 11: counted raund wordCount yayınlar; raund galibiyeti (roundsWon) yok; raund hasar tavanı kaldırıldı (damageCap yok).
   assert.deepEqual(Object.keys(view.round).sort(),['endsAt','index','nextRoundAt','phase','settleUntil','startedAt','style','suddenDeath','total','wordCount','words']);
-  assert.equal(view.mode,'rounds');assert.equal(view.totalRounds,7);assert.equal('roundsWon' in view,false);assert.equal(view.damageCap,ROUND_DAMAGE_CAP);
+  assert.equal(view.mode,'rounds');assert.equal(view.totalRounds,7);assert.equal('roundsWon' in view,false);assert.equal('damageCap' in view,false);
   assert.deepEqual(view.roundHistory,[]);
   for(const k of ['streak','multiplier','nextSkill','roundWordIndex','roundCorrect','roundWrong','roundBestStreak','roundDamage','roundDone','finishedAt'])
     assert.ok(k in view.players[0],k);
@@ -147,35 +147,35 @@ test('rounds: a wrong word consumes the attempt and halves the streak (KESINYAP 
 
 test('rounds: streak → skill mapping, chain flags and the §4 damage table (fire and rune)',()=>{
   const fire=perfectRound('fire','none'),rune=perfectRound('rune','none');
-  // KESINYAP 21: 3 Q, 5 W, 7 E (can; hasar yok), 10 R ×1,5; 11+ Q ×1,8/×2,16/×2,5 → 13. kelimede raund tavanı (1300), nakavt yok.
-  assert.deepEqual(fire.dealt,[0,0,105,105,280,280,280,280,280,738,927,1154,1300]);assert.equal(fire.koAt,null);
-  assert.deepEqual(rune.dealt,[0,0,95,95,280,280,280,280,280,738,909,1114,1300]);assert.equal(rune.koAt,null);
+  // RAPOR-PVP-MEKANIK: raund tabanı iki arketipte eşit (Q 100 · W 180 · R 305); 3 Q, 5 W, 7 E (savunma; hasar yok), 10 R ×1,5;
+  // sonra her 3. kelime Q (13. kelimede ×2 = 200; çarpan tavanı ×2). Tavan yok, nakavt yok.
+  assert.deepEqual(fire.dealt,[0,0,100,100,280,280,280,280,280,738,738,738,938]);assert.equal(fire.koAt,null);
+  assert.deepEqual(rune.dealt,[0,0,100,100,280,280,280,280,280,738,738,738,938]);assert.equal(rune.koAt,null);
   let m=make({roundStyle:'timed'});const casts=[]; // 10 kelime için zamana karşı (kelime raundu 1. raund 5 kelime)
   for(let i=1;i<=13;i++){
     const out=type(m,1,T0+i*1000);m=advanceMatch(out.match,T0+i*1000+900,NO_BLOCK).match;
     if(out.result.cast)casts.push(out.result.cast);
     assert.equal(out.result.streak,i);
-    assert.equal(out.result.nextSkill,streakSkill(i+1)); // 11+ her doğru kelime Q
+    assert.equal(out.result.nextSkill,streakSkill(i+1)); // 10'dan sonra her 3. kelime Q
     if(m.status!=='running'||m.round.index!==1)break;
   }
   assert.deepEqual(casts.map(c=>c.skill==='h'?[c.streak,c.type]:[c.streak,c.skill,c.chain,c.multiplier,c.roundWordIndex]),
-    [[3,'q',false,1,2],[5,'e',false,1,4],[7,'HEAL_APPLIED'],[10,'r',false,1.5,9],[11,'q',true,1.8,10],[12,'q',true,2.16,11],[13,'q',true,2.5,12]]);
+    [[3,'q',false,1,2],[5,'e',false,1,4],[7,'HEAL_APPLIED'],[10,'r',false,1.5,9],[13,'q',true,2,12]]);
 });
 
-test('rounds: multiplier curve caps at 2.5',()=>{
+test('rounds: multiplier curve caps at 2 (RAPOR-PVP-MEKANIK: önceden 2,5)',()=>{
   // KESINYAP 21: eşik 7 → 10 (ulti serisi).
-  assert.deepEqual([0,1,3,6,7,9,10,11,12,13,25].map(streakMultiplier),[1,1,1,1,1,1,1.5,1.8,2.16,2.5,2.5]);
+  assert.deepEqual([0,1,3,6,7,9,10,11,12,13,25].map(streakMultiplier),[1,1,1,1,1,1,1.5,1.8,2,2,2]);
 });
 
-test('rounds: balance — no character × rune combination can deal more than 1300 or KO in one round',()=>{
-  // KESINYAP 11: raund tavanı 1300 < 4000 → tek raundda nakavt imkânsız; rünlü en hızlı kombinasyon tavana 9. kelimede ulaşır.
+test('rounds: balance — no character × rune combination comes near a KO in 13 perfect words (tavan olmadan)',()=>{
+  // RAPOR-PVP-MEKANIK: raund tavanı kalktı; 13 kusursuz kelime rünlü en güçlü kombinasyonda bile canın %20'sini geçmez.
   for(const character of ['fire','rune'])for(const rune of RUNE_IDS)for(const qOffset of [0,1,2]){
     const {koAt,dealt}=perfectRound(character,rune,qOffset);
     assert.equal(koAt,null,`${character}+${rune}+${qOffset}: KO at ${koAt} ${dealt}`);
-    assert.ok(Math.max(...dealt)<=ROUND_DAMAGE_CAP,`${character}+${rune}+${qOffset}: ${dealt}`);
-    if(rune==='none')assert.equal(dealt.at(-1),ROUND_DAMAGE_CAP,`${character} without rune hits the cap on word 13`);
+    assert.ok(dealt.at(-1)<=ROUND_HP*0.2,`${character}+${rune}+${qOffset}: ${dealt}`);
+    if(rune==='none')assert.equal(dealt.at(-1),938,`${character} without rune: 938 after word 13`);
   }
-  assert.equal(perfectRound('fire','rhythm').dealt.indexOf(ROUND_DAMAGE_CAP)+1,12); // KESINYAP 21: ulti 10'a taşındı → rünlü en hızlı tavan 12. kelimede (eski 9)
 });
 
 test('rounds: ULTIMATE_PHASE carries motion, multiplier and returnAt',()=>{
@@ -323,13 +323,13 @@ test('rounds: no random one-sided shield in rounds mode, even with rng 0 on the 
   let m=build();m=type(m,1,T0+3000).match;m=type(m,2,T0+3100,{}).match;
   let adv=advanceMatch(m,T0+3300,()=>0);
   assert.ok(!adv.events.some(e=>e.type==='SHIELD_TRIGGERED'));
-  assert.equal(seatOf(adv.match,2).hp,ROUND_HP-105);
+  assert.equal(seatOf(adv.match,2).hp,ROUND_HP-100);
   // Different index: B is one word ahead, still inside 250 ms → no block even with rng 0.
   m=build();m=type(m,2,T0+2950,{wrong:true}).match;m=type(m,1,T0+3000).match;m=type(m,2,T0+3100,{wrong:false}).match;
   assert.equal(seatOf(m,2).lastCorrectRoundIndex,3);
   adv=advanceMatch(m,T0+3300,()=>0);
   assert.ok(!adv.events.some(e=>e.type==='SHIELD_TRIGGERED'));
-  assert.equal(seatOf(adv.match,2).hp,ROUND_HP-105);
+  assert.equal(seatOf(adv.match,2).hp,ROUND_HP-100);
 });
 
 function clashSetup(){
@@ -349,7 +349,7 @@ test('rounds: clash — no die roll in rounds mode, shown as a clash, both attac
   assert.equal(clash.length,1);
   assert.deepEqual({...clash[0],id:0},{id:0,type:'WORD_CLASH',clashId:x.clashId,seats:[1,2],roundWordIndex:2,word:m.round.words[2],
     blockerSeat:null,blockKind:null,at:T0+3250});
-  assert.equal(seatOf(adv.match,1).hp,ROUND_HP-95);assert.equal(seatOf(adv.match,2).hp,ROUND_HP-105);
+  assert.equal(seatOf(adv.match,1).hp,ROUND_HP-100);assert.equal(seatOf(adv.match,2).hp,ROUND_HP-100);
   assert.deepEqual(adv.match.clashes[x.clashId],{blockerSeat:null,blockKind:null});
   assert.ok(adv.match.combatEvents.some(e=>e.type==='WORD_CLASH'));
 });
@@ -359,7 +359,7 @@ test('rounds: clash with any rng value — both attacks land, no rolls',()=>{
   assert.equal(calls,0); // KESINYAP 11
   const clash=adv.events.find(e=>e.type==='WORD_CLASH');
   assert.equal(clash.blockerSeat,null);assert.equal(clash.blockKind,null);
-  assert.equal(seatOf(adv.match,1).hp,ROUND_HP-95);assert.equal(seatOf(adv.match,2).hp,ROUND_HP-105);
+  assert.equal(seatOf(adv.match,1).hp,ROUND_HP-100);assert.equal(seatOf(adv.match,2).hp,ROUND_HP-100);
 });
 
 test('rounds: pause/resume shifts every round clock',()=>{
@@ -397,13 +397,13 @@ test('rounds: a new round CARRIES HP, resets streak, shield and runes and keeps 
   assert.equal(a.combo,0);assert.equal(a.runeEnergy,0);assert.equal(a.shieldUntil,null);assert.equal(a.staggerUntil,0);
   assert.equal(a.parryCharge,false);assert.equal(b.lastStandUsed,false);assert.deepEqual(a.cooldownUntil,{q:0,e:0,s:0,r:0});
   assert.equal(a.roundWordIndex,0);assert.equal(a.roundCorrect,0);assert.equal(a.roundDamage,0);assert.equal(a.roundDone,false);
-  assert.equal(a.correctWords,4);assert.equal(a.maxCombo,4);assert.equal(a.combatStats.damageDealt,105+7+8);
+  assert.equal(a.correctWords,4);assert.equal(a.maxCombo,4);assert.equal(a.combatStats.damageDealt,100+7+8) // raund tabanı Q 100 + rünler;
   assert.equal(a.wordIndex,4);
   assert.equal(a.currentWord,m.round.words[0]);
   const rs=start.roundEvents.find(e=>e.type==='ROUND_START').payload;
   assert.deepEqual(rs,roundStartPayload(m));
   assert.deepEqual(rs,{round:2,totalRounds:7,suddenDeath:false,words:m.round.words,startedAt:T0+RT+INTER,endsAt:T0+2*RT+INTER,roundHp:ROUND_HP,
-    style:'timed',damageCap:ROUND_DAMAGE_CAP,hp:{1:a.hp,2:b.hp},skills:{1:null,2:null}}); // KESINYAP 11: biçim, tavan ve taşınan can
+    style:'timed',hp:{1:a.hp,2:b.hp},skills:{1:null,2:null}}); // KESINYAP 11: biçim ve taşınan can (raund tavanı kaldırıldı)
 });
 
 test('rounds: a late alarm replays every overdue transition in order',()=>{

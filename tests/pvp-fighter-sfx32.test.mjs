@@ -79,7 +79,7 @@ function harness({failNames=[]}={}){
   }
   const requested=[];
   const fetcher=async url=>{
-    const name=url.split('/').pop().replace('.wav','');requested.push(name);
+    const name=url.split('/').pop().replace(/\.(wav|mp3)$/,'');requested.push(name);
     if(failNames.includes(name))return {ok:false,status:404};
     return {ok:true,arrayBuffer:async()=>new TextEncoder().encode(name).buffer};
   };

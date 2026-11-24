@@ -4,9 +4,25 @@
  * Bu modül yalnız görünümü üretir/günceller; hiçbir maç verisini değiştirmez.
  * Hareket: yalnız transform/opacity, tek seferlik (WAAPI); sonsuz animasyon yok.
  */
-import {FIGHTERS,isFighterId,SKILL_FIELD} from './shared/fighters.js';
-import {SKILL_THRESHOLDS as ENGINE_THRESHOLDS} from './shared/match.js';
+import {FIGHTERS,isFighterId,SKILL_FIELD,fighterDefense} from './shared/fighters.js';
+import {SKILL_THRESHOLDS as ENGINE_THRESHOLDS,chainProgress,ULTIMATE_MULTIPLIER_CAP} from './shared/match.js';
 export const SKILL_ORDER=Object.freeze(['Q','E','S','R']); // eski (klasik) kart satırı: E kartı = motor 'e' (yakın vuruş)
+/** Kart satırı modlara göre: klasik Q/E(=W rozetli yakın vuruş)/S/R · rounds Q/W/E/R (E = savunma). Satırda beş kart vardır; görünmeyen gizlenir. */
+export const ROW_KEYS=Object.freeze({classic:Object.freeze(['Q','E','S','R']),rounds:Object.freeze(['Q','W','E','R'])});
+const ALL_KEYS=Object.freeze(['Q','W','E','S','R']);
+export const rowKeysFor=rounds=>rounds?ROW_KEYS.rounds:ROW_KEYS.classic;
+/** Satırdaki kartları moda göre göster/gizle (W yalnız rounds, S yalnız klasik). */
+export function syncRowLayout(section,{rounds=false}={}){
+  if(!section)return;
+  const keys=rowKeysFor(rounds);
+  for(const key of ALL_KEYS){
+    const card=section.querySelector(`[data-skill="${key}"]`);if(!card)continue;
+    const hide=!keys.includes(key);
+    if(card.hidden!==hide)card.hidden=hide;
+  }
+  const tag=rounds?'rounds':'classic';
+  if(section.dataset&&section.dataset.skRow!==tag)section.dataset.skRow=tag;
+}
 /** KESINYAP 21 — tuş → motor anahtarı. W = motor 'e' (yakın vuruş); E rounds'ta motor 'h' (kendine can), klasikte eski 'e'. */
 export const engineKeyOf=(key,rounds=false)=>key==='W'?'e':key==='E'?(rounds?'h':'e'):String(key).toLowerCase();
 // Eşikler tek kaynaktan (pvp/shared/match.js) gelir; burada kopya sabit tutulmaz.
@@ -37,56 +53,103 @@ const escapeHTML=value=>String(value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'
 
 function ariaFor(key,name,threshold){
   const how=threshold?`${threshold} doğru kelimede kendiliğinden çıkar`:'rakiple aynı anda doğru kelimede kendiliğinden devreye girer';
-  return `${key} ${name}: ${how}`;
+  // Kullanıcı kuralı "ultide max 2 kombo": R kartının açıklamasında görünür.
+  return `${key} ${name}: ${how}${key==='R'?`. Ulti çarpanı en çok ×${String(ULTIMATE_MULTIPLIER_CAP).replace('.',',')}`:''}`;
 }
 
-/** Kart işaretlemesi. İlk <small> durum satırıdır (network.js eski metni buraya yazar; gizli tutulur). */
+/** Kart işaretlemesi. İlk <small> durum satırıdır (network.js eski metni buraya yazar; gizli tutulur).
+ * Maç dışında (ilk çizim) hiçbir kart "Hazır" görünmez: eşikli kartlar 0/N doluyor, S kartı 'idle' (maçta açılır). */
 export function skillCardHTML(kind,key,label,threshold){
   const info=SKILL_INFO[kind]?.[key]||{name:label,effect:'',icon:''};
   const name=label||info.name;
-  const state=threshold?'charging':'ready';
-  const fill=threshold?0:1;
+  const state=threshold?'charging':'idle';
+  const fill=0;
   return `<button type="button" class="pvp2-skill pvp2-skill-${key.toLowerCase()} sk-card" data-skill="${key}" data-demo-action="${key.toLowerCase()}" data-target="${kind}" data-sk-kind="${kind}" data-sk-state="${state}" style="--sk-fill:${fill};--sk-seg:${threshold||1}" aria-pressed="false" aria-label="${escapeHTML(ariaFor(key,name,threshold))}">`
     +`<span class="pvp2-skill-key sk-key" aria-hidden="true">${key}</span>`
     +`<span class="sk-icon" aria-hidden="true">${info.icon}</span>`
     +`<span class="pvp2-skill-copy sk-copy"><strong>${escapeHTML(name)}</strong><small class="sk-legacy" aria-hidden="true"></small><span class="sk-fx">${escapeHTML(info.effect)}</span></span>`
     +`<span class="sk-foot" aria-hidden="true"><span class="sk-meter"><span class="sk-fill"></span><span class="sk-cd"></span></span>`
-    +`<span class="sk-status">${escapeHTML(skillStatusText({key,energy:0,threshold,cooldownMs:0,shieldActive:false}))}</span></span>`
+    +`<span class="sk-status">${escapeHTML(skillStatusText({key,energy:0,threshold,cooldownMs:0,shieldActive:false,idle:!threshold}))}</span></span>`
     +`<span class="sk-glow" aria-hidden="true"></span><span class="sk-burst" aria-hidden="true"></span>`
     +`</button>`;
+}
+
+/** Saf: seri (streak/combo) → tek kartın dolumu. Beceriler eşikte KENDİLİĞİNDEN atılır (oyuncunun basacağı tuş yok), bu yüzden kart:
+ *  - eşiğin altında 'doluyor' (n/N kelime),
+ *  - eşiğe ulaşılan kelimede ve sonrasında 'atıldı' (energy N/N ya da used:true; aynı seride yeniden atılmaz;
+ *    seri düşüp eşik yeniden geçilince ya da yeni çevrimde yeniden dolar). Görünüm: skillMeter → state 'cast'.
+ * classic: 5'li çevrim (2 Q · 4 W/E · 5 R; combo 6 → yeni çevrimin 1. kelimesi). rounds: mutlak seri (3 Q · 5 W · 7 E · 10 R);
+ * 10'dan sonra Q zinciri chainProgress ile yeniden dolar (13, sonra 21, 29 …). Bilinmeyen/eşiksiz anahtar → {threshold:0}. */
+export function skillCharge(key,streak,{rounds=false}={}){
+  const threshold=(rounds?SKILL_THRESHOLDS.rounds:SKILL_THRESHOLDS.classic)[key]??0;
+  if(!threshold)return {energy:0,threshold:0,used:false};
+  const s=Math.max(0,Math.floor(Number(streak)||0));
+  if(rounds&&key==='Q'&&s>SKILL_THRESHOLDS.rounds.R){
+    // Zincir (motorla aynı kaynak): 13'e kadar her 3, sonra her 8 kelime (13 → 21 → 29 …).
+    const {pos,every}=chainProgress(s);
+    return pos===0?{energy:every,threshold:every,used:false,chain:true}:{energy:pos,threshold:every,used:false,chain:true};
+  }
+  const c=rounds?s:(s===0?0:((s-1)%5)+1);
+  if(c<=threshold)return {energy:c,threshold,used:false};
+  return {energy:0,threshold,used:true};
 }
 
 /** Sunucu oyuncu görüntüsünden tek yeteneğin ham durumu. */
 export function readSkillState(player,key,{rounds=false,now=Date.now()}={}){
   const k=engineKeyOf(key,rounds);
-  const threshold=(rounds?SKILL_THRESHOLDS.rounds:SKILL_THRESHOLDS.classic)[key]??0;
-  const energy=key==='S'?0:rounds
-    ?Math.min(threshold,Math.max(0,Number(player?.streak??player?.combo)||0))
-    :Math.min(threshold,Math.max(0,Number(player?.skillCharge?.[k])||0));
+  const streak=rounds?(player?.streak??player?.combo):player?.combo;
+  const c=key==='S'?null:skillCharge(key,streak,{rounds});
+  const {energy,threshold,used}=c||{energy:0,threshold:0,used:false};
   const cooldownMs=Math.max(0,(Number(player?.cooldownUntil?.[k])||0)-now);
   const shieldActive=key==='S'&&Boolean(player?.shieldUntil&&player.shieldUntil>now);
   const shieldMs=shieldActive?player.shieldUntil-now:0;
   const casts=key==='S'?(Number(player?.shieldUntil)||0):(Number(player?.combatStats?.casts?.[k])||0);
-  return {key,energy,threshold,cooldownMs,shieldActive,shieldMs,casts};
+  // Rounds'ta S (klasik rastgele blok) yoktur: kart 'off'. Savunma rounds'ta E kartıdır (kalkan ya da can).
+  // Rounds E (savunma): can doluyken atılan can bekletilir (healBank) → 'BEKLİYOR'; uygulanan can (roundHeal) / kalkan (shieldHp) yazılır.
+  const defense=rounds&&key==='E'?{
+    defense:fighterDefense(player?.fighter),pending:Math.max(0,Math.round(Number(player?.healBank)||0)),
+    healed:Math.max(0,Math.round(Number(player?.roundHeal)||0)),shieldHp:Math.max(0,Math.round(Number(player?.shieldHp)||0))}:{};
+  return {key,energy,threshold,cooldownMs,shieldActive,shieldMs,casts,used,...(c?.chain?{chain:true}:{}),...defense,...(key==='S'&&rounds?{off:true}:{})};
 }
 
-/** Görsel durum: charging | ready | cooldown | active. fill 0..1. */
-export function skillMeter({key,energy,threshold,cooldownMs,shieldActive}){
+/** Görsel durum: charging | cast (bu seride atıldı) | pending (E atıldı, can ilk darbeyi bekliyor) | cooldown | active | ready (yalnız klasik S)
+ * | idle (maç yok) | off (bu modda yok). fill 0..1. Eşikli kartta "HAZIR" yoktur: beceri eşikte kendiliğinden atılır. */
+export function skillMeter({key,energy,threshold,cooldownMs,shieldActive,used=false,idle=false,off=false,pending=0}){
+  if(idle)return {state:'idle',fill:0};
   if(key==='S'){
+    if(off)return {state:'off',fill:0};
     if(shieldActive)return {state:'active',fill:1};
     if(cooldownMs>0)return {state:'cooldown',fill:0};
     return {state:'ready',fill:1};
   }
+  if(pending>0&&(used||threshold&&energy>=threshold))return {state:'pending',fill:1};
+  if(used)return {state:'cast',fill:1};
   const fill=threshold?Math.min(1,energy/threshold):0;
   if(cooldownMs>0)return {state:'cooldown',fill};
-  return {state:fill>=1?'ready':'charging',fill};
+  return {state:fill>=1?'cast':'charging',fill};
 }
 
-export function skillStatusText({key,energy,threshold,cooldownMs,shieldActive}){
-  if(key==='S')return shieldActive?'Kalkan açık':cooldownMs>0?'Doluyor':'Hazır';
+/** Kart alt yazısı. compact: HUD rayı (n/N, kısa). */
+export function skillStatusText({key,energy,threshold,cooldownMs,shieldActive,used=false,idle=false,off=false,chain=false,defense=null,pending=0,healed=0,shieldHp=0},{compact=false}={}){
+  if(idle)return 'Maçta açılır';
+  if(key==='S')return off?'Yalnız klasik':shieldActive?'Kalkan açık':cooldownMs>0?'Doluyor':'Devrede';
+  const {state}=skillMeter({key,energy,threshold,cooldownMs,shieldActive,used,pending});
+  if(state==='pending')return 'BEKLİYOR';
+  if(state==='cast'){
+    if(defense==='shield')return shieldHp>0?`KALKAN ${shieldHp}`:healed>0?'KIRILDI':'ATILDI ✓'; // kırıldı: hasarı emdi, bitti
+    if(defense==='heal'&&healed>0)return `+${healed} can`;
+    return 'ATILDI ✓';
+  }
   if(cooldownMs>0)return `Bekle ${Math.ceil(cooldownMs/1000)} sn`;
-  if(energy>=threshold)return 'Hazır';
-  return `${energy}/${threshold} kelime`;
+  return compact?`${energy}/${threshold}`:`${energy}/${threshold} kelime`;
+}
+/** Kısa yardım satırı (doğru olanı söyler): rounds eşikleri + yanlış kelime seriyi yarıya indirir; klasik 5'li çevrim. */
+export function skillRowNote(streak,{rounds=false,pending=0}={}){
+  const s=Math.max(0,Math.floor(Number(streak)||0));
+  const t=rounds?SKILL_THRESHOLDS.rounds:SKILL_THRESHOLDS.classic;
+  if(pending>0)return `Seri ${s} · E bekliyor: ilk yediğin darbeden sonra +${pending} can`;
+  return rounds?`Seri ${s} · seri ${t.Q} / ${t.W} / ${t.E} / ${t.R}'da kendiliğinden atılır · yanlış kelime seriyi yarıya indirir`
+    :`Seri ${s} · ${t.Q} / ${t.W} / ${t.R} doğru kelimede kendiliğinden atılır`;
 }
 
 const timers=new WeakMap();
@@ -112,8 +175,12 @@ export function paintSkillCard(el,info,{reduced=false,live=true}={}){
   const prev=el.dataset.skState;
   if(prev!==state){
     el.dataset.skState=state;
-    if(prev==='charging'&&state==='ready')flash(el,'ready',reduced);
+    if(prev==='charging'&&(state==='cast'||state==='pending'))flash(el,'ready',reduced);
   }
+  // Seri düştü (yanlış kelime → yarıya / yeni raund → 0): kart kısa bir sarsıntıyla geri iner.
+  const prevFill=Number(el.dataset.skFillPrev);
+  if(live&&Number.isFinite(prevFill)&&fill<prevFill-1e-6&&!reduced)play(el,[{transform:'translateX(0)'},{transform:'translateX(-3px)',offset:.3},{transform:'translateX(3px)',offset:.6},{transform:'none'}],{duration:240,easing:'ease-out'});
+  el.dataset.skFillPrev=String(fill);
   if(live){
     const before=el.dataset.skCasts;
     if(before!==undefined&&info.casts>Number(before))flash(el,'cast',reduced);
@@ -142,17 +209,19 @@ export function paintSkillCard(el,info,{reduced=false,live=true}={}){
 /** Canlı maç: sunucu oyuncusundan dört kartı güncelle. Arena modunda satır gizlidir; yine de zararsız. */
 export function applySkillRow(section,{player,rounds=false,now=Date.now(),reduced=false}={}){
   if(!section||!player)return;
+  syncRowLayout(section,{rounds});
   applyFighterNames(section,player.fighter,{rounds});
-  for(const key of SKILL_ORDER)paintSkillCard(section.querySelector(`[data-skill="${key}"]`),readSkillState(player,key,{rounds,now}),{reduced,live:true});
+  for(const key of rowKeysFor(rounds))paintSkillCard(section.querySelector(`[data-skill="${key}"]`),readSkillState(player,key,{rounds,now}),{reduced,live:true});
 }
 
 /** Maç dışı yerel önizleme: yazılan doğru kelime zinciri ölçeri doldurur. */
 export function applySkillPreview(section,{chain=0,reduced=false}={}){
   if(!section)return;
-  const t=SKILL_THRESHOLDS.classic;
+  syncRowLayout(section,{rounds:false});
   for(const key of SKILL_ORDER){
-    const threshold=t[key];
-    paintSkillCard(section.querySelector(`[data-skill="${key}"]`),{key,energy:Math.min(threshold,chain),threshold,cooldownMs:0,shieldActive:false,shieldMs:0,casts:0},{reduced,live:false});
+    // Maç yok: Q/E/R yerel yazma testinin zinciriyle (klasik çevrim) dolar; S hiçbir zaman "Hazır" görünmez (idle).
+    const c=key==='S'?{energy:0,threshold:0,used:false}:skillCharge(key,chain,{rounds:false});
+    paintSkillCard(section.querySelector(`[data-skill="${key}"]`),{key,...c,cooldownMs:0,shieldActive:false,shieldMs:0,casts:0,idle:key==='S'},{reduced,live:false});
   }
 }
 
@@ -166,13 +235,27 @@ export function fighterSkillLabels(fighterId){
 export function applyFighterNames(section,fighterId,{rounds=false}={}){
   const tag=(fighterId||'')+(rounds?'|r':'');
   if(!section||section.dataset?.skFighter===tag)return;
-  const all=fighterSkillLabels(fighterId);if(!all)return;
+  const all=fighterSkillLabels(fighterId);
+  if(!all){
+    // Karakter bilinmiyor: rounds E kartı yine savunma (can) adını göstersin, klasik E vuruş adını.
+    const card=section.querySelector('[data-skill="E"]');const kind=card?.dataset?.skKind;const info=SKILL_INFO[kind]?.[rounds?'H':'E'];
+    if(card&&info){const strong=card.querySelector('.sk-copy strong'),fx=card.querySelector('.sk-fx'),icon=card.querySelector('.sk-icon');
+      if(strong&&strong.textContent!==info.name)strong.textContent=info.name;if(fx&&fx.textContent!==info.effect)fx.textContent=info.effect;if(icon&&icon.innerHTML!==info.icon)icon.innerHTML=info.icon;}
+    return;
+  }
   if(section.dataset)section.dataset.skFighter=tag;
+  const eCard=section.querySelector('[data-skill="E"]');const eIcon=eCard?.querySelector('.sk-icon');const eInfo=SKILL_INFO[eCard?.dataset?.skKind];
+  // Rounds E = savunma: karaktere göre kalkan (S simgesi) YA can (H simgesi); klasik E = yakın vuruş simgesi.
+  if(eIcon&&eInfo){const icon=(rounds?eInfo[fighterDefense(fighterId)==='shield'?'S':'H']:eInfo.E).icon;if(eIcon.innerHTML!==icon)eIcon.innerHTML=icon;}
   // Eski kart satırı motor anahtarıyla: klasik E kartı = W (yakın vuruş) adı, rounds E kartı = E (can) adı.
-  const labels=Object.fromEntries(SKILL_ORDER.map(key=>[key,all[SKILL_FIELD[engineKeyOf(key,rounds)].toUpperCase()]]));
-  for(const key of SKILL_ORDER){
+  const keys=rowKeysFor(rounds);
+  const labels=Object.fromEntries(keys.map(key=>[key,all[SKILL_FIELD[engineKeyOf(key,rounds)].toUpperCase()]]));
+  for(const key of keys){
     const card=section.querySelector(`[data-skill="${key}"]`);if(!card)continue;
-    const strong=card.querySelector('.sk-copy strong'),fx=card.querySelector('.sk-fx');
+    const strong=card.querySelector('.sk-copy strong'),fx=card.querySelector('.sk-fx'),badge=card.querySelector('.sk-key');
+    // Klasikte E kartı yakın vuruşu (W) gösterir: rozet de W olsun (önceden "E Kasırga" yazıyordu; E = savunma rounds'ta).
+    const shown=key==='E'&&!rounds?'W':key;
+    if(badge&&badge.textContent!==shown)badge.textContent=shown;
     if(strong&&strong.textContent!==labels[key].name)strong.textContent=labels[key].name;
     if(fx&&fx.textContent!==labels[key].effect)fx.textContent=labels[key].effect;
   }

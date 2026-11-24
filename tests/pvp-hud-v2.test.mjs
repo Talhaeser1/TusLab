@@ -58,3 +58,25 @@ test('KESINYAP 14: HUD v2 CSS — hayalet can gecikmeli erir, reduced-motion ani
   const hud = css.slice(css.indexOf('HUD v2'));
   for (const m of hud.matchAll(/font:[^;{}]*?(\d+(?:\.\d+)?)px/g)) assert.ok(Number(m[1]) >= 12, `font ${m[0]}`);
 });
+
+// RAPOR-BECERI-SATIRI — ray: her kart kendi eşiğine; atılınca ATILDI ✓ (yanık), E bekliyorsa BEKLİYOR; 10 sonrası Q zinciri
+test('ray: seri 2 → Q 2/3 · W 2/5 · E 2/7 · R 2/10; seri 7 → atıldı; E bekliyor; zincir etiketi; HAZIR yok', () => {
+  const subs = (extra) => railModel({mode: 'rounds'}, P(extra)).map(r => `${r.key}:${r.state}:${r.sub}`);
+  assert.deepEqual(subs({streak: 2}), ['Q:charging:2/3', 'W:charging:2/5', 'E:charging:2/7', 'R:charging:2/10']);
+  assert.deepEqual(subs({streak: 7, healBank: 300}), ['Q:cast:ATILDI ✓', 'W:cast:ATILDI ✓', 'E:pending:BEKLİYOR', 'R:charging:7/10']);
+  assert.deepEqual(subs({streak: 7, roundHeal: 300}).slice(2, 3), ['E:cast:+300 can']);
+  const chain = railModel({mode: 'rounds'}, P({streak: 12})).find(r => r.key === 'Q');
+  assert.equal(chain.chain, true); assert.equal(chain.sub, '2/3');
+  for (const s of [0, 3, 5, 7, 10, 13]) for (const r of railModel({mode: 'rounds'}, P({streak: s}))) assert.doesNotMatch(r.sub, /HAZIR|ullanıldı/);
+  // klasik satır çalışmaya devam eder (Q/W/S/R)
+  assert.deepEqual(railModel({mode: 'classic'}, P({combo: 2})).map(r => `${r.key}:${r.state}`), ['Q:cast', 'W:charging', 'S:ready', 'R:charging']);
+});
+test('ray kaynağı: aynı model iki koltuk için; seri düşünce sarsıntı; bekletilen can önce darbe sonra yükseliş', () => {
+  const src = readFileSync(new URL('../pvp/hud-v2.js', import.meta.url), 'utf8');
+  assert.match(src, /for \(const seat of \[1, 2\]\)[^]*railModel\(match, p, now\)/);
+  assert.match(src, /pct < c\.fill/);
+  assert.match(src, /function combat\(event\)[^]*event\.banked[^]*after - amount/);
+  const fh = readFileSync(new URL('../pvp/fight-hud.js', import.meta.url), 'utf8');
+  assert.match(fh, /hud2\?\.combat\?\.\(event\)/);
+  assert.match(fh, /CAN BEKLİYOR/);
+});

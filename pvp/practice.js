@@ -25,7 +25,9 @@ import {normalizeStageChoice,pickStage} from './shared/stages.js';
 import {createArenaMatch,submitArenaPick,submitArenaWord,advanceArenaMatch,nextArenaDeadline,arenaPublicMatch,surrenderArenaMatch} from './shared/arena.js';
 import {ARENA_SKILL_IDS} from './shared/arena-skills.js';
 import {ARENA_ITEM_IDS} from './shared/arena-damage.js';
-import {FIGHTERS,FIGHTER_IDS,isFighterId,normalizeFighter} from './shared/fighters.js';
+import {FIGHTERS,FIGHTER_IDS,isFighterId,normalizeFighter,fighterDefense} from './shared/fighters.js';
+import {botContext,decideBotPlan,pickBotTimeSkill,personaOf,applyPlan} from './shared/bot-ai.js';
+import {createRng} from './shared/words.js';
 
 /** Paket 32: insan karakteri (o.fighter) arketipi belirler; bot karşı arketipten bir karakter alır.
  * Bot seçimi motorun rng'sini TÜKETMEZ (deterministik denge testleri aynı kalır). */
@@ -145,6 +147,8 @@ export function createPracticeSession(o={}){
   ].sort((a,b)=>a.seat-b.seat);
 
   let match=null;                // authoritative internal state (like DO storage 'match')
+  // Bot zekâsı (pvp/shared/bot-ai.js): kendi tohumlu akışı → motorun rng tüketimi değişmez; o.botAi===false kapatır.
+  const useAi=o.botAi!==false;let aiRng=null,botProfile=profile,lastPlan=null;
   let tickTimer=null,botTimer=null,rematchTimer=null;
   let disposed=false;
   let lastEmittedCombatId=0;
@@ -207,7 +211,7 @@ export function createPracticeSession(o={}){
     // a duel exactly while each rematch still receives different words.
     const stage=pickStage(stageChoice,rng);
     match=classic?createMatch(players,at,id,{exchangeMs:10000,seed:`${id}:${Math.floor(rng()*0x100000000)}`,typing,assist,stage}):createMatch(players,at,id,{rounds,roundStyle,content,seed:`${id}:${Math.floor(rng()*0x100000000)}`,resolveAtEnd:true,typing,assist,stage});
-    lastEmittedCombatId=0;rematchVotes=[];
+    lastEmittedCombatId=0;rematchVotes=[];aiRng=createRng(`${id}:bot-ai`);botProfile=profile;lastPlan=null;
     emit('MATCH_START',{match:snapshot(),serverTime:at,...(rematch?{rematch:true}:{})});
     if(!classic)broadcastRound([{type:'ROUND_START',payload:roundStartPayload(match)}],at);
     emit('STATE_UPDATE',{match:snapshot(),serverTime:at});
@@ -267,15 +271,28 @@ export function createPracticeSession(o={}){
   const botState=()=>match?.participants.find(p=>p.playerId===BOT_ID);
   function botPickRoundSkill(){
     const chance={kolay:.2,orta:.45,zor:.7}[difficulty];
-    if(rng()>=chance)return;
     const available=ROUND_TIME_SKILLS.filter(id=>(botState()?.roundSkillUses?.[id]||0)<2);
-    if(!available.length)return;
-    const skill=available[Math.floor(rng()*available.length)];
+    let skill;
+    if(useAi&&aiRng){
+      skill=pickBotTimeSkill(botContext(match,botSeat,now()),personaOf(botState()?.fighter),aiRng,{available,chance});
+      if(!skill)return;
+    }else{
+      if(rng()>=chance)return;
+      if(!available.length)return;
+      skill=available[Math.floor(rng()*available.length)];
+    }
     const outcome=pickRoundSkill(match,{playerId:BOT_ID,skill},now());
     if(!outcome.error)match=outcome.match;
   }
   function clearBotTimer(){if(botTimer!==null){scheduler.clearTimeout(botTimer);botTimer=null;}}
   function botCanType(){return match?.status==='running'&&(classic?now()<match.endsAt:match.round?.phase==='round'&&!botState()?.roundDone);}
+  /** Bir sonraki kelimenin yazma planı (hızlı / dengeli / dikkatli) — karakterin ağırlıklarıyla. */
+  function planBot(){
+    if(!useAi||!aiRng||!match)return botProfile=profile;
+    const me=botState();
+    const d=decideBotPlan(botContext(match,botSeat,now()),personaOf(me?.fighter),aiRng,fighterDefense(me?.fighter));
+    lastPlan=d;return botProfile=applyPlan(profile,d.plan);
+  }
   function scheduleBot(delay){
     if(disposed||!botCanType())return;
     clearBotTimer();
@@ -284,7 +301,7 @@ export function createPracticeSession(o={}){
   function startBotRound(){
     if(!botCanType())return;
     const [lo,hi]=profile.startDelayMs;
-    scheduleBot(lo+rng()*(hi-lo)+botWordDelay(botState().currentWord,profile,rng));
+    scheduleBot(lo+rng()*(hi-lo)+botWordDelay(botState().currentWord,planBot(),rng));
   }
   /** The bot finished "typing" its current word: submit it (maybe with a typo). */
   function botType(){
@@ -293,9 +310,9 @@ export function createPracticeSession(o={}){
     const me=botState();
     const round=classic?null:match.round.index;
     const word=me.currentWord;
-    const text=rng()<profile.typo?makeTypo(word,rng):word;
+    const text=rng()<botProfile.typo?makeTypo(word,rng):word;
     wordSubmit(BOT_ID,{matchId:match.id,wordIndex:me.wordIndex,...(classic?{}:{round}),text});
-    if(botCanType()&&(classic||match.round.index===round))scheduleBot(botWordDelay(botState().currentWord,profile,rng));
+    if(botCanType()&&(classic||match.round.index===round))scheduleBot(botWordDelay(botState().currentWord,planBot(),rng));
   }
 
   // ---- inbound messages (what network.send() would put on the socket) -----
@@ -352,6 +369,8 @@ export function createPracticeSession(o={}){
     get disposed(){return disposed;},
     get history(){return history.slice();},
     get rematchVotes(){return rematchVotes.slice();},
+    /** Botun son kararı ({plan,goal,scores}; test/hata ayıklama). */
+    get botPlan(){return lastPlan;},
     /** Number of live timers owned by this session (0 after dispose). */
     get activeTimers(){return [tickTimer,botTimer,rematchTimer].filter(x=>x!==null).length;},
     get stage(){return match?.stage??(stageChoice==='random'?'colosseum':stageChoice);},stageChoice,

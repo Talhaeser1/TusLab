@@ -60,7 +60,10 @@ test('practice: cloudflare/src/match.js still exports everything it did before (
   const extra=Object.keys(serverEngine).filter(k=>!ORIGINAL_EXPORTS.includes(k));
   // KESINYAP 11: raund sistemi sabitleri (tavan, 7 raund, kelime planı, seri→beceri) sunucuya da aynı kaynaktan verilir.
   // KESINYAP 21: E (kendine can) kuralı sunucu ve istemcide aynı sabitlerden (tavan 400, oran %80).
-  const ROUND_RULE_EXPORTS=['ROUND_DAMAGE_CAP','ROUND_TOTAL','ROUND_WORD_PLAN','roundWordsFor','streakSkill','ROUND_HEAL_CAP','HEAL_RATIO','healAmount'];
+  // RAPOR-PVP-MEKANIK: raund tavanı (ROUND_DAMAGE_CAP) ve HEAL_RATIO kaldırıldı; E savunma miktarı, zincir aralığı, ulti çarpan tavanı ve raund taban hasarı eklendi.
+  const ROUND_RULE_EXPORTS=['ROUND_TOTAL','ROUND_WORD_PLAN','roundWordsFor','streakSkill','ROUND_HEAL_CAP','DEFENSE_AMOUNT','healAmount','CHAIN_EVERY','ULTIMATE_MULTIPLIER_CAP','ROUND_DAMAGE',
+    // RAPOR-PVP-KALANLAR: kalkan miktarı, raund başına destek tavanı, seyrek zincir.
+    'SHIELD_AMOUNT','ROUND_ASSIST_CAP','CHAIN_LONG_AFTER','CHAIN_EVERY_LONG','chainProgress'];
   for(const name of extra)assert.ok(/arena/i.test(name)||ROUND_RULE_EXPORTS.includes(name),`beklenmeyen ek ihracat: ${name}`);
   for(const name of ROUND_RULE_EXPORTS)assert.equal(serverEngine[name],sharedEngine[name],name);
   for(const name of ORIGINAL_EXPORTS)assert.equal(serverEngine[name],sharedEngine[name],name);

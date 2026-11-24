@@ -36,7 +36,7 @@ function setup(options={}){
 }
 
 test('practice rounds: a full 7-round match (or a KO from round 4 on) ends in a round-mode result and ordered packets',()=>{
-  // KESINYAP 11: maç 7 raund, can taşınır; eski rounds:5 yok sayılır. Bot nakavt ederse maç en erken 4. raundda biter.
+  // KESINYAP 11: maç 7 raund, can taşınır; eski rounds:5 yok sayılır. Nakavt da olabilir (raund tavanı kaldırıldı).
   const ctx=setup({rounds:5,difficulty:'zor'});
   // Human types in the first two rounds only; the bot plays every round.
   ctx.time.scheduler.setInterval(()=>{
@@ -54,7 +54,8 @@ test('practice rounds: a full 7-round match (or a KO from round 4 on) ends in a 
   assert.equal(result.totalRounds,7);
   const n=result.rounds.length;
   assert.ok(result.endReason==='KNOCKOUT'?n>=4:n>=7,`${result.endReason} after ${n} rounds`);
-  for(const r of result.rounds)for(const s of r.scores)assert.ok(s.damageDealt<=1300,'raund hasar tavanı');
+  // Raund hasar tavanı kaldırıldı (RAPOR-PVP-MEKANIK): hasar yalnız negatif olamaz ve rakibin canını aşamaz.
+  for(const r of result.rounds)for(const s of r.scores)assert.ok(s.damageDealt>=0&&s.damageDealt<=5000,'raund hasarı geçerli');
   assert.equal(ctx.packets.filter(p=>p.type==='ROUND_START').length,n);
   assert.equal(ctx.packets.filter(p=>p.type==='ROUND_END').length,n);
   assert.equal(ctx.packets.filter(p=>p.type==='MATCH_END').length,1);

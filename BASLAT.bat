@@ -2,7 +2,7 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 title TusLab - Neon Arena - PvP Is Paketi 13
-set "PORT=5176"
+set "PORT=5177"
 echo.
 echo ============================================
 echo   TUSLAB NEON ARENA - PVP IS PAKETI 13
@@ -13,14 +13,14 @@ echo http://127.0.0.1:%PORT%/index.html
 echo.
 where py >nul 2>&1
 if %errorlevel%==0 (
-  start "TusLab Sunucu" cmd /k "py -3 -m http.server %PORT% --bind 127.0.0.1"
+  start "TusLab Sunucu" cmd /k "py -3 scripts\serve.py %PORT%"
   timeout /t 2 /nobreak >nul
   start "" "http://127.0.0.1:%PORT%/index.html"
   exit /b
 )
 where python >nul 2>&1
 if %errorlevel%==0 (
-  start "TusLab Sunucu" cmd /k "python -m http.server %PORT% --bind 127.0.0.1"
+  start "TusLab Sunucu" cmd /k "python scripts\serve.py %PORT%"
   timeout /t 2 /nobreak >nul
   start "" "http://127.0.0.1:%PORT%/index.html"
   exit /b

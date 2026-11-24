@@ -207,3 +207,11 @@
   #pvp-root .cin-half .cin-fighter{max-height:54%}
 }
 .cin-boxed.cin-vs .cin-half .cin-fighter{max-height:58%}
+
+/* RAPOR-BECERI-SATIRI §1 (tur arası): raund sonu bandı (.cin, z 45) ekranın TAMAMINA beyaz flaş (.42) basıyordu → üst çubuk,
+   HUD ve sahne birlikte soluk/beyazımsı görünüyordu (bant yazısı daha kayarken ekran görüntüsünde "boş bant + sis").
+   Raund bandında flaş koyu-altın ve hafif; aynı anda rounds-ui'nin büyük "RAUND n" başlığı bandın ARKASINDA kalıyordu
+   (iki başlık üst üste) → bant oynarken o başlık gizli, bant bitince görünür. */
+#pvp-root .cin-banner .cin-flash{background:#3a2208;animation-name:cin-flash-soft}
+@keyframes cin-flash-soft{0%{opacity:.22}100%{opacity:0}}
+#pvp-root.cin-playing .rui-banner{visibility:hidden}

@@ -25,3 +25,6 @@ api.txt
 
 # Meshy ham üretim arşivleri (büyük; yayına ve git'e girmez)
 assets/models/*/kaynak/*.glb
+
+# Silinecek (kullanici kendisi silecek)
+_to_delete/

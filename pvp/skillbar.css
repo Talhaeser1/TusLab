@@ -78,6 +78,11 @@
 #pvp-root .sk-card[data-sk-state="cooldown"] .sk-key{border-color:rgba(255,255,255,.22);color:var(--sk-muted)}
 #pvp-root .sk-card[data-sk-state="cooldown"] .sk-fill{opacity:.45}
 #pvp-root .sk-card[data-sk-state="cooldown"] .sk-cd{opacity:1}
+/* RAPOR-PVP-MEKANIK §1.1: maç yok (idle), bu zincirde kullanıldı (used), bu modda yok (off) — hiçbiri "hazır" gibi parlamaz */
+#pvp-root .sk-card[data-sk-state="idle"],#pvp-root .sk-card[data-sk-state="off"]{opacity:.72}
+#pvp-root .sk-card[data-sk-state="idle"] .sk-fill,#pvp-root .sk-card[data-sk-state="off"] .sk-fill,#pvp-root .sk-card[data-sk-state="used"] .sk-fill{opacity:0}
+#pvp-root .sk-card[data-sk-state="used"] .sk-status,#pvp-root .sk-card[data-sk-state="idle"] .sk-status,#pvp-root .sk-card[data-sk-state="off"] .sk-status{color:var(--sk-muted)}
+#pvp-root .sk-card[data-sk-state="used"] .sk-icon{opacity:.6}
 /* network.js'in eski "hazır" sınıfının parlaması yerine data-sk-state kullanılır */
 #pvp-root .sk-card.pvp2-skill-ready:not([data-sk-state="ready"]):not([data-sk-state="active"]){background:var(--sk-card);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
 
@@ -97,3 +102,5 @@
   #pvp-root .sk-card .sk-fill{transition:none}
 }
 #pvp-root.pvp4-reduced .sk-card .sk-fill{transition:none}
+/* Kart satırı moda göre (skillbar.js syncRowLayout): rounds Q/W/E/R, klasik Q/E/S/R — gizli kart yer kaplamaz. */
+#pvp-root .pvp2-skillrow>.sk-card[hidden]{display:none!important}

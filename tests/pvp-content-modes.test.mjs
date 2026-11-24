@@ -17,9 +17,9 @@ const OLD_POETS=['Yunus Emre','Karacaoğlan','Pir Sultan Abdal','Fuzûlî','Bâk
   'Muhibbi'/* Kanuni, ö. 1566 */,'Ziya Paşa'/* ö. 1880 */]; // hepsi 1900 öncesi vefat
 
 test('içerik: sayı hedefleri, tek kelime birimi ve yalnız telifsiz şairler',()=>{
-  assert.ok(ATASOZLERI.length>=120,`atasözü ${ATASOZLERI.length}`);
+  assert.ok(ATASOZLERI.length>=200,`atasözü ${ATASOZLERI.length}`); // 15 Kas 2026: zorlaştırıldı
   assert.ok(SIIR_DIZELERI.length>=40&&SIIRLER.length>=10,`şiir ${SIIR_DIZELERI.length}`);
-  assert.ok(OSMANLICA.length>=200,`osmanlıca ${OSMANLICA.length}`);
+  assert.ok(OSMANLICA.length>=250,`osmanlıca ${OSMANLICA.length}`);
   const bare=s=>s.normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();
   for(const s of SIIRLER)assert.ok(OLD_POETS.some(p=>bare(p)===bare(s.sair)),`20. yy şairi olamaz: ${s.sair}`);
   assert.ok(OSMANLICA.every(e=>e.kelime&&e.anlam&&!/\s/u.test(e.kelime)),'osmanlıca: boşluksuz kelime + anlam');

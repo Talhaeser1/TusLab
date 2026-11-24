@@ -2,13 +2,18 @@
 // Paket 32: "Karakterler" sekmesi kadrodan (pvp/shared/fighters.js) üretilir.
 // Sağdan açılan panel; sekmeler; Esc kapatır; odak panelde kalır ve kapanınca düğmeye döner.
 
-import {FIGHTERS, FIGHTER_IDS} from './shared/fighters.js';
+import {FIGHTERS, FIGHTER_IDS, fighterDefense} from './shared/fighters.js';
+import {ROUND_TOTAL, ROUND_HP, ROUND_DURATION_MS, ULTIMATE_MULTIPLIER_CAP, MULTIPLIER_CAP, DEFENSE_AMOUNT, SHIELD_AMOUNT, CHAIN_EVERY, CHAIN_EVERY_LONG} from './shared/match.js';
+
+const num = n => String(n).replace('.', ',');
+/** Kullanıcı isteği "ultide de max 2 kombo": motorda ULTIMATE_MULTIPLIER_CAP. Oyuncuya görünen kural metni. */
+export const ULTI_RULE_TEXT = `Ulti çarpanı en çok ×${num(ULTIMATE_MULTIPLIER_CAP)}`;
 
 const fighterItems = () => [
   ...FIGHTER_IDS.map(id => {
     const f = FIGHTERS[id], k = f.skills;
     return [`${f.name} · ${f.title} (${f.archetype === 'fire' ? 'Ateş' : 'Rün'})`,
-      `Q ${k.q.name} · W ${k.w.name} · E ${k.e.name} (can) · R ${k.r.name} · S ${k.s.name}. ${f.blurb}`]; // KESINYAP 21
+      `Q ${k.q.name} · W ${k.w.name} · E ${k.e.name} (${fighterDefense(id) === 'shield' ? 'kalkan' : 'can'}) · R ${k.r.name} (3 evre; ${ULTI_RULE_TEXT.toLowerCase()}) · S ${k.s.name} (yalnız klasik). ${f.blurb}`]; // KESINYAP 21
   }),
   ['Denge', 'Hasar ve süreler tarafa göre aynıdır: Ateş karakterleri saldırgan, Rün karakterleri savunmacı arketipi kullanır. Karakter; görünüş, animasyon, efekt ve beceri adlarını değiştirir.']
 ];
@@ -17,13 +22,15 @@ export const HOWTO_TABS = Object.freeze([
   {id: 'modlar', title: 'Modlar', items: [
     ['Arena seçimi', 'Bot bölümünde veya oda ayarlarında Neon Kolezyum, Gök Demirhanesi, Rün Bahçesi, Fırtına Limanı ya da Rastgele seç. Odada sahneyi yalnız oda sahibi değiştirir. Sahne hasarı ve kuralları değiştirmez.'],
     ['Klasik', '120 sn, 2000 HP. Maç 10 saniyelik pencerelere bölünür: pencerede yazdığın kelimeler beceri doldurur, pencere bitince saldırılar sırayla (sen, rakip, sen…) oynatılır. Q 2, E 4, R 5 doğru kelimede dolar.'],
-    ['Zamana Karşı', '40 sn turlar, 5 / 7 / 10 tur. Turda 10 kelime; tur bitince saldırılar sırayla çözülür. Tur arasında bir süre becerisi seçebilirsin.'],
+    ['Zamana Karşı', `${ROUND_TOTAL} raund, raund ${ROUND_DURATION_MS / 1000} sn, ${ROUND_HP} can raundlar arasında taşınır. Raund bitince saldırılar sırayla çözülür. Raund arasında bir süre becerisi seçebilirsin.`],
     ['Raund Arena', '6 raund (raund 40 sn, hazırlık 15 sn): 5 · 10 · 15 · 15 · 15 · 20 kelime. 3000 HP raundlar arasında taşınır. İlk bitiren raundu kapatır, sonra vuruşlar sırayla uygulanır.'],
     ['Tur sonu ekranı', 'Kazanan, iki oyuncunun doğru / yanlış sayısı, verilen hasarı ve en iyi kombosu yan yana görünür. Pipler tur galibiyetlerini, halka sonraki tura kalan süreyi gösterir. Zamana Karşı tur arasında süre becerisi seç: 1–3 seçer, Enter kilitler, Esc seçmeden geçer.']
   ]},
   {id: 'hasar', title: 'Hasar ve kombo', items: [
     ['Taban hasar', 'Arena: raunda göre doğru kelime başına 100 · 90 · 80 · 80 · 80 · 75.'],
     ['Kombo', '4. ardışık doğru KOMBO ×1,5; 5. ve sonrası FİNAL ×2. Yanlış kelime seriyi sıfırlar.'],
+    ['Raund modu serisi', `Seri 3 → Q · 5 → W · 7 → E (kalkan ${SHIELD_AMOUNT} ya da can ${DEFENSE_AMOUNT}) · 10 → R ulti (3 evre) · sonra ${10 + CHAIN_EVERY}. ve her ${CHAIN_EVERY_LONG}. kelime Q. 10. seriden sonra çarpan ×1,5'ten artar, en çok ×${num(MULTIPLIER_CAP)}.`],
+    ['Ulti (R)', `${ULTI_RULE_TEXT}: seri ne kadar uzun olursa olsun R'nin üç evresi en fazla iki kat vurur.`],
     ['Yanlış cezası', 'Üst üste yanlışlar sonraki doğrunun hasarını düşürür: 1 yanlış −%10, 2 yanlış −%25, 3 yanlış −%48 (en fazla −%75). Örnek: D Y Y Y D → 5. kelime ×0,52.']
   ]},
   {id: 'esya', title: 'Eşyalar', items: [

@@ -2,7 +2,7 @@
 const live=m=>Boolean(m&&['running','paused'].includes(m.status));
 const hasRound=m=>Boolean(m&&m.round&&typeof m.round==='object');
 
-const CONTENT_TITLES=Object.freeze({atasozu:'ATASÖZÜ',siir:'ŞİİR',osmanlica:'OSMANLICA'});
+const CONTENT_TITLES=Object.freeze({atasozu:'ATASÖZÜ',siir:'ŞİİR',osmanlica:'OSMANLICA',kelime:'KELİME'});
 
 /** İçerik modunda (şiir: şair adı · Osmanlıca: anlam) yazılan kelimenin ipucu; yoksa ''. */
 export function ttHint(match,me){
@@ -18,7 +18,8 @@ export function ttModeLabel(match){
   if(match.mode==='rounds'&&hasRound(match)){
     // KESINYAP 11: 'ZAMANA KARŞI · RAUND 2/7' ya da 'KELİME RAUNDU · RAUND 2/7 · 7 kelime'; içerik modunda ad içerik adıdır.
     const counted=r.style==='counted';
-    const name=CONTENT_TITLES[match.content]||(counted?'KELİME RAUNDU':'ZAMANA KARŞI');
+    // Rastgele: 'RASTGELE · ŞİİR · RAUND 2/7' (raundun tohumlu içeriği iki oyuncuya da aynı görünür).
+    const name=match.content==='rastgele'?`RASTGELE · ${CONTENT_TITLES[r.content]||'KELİME'}`:CONTENT_TITLES[match.content]||(counted?'KELİME RAUNDU':'ZAMANA KARŞI');
     const words=counted?Number(r.wordCount)||(Array.isArray(r.words)?r.words.length:0):0;
     const tail=words?` · ${words} kelime`:'';
     if(r.suddenDeath)return `${name} · ALTIN RAUND${tail}`;

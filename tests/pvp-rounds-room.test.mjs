@@ -91,7 +91,7 @@ test('room rounds: words go through round.words; ROUND_END and MATCH_END are del
  await expire(f);
  assert.equal(received(f.a,'ROUND_END').length,1);assert.equal(received(f.b,'ROUND_END').length,1);
  const end=received(f.b,'ROUND_END')[0].payload;
- assert.equal(end.round,7);assert.equal(end.reason,'TIME');assert.equal(end.matchOver,true);assert.deepEqual(end.hp,{1:4000,2:3000});
+ assert.equal(end.round,7);assert.equal(end.reason,'TIME');assert.equal(end.matchOver,true);assert.deepEqual(end.hp,{1:ROUND_HP,2:3000});
  assert.equal(received(f.a,'MATCH_END').length,1);assert.equal(received(f.b,'MATCH_END').length,1);
  const stored=await f.ctx.storage.get('match');
  assert.equal(stored.status,'ended');assert.equal(stored.endReason,'ROUNDS');assert.equal(stored.winnerSeat,1);

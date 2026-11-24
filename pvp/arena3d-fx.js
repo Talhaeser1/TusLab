@@ -1421,6 +1421,26 @@ export function createArena3DFx(api) {
     flash(PALETTE_HEX.parry.flash, 0.45, 160);
   }
 
+  /** Rounds E kalkanı kuruldu (HEAL_APPLIED kind:'shield'): camgöbeği altıgen halkalar zeminden yükselir + yüzeyde kıvılcım.
+   *  Yeşil iyileşme motifinden ayrı; mevcut halka/parçacık havuzları kullanılır, sayı countScale (perf kademesi) ile ölçeklenir. */
+  function shieldRaise(ev) {
+    const seat = ev.seat ?? ev.fromSeat;
+    const d = seatInfo(seat);
+    if (!d) return;
+    const U = unitScale(), c = d.anchor, g = d.ground;
+    groundTotals.shields++;
+    spawnRing(g.x, g.y + 0.02 * U, g.z, 'floor', 'hex', PAL.shield.ring, 0.4 * U, 1.5 * U, 0.55, 0.9, 1.2);
+    spawnRing(g.x, g.y + 0.02 * U, g.z, 'floor', 'thin', PAL.shield.core, 0.3 * U, 1.9 * U, 0.7, 0.6);
+    spawnRing(c.x + d.facing * 0.5 * U, c.y, c.z, 'face', 'hex', PAL.shield.ring, 0.5 * U, 1.1 * U, 0.5, 0.85, -1.4);
+    const n = Math.round(16 * countScale());
+    for (let k = 0; k < n; k++) {
+      const a = (k / Math.max(1, n)) * TAU, r = 0.75 * U;
+      spawn(g.x + Math.cos(a) * r, g.y + 0.15 * U, g.z + Math.sin(a) * r, 0, rand(1.2, 2.2) * U, 0,
+        rand(0.5, 0.8), rand(0.05, 0.09) * U, 0.02 * U, 0.9, pick(PAL.shield.hot), pick(PAL.shield.cool), -0.6 * U, 1.5);
+    }
+    flashLight(c.x, c.y, c.z, PAL.shield.light, 0.7, 0.4, U);
+  }
+
   /** Kalkan kırılması: düşen, dönen cam kıymıkları + kırık altıgen. */
   function shieldShatter(seat) {
     const d = seatInfo(seat);
@@ -1610,7 +1630,7 @@ export function createArena3DFx(api) {
   for (let k = 0; k < DEBRIS; k++) { debrisMesh.setMatrixAt(k, zeroM); debrisMesh.setColorAt(k, debrisTint); }
   if (!GROUND_DAMAGE_ON) debrisMesh.count = 0;
   root.add(debrisMesh);
-  const groundTotals = {scars: 0, craters: 0, heals: 0};
+  const groundTotals = {scars: 0, craters: 0, heals: 0, shields: 0};
   let craterSerial = 0;
   function groundScar(x, y, z, U, size) {
     let rec = null;
@@ -2826,7 +2846,10 @@ export function createArena3DFx(api) {
     if (event.type === 'HP_SYNC') watchHp(event);
     if (reduced()) { reducedFlash(event); return; }
     switch (event.type) {
-      case 'HEAL_APPLIED': if (Number(event.amount) > 0 || event.base) onHeal(event); break; // KESINYAP 21
+      case 'HEAL_APPLIED': // KESINYAP 21 · kalkan türü ayrı görsel (camgöbeği), can türü karakter motifi
+        if (event.kind === 'shield') shieldRaise(event);
+        else if (Number(event.amount) > 0 || event.base) onHeal(event);
+        break;
       case 'SKILL_CAST': onSkillCast(event); break;
       case 'COUNTERATTACK_CAST': onCounter(event); break;
       case 'ULTIMATE_PHASE': onUltimatePhase(event); break;

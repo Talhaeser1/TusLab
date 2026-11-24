@@ -101,7 +101,7 @@ test('server chamber alarm resolves persistent attack and broadcasts HP to both 
   await ctx.storage.put('match',before);
   await room.alarm();
   const after=await ctx.storage.get('match');
-  assert.equal(after.participants[1].hp,ROUND_HP-DAMAGE.fire.q);
+  assert.equal(after.participants[1].hp,ROUND_HP-100); // raund modu: ROUND_DAMAGE.q = 100 (iki arketip eşit)
   assert.equal(ws1.messages.filter(m=>m.type==='DAMAGE_APPLIED').length,1);
   assert.equal(ws2.messages.filter(m=>m.type==='DAMAGE_APPLIED').length,1);
   await room.alarm();assert.equal(ws2.messages.filter(m=>m.type==='DAMAGE_APPLIED').length,1);

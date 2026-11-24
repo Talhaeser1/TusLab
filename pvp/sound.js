@@ -37,7 +37,7 @@ export const fighterSfxFile=(fighterId,key)=>{
  if(!isFighterId(fighterId)||!FIGHTER_SFX_KEYS.includes(key))return null;
  const body=fighterBody(fighterId); // padişah: gövde dövüşçüsünün ses dosyası (kendi dosyası yok, 404 olmaz)
  if(body==='konyali')return ['q','e','r'].includes(key)?`${body}-${key}.mp3`:null;
- return `${body}-${key}.wav`;
+ return `${body}-${key}.mp3`;
 };
 /** Per-fighter SFX name for key ('q'|'e'|'r'|'hit'|'ko'), or null for unknown fighter/key. */
 export const fighterSfx=(fighterId,key)=>isFighterId(fighterId)&&FIGHTER_SFX_KEYS.includes(key)?`${fighterId}-${key}`:null;
@@ -107,7 +107,7 @@ export function createPvPAudio({storage=globalThis.localStorage, AudioContextCla
    if(disposed||!fetcher||muted||volume<=0)return false;
    if(loading)return loading;
    loading=Promise.all(SFX_NAMES.map(async name=>{
-     try{const response=await fetcher(baseURL+name+'.wav');if(!response.ok)throw new Error(`HTTP ${response.status}`);raw.set(name,await response.arrayBuffer());}
+     try{const response=await fetcher(baseURL+name+'.mp3');if(!response.ok)throw new Error(`HTTP ${response.status}`);raw.set(name,await response.arrayBuffer());}
      catch{/* An asset can be unavailable on file:// or an incomplete deploy; sound stays optional. */}
    })).then(()=>raw.size>0);
    return loading;

@@ -306,6 +306,44 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 - Karar: kırmızı boss (Harf Muhafızı) sahneden çıkarıldı; adada Nyx ve Konyalı durur. Geniş ekranda sahne sağ sütuna kaydırılır (setViewOffset). Ana sayfa açıkken alttaki eski sayfa kilitli (html.tlh-lock).
 - Ölçüm: Playwright 1440×900 / 1366×768 / 1920×1080 / 390×844'te #tl-home kaymıyor; 6 tür metin geliyor; bölümler arası geçişten sonra Ana Sayfa tek adımda dönüyor; PvP açılışı etkilenmiyor; sayfa hatası 0; npm test 974/974.
 
+## 23 Kas 2026 — Eski siteye düşme düzeltmesi + ana sayfa v3 revizesi + temizlik önerisi
+- Karar (eski site): `?pvp=` ile açılan sayfada home.js artık çıkıp gitmiyor; #pvp-root görünür→gizli olunca temiz adrese (yeni ana sayfa) yönlendiriyor, PvP 20 sn'de hiç açılmazsa da. `tuslab:pvp-enter` sonrası PvP 4 sn'de görünmezse ana sayfa geri gelir. Yalnız home/home.js değişti; pvp/ ve index.html'e dokunulmadı. Ayrıntı: docs/ESKI-SITE-YONLENDIRME-RAPORU.md.
+- Açık: PvP sonuç ekranındaki "Ayrıl" (pvp/index.js, data-pvp15-action="leave") PVP_CLOSE göndermiyor; kullanıcı PvP lobisinde kalıyor olabilir. pvp/ dondurulmuş olduğu için dokunulmadı.
+- Karar (ana sayfa v3): üst çubuktaki üç rozet ve sağ üstteki slogan kaldırıldı; yerine sağ sütunda oyuncu kartı (seviye, XP çubuğu + sayı, en iyi WPM, seri, yıldız). Bölüm adları artık 861 px'e kadar yazıyla görünür (önce 1100 px altında yalnız simgeydi). Telefonda (≤ 860 px) bölümler altta etiketli sekme çubuğu, oyuncu kartı yazma alanının üstünde tek satır şerit; görevler telefonda gizli (Performans'ta). Kombo etiketi 11 → 12 px.
+- Ölçüm: yalnız home/ dosyalarıyla kurulan deneme sayfasında (bulut, başsız Chrome) 1920×1080 … 360×640 sekiz boyutta taşma yok, sayfa hatası 0; yazma, üç bölüme geçiş ve dönüş, PvP aç/kapat benzetimi çalışıyor. `npm test` ÇALIŞTIRILAMADI (cihaz kabuğu açılmadı); gerçek sitede ve gerçek PvP ile gözle kontrol YAPILMADI; ekran görüntülerine bakılamadı (Token Optimizer kancası .png okumayı engelliyor).
+- Temizlik: hiçbir dosya taşınmadı/silinmedi (kabuk yok). Öneri listesi: docs/TEMIZLIK-RAPORU.md (~130 MB aday, çoğu .playwright-mcp/).
+- Commit yapılmadı.
+
+## 23 Kas 2026 (öğleden sonra) — Ana ekran "Merkez", PvP akış/mekanik/kalanlar, dersler, temizlik
+- Karar (ana ekran): kullanıcı v2/v3'ü beğenmedi; 5 taslaktan (docs/ana-ekran-taslaklar.html) "Merkez" uygulandı (kullanıcı seçim yapmadı, ilk hâle en yakın olan seçildi). 3B sahne kurulmuyor (scene3d.js duruyor), Yazma ayrı görünüm (#yazma) ve kesintisiz akış, görev/rozet Performans'ta. Rapor: docs/RAPOR-ANA-EKRAN-MERKEZ.md.
+- Karar (PvP akış): ana sayfa bağlantısı ?pvp=lobby (maç otomatik başlamaz); tüm çıkışlar yeni ana sayfaya; "← Ana Sayfa"; #app gizli (html.tlh-app-off). Kullanıcı isteğiyle pvp/ dondurması bu iş için kaldırıldı; index.html değişmedi. Rapor: docs/RAPOR-PVP-AKIS-ARAYUZ.md.
+- Karar (mekanik): ROUND_DAMAGE_CAP kaldırıldı; raund canı 6000; ilk becerisini önce yazan önce vurur; E her karakterde ya kalkan (Sira, Doran — 330) ya can (Vargr, Nyx, Hacı Usta); çarpan tavanı ×2 ("ultide max 2 kombo" böyle yorumlandı, R 3 evreli kaldı); bot zekâsı pvp/shared/bot-ai.js; raund modunda alt satır Q/W/E/R; Rastgele gerçek karışım. Raporlar: docs/RAPOR-PVP-MEKANIK.md, docs/RAPOR-PVP-KALANLAR.md. Denge simülatörü: scripts/pvp-denge-sim.mjs.
+- Karar (içerik): Şiir & Atasözü kategoriye tıklayınca kesintisiz akış; dersler orta zorluk (%94–96, 8→35 WPM); 51 uydurma atasözü zinciri silindi (290→234). Rapor: docs/RAPOR-DERSLER-METIN-AKISI.md.
+- Temizlik: 603 dosya / 131 MB _to_delete/ altına taşındı (kalıcı silme yok). assets/higgsfield ve assets/_eski kullanıcı kararını bekliyor. Rapor: docs/TEMIZLIK-RAPORU.md.
+- Açık: zor–zor bot dengesinde 5 eşleşme %45–55 dışında; sonuç kartında kalkan "iyileşme +0" görünüyor; kalkan sesi yok; "Kaldığın ders" doğrudan dersi açmıyor (home/lessons.js intent); çevrimiçi oda gerçek Cloudflare sunucusuyla denenmedi; commit yapılmadı.
+
+## 23 Kas 2026 (akşam) — Beceri satırı, E savunması, tur arası
+- Kök neden: E (can) motorda çalışıyor; can doluyken bekletiliyor ve çözümde darbeyle aynı anda işlediği için bar hiç oynamıyordu, kart "HAZIR → kullanıldı (gri)" diyordu. Hiç darbe yenmezse bekleyen can düşüyor (kural, değiştirilmedi; öneri raporda).
+- Karar: kartlar n/N → "ATILDI ✓" (yanık) / E "BEKLİYOR", "+N can", "KALKAN N", "KIRILDI"; "HAZIR" kalktı; 10 sonrası Q "zincir"; yardım satırı yarıya inmeyi söyler. Bekletilen can gelince bar önce iner sonra yükselir.
+- Karar: ayarlar paneli açıkken kabuk yalıtımı kalkar (HUD panelin altına iner), dışarı tıklayınca kapanır; raund bandı flaşı koyu/hafif, bant oynarken "RAUND n" gizli.
+- Motor: yalnız publicMatch'e healBank eklendi. Test 1038/1038, cf:validate 79/79. Rapor: docs/RAPOR-BECERI-SATIRI.md. Commit yok.
+
+## 23 Kas 2026 — Doğrulama kapısı ve hata hafızası
+- Karar: "kontrol etmeden bitti" sorununu kurala değil hook'a bağladık. Stop hook (`scripts/hooks/dogrulama_kapisi.py`): kod değişen tur, ana model `node --test` çalıştırıp (görünür değişiklikte) ekran görüntüsü almadan bitemez; ikinci denemede yalnızca uyarı verir.
+- Karar: UserPromptSubmit hook (`scripts/hooks/hata_hafizasi.py`): düzeltme sözcükleri geçen mesajda model hatayı düzeltip hafızaya feedback dosyası yazar.
+- Ayar `.claude/settings.json` içinde (gitignore'da, yalnızca bu makinede). Rapor: docs/1-dogrulama-kapisi-ve-hata-hafizasi.md.
+
+## 23 Kas 2026 — Raund sonu vuruşları (DEVIR-PVP 1)
+- Kök neden: görsel vuruş kuyruğu sunucudan 1–4 sn geride kalabiliyor; tur arası paneli 3 sn tavanla kuyruk dolu olsa da açılıyor, ROUND_START'ta zorla bitirilen vuruşlar yeni sayı doğuruyor, kuyruk dışı gecikmeli yollar (temas bekleyen hasar, ulti zinciri) panel açıkken sayı üretiyordu.
+- Karar: raund geçişinde `settleRoundVisuals` → `arena3d.settle()` her zaman çalışır (kalanlar animasyonsuz biter, sayılar silinir, can barı sunucu değerine oturur); tur arası/özet/hazırlıkta `impactGate` eski vuruş gösterimini engeller. Kuyruk ROUND_END'den sonra en çok 3 sn animasyonlu oynar.
+- Karar: çözümde başlık "RAUND N SONUCU", sayaç gösterilmez (yorum: sayaç "kart açılana kadar kalan süre"ydi). "SÜRE!" bandı yazma bitince (ROUND_RESOLVE) çıkar, sonda tekrar çıkmaz.
+- Doğrulama: test 1056/1056; bot maçında 3 raunt boyunca 100 ms gözlemci: tur arası / yeni raund başlığında 0 hasar sayısı. Rapor: docs/2-raund-sonu-vuruslari.md.
+
+## 23 Kas 2026 — Yarı saydam Vargr = destek hayaleti (DEVIR-PVP 1b)
+- Kök neden (ölçüldü): çözüm başında motor tüm olayları topluca yolluyor; `arena3d` ASSIST_CAST'i eklentiye anında iletiyordu → destek hayaleti (karşı karakterin %72 opak kopyası) vuruşlardan önce ortadan koşuyordu; aynı koltuğun ikinci desteği ilkini eziyordu.
+- Karar: resolve'lu destek bekletilir, kendi vuruş sahnesinde temastan ~238 ms önce başlar; birden çok destek sırayla oynar; raund geçişi temizliği bekleyenleri siler. Canlı mod değişmedi.
+- Doğrulama: bot maçında (Vargr vs bot) ASSIST_CAST 48,06 sn'de geldi, hayalet 52,77 sn'de "RAUND 1 SONUCU" içinde göründü; 2. ve 3. rauntta aynı; ekran görüntüsü 3. raunt. İlgili testler 41/41. Tüm takım 1045/1062: 17 hata padişah oturumunun yarım `pvp/shared/fighters.js` değişikliğinden (bu işe ait değil).
+
 ## 23 Kas 2026 — Osmanlı padişahları PvP dövüşçüsü (ilk 10)
 - Karar: "oyuna ekle" = PvP dövüşçüsü (yazma içeriği denemesi geri alındı, de9b436).
 - Karar: kendi 3B modeli/portresi olmadığı için her padişah temel kadrodan bir gövdeyi (model, klip, efekt, ses) kullanır; ad, unvan, renk, beceri adları/açıklamaları, sözler ve tarih notu padişahın kendisinin. Portre yerine yüzsüz renkli madalyon (SVG). Uydurma yüz/model üretilmedi.

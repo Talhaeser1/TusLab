@@ -1,5 +1,6 @@
 /* TuşLab — Şiir modu içeriği. YALNIZ telifsiz (kamu malı) eski şiirler:
- * tüm şairler 1900'den önce vefat etmiştir. Yazım kolaylığı için düzeltme
+ * tüm şairler 1900'den önce vefat etmiştir (Ziya Paşa 1880; diğerleri 13.–18. yy ya da halk/âşık geleneği).
+ * 23 Kas 2026: Nedim dizesinde "Sıtanbul" → "Sitanbul" (aslı: şehr-i Sitanbul). Yazım kolaylığı için düzeltme
  * işaretleri (â, î, û) sadeleştirilmiştir. Dizeler sırayla yazılır.
  */
 export const SIIR_VERSION = 1;
@@ -36,7 +37,7 @@ export const SIIRLER = Object.freeze([
   P('Fuzuli', 'Gazel', ['Beni candan usandırdı cefadan yar usanmaz mı', 'Felekler yandı ahımdan muradım şemi yanmaz mı']),
   P('Fuzuli', 'Gazel', ['Aşk derdiyle hoşem el çek ilacımdan tabib', 'Kılma derman kim helakim zehri dermanındadır']),
   P('Baki', 'Gazel', ['Avazeyi bu aleme Davud gibi sal', 'Baki kalan bu kubbede bir hoş sada imiş']),
-  P('Nedim', 'İstanbul Kasidesi', ['Bu şehri Sıtanbul ki bimisl ü bahadır', 'Bir sengine yekpare Acem mülkü fedadır']),
+  P('Nedim', 'İstanbul Kasidesi', ['Bu şehri Sitanbul ki bimisl ü bahadır', 'Bir sengine yekpare Acem mülkü fedadır']),
   P('Muhibbi', 'Gazel', ['Halk içinde muteber bir nesne yok devlet gibi', 'Olmaya devlet cihanda bir nefes sıhhat gibi']),
   P('Ziya Paşa', 'Terkibibent', ['Ayinesi iştir kişinin lafa bakılmaz', 'Şahsın görünür rütbei aklı eserinde']),
 ]);

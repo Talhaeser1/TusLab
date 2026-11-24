@@ -1,0 +1,103 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><style>
+:root{--bg:#080b1a;--bg2:#10142b;--panel:rgba(18,22,48,.86);--line:rgba(120,140,255,.22);--ink:#eef1ff;--mute:#9aa3c7;--ember:#ff7a2f;--gold:#ffc861;--cyan:#3fe0ff;--violet:#8b5cff;--ok:#45e39a}
+*{box-sizing:border-box;margin:0}body{background:#000;font-family:"Segoe UI",system-ui,Roboto,"Noto Sans",sans-serif;color:var(--ink)}
+.f{width:1366px;height:768px;position:relative;overflow:hidden;background:var(--bg);margin-bottom:20px;display:flex;flex-direction:column}
+.top{height:64px;flex:none;display:flex;align-items:center;gap:18px;padding:0 28px;border-bottom:1px solid var(--line);background:rgba(8,11,26,.9);position:relative;z-index:2}
+.logo{font-weight:800;font-size:22px;display:flex;gap:10px;align-items:center}.logo b{color:var(--ember)}.logo img{width:32px}
+.nav{display:flex;gap:6px;margin:0 auto}.nav span{height:40px;padding:0 16px;border-radius:999px;display:flex;align-items:center;gap:7px;font-weight:700;font-size:15px;color:var(--mute)}
+.nav .on{color:#1a0b02;background:linear-gradient(135deg,var(--ember),var(--gold))}
+.tag{position:absolute;right:14px;bottom:10px;z-index:9;font-size:13px;font-weight:800;letter-spacing:.08em;color:#080b1a;background:var(--gold);padding:4px 10px;border-radius:8px}
+.body{flex:1;min-height:0;position:relative;padding:24px 28px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px}
+h1{font-size:44px;line-height:1.05;font-weight:900;letter-spacing:-.02em}h2{font-size:17px;font-weight:800}
+.grad{background:linear-gradient(90deg,var(--ember),var(--gold) 50%,var(--cyan));-webkit-background-clip:text;color:transparent}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:52px;padding:0 26px;border-radius:14px;font-weight:800;font-size:17px;color:#1a0b02;background:linear-gradient(135deg,var(--ember),var(--gold));box-shadow:0 8px 28px rgba(255,122,47,.4)}
+.btn.g{background:none;color:var(--ink);border:1px solid var(--line);box-shadow:none}
+.mute{color:var(--mute)}.mono{font-family:Consolas,ui-monospace,monospace}
+.txt{font-size:26px;line-height:1.8}.txt .d{color:var(--ok)}.txt .c{background:var(--cyan);color:#04121a;border-radius:4px}.txt .r{color:#6f78a3}
+.stat b{font-size:28px;font-weight:900;display:block}.stat small{color:var(--mute);font-size:13px}
+.bar{height:8px;border-radius:8px;background:rgba(255,255,255,.1);overflow:hidden}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--ember),var(--gold))}
+.chip{display:inline-flex;height:36px;align-items:center;padding:0 14px;border-radius:10px;border:1px solid var(--line);font-weight:700;font-size:14px;color:var(--mute)}.chip.on{color:var(--ink);border-color:var(--cyan);background:rgba(63,224,255,.14)}
+.q{display:flex;gap:10px;align-items:center;padding:9px 10px;border:1px solid var(--line);border-radius:12px;font-size:14px;margin-top:7px;background:rgba(8,11,26,.5)}.q i{margin-left:auto;width:20px;height:20px;border-radius:50%;border:2px solid var(--line)}.q.ok i{background:var(--ok);border-color:var(--ok)}
+</style></head><body>
+<!-- ortak üst çubuk -->
+<template id="top"><div class="top"><div class="logo"><img src="favicon.svg">Tuş<b>Lab</b></div><div class="nav"><span class="on">⌨️ Yazma</span><span>🎓 Klavye Dersleri</span><span>🪶 Şiir &amp; Atasözü</span><span>⚔️ PvP Düello</span><span>📈 Performans</span></div><span class="mute" style="font-size:14px">Sv. 4 · 🔥 3 gün</span></div></template>
+
+<!-- 1: MERKEZ (ilk hâle benzer: karşılama + büyük kartlar) -->
+<div class="f" id="d1"><div class="body" style="background:radial-gradient(50% 60% at 20% 0%,rgba(139,92,255,.25),transparent 70%),radial-gradient(40% 50% at 90% 100%,rgba(255,122,47,.18),transparent 70%)">
+ <div style="display:grid;grid-template-columns:1.05fr 1fr;gap:28px;height:100%">
+  <div style="display:flex;flex-direction:column;justify-content:center;gap:18px">
+   <p style="color:var(--cyan);font-weight:700;letter-spacing:.24em;font-size:13px">NEON ARENA · TÜRKÇE KLAVYE</p>
+   <h1>Parmakların<br><span class="grad">ışık hızında</span></h1>
+   <p class="mute" style="font-size:17px;max-width:460px">On parmak öğren, atasözleriyle hızlan, arkadaşınla düelloya çık.</p>
+   <div style="display:flex;gap:12px"><span class="btn">▶ Yazmaya başla</span><span class="btn g">Kaldığın ders: 7 · Ö harfi</span></div>
+   <div style="display:flex;gap:34px;margin-top:8px"><div class="stat"><b>52</b><small>en iyi WPM</small></div><div class="stat"><b>%96</b><small>doğruluk</small></div><div class="stat"><b>18/141</b><small>yıldız</small></div><div class="stat"><b>3</b><small>gün seri</small></div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:16px">
+   <div class="card" style="border-color:rgba(63,224,255,.5)"><div style="font-size:34px">⌨️</div><h2 style="margin-top:10px;font-size:20px">Yazma Arenası</h2><p class="mute" style="font-size:14px;margin-top:4px">Atasözü, şiir, tekerleme — kesintisiz akış</p></div>
+   <div class="card"><div style="font-size:34px">🎓</div><h2 style="margin-top:10px;font-size:20px">Klavye Dersleri</h2><p class="mute" style="font-size:14px;margin-top:4px">47 ders · 8 ünite</p><div class="bar" style="margin-top:14px"><i style="width:15%"></i></div></div>
+   <div class="card"><div style="font-size:34px">🪶</div><h2 style="margin-top:10px;font-size:20px">Şiir &amp; Atasözü</h2><p class="mute" style="font-size:14px;margin-top:4px">290 atasözü · 26 şiir · 44 tekerleme</p></div>
+   <div class="card" style="background:linear-gradient(180deg,rgba(8,11,26,.2),rgba(8,11,26,.92)),url(lobi-afis.webp) center/cover"><div style="font-size:34px">⚔️</div><h2 style="margin-top:10px;font-size:20px">PvP Düello</h2><p style="font-size:14px;margin-top:4px;color:#d7dcf5">Yazarak dövüş · bot ya da arkadaş</p></div>
+  </div></div></div><span class="tag">1 · MERKEZ</span></div>
+
+<!-- 2: ODAK (sade, yalnız yazı) -->
+<div class="f" id="d2"><div class="body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px">
+  <div style="display:flex;gap:8px"><span class="chip on">Atasözü</span><span class="chip">Şiir</span><span class="chip">Deyim</span><span class="chip">Tekerleme</span><span class="chip">Özdeyiş</span><span class="chip">Kelime</span></div>
+  <div class="mono txt" style="max-width:980px;text-align:left;font-size:30px"><span class="d">Ağaç yaşken eğilir, </span><span class="c">s</span><span class="r">abır acıdır meyvesi tatlıdır; damlaya damlaya göl olur, bin bilsen de bir bilene danış.</span></div>
+  <div style="display:flex;gap:56px"><div class="stat" style="text-align:center"><b style="font-size:40px;color:var(--gold)">47</b><small>WPM</small></div><div class="stat" style="text-align:center"><b style="font-size:40px">%97</b><small>doğruluk</small></div><div class="stat" style="text-align:center"><b style="font-size:40px">12</b><small>kombo</small></div><div class="stat" style="text-align:center"><b style="font-size:40px">0:21</b><small>süre</small></div></div>
+  <p class="mute" style="font-size:14px">Yazmaya başla · <b style="color:var(--ink)">Tab</b> yeni metin · <b style="color:var(--ink)">Esc</b> bitir</p>
+ </div><span class="tag">2 · ODAK</span></div>
+
+<!-- 3: OYUN MENÜSÜ (solda büyük menü, sağda sabit karakter görseli) -->
+<div class="f" id="d3"><div class="body" style="padding:0;background:linear-gradient(90deg,var(--bg) 0%,rgba(8,11,26,.92) 34%,rgba(8,11,26,.15) 70%),url(lobi-afis.webp) right center/cover">
+  <div style="padding:44px 56px;width:560px;height:100%;display:flex;flex-direction:column;justify-content:center;gap:12px">
+   <h1 style="font-size:52px;margin-bottom:14px">Tuş<span class="grad">Lab</span></h1>
+   <div class="card" style="display:flex;align-items:center;gap:16px;border-color:var(--gold);background:linear-gradient(90deg,rgba(255,122,47,.28),rgba(18,22,48,.86))"><span style="font-size:30px">⌨️</span><div><h2 style="font-size:22px">YAZMAYA BAŞLA</h2><small class="mute">Atasözü akışı · son: 47 WPM</small></div><b style="margin-left:auto;font-size:22px">›</b></div>
+   <div class="card" style="display:flex;align-items:center;gap:16px;padding:14px 18px"><span style="font-size:26px">🎓</span><div><h2>Klavye Dersleri</h2><small class="mute">Ders 7 / 47</small></div><b style="margin-left:auto">›</b></div>
+   <div class="card" style="display:flex;align-items:center;gap:16px;padding:14px 18px"><span style="font-size:26px">🪶</span><div><h2>Şiir &amp; Atasözü</h2><small class="mute">Kesintisiz akış</small></div><b style="margin-left:auto">›</b></div>
+   <div class="card" style="display:flex;align-items:center;gap:16px;padding:14px 18px"><span style="font-size:26px">⚔️</span><div><h2>PvP Düello</h2><small class="mute">Bot ya da arkadaşınla</small></div><b style="margin-left:auto">›</b></div>
+   <div class="card" style="display:flex;align-items:center;gap:16px;padding:14px 18px"><span style="font-size:26px">📈</span><div><h2>Performans</h2><small class="mute">En iyi 52 WPM · 3 gün seri</small></div><b style="margin-left:auto">›</b></div>
+  </div></div><span class="tag">3 · OYUN MENÜSÜ</span></div>
+
+<!-- 4: PANO (yazma ortada, iki yanda ilerleme) -->
+<div class="f" id="d4"><div class="body" style="display:grid;grid-template-columns:270px 1fr 290px;gap:18px">
+  <div style="display:flex;flex-direction:column;gap:14px">
+   <div class="card"><h2>Kaldığın yer</h2><p style="margin-top:10px;font-weight:800;font-size:18px">Ders 7 · Ö harfi</p><p class="mute" style="font-size:13px">Ünite 3 · Türkçe harfler</p><div class="bar" style="margin:12px 0"><i style="width:15%"></i></div><span class="btn" style="height:42px;font-size:15px;width:100%">Derse devam</span></div>
+   <div class="card" style="flex:1"><h2>🗓️ Günlük görevler <span style="color:var(--gold);float:right">1/3</span></h2><div class="q ok">⌨️ 3 metin bitir<i></i></div><div class="q">🎯 %95 doğruluk<i></i></div><div class="q">🎓 1 ders tamamla<i></i></div></div>
+  </div>
+  <div class="card" style="display:flex;flex-direction:column;gap:16px;border-color:rgba(63,224,255,.45)">
+   <div style="display:flex;gap:8px"><span class="chip on">Atasözü</span><span class="chip">Şiir</span><span class="chip">Deyim</span><span class="chip">Tekerleme</span><span class="chip">Özdeyiş</span><span class="chip">Kelime</span></div>
+   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px"><div class="card stat" style="padding:10px;text-align:center"><b>47</b><small>WPM</small></div><div class="card stat" style="padding:10px;text-align:center"><b>%97</b><small>doğruluk</small></div><div class="card stat" style="padding:10px;text-align:center"><b>12</b><small>kombo</small></div><div class="card stat" style="padding:10px;text-align:center"><b>0:21</b><small>süre</small></div></div>
+   <div class="mono txt card" style="flex:1;background:rgba(6,8,22,.7);display:flex;align-items:center"><div><span class="d">Ağaç yaşken eğilir, </span><span class="c">s</span><span class="r">abır acıdır meyvesi tatlıdır; damlaya damlaya göl olur, bin bilsen de bir bilene danış.</span></div></div>
+   <p class="mute" style="font-size:14px">Atasözü akışı · 4. atasözü · bitirmek için Esc</p>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:14px">
+   <div class="card"><h2>📈 Son 10 sonuç</h2><svg viewBox="0 0 250 90" style="width:100%;margin-top:10px"><polyline fill="none" stroke="#3fe0ff" stroke-width="3" points="5,70 32,62 59,66 86,50 113,54 140,40 167,44 194,30 221,34 245,20"/><line x1="0" y1="88" x2="250" y2="88" stroke="rgba(120,140,255,.3)"/></svg><div style="display:flex;justify-content:space-between;margin-top:6px"><div class="stat"><b style="font-size:22px">52</b><small>en iyi</small></div><div class="stat"><b style="font-size:22px">%96</b><small>ort. doğruluk</small></div></div></div>
+   <div class="card"><h2>Zayıf tuşların</h2><div style="display:flex;gap:8px;margin-top:10px"><span class="chip" style="border-color:#ff4d6d;color:#ff9db0">ğ</span><span class="chip" style="border-color:#ff4d6d;color:#ff9db0">ü</span><span class="chip">ö</span><span class="chip">ç</span></div></div>
+   <div class="card" style="flex:1;background:linear-gradient(180deg,rgba(8,11,26,.25),rgba(8,11,26,.92)),url(lobi-afis.webp) center/cover;display:flex;flex-direction:column;justify-content:flex-end"><h2>⚔️ PvP Düello</h2><p style="font-size:13px;color:#d7dcf5">Yazarak dövüş</p></div>
+  </div></div><span class="tag">4 · PANO</span></div>
+
+<!-- 5: YOL (ders yolu ana görsel) -->
+<div class="f" id="d5"><div class="body" style="display:grid;grid-template-columns:1fr 340px;gap:22px">
+  <div class="card" style="position:relative;background:radial-gradient(60% 80% at 50% 50%,rgba(139,92,255,.16),transparent 70%),var(--panel)">
+   <h2 style="font-size:20px">Öğrenme yolun <span class="mute" style="font-weight:600;font-size:14px">· Ünite 3 / 8 — Türkçe harfler</span></h2>
+   <svg viewBox="0 0 900 520" style="position:absolute;left:18px;right:18px;top:60px;width:calc(100% - 36px);height:calc(100% - 78px)">
+    <path d="M70,430 C200,430 180,300 310,300 S440,170 560,190 S720,330 830,120" fill="none" stroke="rgba(120,140,255,.35)" stroke-width="10" stroke-linecap="round" stroke-dasharray="2 22"/>
+    <g font-family="Segoe UI,sans-serif" font-weight="800" text-anchor="middle">
+     <circle cx="70" cy="430" r="34" fill="#45e39a"/><text x="70" y="438" font-size="22" fill="#062015">F J</text><text x="70" y="492" font-size="15" fill="#9aa3c7">★★★</text>
+     <circle cx="190" cy="372" r="34" fill="#45e39a"/><text x="190" y="380" font-size="22" fill="#062015">D K</text><text x="190" y="434" font-size="15" fill="#9aa3c7">★★★</text>
+     <circle cx="310" cy="300" r="34" fill="#45e39a"/><text x="310" y="308" font-size="22" fill="#062015">A Ş</text><text x="310" y="362" font-size="15" fill="#9aa3c7">★★☆</text>
+     <circle cx="440" cy="222" r="44" fill="#ff7a2f" stroke="#ffc861" stroke-width="5"/><text x="440" y="232" font-size="28" fill="#1a0b02">Ö</text><text x="440" y="296" font-size="16" fill="#ffc861">SIRADAKİ</text>
+     <circle cx="560" cy="190" r="34" fill="#1a2046" stroke="rgba(120,140,255,.4)" stroke-width="3"/><text x="560" y="198" font-size="22" fill="#9aa3c7">Ğ</text>
+     <circle cx="690" cy="262" r="34" fill="#1a2046" stroke="rgba(120,140,255,.4)" stroke-width="3"/><text x="690" y="270" font-size="22" fill="#9aa3c7">Ç</text>
+     <circle cx="830" cy="120" r="34" fill="#1a2046" stroke="rgba(120,140,255,.4)" stroke-width="3"/><text x="830" y="128" font-size="20" fill="#9aa3c7">🏆</text>
+    </g></svg>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:14px">
+   <div class="card" style="border-color:var(--gold)"><h2>Ders 7 · Ö harfi</h2><p class="mute" style="font-size:13px;margin:6px 0 12px">Hedef: 28 WPM · %95</p><span class="btn" style="width:100%">▶ Derse başla</span></div>
+   <div class="card"><h2>⌨️ Hızlı yazma</h2><p class="mute" style="font-size:13px;margin:6px 0 10px">Atasözü, şiir, tekerleme akışı</p><span class="btn g" style="width:100%;height:44px;font-size:15px">Akışı başlat</span></div>
+   <div class="card" style="flex:1;background:linear-gradient(180deg,rgba(8,11,26,.25),rgba(8,11,26,.92)),url(lobi-afis.webp) center/cover;display:flex;flex-direction:column;justify-content:flex-end;gap:8px"><h2>⚔️ PvP Düello</h2><span class="btn g" style="height:44px;font-size:15px;background:rgba(8,11,26,.6)">Lobiye gir</span></div>
+   <div style="display:flex;justify-content:space-between;padding:0 6px"><div class="stat"><b style="font-size:22px">52</b><small>WPM</small></div><div class="stat"><b style="font-size:22px">18</b><small>yıldız</small></div><div class="stat"><b style="font-size:22px">3</b><small>gün seri</small></div></div>
+  </div></div><span class="tag">5 · YOL</span></div>
+<script>document.querySelectorAll('.f').forEach(f=>f.prepend(document.getElementById('top').content.cloneNode(true)));</script>
+</body></html>

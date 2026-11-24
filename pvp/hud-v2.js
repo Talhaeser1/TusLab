@@ -1,9 +1,9 @@
 // Maç HUD'u v2 (KESINYAP 14): eğik can barları + hayalet can, seri göstergesi, yetenek rayı.
 // Yalnız görsel katman: sunucu maç görüntüsünü okur (fight-hud.js update() çağırır), oyuna dokunmaz.
 // Performans: yalnız değer değişince DOM yazılır; hareket transform/opacity (+ halka stroke-dasharray) ile; kare başına okuma yok.
-import {getFighter, SKILL_KEY} from './shared/fighters.js';
+import {getFighter, SKILL_KEY, fighterDefense} from './shared/fighters.js';
 import {SKILL_THRESHOLDS, streakSkill, streakMultiplier} from './shared/match.js';
-import {SKILL_INFO, readSkillState, skillMeter, fighterSkillLabels} from './skillbar.js';
+import {SKILL_INFO, readSkillState, skillMeter, skillStatusText, skillRowNote, fighterSkillLabels} from './skillbar.js';
 import {portraitFor} from './portraits.js';
 import {attachTypingFeel} from './typing-top.js';
 
@@ -38,7 +38,10 @@ export function seriesModel(match, p) {
   return {mode, count: combo, total: 5, lit, marks: {[t.Q]: 'Q', [t.W]: 'W', [t.R]: 'R'}, mult: null, next};
 }
 
-/** Yetenek rayı modeli: arena'da boş; rounds Q/W/E/R (E = kendine can); classic Q/W/S/R (W = eski E vuruşu, kural aynı). */
+/** Yetenek rayı modeli: arena'da boş; rounds Q/W/E/R (E = savunma: karaktere göre kalkan YA can); classic Q/W/S/R (W = eski E vuruşu).
+ * Her kart KENDİ eşiğine doluyor (halka + 'n/N'); eşikte kendiliğinden atılır → 'ATILDI ✓' (seri düşene dek yanık kalır).
+ * E (can) can doluyken atıldıysa 'BEKLİYOR' (ilk yenen darbeden sonra işler), uygulanınca '+N can'; kalkan 'KALKAN N'.
+ * 10'dan sonra Q kartı zincir sayacıdır (chain:true → 'zincir' etiketi). "HAZIR" hiç yazılmaz: oyuncunun basacağı tuş yok. */
 export function railModel(match, p, now = Date.now()) {
   const mode = modeOf(match);
   if (mode === 'arena' || !p) return [];
@@ -49,8 +52,10 @@ export function railModel(match, p, now = Date.now()) {
     const st = readSkillState(p, key, {rounds, now});
     const {state, fill} = skillMeter(st);
     const name = labels?.[key]?.name || SKILL_INFO[kind]?.[key]?.name || key;
-    return {key, name, fill, state, threshold: st.threshold, energy: st.energy, casts: st.casts, icon: SKILL_INFO[kind]?.[rounds && key === 'E' ? 'H' : key]?.icon || '',
-      sub: key === 'S' ? '' : (state === 'cooldown' && st.cooldownMs > 0 ? `${Math.ceil(st.cooldownMs / 1000)} sn` : `seri ${st.threshold}`), wait: Math.max(st.cooldownMs, st.shieldMs || 0)};
+    const shieldE = rounds && key === 'E' && fighterDefense(p.fighter) === 'shield';
+    const sub = key === 'S' ? '' : state === 'cooldown' && st.cooldownMs > 0 ? `${Math.ceil(st.cooldownMs / 1000)} sn` : skillStatusText(st, {compact: true});
+    return {key, name, fill, state, threshold: st.threshold, energy: st.energy, casts: st.casts, icon: SKILL_INFO[kind]?.[rounds && key === 'E' ? (shieldE ? 'S' : 'H') : key]?.icon || '',
+      sub, chain: Boolean(st.chain), ...(rounds && key === 'E' ? {defense: shieldE ? 'shield' : 'heal', pending: st.pending || 0} : {}), wait: Math.max(st.cooldownMs, st.shieldMs || 0)};
   });
 }
 
@@ -63,7 +68,7 @@ export function createHudV2({root, doc = root?.ownerDocument || globalThis.docum
     <div class="fhud2-top"><span class="fhud2-who"><b class="fhud2-name"></b><small class="fhud2-char"></small></span><span class="fhud2-sen-slot" data-sen-slot="${seat}"></span><em class="fhud2-shield" hidden>KALKAN</em></div>
     <div class="fhud2-bar"><div class="fhud2-clip"><i class="fhud2-ghost"></i><i class="fhud2-fill"></i><i class="fhud2-notch"></i></div><span class="fhud2-hp"></span></div>
     <div class="fhud2-series" data-fhud-series="${seat}"><b class="fhud2-ser-n"><small>SERİ</small><span>0</span></b><span class="fhud2-pips"></span><b class="fhud2-ser-x" hidden></b><span class="fhud2-ser-next"></span></div></section>`;
-  const railHTML = seat => `<div class="fhud2-rail fhud2-rail-${seat}" data-fhud-rail="${seat}"><div class="fhud2-skills"></div><small class="fhud2-rail-note">Seri dolunca yetenek kendiliğinden atılır</small></div>`;
+  const railHTML = seat => `<div class="fhud2-rail fhud2-rail-${seat}" data-fhud-rail="${seat}"><div class="fhud2-skills"></div><small class="fhud2-rail-note">${skillRowNote(0, {rounds: true})}</small></div>`;
   el.innerHTML = sideHTML(1) + sideHTML(2) + railHTML(1) + railHTML(2);
   root.appendChild(el);
   const feelOff = attachTypingFeel({root, reduced, later, cancel}); // yazma paneli: doğru kelime .is-hit, yanlış kelime .is-miss
@@ -86,7 +91,8 @@ export function createHudV2({root, doc = root?.ownerDocument || globalThis.docum
   function paintHp(seat, p, mine) {
     const s = S[seat];
     const valid = Number.isFinite(p.hp) && Number.isFinite(p.maxHp) && p.maxHp > 0;
-    const hp = valid ? Math.max(0, Math.min(p.maxHp, p.hp)) : 0, max = valid ? p.maxHp : 1;
+    const held = s.hold && s.hold.until > Date.now() ? s.hold.hp : null; // bekletilen can: önce darbe, sonra can (combat())
+    const hp = valid ? Math.max(0, Math.min(p.maxHp, held ?? p.hp)) : 0, max = valid ? p.maxHp : 1;
     const ratio = hp / max;
     if (s.ratio !== ratio) {
       const scale = `scaleX(${Math.round(ratio * 1000) / 1000})`;
@@ -112,7 +118,10 @@ export function createHudV2({root, doc = root?.ownerDocument || globalThis.docum
     const f = getFighter(p.fighter, p.character || (seat === 2 ? 'rune' : 'fire'));
     setText(s.name, String(p.name || `Oyuncu ${seat}`));
     setText(s.char, `${f.name} · ${f.title}`);
-    setHidden(s.shield, !shieldOn);
+    // E kalkanı (rounds): kalan emme puanı rozetle görünür ("KALKAN 300"); klasik S kalkanı eskisi gibi "KALKAN".
+    const eShield = Math.max(0, Math.round(Number(p.shieldHp) || 0));
+    setText(s.shield, eShield > 0 ? `KALKAN ${eShield}` : 'KALKAN');
+    setHidden(s.shield, !(shieldOn || eShield > 0));
     const pt = portraitFor({fighter: p.fighter, character: p.character});
     if (s.portrait !== pt.url) { s.portrait = pt.url; s.img.src = pt.url; s.img.dataset.portrait = pt.id; setVar(s.side, '--fhud-a', f.palette.accent); setVar(el, `--fhud-a${seat}`, f.palette.accent); if (root.style) setVar(root, `--fhud-a${seat}`, f.palette.accent); }
   }
@@ -142,9 +151,9 @@ export function createHudV2({root, doc = root?.ownerDocument || globalThis.docum
       const card = doc.createElement('div');
       card.className = `fhud2-sk fhud2-sk-${r.key.toLowerCase()}`; card.dataset.key = r.key;
       card.innerHTML = `<span class="fhud2-hexwrap"><svg class="fhud2-hex" viewBox="0 0 60 60" focusable="false"><polygon class="hx-bg" points="${HEX}"/><polygon class="hx-ring" points="${HEX}" pathLength="100"/><polygon class="hx-prog" points="${HEX}" pathLength="100" stroke-dasharray="0 100"/></svg>`
-        + `<span class="fhud2-glyph">${r.icon}</span><b class="fhud2-key">${r.key}</b><i class="fhud2-flash"></i></span><span class="fhud2-skname"></span><small class="fhud2-sksub"></small>`;
+        + `<span class="fhud2-glyph">${r.icon}</span><b class="fhud2-key">${r.key}</b><i class="fhud2-flash"></i><em class="fhud2-tag" hidden>zincir</em></span><span class="fhud2-skname"></span><small class="fhud2-sksub"></small>`;
       s.skills.appendChild(card);
-      s.cards.set(r.key, {card, prog: card.querySelector('.hx-prog'), name: card.querySelector('.fhud2-skname'), sub: card.querySelector('.fhud2-sksub'), flash: card.querySelector('.fhud2-flash'), wrap: card.querySelector('.fhud2-hexwrap'), fill: -1, state: '', casts: null});
+      s.cards.set(r.key, {card, prog: card.querySelector('.hx-prog'), name: card.querySelector('.fhud2-skname'), sub: card.querySelector('.fhud2-sksub'), flash: card.querySelector('.fhud2-flash'), wrap: card.querySelector('.fhud2-hexwrap'), tag: card.querySelector('.fhud2-tag'), fill: -1, state: '', casts: null});
     }
     s.railKey = key;
   }
@@ -156,11 +165,20 @@ export function createHudV2({root, doc = root?.ownerDocument || globalThis.docum
     for (const r of model) {
       const c = s.cards.get(r.key); if (!c) continue;
       const pct = Math.round(r.fill * 100);
+      // Seri düştü (yanlış kelime → yarıya, yeni raund → 0): kart kısa bir sarsıntıyla geri iner (azaltılmış harekette yalnız değer).
+      if (c.fill >= 0 && pct < c.fill) {
+        play(c.card, [{transform: 'translateX(0)'}, {transform: 'translateX(-4px)', offset: .25}, {transform: 'translateX(4px)', offset: .6}, {transform: 'translateX(0)'}], {duration: 260, easing: 'ease-out'});
+        c.card.classList.add('is-drop'); later(() => c.card.classList.remove('is-drop'), 420);
+      }
       if (pct !== c.fill) { c.fill = pct; c.prog.setAttribute('stroke-dasharray', `${pct} 100`); }
       if (c.state !== r.state) {
         const prev = c.state; c.state = r.state; c.card.dataset.state = r.state;
-        if (prev === 'charging' && r.state === 'ready') play(c.flash, [{opacity: 0}, {opacity: 1, offset: .3}, {opacity: 0}], {duration: 420, easing: 'ease-out'});
+        if (prev === 'charging' && (r.state === 'cast' || r.state === 'pending')) {
+          play(c.wrap, [{transform: 'scale(1)'}, {transform: 'scale(1.22)', offset: .3}, {transform: 'scale(1)'}], {duration: 420, easing: 'cubic-bezier(.16,1,.3,1)'});
+          play(c.flash, [{opacity: 0}, {opacity: 1, offset: .3}, {opacity: 0}], {duration: 520, easing: 'ease-out'});
+        }
       }
+      if (c.tag) setHidden(c.tag, !r.chain);
       if (c.casts !== null && r.casts > c.casts) { // atım: ikon büyür, parlama
         play(c.wrap, [{transform: 'scale(1)'}, {transform: 'scale(1.28)', offset: .3}, {transform: 'scale(1)'}], {duration: 520, easing: 'cubic-bezier(.16,1,.3,1)'});
         play(c.flash, [{opacity: 0}, {opacity: 1, offset: .2}, {opacity: 0}], {duration: 650, easing: 'ease-out'});
@@ -169,6 +187,11 @@ export function createHudV2({root, doc = root?.ownerDocument || globalThis.docum
       c.casts = r.casts;
       setText(c.name, r.name); setText(c.sub, r.sub);
     }
+  }
+  function paintNote(seat, match, p, model) {
+    const note = S[seat].rail?.querySelector('.fhud2-rail-note'); if (!note) return;
+    const e = model.find(r => r.key === 'E');
+    setText(note, skillRowNote(p?.streak ?? p?.combo, {rounds: modeOf(match) === 'rounds', pending: e?.pending || 0})); // can bekliyorsa (seri sonra yarıya inse de) not bunu söyler
   }
 
   // Sunucu anlık görüntüsü gelmese de bekleme/kalkan süresi bitince yeniden çizer.
@@ -209,6 +232,7 @@ export function createHudV2({root, doc = root?.ownerDocument || globalThis.docum
       paintSeries(seat, seriesModel(match, p));
       const model = railModel(match, p, now);
       paintRail(seat, model, p);
+      paintNote(seat, match, p, model);
       schedule(seat, Math.max(0, ...model.map(r => r.wait), p.shieldUntil && p.shieldUntil > now ? p.shieldUntil - now : 0));
     }
     railOffset();
@@ -218,8 +242,22 @@ export function createHudV2({root, doc = root?.ownerDocument || globalThis.docum
   let ro = null;
   try { const tt = root.querySelector?.('.pvp2-shell>.tt'); if (tt && typeof globalThis.ResizeObserver === 'function') { ro = new globalThis.ResizeObserver(() => railOffset()); ro.observe(tt); } } catch { /* süs */ }
 
+  /** Savaş olayı (fight-hud handle'dan). Bekletilen E canı (HEAL_APPLIED banked) darbeyle aynı anda işler ve can barı
+   * net olarak hiç oynamıyordu ("can gelmedi" görünümü). Bar önce darbe sonrası değere iner, sonra canla yükselir (yeşil). */
+  function combat(event) {
+    if (destroyed || !event || event.type !== 'HEAL_APPLIED' || !event.banked) return;
+    const seat = event.seat ?? event.fromSeat, s = S[seat], amount = Math.round(Number(event.amount) || 0), after = Number(event.hpAfter);
+    if (!s || !(amount > 0) || !Number.isFinite(after)) return;
+    const p = lastMatch && seatOf(lastMatch, seat); if (!p) return;
+    s.hold = {hp: after - amount, until: Date.now() + 2000}; paintHp(seat, p, false);
+    later(() => {
+      if (destroyed) return;
+      s.hold = {hp: after, until: Date.now() + 700}; const q = lastMatch && seatOf(lastMatch, seat); if (q) paintHp(seat, q, false);
+      later(() => { s.hold = null; if (!destroyed && lastMatch) update(lastMatch, lastMy); }, 720);
+    }, reduced() ? 120 : 420);
+  }
   return {
-    update, el,
+    update, el, combat,
     hide() { setHidden(el, true); },
     destroy() { destroyed = true; feelOff();for (const seat of [1, 2]) cancel(S[seat].timer); ro?.disconnect?.(); globalThis.removeEventListener?.('resize', onResize); el.remove(); },
   };

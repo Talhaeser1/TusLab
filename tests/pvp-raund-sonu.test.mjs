@@ -101,7 +101,7 @@ test('raund sonu: kart (intermission) çözüm planı bitince açılır; nextRou
   assert.ok(end&&end.at>=until,'kart son sahne + yerleşme bitmeden açılmaz');
   assert.equal(m.round.nextRoundAt,until+ROUND_SUMMARY_MS+ROUND_INTRO_MS);
   // Hasar kaybolmaz / değişmez: can düşüşü = DAMAGE_APPLIED toplamı.
-  const lost=seat=>4000-seatOf(m,seat).hp;
+  const lost=seat=>seatOf(m,seat).maxHp-seatOf(m,seat).hp;
   const dealt=seat=>hits.filter(e=>e.toSeat===seat).reduce((s,e)=>s+e.amount,0);
   assert.equal(lost(1),dealt(1));assert.equal(lost(2),dealt(2));
   assert.equal(publicMatch(resolveStep.m,1).round.resolveEndsAt,until);

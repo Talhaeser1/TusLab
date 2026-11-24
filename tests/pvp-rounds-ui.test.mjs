@@ -221,13 +221,13 @@ test('rounds: single option 7; every stored value normalises to 7',()=>{
   for(const v of [7,'10',5,0,3,6,'x',null,undefined,11])assert.equal(normalizeRounds(v),7);
   assert.equal(PRACTICE_ROUNDS_KEY,'tuslab-pvp-practice-rounds');
 });
-test('rounds: streak multiplier and label mapping (×1.5 → ×2.5 cap, none below 10)',()=>{
+test('rounds: streak multiplier and label mapping (×1.5 → ×2 cap like the engine, none below 10)',()=>{
   // KESINYAP 21 (kullanıcı kuralı: dört yetenek, ulti yalnız 10 seride): çarpan eşiği 7 → 10.
   for(const s of [0,1,3,5,6,7,9])assert.equal(streakMultiplier(s),1);
   assert.equal(streakMultiplier(10),1.5);assert.equal(streakMultiplier(11),1.8);
-  assert.equal(streakMultiplier(12),2.16);assert.equal(streakMultiplier(13),2.5);assert.equal(streakMultiplier(17),2.5);
+  assert.equal(streakMultiplier(12),2);assert.equal(streakMultiplier(13),2);assert.equal(streakMultiplier(17),2);
   assert.equal(multiplierLabel(1),null);
-  assert.deepEqual([10,11,12,13].map(s=>multiplierLabel(streakMultiplier(s))),['×1.5','×1.8','×2.16','×2.5']);
+  assert.deepEqual([10,11,12,13].map(s=>multiplierLabel(streakMultiplier(s))),['×1.5','×1.8','×2','×2']);
 });
 test('rounds: streak meter thresholds 3 Q / 5 W / 7 E / 10 R and next skill',()=>{
   // KESINYAP 21 (kullanıcı kuralı: dört yetenek, ulti yalnız 10 seride): eşik tablosu 3/5/7/10; motor anahtarı e → W, h → E.
@@ -236,8 +236,8 @@ test('rounds: streak meter thresholds 3 Q / 5 W / 7 E / 10 R and next skill',()=
   assert.deepEqual(four.ticks.map(t=>[t.at,t.key,t.reached]),[[3,'Q',true],[5,'W',false],[7,'E',false],[10,'R',false]]);
   assert.equal(four.nextSkill,'W');assert.equal(four.multiplierLabel,null);assert.equal(four.cells,10);assert.equal(four.filled,4);
   assert.equal(streakModel(2).nextSkill,'Q');assert.equal(streakModel(6).nextSkill,'E');assert.equal(streakModel(9).nextSkill,'R');
-  const ten=streakModel(10);assert.equal(ten.multiplierLabel,'×1.5');assert.equal(ten.nextSkill,'Q');
-  assert.equal(streakModel(7).nextSkill,null);assert.equal(streakModel(12).nextSkill,'Q'); // 11 ve sonrası her doğru kelime Q
+  const ten=streakModel(10);assert.equal(ten.multiplierLabel,'×1.5');assert.equal(ten.nextSkill,null);
+  assert.equal(streakModel(7).nextSkill,null);assert.equal(streakModel(11).nextSkill,null);assert.equal(streakModel(12).nextSkill,'Q');assert.equal(streakModel(13).nextSkill,null); // 10'dan sonra her 3. doğru kelime Q (13, 16 …)
   assert.equal(streakModel(-3).filled,0);
 });
 test('rounds: predicted skill uses streak table in round mode, cyclic Q2/E4/R5 in classic',()=>{
@@ -280,7 +280,7 @@ test('rounds HUD: ROUND_START → RAUND 2 / 5, ten-word strip, server-clock time
   // KESINYAP 11: pip = raund ilerlemesi (2. raund oynanıyor → 1 dolu / 5); taşınan can ve raund hasarı görünür.
   assert.deepEqual(left.pips,{filled:1,total:5,current:2});assert.deepEqual(right.pips,left.pips);
   assert.equal(left.hpText,'Can 1.200/1.200');assert.equal(right.hpText,'Can 900/1.200');
-  assert.equal(right.damageText,'Raund hasarı 738/1300');assert.equal(right.capped,false);
+  assert.equal(right.damageText,'Raund hasarı 738');assert.equal(right.capped,undefined); // tavan kaldırıldı
 });
 test('rounds HUD: urgent in the last 5 s and frozen while paused',()=>{
   assert.equal(roundsViewModel(roundMatch(),'me',35_500).timer.urgent,true);
@@ -319,7 +319,7 @@ test('round summary card: both sides\' damage, carried HP, KO badge, stats table
   assert.equal(s.damageLine,'Bu raund: Sen 210 hasar · Rakip 1.200 hasar');
   assert.equal(s.hpLine,'Kalan can: Sen 0 · Rakip 420');
   assert.deepEqual(s.rows.map(r=>r.label),['Doğru','Yanlış','En iyi seri','Hasar','Kalan can']);
-  assert.deepEqual(s.rows.find(r=>r.label==='Hasar').values,['210/1300','1200/1300']);
+  assert.deepEqual(s.rows.find(r=>r.label==='Hasar').values,['210','1200']); // raund tavanı yok
   assert.deepEqual(s.rows.find(r=>r.label==='En iyi seri').values,['4','7']);
   assert.equal(s.scoreline,'0 – 420');assert.equal(s.nextText,'Sıradaki: RAUND 3 · 9 kelime');
   assert.equal(summaryModel({...roundEnd,next:{round:3,style:'timed',seconds:30}},roundMatch(),'me').nextText,'Sıradaki: RAUND 3 · 30 sn');
@@ -370,7 +370,7 @@ test('match result: remaining-HP scoreline and per-round damage rows; classic re
   const r=roundsResultModel(result,'me');
   assert.equal(r.scoreline,'2.100 – 1.650 · 7 raund');assert.equal(r.rows.length,7);
   assert.equal(r.rows[0].winner,'Ayşe');assert.equal(r.rows[0].damage,'400 – 300');assert.equal(r.rows[2].winner,'Eşit');
-  assert.equal(r.reasonLabel,'KALAN CAN ÜSTÜNLÜĞÜ');assert.equal(r.lengthLabel,'Kalan can · 7 raundluk maç · 4.000 can');
+  assert.equal(r.reasonLabel,'KALAN CAN ÜSTÜNLÜĞÜ');assert.equal(r.lengthLabel,'Kalan can · 7 raundluk maç · 6.000 can');
   const ko=roundsResultModel({...result,endReason:'KNOCKOUT',finalHp:{1:1240,2:0},rounds:result.rounds.slice(0,5)},'me');
   assert.equal(ko.scoreline,'1.240 – 0 · NAKAVT');assert.equal(ko.reasonLabel,'NAKAVT');
   assert.equal(roundsResultModel({...result,endReason:'ROUNDS_DRAW',winnerSeat:null},'me').reasonLabel,'ANİ ÖLÜMDE DE BERABERE');

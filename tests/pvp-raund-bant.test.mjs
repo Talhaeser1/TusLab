@@ -9,9 +9,9 @@ const match = {matchId: 'm', mode: 'rounds', round: {index: 4, total: 7, style: 
 const end = {round: 4, scores: [
   {seat: 1, damageDealt: 927, correct: 18, wrong: 3, bestStreak: 8}, {seat: 2, damageDealt: 1300, correct: 25, wrong: 2, bestStreak: 11}], next: {round: 5, style: 'timed', seconds: 30}};
 
-test('raund arası bandı: solda rakip, sağda sen; tavan rozeti yalnız tavanda; kalan can yazılmaz', () => {
+test('raund arası bandı: solda rakip, sağda sen; raund tavanı/rozeti yok; kalan can yazılmaz', () => {
   const m = summaryModel(end, match, 'me');
-  assert.deepEqual(m.duel.map(d => [d.label, d.damage, d.capped]), [['Rakip vurdu', '927', false], ['Sen vurdun', '1.300', true]]);
+  assert.deepEqual(m.duel.map(d => [d.label, d.damage, Boolean(d.capped)]), [['Rakip vurdu', '927', false], ['Sen vurdun', '1.300', false]]);
   assert.equal(m.duel[0].detail, '18 doğru · 3 yanlış · seri 8');
   assert.equal(m.duel[1].detail, '25 doğru · 2 yanlış · seri 11');
   assert.equal(m.countText, 'Raund 5 başlıyor');

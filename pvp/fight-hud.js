@@ -385,7 +385,7 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
   }
 
   /** KESINYAP 21 — E (kendine can): karakterin başı üstünde yeşil "+120" (3B yoksa can barının yanında). */
-  function showHeal(seat, amount) {
+  function showHeal(seat, amount, shield = false, tone = '') {
     if (!seat || !(amount > 0)) return;
     let pos = null;
     try { pos = api()?.seatScreen?.(seat) || null; } catch { pos = null; }
@@ -393,7 +393,9 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
       const bar = root.querySelector?.(`[data-fhud-seat="${seat}"] .fhud2-bar`)?.getBoundingClientRect?.();
       if (bar && bar.width > 0) pos = {x: bar.left + bar.width / 2, y: bar.bottom + 22};
     }
-    const n = el('div', `fhud-heal${reduced() ? ' fhud-reduced' : ''}`, `+${amount}`);
+    // E kalkanı (RAPOR-PVP-MEKANIK): aynı yerde "KALKAN 300" (can değil, emme puanı).
+    const pending = tone === 'pending';
+    const n = el('div', `fhud-heal${shield ? ' fhud-shield' : ''}${pending ? ' fhud-pending' : ''}${reduced() ? ' fhud-reduced' : ''}`, shield ? `KALKAN ${amount}` : pending ? `+${amount} CAN BEKLİYOR` : `+${amount}`);
     n.setAttribute?.('aria-hidden', 'true');
     if (pos) { n.style?.setProperty?.('left', `${Math.round(pos.x)}px`); n.style?.setProperty?.('top', `${Math.round(pos.y)}px`); }
     else n.classList?.add?.(`fhud-heal-${seat}`);
@@ -420,7 +422,14 @@ export function createFightHud({root, isReduced = () => false, scheduler = globa
       } else if (event.type === 'KNOCKOUT') {
         callApi('slowMo', HUD_TIMES.slowRate, HUD_TIMES.slowMs);
       } else if (event.type === 'HEAL_APPLIED') {
-        showHeal(seatOf(event.seat ?? event.fromSeat), Math.max(0, Math.round(Number(event.amount) || 0)));
+        const shieldUp = event.kind === 'shield';
+        const seat = seatOf(event.seat ?? event.fromSeat);
+        const amount = Math.max(0, Math.round(Number(shieldUp ? event.shieldAdded : event.amount) || 0));
+        const banked = Math.max(0, Math.round(Number(event.banked) || 0));
+        // Can doluyken atılan E: can bekletilir (ilk yenen darbeden sonra işler). Önceden "+0" diye hiçbir şey çıkmıyordu.
+        if (!shieldUp && !amount && banked > 0) showHeal(seat, banked, false, 'pending');
+        else showHeal(seat, amount, shieldUp);
+        try { hud2?.combat?.(event); } catch { /* süs */ }
         return true;
       }
       const c = callFor(event, seat => players.get(seat)?.fighter || null);
