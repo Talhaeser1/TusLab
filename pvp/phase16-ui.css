@@ -62,3 +62,15 @@
 /* compact-height.css kısa ekranda araç çubuğundaki TÜM düğmeleri 30 px'e sabitliyor; bu açılır panel çubuğun parçası değil:
    menü düğmeleri 36 px'in altına inmesin (özgüllük: [class] ile bir basamak yukarı). */
 #pvp-root .pvp2-toolbar :is(.pvp16-modal,.pvp17-modal)[class] :is(button,select,input){height:auto;min-height:36px;padding-top:6px;padding-bottom:6px}
+
+/* Kâşif (docs/20): Profil ve Arkadaşlar panelleri 40 px'lik araç çubuğunun (position:relative) içinde mutlak konumluydu;
+   max-height:calc(100% - 90px) çubuğun yüksekliğine göre eksiye düşüyor, panel 26 px'lik bir şeride iniyordu (maçta açılınca
+   yalnız ince bir çizgi). Ayrıca .pvp2-shell (isolation) içinde kaldığından dövüş HUD'u (.fhud2, z 25) panelin üstüne çiziliyordu.
+   Panel görüntü alanına sabitlenir; açıkken dövüş HUD katmanları gizlenir (maç arkada sürer). */
+#pvp-root .pvp16-modal,
+#pvp-root .pvp17-modal{position:fixed;top:56px;bottom:auto;max-height:calc(100dvh - 72px)}
+@media(max-width:820px){
+  #pvp-root .pvp16-modal,
+  #pvp-root .pvp17-modal{top:auto;bottom:8px;left:8px;right:8px;width:auto;max-height:calc(100dvh - 64px)}
+}
+#pvp-root:has(.pvp16-modal:not([hidden]),.pvp17-modal:not([hidden])) > :is(.fhud2,.mi,.pvp-combo-counter){visibility:hidden!important}

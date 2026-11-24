@@ -165,6 +165,13 @@ function syncTypingPicker(panel,scope,{value,editable,note}){
   panel.querySelectorAll(`[data-typing-scope="${scope}"]`).forEach(input=>{input.checked=t[input.dataset.typingKey];input.disabled=!editable;});
   const n=panel.querySelector(`[data-typing-note="${scope}"]`);if(n&&n.textContent!==note)n.textContent=note;
 }
+/** Geçersiz oda kodunun nedeni (Türkçe, tek cümle). */
+export function roomCodeProblem(code){
+  const c=String(code??'');
+  if(!c)return 'Oda kodunu yaz ya da davet bağlantısını yapıştır.';
+  if(c.length!==16)return `Oda kodu 16 karakter olmalı (şu an ${c.length}).`;
+  return 'Oda kodunda yalnız harf ve 2–9 rakamları olur (0 ve 1 yok).';
+}
 export const invitedRoom=(href)=>{
   try{const u=new URL(href);const code=(u.searchParams.get('pvpRoom')||'').toUpperCase();return ROOM_CODE.test(code)?code:null;}catch{return null;}
 };
@@ -230,7 +237,8 @@ export class PvPNetworkConsole {
     root.addEventListener('click',e=>{
       const b=e.target.closest('[data-lobby-action]');if(!b)return;
       const action=b.dataset.lobbyAction;
-      if(action==='toggle'){this.open=!this.open;this.render();return;}
+      if(action==='toggle'){this.open=!this.open;this.render();if(!this.open)this.returnToMatch();return;}
+      if(action==='back'){if(this.open&&this.matchLive()){this.open=false;this.render();this.returnToMatch();}return;} // Kâşif: "Maça dön"
       if(action==='create')void this.create();
       if(action==='join')void this.join(this.panel()?.querySelector('[data-lobby-join-code]')?.value||'');
       if(action==='copy')void this.copyInvite();
@@ -379,12 +387,23 @@ export class PvPNetworkConsole {
       }
       return;
     }
+    // Kâşif (docs/20): maç sürerken açılan lobide Esc lobiyi kapatır, maça döner.
+    if(e.key==='Escape'&&this.matchLive()){e.preventDefault();this.open=false;this.render();this.returnToMatch();return;}
     if(e.key==='Enter'&&!this.myId&&!this.practice&&!e.repeat){
       const t=e.target,tag=t?.tagName;
       if(['INPUT','TEXTAREA','SELECT','A'].includes(tag))return;
       if(tag==='BUTTON'&&t.getAttribute('role')!=='radio')return; // düğmenin kendi Enter'ı kalır
       e.preventDefault();this.startPractice();
     }
+  }
+  /** Maç sürüyor mu (lobi bu sırada üstte açılabilir)? */
+  matchLive(){return ['running','paused'].includes(this.match?.status);}
+  /** Lobi maç sırasında kapandı: odak gizlenen düğmede kalmasın; pvp-main yazma kutusuna döner (tuslab:pvp-lobby-closed). */
+  returnToMatch(){
+    if(!this.matchLive())return;
+    try{const a=document.activeElement;if(a&&a!==document.body&&!a.getClientRects().length)a.blur();}catch{/* yok */}
+    try{const a=document.activeElement;if(a?.closest?.('[data-lobby-panel]'))a.blur();}catch{/* yok */}
+    this.root?.dispatchEvent?.(new CustomEvent('tuslab:pvp-lobby-closed'));
   }
   /** Arkadaşla oyna çekmecesi: açılınca odak içeri girer, kapanınca açan düğmeye döner. */
   setDrawer(open){
@@ -586,8 +605,11 @@ export class PvPNetworkConsole {
     finally{this.connecting=false;this.render();}
   }
   async join(code){
-    const normalized=String(code).trim().toUpperCase();
-    if(!ROOM_CODE.test(normalized))return this.log('Oda kodu 16 karakter olmalı.');
+    // Kâşif (docs/20): davet bağlantısının tamamı yapıştırılırsa kod içinden alınır; hata yazısı gerçek nedeni söyler
+    // (önceden 16 karakterlik ama 0/1 içeren kodda da "16 karakter olmalı" yazıyordu).
+    const raw=String(code).trim();
+    const normalized=(/pvpRoom=/i.test(raw)&&invitedRoom(raw))||raw.replace(/[\s-]/g,'').toUpperCase();
+    if(!ROOM_CODE.test(normalized))return this.log(roomCodeProblem(normalized));
     if(this.readName().length<2)return this.log('İsim en az 2 karakter olmalı.');
     // An expired invite rejects the WebSocket upgrade before it can send ERROR;
     // without this check the browser retries a nonexistent room for 19 seconds.
@@ -891,7 +913,10 @@ export class PvPNetworkConsole {
     const joined=Boolean(this.myId)&&!this.practice;
     const chip=this.root.querySelector('[data-practice-chip]');if(chip)chip.hidden=!this.practice;
     panel.querySelector('[data-lobby-action="practice-stop"]')?.toggleAttribute('hidden',!this.practice);
+    // Kâşif (docs/20): maç sürerken "Lobiyi aç" ile açılan lobiden maça dönüş (önceden tek çıkış "Yeniden savaş"tı).
+    panel.querySelector('[data-sc-back]')?.toggleAttribute('hidden',!this.matchLive());
     put('[data-practice-main]',this.practice?'Yeniden savaş':'Savaşa başla');
+    panel.querySelector('.sc-start-hint')?.toggleAttribute('hidden',Boolean(this.practice)); // Kâşif: bot maçı sürerken Enter yeniden başlatmaz (kazara)
     panel.querySelectorAll('[data-difficulty]').forEach(b=>{const on=String(b.dataset.difficulty===this.practiceDifficulty);if(b.getAttribute('aria-pressed')!==on)b.setAttribute('aria-pressed',on);});
     const charSelect=panel.querySelector('[data-practice-character]');if(charSelect&&document.activeElement!==charSelect)charSelect.value=this.character;
     panel.dataset.hero=this.character;
@@ -1008,6 +1033,7 @@ export function networkConsoleHTML(){
         <button type="button" class="sc-scrim sc-scrim-sheet" data-sc-action="sheet-close" tabindex="-1" aria-label="Alt sayfayı kapat"></button>
       </div>
       <div class="sc-actions">
+        <button type="button" class="sc-friend sc-back" data-lobby-action="back" data-sc-back hidden title="Lobiyi kapat, süren maça dön (Esc)">⚔ Maça dön</button>
         <button type="button" class="sc-friend" data-sc-action="drawer" aria-expanded="false" aria-controls="sc-drawer">Arkadaşla oyna</button>
         <button type="button" class="lb3-close sc-close" data-pvp-action="close" aria-label="PvP'den çık, ana sayfaya dön" title="Ana sayfaya dön">← Ana Sayfa</button>
       </div>

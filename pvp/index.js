@@ -8,6 +8,8 @@
 
 export const PVP_MAIN = './pvp-main.js';
 export const WARM_DELAY_MS = 4000;
+/** Yükleme hatasında tek seferlik sayfa yenilemesinin zaman damgası (sessionStorage; yalnız bu sekme). */
+export const RELOAD_KEY = 'tuslab-pvp-load-retry';
 
 /** Adres PvP'yi doğrudan açıyor mu? (?pvp=lobby, ?pvp=practice, ?pvpRoom=KOD) */
 export function wantsPvp(search) {
@@ -48,13 +50,29 @@ export function createPvpLoader({
         return mod;
       }, err => {
         pending = null; wantOpen = false;
-        hideLoadingHint();
         try { console.error('[pvp] PvP modülü yüklenemedi:', err); } catch { /* yok */ }
+        // Kâşif (docs/20): ?pvp= adresinde ~60 modülden biri inmezse (yerel sunucu aynı anda çok bağlantıyı reddetti:
+        // ERR_CONNECTION_REFUSED) PvP hiç açılmıyor, 20 sn sonra ana sayfaya atılıyordu. Sayfa bir kez yenilenir.
+        if (wantsPvp(search) && reloadOnce()) throw err;
+        hideLoadingHint();
         throw err;
       });
       pending.catch(() => {});
     }
     return pending;
+  }
+
+  /** Yükleme hatasında sayfayı en çok dakikada bir yeniler (sessionStorage yoksa ya da yakın zamanda denendiyse yenilemez). */
+  function reloadOnce() {
+    try {
+      const ss = win?.sessionStorage;
+      if (!ss || typeof win?.location?.reload !== 'function') return false;
+      const now = Date.now();
+      if (now - (Number(ss.getItem(RELOAD_KEY)) || 0) < 60000) return false;
+      ss.setItem(RELOAD_KEY, String(now));
+      win.location.reload();
+      return true;
+    } catch { return false; }
   }
 
   function warm() {

@@ -973,3 +973,15 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
   #pvp-root .lb3.sc .j2-chars{--sc-fade:10px}
   #pvp-root .pvp6-panel.lb3.sc .j2-chars button.lb3-fighter{width:62px}
 }
+
+/* Kâşif (docs/20): maç sürerken "Lobiyi aç" ile açılan lobi. Dövüş HUD'u (.fhud2, beceri rayları, süre), kelime şeritleri (.mi),
+   kombo sayacı ve sinematik katman kökün doğrudan çocukları ve z-index'leri .pvp2-shell'in (isolation) üstünde kalıyordu:
+   can barları ve raylar lobinin üstüne çiziliyor, "Yeniden savaş" düğmesini örtüyordu. Lobi açıkken bu katmanlar gizlenir. */
+#pvp-root:has([data-lobby-panel]:not([hidden])) > :is(.fhud2,.mi,.pvp-combo-counter,.cin){visibility:hidden!important}
+#pvp-root .pvp6-panel.lb3.sc .sc-actions .sc-back{border:1px solid #ffc44d;color:#ffd77a}
+#pvp-root .pvp6-panel.lb3.sc .sc-actions .sc-back:hover{background:#ffc44d26}
+#pvp-root .pvp6-panel.lb3.sc .sc-actions .sc-back[hidden]{display:none}
+/* Dar ekranda üç düğme (Maça dön · Arkadaşla oyna · Ana Sayfa) "PvP ARENA" başlığının üstüne biniyordu: başlık o sırada gizlenir. */
+@media (max-width:600px){
+  #pvp-root .lb3.sc:has([data-sc-back]:not([hidden])) .sc-title{visibility:hidden}
+}

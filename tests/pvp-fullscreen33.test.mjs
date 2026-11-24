@@ -23,14 +23,15 @@ test('B1 fullscreen layout follows running/paused matches with either arena and 
   const network = {match: null};
   const sync = runInNewContext(`(${declaration('fullscreenLayoutSync')})`, {root, network});
   for (const renderer of ['2d', '3d']) {
-    for (const status of ['running', 'paused']) {
+    // Kâşif (docs/20): 'ended' de tam ekran kalır — bitiş pozu ve sonuç kartı açılırken eski 2B paneller görünmez.
+    for (const status of ['running', 'paused', 'ended']) {
       arena = {renderer};
       network.match = {status};
       sync();
       assert.equal(root.dataset.layout, 'fullscreen', `${renderer} ${status}`);
     }
   }
-  for (const match of [null, {status: 'waiting'}, {status: 'countdown'}, {status: 'ended'}]) {
+  for (const match of [null, {status: 'waiting'}, {status: 'countdown'}]) {
     root.dataset.layout = 'fullscreen';
     network.match = match;
     sync();

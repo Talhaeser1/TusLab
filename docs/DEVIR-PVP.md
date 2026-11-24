@@ -19,6 +19,9 @@ Bu dosyayı yeni sohbetin ilk mesajında okut: "docs/DEVIR-PVP.md'yi oku, 1. mad
 10. Çevrimiçi oda gerçek Cloudflare sunucusuyla (BASLAT-CLOUDFLARE.bat, 8787) hiç denenmedi.
 
 (24 Kas, Usta — docs/17-pvp-kalanlar.md: 5, 7, 8 ve 12 bitti, listeden silindi. Kalanların numaraları değişmedi.)
+17. (24 Kas, Kâşif — docs/20-pvp-tus-turu.md) Çevrimiçi odada sunucu onayı beklenirken (`pvp-main.js` input, `p.pending`) basılan harfler atılıyor; hızlı yazanda sonraki kelimenin ilk harfi kaybolabilir. Bot maçında sorun yok. 8787 ile dene.
+18. (Kâşif) Yerel sunucu `scripts/serve.py`: `ThreadingHTTPServer` dinleme kuyruğu 5 → lobinin ~150 isteğinden bazıları ERR_CONNECTION_REFUSED, PvP bazen açılmıyor. `request_queue_size = 128` önerildi (sahiplik dışı). İstemci tarafında `pvp/index.js` bir kez yeniliyor.
+19. (Kâşif) Tarayıcı geri tuşu canlı maçı sorusuz bırakıyor (tasarım kararı gerek).
 
 ## Kullanıcı kararı bekleyenler
 - "Ultide max 2 kombo": şu an çarpan tavanı ×2; "en çok 2 vuruş" mu?

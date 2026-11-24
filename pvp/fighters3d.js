@@ -1266,6 +1266,10 @@ export function createFighterRig(THREE, asset, {
   }
 
   goIdle(0);
+  // Kâşif (docs/20): duruş klibi ilk kareden önce uygulanır. Mikser ilk update'e kadar iskeleti bağlama pozunda
+  // (T-poz, kollar açık) bırakıyordu; model sahneye girdiği tick'te ön-ısıtma çizimi ya da arena döngüsünden
+  // önce çizilen kare bu pozu gösterebiliyordu.
+  try { mixer.update(0); } catch { /* kozmetik */ }
 
   return {
     fighterId, seat, face, palette, choreo, reach, object, model, mixer, actions, bones, materials, height, scale,

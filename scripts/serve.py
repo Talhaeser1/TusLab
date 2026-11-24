@@ -40,6 +40,8 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
 def main():
     # Öncelik: komut satırı > PORT ortam değişkeni (önizleme araçları bunu verir) > 5176
     port = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("PORT", "5176"))
+    # Lobi ~150 isteği birden atar; varsayılan kuyruk (5) dolunca bağlantı reddediliyordu (docs/20).
+    http.server.ThreadingHTTPServer.request_queue_size = 128
     server = http.server.ThreadingHTTPServer(("127.0.0.1", port), NoCacheHandler)
     print(f"TuşLab sunucusu: http://127.0.0.1:{port}/  (no-cache, must-revalidate; 304 destekli — durdurmak için Ctrl+C)")
     try:

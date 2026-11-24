@@ -259,7 +259,9 @@ function fighterSkillCue(side,cue,action){
   if(arena3d.instance)return true; // 3D contact plays this sample alongside the hit.
   return playFighterSfx(side==='rune'?2:1,action,action==='r'?.88:1);
 }
-let reducedEffects=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches??false;
+// Kâşif (docs/20): "Efektleri azalt" tercihi kalıcı (ses/müzik gibi); önceden her açılışta sıfırlanıyordu.
+const REDUCED_FX_KEY='tuslab-pvp-reduced-fx';
+let reducedEffects=(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches??false)||(()=>{try{return localStorage.getItem(REDUCED_FX_KEY)==='on';}catch{return false;}})();
 /** DEVIR-PVP 1: raund geçişi (tur arası paneli açılırken / yeni raund başlarken). Görsel kuyrukta, temas bekleyen
  *  (impactFeel) ya da ertelenmiş ulti hasarı ANİMASYONSUZ teslim edilir ve sahne temizlenir (arena3d.settle: ulti zinciri,
  *  zamanlanmış tepkiler, tamponlar; kuyruk boş olsa da — 1. turda kuyruk boşken ulti zinciri ~1,4 sn sonra sayı doğuruyordu).
@@ -454,7 +456,10 @@ root?.addEventListener('tuslab:pvp-match',skillRowSync);
 /** Paket 33: 3B tuval veya 2B sahneyle yalnız aktif maçta tam ekran HUD. */
 function fullscreenLayoutSync(){
   if(!root)return;
-  const running=['running','paused'].includes(network.match?.status);
+  // Kâşif (docs/20): maç bitince ('ended') de tam ekran kalır. Önceden bitiş anında düzen eski 2B ızgaraya dönüyordu:
+  // zafer/yenilgi pozunun gösterileceği 850 ms ve sonuç kartının açılış geçişi boyunca 3B arena yerine eski
+  // "RUH DÜELLOSU" panelleri (CAN PUANI, Q/W/S/R kartları) görünüyordu. Lobiye dönüşte maç silinir, düzen kalkar.
+  const running=['running','paused','ended'].includes(network.match?.status);
   const arena=root.querySelector('.pvp2-duel .pvp2-stage');
   if(!root.hidden&&running&&arena)root.dataset.layout='fullscreen';
   else delete root.dataset.layout;
@@ -677,6 +682,7 @@ root?.addEventListener('click',event=>{
     })();
   } else if(action.dataset.pvpAction==='effects'){
     reducedEffects=!reducedEffects;
+    try{if(reducedEffects)localStorage.setItem(REDUCED_FX_KEY,'on');else localStorage.removeItem(REDUCED_FX_KEY);}catch{/* gizli pencere */}
     root.classList.toggle('pvp4-reduced',reducedEffects);
     Object.values(fxDirectors).forEach(director=>director.setReduced(reducedEffects));
     Object.values(choreographers).forEach(director=>director.setReduced());
@@ -961,7 +967,8 @@ function focusTypingWhenReady(attempt=0){
   requestAnimationFrame(()=>{
     const input=root.querySelector('#tt-input');
     const active=document.activeElement;
-    if(!input||input.disabled||root.hidden||root.querySelector('[data-pvp-settings][open], [data-pvp15-results]:not([hidden]), dialog[open]'))return;
+    // Kâşif (docs/20): lobi maçın üstünde açıksa odak arkadaki gizli yazma kutusuna çalınmaz (harfler lobide kelime göndermesin).
+    if(!input||input.disabled||root.hidden||root.querySelector('[data-pvp-settings][open], [data-pvp15-results]:not([hidden]), dialog[open], [data-lobby-panel]:not([hidden])'))return;
     if(active&&active!==document.body&&active!==input)return;
     if(!input.getClientRects().length||getComputedStyle(input).visibility==='hidden'){
       if(attempt<30)setTimeout(()=>focusTypingWhenReady(attempt+1),50);
@@ -971,6 +978,7 @@ function focusTypingWhenReady(attempt=0){
   });
 }
 root?.addEventListener('tuslab:pvp-recovered',()=>arena3d.instance?.clear());
+root?.addEventListener('tuslab:pvp-lobby-closed',()=>focusTypingWhenReady()); // Kâşif: "Maça dön" / Esc → yazma kutusu
 root?.addEventListener('tuslab:pvp-arena',event=>{
   // İş 1, 3. tur: hazırlık (PREP) kartlarının arkasında bekleyen sahneler animasyonla biter; temizlik yeni raund başında.
   if(event.detail?.type==='ARENA_ROUND_START'){settleRoundVisuals();arena3d.instance?.clear();} // DEVIR-PVP 1: eski vuruş/sayı yeni raunda taşmaz
@@ -1014,6 +1022,19 @@ root?.addEventListener('tuslab:pvp-word-result',event=>{
   textUpdate(id);
   focusTypingWhenReady();
 });
+/** Kâşif (docs/20): canlı maçta odak yazma kutusunda değilken (Profil/Arkadaşlar/ayar kapandıktan sonra araç çubuğu
+ *  düğmesinde ya da <body>'de) basılan harf kaybolmasın: odak tuşun kendisinden önce yazma kutusuna taşınır, harf oraya düşer.
+ *  Açık panel/kutu, lobi, sonuç ekranı ya da başka bir metin alanı varken dokunulmaz. */
+function redirectTypingKey(e){
+  if(e.key?.length!==1||e.key===' '||e.ctrlKey||e.metaKey||e.altKey||e.isComposing||e.defaultPrevented)return;
+  if(!root||root.hidden||!['running','paused'].includes(network.match?.status))return;
+  const a=document.activeElement;
+  if(a?.matches?.('input,textarea,select,[contenteditable=""],[contenteditable="true"]'))return;
+  if(root.querySelector('[data-pvp-settings][open], [data-pvp15-results]:not([hidden]), dialog[open], [data-lobby-panel]:not([hidden]), [data-pvp16-panel]:not([hidden]), [data-pvp17-panel]:not([hidden]), .htp-panel:not([hidden])'))return;
+  const input=root.querySelector('#tt-input');
+  if(!input||input.disabled||!input.getClientRects().length||getComputedStyle(input).visibility==='hidden')return;
+  input.focus({preventScroll:true});
+}
 // PvP captures game shortcuts without interfering with ordinary text input.
 document.addEventListener('keydown',event=>{
   if(store.getState().view===PvPView.CLOSED)return;
@@ -1024,14 +1045,23 @@ document.addEventListener('keydown',event=>{
   // Arena hazırlığı: 1–5 skill, 6–9 eşya, Enter kilitle, Esc seçmeden geç.
   if(arenaUi?.handleKey(event))return;
   if(roundsUi?.handleKey(event))return;
+  redirectTypingKey(event);
   if(event.key==='Escape'){
     const settings=root?.querySelector('[data-pvp-settings][open]');
     if(settings){settings.open=false;settings.querySelector('summary')?.focus({preventScroll:true});return;}
   }
-  if(event.key==='Escape'&&!['TEXTAREA','INPUT'].includes(document.activeElement?.tagName)){
+  // Kâşif (docs/20): maçın yazma kutusundayken de Esc çıkış onayını açar (önceden kutudayken Esc hiçbir şey yapmıyordu).
+  if(event.key==='Escape'&&(!['TEXTAREA','INPUT'].includes(document.activeElement?.tagName)||document.activeElement?.matches?.('[data-tt-input]'))){
     // Canlı maçta yanlışlıkla Esc oyuncuyu odadan düşürmesin.
     if(['running','paused'].includes(network.match?.status)){
-      void askConfirm(root,{title:'Maçtan çık?',message:"PvP'den çıkarsan maçtan ayrılırsın.",confirmLabel:'Çık'}).then(ok=>{if(ok)store.dispatch({type:'PVP_CLOSE'});else{document.activeElement?.blur?.();focusTypingWhenReady();}});
+      // Kâşif (docs/20): kutu AYNI Esc tuşunun içinde açılınca Chrome o tuşun varsayılan "kapatma isteği"ni yeni <dialog>'a
+      // uyguluyor (cancel) → kutu açılır açılmaz kapanıyordu; gerçek klavyede Esc hiç onay göstermiyordu. Tuş tüketilir,
+      // kutu bir sonraki görevde açılır.
+      event.preventDefault();
+      setTimeout(()=>{
+        if(!['running','paused'].includes(network.match?.status)||document.querySelector('dialog[open]'))return;
+        void askConfirm(root,{title:'Maçtan çık?',message:"PvP'den çıkarsan maçtan ayrılırsın.",confirmLabel:'Çık'}).then(ok=>{if(ok)store.dispatch({type:'PVP_CLOSE'});else{document.activeElement?.blur?.();focusTypingWhenReady();}});
+      },0);
       return;
     }
     store.dispatch({type:'PVP_CLOSE'});

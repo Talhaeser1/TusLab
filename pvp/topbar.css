@@ -78,3 +78,8 @@
 @media(max-width:430px){
   #pvp-root .pvp-topbar-center{display:none}
 }
+
+/* Kâşif (docs/20): dövüş HUD'u açıkken (fhud-on) süre kendi madalyonunda gösterilir. Eski "Süre … · Sıra #N" kutusu
+   klasik maçta madalyonun iki yanından taşıyordu ("Sü 95 10"), maç bitince de ortada "Süre 0 sn · Sıra #23" (sunucu
+   sıra numarası, oyuncu için anlamsız) olarak kalıyordu. */
+#pvp-root.fhud-on[data-layout="fullscreen"] .pvp-topbar-clock{display:none}

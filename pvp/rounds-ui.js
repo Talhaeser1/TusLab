@@ -29,6 +29,8 @@ export const ROUND_STYLE_TITLES=Object.freeze({timed:'ZAMANA KARŞI',counted:'KE
 export const DAMAGE_RULE_HINT=`Seri 3 → Q · 5 → W · 7 → E (kalkan ${SHIELD_AMOUNT} ya da can ${DEFENSE_AMOUNT}) · 10 → R (en çok ×${String(ULTIMATE_MULTIPLIER_CAP).replace('.',',')}) · sonra ${10+CHAIN_EVERY}. ve her ${CHAIN_EVERY_LONG}. doğru kelime Q · 10. seriden sonra hasar çarpanı artar (en çok ×${String(MULTIPLIER_CAP).replace('.',',')}) · yanlış kelime serinin yarısını götürür · raund başına en çok ${ROUND_HEAL_CAP} kalkan/can`;
 export {DEFAULT_ROUND_STYLE,normalizeRoundStyle,ROUND_HP};
 const START_FLASH_MS=900;
+/** Kâşif (docs/20): seçili ama kilitlenmemiş süre becerisi, raund başlamadan bu kadar önce kendiliğinden kilitlenir. */
+export const PICK_AUTO_LOCK_MS=700;
 /** Raund arası: "RAUND X" yazısı önce tek başına bu kadar görünür; sonra kompakt özet/seçim paneli açılır. */
 export const ROUND_TITLE_MS=900;
 /** holdTransition (ör. dövüş animasyonu bitişi) tur arasının başından sayılarak bu süreden uzun beklemez; panel yine açılır.
@@ -683,6 +685,11 @@ export function createRoundsUi(root,{now=()=>Date.now(),doc=globalThis.document,
       // Tek giriş noktası: openIntermission() geçişi (yazı → panel) başlatır; holdTransition bitene dek bekletir.
       const gate=openIntermission(match,t,nextRoundAt);
       const stage=gate.ready?intermissionStage({elapsed:t-gate.openedAt,remaining:nextRoundAt-t}):'hold';
+      // Kâşif (docs/20): karta tıklanıp (ya da 1–3 basılıp) "Seçimi kilitle" unutulduysa seçim süre dolmadan kendiliğinden
+      // kilitlenir; önceden süre dolunca seçilen kart sessizce boşa gidiyordu. Hiç seçim yoksa davranış aynı (beceri yok).
+      if(state.selected&&!state.pending&&nextRoundAt-t<=PICK_AUTO_LOCK_MS&&nextRoundAt-t>0){
+        const pm=roundSkillPickerModel(match,state.myId);if(pm.visible&&!pm.locked)lockPick(state.selected);
+      }
       if(stage==='title'){showBanner=true;setText(bannerTitle,roundLabel(vm.index+1,vm.total));}
       else if(stage==='count'){
         showIntro=true;panelOpen=true; // seçilmemiş beceri son 3 sn'de de kilitlenebilsin
