@@ -13,7 +13,8 @@ const KEY_ROWS = LD.KEY_ROWS || [];
 
 const CSS_ID = 'tl-edu-css';
 export function ensureStyles() {
-  if (typeof document === 'undefined' || document.getElementById(CSS_ID)) return;
+  // Kabuk (home.js ensureEgitimCss) aynı dosyayı data-tlh-css ile zaten eklediyse ikinci kez ekleme (çift stil hesabı)
+  if (typeof document === 'undefined' || document.getElementById(CSS_ID) || document.querySelector('link[data-tlh-css]')) return;
   const link = document.createElement('link');
   link.id = CSS_ID;
   link.rel = 'stylesheet';
@@ -103,9 +104,14 @@ export function kbToggle(onChange) {
     b.setAttribute('aria-pressed', String(on));
     b.textContent = 'Klavye: ' + (on ? 'açık' : 'kapalı');
   };
+  b._tlPaint = paint;
   b.addEventListener('click', () => {
     setKbPref(kbPref() === false);
+    // Tercih üç ekranda ortak: sayfada kalan öbür düğmeler de (ör. gizli Yazma görünümündeki) aynı durumu göstersin
     paint();
+    if (typeof document !== 'undefined' && typeof document.querySelectorAll === 'function') {
+      document.querySelectorAll('.tl-kbtoggle').forEach((x) => { if (typeof x._tlPaint === 'function') x._tlPaint(); });
+    }
     if (onChange) onChange(kbWanted());
   });
   paint();

@@ -30,7 +30,10 @@ test('kart görselleri: Dersler kartı kendi görseline bağlı, Yazma kartı el
 test('çipler ve kartlar: klavye odağı görünür, azaltılmış harekette dönüşüm yok', () => {
   assert.match(css, /#tl-home \.tlh-lit-chip:focus-visible \{ outline: 3px solid var\(--acc\)/);
   assert.match(css, /#tl-home \.tlh-chip:focus-visible \{ outline: 3px solid var\(--acc\)/);
-  assert.match(css, /#tl-home \.tlh-c-write:focus-visible, #tl-home \.tlh-c-pvp:focus-visible \{ outline: 3px solid var\(--acc\)/);
+  assert.match(css, /#tl-home \.tlh-c-pvp:focus-visible \{ outline: 3px solid var\(--acc\)/);
+  // Yazma kartı artık bölüm: içindeki düğmeler (tür çipleri, "Yazmaya başla") kendi odak halkasını taşır
+  assert.match(css, /#tl-home \.tlh-cw-tag:focus-visible \{ outline: 3px solid var\(--tl-cyan\)/);
+  assert.match(css, /#tl-home \.tlh-c-write \.tlh-c-go:focus-visible \{ outline: 3px solid var\(--tl-cyan\)/);
   const rm = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
   assert.match(rm, /#tl-home \.tlh-c:hover, #tl-home \.tlh-c:focus-visible/);
   assert.match(rm, /\.tlh-c:hover \.tlh-c-go span/);

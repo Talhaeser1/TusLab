@@ -89,9 +89,10 @@ test('Dersler kartı: halka + sıradaki 3 ders; kart → kaldığın ders, "Ders
 });
 
 test('Yazma kartı (eğik SVG klavye, üzerine gelince bir tur parlar), PvP lobisi, Performans (mini eğri + görevler)', () => {
-  assert.match(tpl, /<button type="button" class="tlh-c tlh-c-write" data-tlh="write"/);
+  assert.match(tpl, /<section class="tlh-c tlh-c-write" data-tlh="write"/);
+  assert.match(tpl, /<button type="button" class="tlh-c-go" data-tlh="write"/);
   assert.match(js, /const KB_SVG = /);
-  assert.match(css, /\.tlh-c-write:hover \.tlh-kk rect:first-child, #tl-home \.tlh-c-write:focus-visible \.tlh-kk rect:first-child \{ animation: tlh-key \.62s ease calc\(var\(--i\) \* 45ms\) 1 both; \}/);
+  assert.match(css, /\.tlh-c-write:hover \.tlh-kk rect:first-child, #tl-home \.tlh-c-write:has\(:focus-visible\) \.tlh-kk rect:first-child \{ animation: tlh-key \.62s ease calc\(var\(--i\) \* 45ms\) 1 both; \}/);
   assert.match(js, /href="\?pvp=lobby" data-card="pvp"/);
   assert.match(tpl, /<section class="tlh-c tlh-c-perf" data-tlh="perf"/);
   assert.match(tpl, /data-slot="metrik-grafik"/);

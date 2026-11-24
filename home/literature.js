@@ -311,7 +311,10 @@ export function mountLiterature(host, ctx) {
     }
     let isBest = false;
     const prevBest = recOf(c.id).best;
-    const res = bumpProgress(ctx, st.wpm, st.acc, (all) => {
+    // Hiç metin bitmeden kapatılan kısa oturum rekor sayılmaz (birkaç harflik hızlı başlangıç "en iyi WPM"i şişiriyordu)
+    const res = bumpProgress(ctx, (st.chunks || 0) >= 1 ? st.wpm : 0, st.acc, (all) => {
+      // olay kaydı: ana sayfa (makeCtx.save) görev/seri/geçmiş için okur, depoya yazmaz
+      all.last = { wpm: st.wpm, acc: st.acc, t: Date.now(), weak: st.weakKeys || null, kind: 'lit', cat: c.id, n: st.chunks || 0 };
       const recs = Object.assign({}, all.litStreams || {});
       const r = Object.assign({ runs: 0, items: 0 }, recs[c.id] || {});
       r.runs += 1;

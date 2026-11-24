@@ -160,6 +160,8 @@
     { id: 'tekerleme', label: 'Tekerlemeler', short: 'Tekerleme', unit: 'tekerleme' },
     { id: 'ozdeyis', label: 'Özdeyişler', short: 'Özdeyiş', unit: 'özdeyiş' },
   ];
+  // Yazma kartındaki tür çipleri: Yazma'yı o kiple açar (arena.js MODES ile aynı kimlikler; Kelime havuzu ilk seçimde iner).
+  const WMODES = [['atasozu', 'Atasözü'], ['siir', 'Şiir'], ['deyim', 'Deyim'], ['tekerleme', 'Tekerleme'], ['ozdeyis', 'Özdeyiş'], ['kelime', 'Kelime']];
   const litChipHTML = (c) => `<li><button type="button" class="tlh-chip tlh-lit--${c.id}" data-lit="${c.id}" aria-label="${esc(c.label)}, başla"><span class="tlh-chip-ic" aria-hidden="true"></span>${esc(c.short)}<b data-s="litn-${c.id}"></b></button></li>`;
 
   /** Yazma kartının klavye görseli: elle SVG (Türkçe Q), her tuşun --i sırası üzerine gelince soldan sağa parlama dalgası verir. */
@@ -221,14 +223,15 @@
       </ul>
     </section>
     <div class="tlh-bento">
-      <button type="button" class="tlh-c tlh-c-write" data-tlh="write" aria-labelledby="tlh-cw-h" aria-describedby="tlh-cw-d">
-        <span class="tlh-c-kick">HEMEN YAZ</span>
-        <span id="tlh-cw-h" class="tlh-c-title">Yazma <span>Arenası</span></span>
-        <span id="tlh-cw-d" class="tlh-c-desc"><span>Kesintisiz akış</span> · <span data-s="card-yazma">metinler durmadan akar</span></span>
-        <span class="tlh-cw-tags" aria-hidden="true"><i>Atasözü</i><i>Şiir</i><i>Deyim</i><i>Tekerleme</i><i>Özdeyiş</i><i>Kelime</i></span>
-        <span class="tlh-c-go">Yazmaya başla <span aria-hidden="true">→</span></span>
+      <section class="tlh-c tlh-c-write" data-tlh="write" aria-labelledby="tlh-cw-h">
+        <p class="tlh-c-kick">HEMEN YAZ</p>
+        <h2 id="tlh-cw-h" class="tlh-c-title">Yazma <span>Arenası</span></h2>
+        <p id="tlh-cw-d" class="tlh-c-desc"><span>Kesintisiz akış</span> · <span data-s="card-yazma">metinler durmadan akar</span></p>
+        <ul class="tlh-cw-tags" aria-label="Metin türüyle başla">${WMODES.map(([id, l]) => `<li><button type="button" class="tlh-cw-tag" data-wmode="${id}" aria-label="${esc(l)} ile yazmaya başla">${esc(l)}</button></li>`).join('')}</ul>
+        <ul class="tlh-cw-me" aria-label="Senin sayıların"><li class="tlh-cw-pill is-last"><small>Son yazış</small><b data-s="cw-last">—</b></li><li class="tlh-cw-pill is-best"><small>Rekor</small><b data-s="cw-best">—</b></li><li class="tlh-cw-pill is-n"><small>Bugün</small><b data-s="cw-n">0 yazış</b></li></ul>
+        <button type="button" class="tlh-c-go" data-tlh="write" aria-label="Yazma Arenası: yazmaya başla" aria-describedby="tlh-cw-d">Yazmaya başla <span aria-hidden="true">→</span></button>
         ${KB_SVG}
-      </button>
+      </section>
       <section class="tlh-c tlh-c-edu" data-tlh="resume" aria-labelledby="tlh-ce-h">
         <p class="tlh-c-kick">ON PARMAK · EĞİTİM</p>
         <h2 id="tlh-ce-h" class="tlh-c-title">Klavye <span>Dersleri</span></h2>
@@ -247,8 +250,8 @@
         <figure class="tlh-quote"><blockquote data-s="quote">Damlaya damlaya göl olur.</blockquote><figcaption><span>Günün sözü</span><span data-s="quotesrc"></span></figcaption></figure>
         <ul class="tlh-chips" aria-label="Edebiyat türleri">${LIT.map(litChipHTML).join('')}</ul>
       </section>
-      <a class="tlh-c tlh-c-pvp" href="?pvp=lobby" data-card="pvp">
-        <span class="tlh-c-kick">⚔️ DÜELLO</span>
+      <a class="tlh-c tlh-c-pvp" href="?pvp=lobby" data-card="pvp" aria-label="PvP Düello: yazarak dövüş, bot ya da arkadaşla. Lobiye git">
+        <span class="tlh-c-kick"><span aria-hidden="true">⚔️</span> DÜELLO</span>
         <span class="tlh-c-title">PvP Düello</span>
         <span class="tlh-pvp-desc">Yazarak dövüş · bot ya da arkadaş</span>
         <span class="tlh-c-go">Lobiye git <span aria-hidden="true">→</span></span>
@@ -400,7 +403,7 @@
         : st === 'lock' ? '<span class="tlh-step-s" aria-label="kilitli">🔒</span>' : '<span class="tlh-step-s">açık</span>';
       const inner = `<span class="tlh-step-n">${i + 1}</span><span class="tlh-step-t">${esc(l.title)}</span>${mark}`;
       return `<li class="tlh-step is-${st}">${st === 'lock' ? `<span class="tlh-step-b">${inner}</span>`
-        : `<button type="button" class="tlh-step-b" data-lesson="${i}"${st === 'now' ? ' aria-current="step"' : ''}>${inner}</button>`}</li>`;
+        : `<button type="button" class="tlh-step-b" data-lesson="${i}"${st === 'now' ? ' aria-current="step"' : ''} aria-label="Ders ${i + 1}: ${esc(l.title)}, ${st === 'done' ? stars + ' yıldız' : st === 'now' ? 'sıradaki' : 'açık'}">${inner}</button>`}</li>`;
     }).join('');
     if (pathEl.innerHTML !== html) pathEl.innerHTML = html;
   }
@@ -549,7 +552,7 @@
         + `<span class="tlh-mq-c">${done ? '<span aria-hidden="true">✓</span><span class="tlh-sr">tamamlandı</span>' : `${have}/${need}<span class="tlh-sr"> bekliyor</span>`}</span>`
         + `<span class="tlh-mq-bar" aria-hidden="true"><i style="width:${Math.round(have / need * 100)}%"></i></span>`;
       return `<li class="tlh-mq-i${done ? ' is-done' : ''}">${done ? `<span class="tlh-mq-b" title="${esc(Q.text)}">${inner}</span>`
-        : `<button type="button" class="tlh-mq-b" data-quest="${id}" title="${esc(Q.text)} — başla">${inner}</button>`}</li>`;
+        : `<button type="button" class="tlh-mq-b" data-quest="${id}" title="${esc(Q.text)} — başla" aria-label="${esc(Q.text)}: ${have}/${need}, başla">${inner}</button>`}</li>`;
     }).join('');
   }
 
@@ -649,7 +652,13 @@
       liveT = setTimeout(() => { if (peek && peek.chunk === liveChunk) peek = null; liveRun(); }, 3000);
     }
   }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) liveRun(); });
+  // Sekmeye dönünce: gün değişmiş olabilir (görevler/seri yenilenir) ya da başka sekmede ilerleme kaydedilmiş olabilir.
+  let visDay = today();
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    if (visDay !== today() || !view) { visDay = today(); data = readStore(); renderStats(); }
+    liveRun();
+  });
   function renderModeButtons(host) {
     if (!host || !arenaMod) return;
     host.innerHTML = arenaMod.MODES.map(m => `
@@ -731,7 +740,11 @@
     }
     renderLit();
     const last = data.history[data.history.length - 1];
-    setAll('card-yazma', last && num(last.wpm) ? `son yazışın ${num(last.wpm)} WPM` : 'metinler durmadan akar');
+    setAll('card-yazma', 'metinler durmadan akar');
+    // Yazma kartı rozetleri: son yazış · rekor · bugün biten metin (veri yoksa "—")
+    setAll('cw-last', last && num(last.wpm) ? `${num(last.wpm)} WPM` : '—');
+    setAll('cw-best', bestWpm() ? `${bestWpm()} WPM` : '—');
+    setAll('cw-n', `${num(data.days && data.days[today()])} yazış`);
     renderMetrics();
 
     const ids = todaysQuestIds();
@@ -793,7 +806,11 @@
           msgs.push('Görev tamamlandı: ' + QUESTS[id].text);
         }
       }
-      if (ids.every(id => q.done[id]) && !q.allCounted) { q.allCounted = true; d.stats.allQuests = num(d.stats.allQuests) + 1; }
+      if (ids.every(id => q.done[id]) && !q.allCounted) {
+        q.allCounted = true;
+        d.stats.allQuests = num(d.stats.allQuests) + 1;
+        msgs.push(`Bugünün ${ids.length} görevi tamam! Yarın yenileri gelir.`);
+      }
       d.quests = q;
       for (const bd of BADGES) {
         if (!d.badges[bd.id] && bd.test(d)) { d.badges[bd.id] = today(); msgs.push(`Yeni rozet: ${bd.icon} ${bd.name}`); }
@@ -902,11 +919,34 @@
       save(obj) {
         if (!obj || typeof obj !== 'object') return;
         const before = lessonStars();
-        update(d => { d.sec[id] = Object.assign({}, d.sec[id] || {}, obj); });
+        // last: dersin / Şiir & Atasözü oturumunun biten denemesi (lessons.js resultEvent, literature.js summary).
+        // Depoya yazılmaz; yalnız bu çağrıda görev, gün serisi, geçmiş ve zayıf tuşlar için okunur.
+        const L = obj.last && typeof obj.last === 'object' && typeof obj.last.wpm === 'number' ? obj.last : null;
+        const rest = Object.assign({}, obj);
+        delete rest.last;
+        update(d => { d.sec[id] = Object.assign({}, d.sec[id] || {}, rest); delete d.sec[id].last; });
         const quests = [];
-        let finished = false, wpm = 0, acc = 0;
+        let finished = false, wpm = 0, acc = 0, weak = null, mode = id;
+        if (L) {
+          const sig = String(L.t) + '|' + L.wpm + '|' + L.acc;
+          if (sig !== lastSig) {
+            lastSig = sig;
+            wpm = num(L.wpm); acc = normAcc(L.acc);
+            weak = L.weak && typeof L.weak === 'object' ? L.weak : null;
+            if (id === 'egitim') { finished = true; if (L.pass) quests.push('lesson'); }
+            if (id === 'edebiyat') {
+              if (typeof L.cat === 'string' && MODE_NAME[L.cat]) mode = L.cat;
+              // "bir metin bitir": en az bir parça bitmiş olmalı; hiç parça bitmeden kapatılan oturum yalnız hız/zayıf tuş sayar
+              if (num(L.n) >= 1) { finished = true; quests.push('lit'); }
+              else { wpm = 0; acc = 0; }   // hiç metin bitmedi: hız/rekor sayılmaz (zayıf tuşlar yine işlenir)
+            }
+          }
+          if (quests.length || wpm || finished) progress({ quests, finished, wpm, acc, mode, weak });
+          else renderStats();
+          return;
+        }
         if (id === 'egitim' && lessonStars() > before) { quests.push('lesson'); finished = true; }
-        const r = findResult(obj);
+        const r = findResult(rest);
         if (r) {
           const sig = [r.wpm, r.acc, r.elapsedMs, r.total].join('|');
           if (sig !== lastSig) {
@@ -915,7 +955,7 @@
             if (id === 'edebiyat') { quests.push('lit'); finished = true; }
           }
         }
-        if (quests.length || wpm || finished) progress({ quests, finished, wpm, acc, mode: id });
+        if (quests.length || wpm || finished) progress({ quests, finished, wpm, acc, mode });
         else renderStats();
       },
     };
@@ -1228,10 +1268,14 @@
     const quests = [];
     if (!streamOn) { quests.push('daily'); if (current && current.mode === 'atasozu') quests.push('arena'); }
     const prevBest = bestWpm();
-    const { record } = progress({ quests, finished: true, wpm, acc, mode: current?.mode, weak: s.weakKeys });
+    // Akışta hiç metin bitmeden ve 20 harfe varmadan Bitir/Esc: kısa deneme. Sonuç gösterilir ama rekora, geçmişe ve
+    // görevlere sayılmaz (birkaç harflik hızlı başlangıç "en iyi WPM"i şişiriyordu).
+    const short = streamOn && !num(s.chunks) && num(s.typed) < 20;
+    const { record } = short ? { record: false } : progress({ quests, finished: true, wpm, acc, mode: current?.mode, weak: s.weakKeys });
     const [rank, col] = rankOf(wpm, acc);
     // Yazma'da ders hedefi yok: kişisel rekora göre durum.
-    const vs = record ? `Önceki rekorun <b>${prevBest}</b> WPM idi`
+    const vs = short ? 'Kısa deneme: en az 20 harf ya da bir metin yazınca kaydedilir'
+      : record ? `Önceki rekorun <b>${prevBest}</b> WPM idi`
       : prevBest > 0 ? (wpm >= prevBest ? `Rekorunla aynı: <b>${prevBest}</b> WPM` : `Rekorun <b>${prevBest}</b> WPM · <b>${prevBest - wpm}</b> WPM geride`) : 'İlk sonucun kaydedildi';
     resultEl.hidden = false;
     resultEl.style.setProperty('--rk', col);
@@ -1253,7 +1297,7 @@
       </div></div>`;
     resultEl.querySelector('[data-tlh="next"]').focus({ preventScroll: true });
     // Kutlama abartısız: konfeti yalnız rekorda ya da USTA ve üstü derecede (azaltılmış harekette hiç).
-    if (record || (acc >= 92 && wpm >= 30)) confetti();
+    if (!short && (record || (acc >= 92 && wpm >= 30))) confetti();
     sfx.win();
     if (acc >= 98) setTimeout(() => sfx.voice('great'), 1100);
   }
@@ -1272,8 +1316,14 @@
 
   /* ---------- olaylar ---------- */
   root.addEventListener('click', (e) => {
-    const t = e.target.closest('[data-tlh],[data-nav],[data-mode],[data-card],[data-lit],[data-lesson],[data-quest]');
+    const t = e.target.closest('[data-tlh],[data-nav],[data-mode],[data-wmode],[data-card],[data-lit],[data-lesson],[data-quest]');
     if (!t || !root.contains(t)) return;
+    if (t.dataset.wmode) {               // Yazma kartındaki tür çipi: o kiple Yazma
+      if (arenaMod) { if (arenaMod.MODES.some(x => x.id === t.dataset.wmode)) setMode(t.dataset.wmode); }
+      else mode = t.dataset.wmode;     // modül henüz inmediyse kip yüklenince kullanılır (loadArena geçersizse düzeltir)
+      openView('yazma');
+      return;
+    }
     if (t.dataset.mode && t.classList.contains('tlh-mode')) { setMode(t.dataset.mode); return; }
     if (t.dataset.card) return;   // PvP kartı ?pvp=lobby bağlantısı: lobi açılır, maç kendiliğinden başlamaz
     if (t.dataset.lit) { openView('edebiyat', { intent: { cat: t.dataset.lit } }); return; }
@@ -1324,7 +1374,7 @@
       preLessons = true;
       loadMod('lessons.js').catch(() => { preLessons = false; });
     }
-    if (!preWords && arenaMod && t.closest('[data-mode="kelime"]')) { preWords = true; arenaMod.loadWords?.().catch(() => { preWords = false; }); }
+    if (!preWords && arenaMod && t.closest('[data-mode="kelime"],[data-wmode="kelime"]')) { preWords = true; arenaMod.loadWords?.().catch(() => { preWords = false; }); }
   };
   root.addEventListener('pointerover', prefetch, { passive: true });
   root.addEventListener('focusin', prefetch);

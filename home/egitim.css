@@ -401,6 +401,14 @@
 
 /* ---- serbest alıştırma seçimi ---- */
 .tl-edu .tl-free-opts { padding: 18px 20px; }
+/* kısa masaüstü (1280×720): seçim ekranı kaymadan sığsın (Gözcü, 24 Kas) */
+@media (max-height: 800px) and (min-width: 700px) {
+  .tl-edu .tl-free-opts { gap: 8px; padding: 12px 18px; margin-bottom: 8px; }
+  .tl-edu .tl-free-opts > p { margin: 0; }
+  .tl-edu .tl-free-group .tl-muted { margin-bottom: 4px; }
+  .tl-edu .tl-free .tl-chip { min-height: 36px; padding: 4px 12px; }
+  .tl-edu .tl-free-add { margin-top: 0; }
+}
 
 /* ---- kısa / dar ekranlar ---- */
 @media (max-height: 619px) {
@@ -440,6 +448,12 @@
 @media (min-width: 700px) and (max-width: 1099px) {
   .tl-edu .tl-map-hero { grid-template-columns: minmax(0, 1fr) auto; }
   .tl-edu .tl-map-cta { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; }
+}
+
+/* ---- dokunmatik: en az 44 px dokunma alanı (Gözcü, 24 Kas) ---- */
+@media (pointer: coarse) {
+  .tl-edu .tl-btn, .tl-edu .tl-ws-acts .tl-btn, .tl-edu .tl-chip:not(.is-weak), .tl-edu .tl-typer-stats .tl-typer-stop, .tl-edu .tl-kbtoggle { min-height: 44px; }
+  .tl-edu .tl-typer-stats .tl-typer-stop { min-width: 44px; }
 }
 
 /* ---- hareket azaltma ---- */

@@ -94,6 +94,12 @@ function weakText(lesson, weak, len) {
 
 // Yıldızlar (orta zorluk): 1 = hedef hız + hedef doğruluk; 2 = hedefin 1,3 katı hız ve en az %97 doğruluk;
 // 3 = hedefin 1,6 katı hız ve en az %99 doğruluk.
+/** Biten denemenin olay kaydı (ana sayfa makeCtx.save okur, depoya yazmaz): görev, gün serisi, geçmiş ve zayıf tuşlar
+ *  ders tekrarında ve alıştırmalarda da sayılsın diye. Yalnız yıldız artışına bakmak tekrarları saymıyordu. */
+export const resultEvent = (st, extra) => (all) => {
+  all.last = Object.assign({ wpm: st.wpm, acc: st.acc, t: Date.now(), weak: st.weakKeys || null }, extra);
+};
+
 export function rate(lesson, st) {
   const gW = lesson.goalWpm || 0;
   const gA = lesson.goalAcc || 0;
@@ -517,7 +523,7 @@ export function mountLessons(host, ctx) {
 
     // Zayıf tuş alıştırması: ders puanını etkilemez.
     if (opt.weak) {
-      const res = bumpProgress(ctx, st.wpm, st.acc);
+      const res = bumpProgress(ctx, st.wpm, st.acc, resultEvent(st, { kind: 'weak' }));
       celebrate(false, 0, res.record);
       const w = weakBtnFor(120);
       const acts = h('div', { class: 'tl-res-actions' },
@@ -541,6 +547,7 @@ export function mountLessons(host, ctx) {
     if (!view.preview) {
       let old;
       const res = bumpProgress(ctx, st.wpm, st.acc, (all) => {
+        resultEvent(st, { kind: 'lesson', pass: r.pass, lesson: lesson.id })(all);
         const recs = Object.assign({}, all.lessons || {});
         old = recs[lesson.id] || { stars: 0, bestWpm: 0, bestAcc: 0 };
         recs[lesson.id] = {
@@ -728,7 +735,7 @@ export function mountLessons(host, ctx) {
       sfx: ctx && ctx.sfx,
       onFinish: (st) => later(() => {
         clearTyper();
-        const res = bumpProgress(ctx, st.wpm, st.acc);
+        const res = bumpProgress(ctx, st.wpm, st.acc, resultEvent(st, { kind: 'free' }));
         celebrate(false, 0, res.record);
         const again = () => {
           const score = (w) => toks.reduce((n, t) => n + (w.includes(t) ? 1 : 0), 0);

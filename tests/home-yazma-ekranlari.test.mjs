@@ -188,7 +188,7 @@ test('sonuç ekranları: hedefe göre durum, sonraki/tekrar/Merkez, birincil dü
   assert.match(js, /Rekorun <b>\$\{prevBest\}<\/b> WPM/);
   assert.match(js, /data-tlh="back">Merkez <kbd>Esc<\/kbd>/);
   // kutlama abartısız
-  assert.match(js, /if \(record \|\| \(acc >= 92 && wpm >= 30\)\) confetti\(\);/);
+  assert.match(js, /if \(!short && \(record \|\| \(acc >= 92 && wpm >= 30\)\)\) confetti\(\);/);
   assert.match(js, /Array\.from\(\{ length: 70 \}/);
   assert.match(edu, /@keyframes tl-star-in/);
 });
