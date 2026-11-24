@@ -46,7 +46,8 @@ test('Padişah kalıntısı yok: portre eşlemesi, CSS kuralları ve taşınan d
   const css = read('pvp/lobby-v3.css');
   assert.doesNotMatch(css, /assets\/padisah\//);
   assert.ok(!existsSync(resolve(ROOT, 'pvp/shared/padisahlar.js')), 'padisahlar.js _to_delete altına taşındı');
-  assert.ok(existsSync(resolve(ROOT, '_to_delete/padisah-pvp/pvp/shared/padisahlar.js')));
+  // _to_delete/ depoya girmez (.gitignore): temiz kopyada klasör yoktur, o zaman bu denetim atlanır.
+  if (existsSync(resolve(ROOT, '_to_delete'))) assert.ok(existsSync(resolve(ROOT, '_to_delete/padisah-pvp/pvp/shared/padisahlar.js')));
   assert.doesNotMatch(read('pvp/shared/fighters.js'), /padisahlar\.js/);
 });
 
