@@ -177,16 +177,16 @@ test('ders haritası: yol görünümü, durumlar, geçerli derse kaydırma ve kl
   assert.doesNotMatch(edu + lessons, /tl-lcard|tl-lgrid/);
 });
 
-test('sonuç ekranları: hedefe göre durum, sonraki/tekrar/Merkez, birincil düğme odakta', () => {
+test('sonuç ekranları: hedefe göre durum, sonraki/tekrar/Ana Sayfa, birincil düğme odakta', () => {
   assert.match(lessons, /'✓ hedef ' : '✗ hedef '/);
   assert.match(lessons, /'Sonraki ders →'/);
   assert.match(lessons, /'Tekrar'/);
-  assert.match(lessons, /'Merkez'\)/);
+  assert.match(lessons, /'← Ana Sayfa'\)/);
   assert.match(lessons, /focusFirst\(card\)/);
-  assert.match(lit, /'Merkez'\) : null/);
+  assert.match(lit, /'← Ana Sayfa'\) : null/);
   assert.match(lit, /next\.focus\(\{ preventScroll: true \}\)/);
   assert.match(js, /Rekorun <b>\$\{prevBest\}<\/b> WPM/);
-  assert.match(js, /data-tlh="back">Merkez <kbd>Esc<\/kbd>/);
+  assert.match(js, /data-tlh="back">← Ana Sayfa <kbd>Esc<\/kbd>/);
   // kutlama abartısız
   assert.match(js, /if \(!short && \(record \|\| \(acc >= 92 && wpm >= 30\)\)\) confetti\(\);/);
   assert.match(js, /Array\.from\(\{ length: 70 \}/);

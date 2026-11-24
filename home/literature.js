@@ -3,7 +3,7 @@
 // biçimde ara ekran olmadan art arda gelir. Oturum yalnız "Bitir" ya da Esc ile biter; sonra tek özet.
 // Şiirde yazılan dize kıta kutusunda vurgulanır; deyimde kalıp ve anlamı ayrı kutuda görünür.
 import { mountTyper, ensureStyles, h, fmtTime, loadAll, bumpProgress, kbWanted, kbToggle } from './typing.js';
-import { createStream, itemsFor } from './arena.js';
+import { createStream, itemsFor, dailyQuote } from './arena.js';
 import * as T from './data/texts.js';
 
 const POEMS = T.POEMS || [];
@@ -41,6 +41,40 @@ export function lineAt(starts, pos) {
   let k = 0;
   while (k + 1 < starts.length && starts[k + 1] <= pos) k++;
   return k;
+}
+
+// Tür menüsü (Derleyici, 24 Kas 2026): tür başına öğeler bir kez hesaplanır (5 tür ≈ 6 ms); örnek satır her açılışta rastgele.
+const ITEMS = new Map();
+function itemsOf(cat) {
+  if (!ITEMS.has(cat)) {
+    let list = [];
+    try { list = itemsFor(cat) || []; } catch (e) { list = []; }
+    ITEMS.set(cat, list);
+  }
+  return ITEMS.get(cat);
+}
+// Karttaki örnek satır yalnız var olan içerikten: şiirde ilk iki dize, deyimde kalıp + anlam, diğerlerinde kısa bir metin.
+function sampleOf(cat) {
+  const list = itemsOf(cat);
+  if (!list.length) return null;
+  const short = list.filter((it) => it.text.length <= 96);
+  const it = (short.length ? short : list)[Math.floor(Math.random() * (short.length || list.length))];
+  if (cat === 'siir') {
+    const ls = POEM_LINES.get(it.id);
+    return { text: ls && ls.length > 1 ? ls.slice(0, 2).join(' / ') : it.text, by: it.source || '' };
+  }
+  if (cat === 'deyim') {
+    const k = it.text.indexOf(': ');
+    return k > 0 ? { head: it.text.slice(0, k), text: it.text.slice(k + 2) } : { text: it.text };
+  }
+  return { text: it.text, by: cat === 'ozdeyis' ? it.source || '' : '' };
+}
+const DAY = 86400000;
+function whenText(t) {
+  if (!t) return '';
+  const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+  const diff = Math.floor((d0.getTime() - new Date(t).setHours(0, 0, 0, 0)) / DAY);
+  return diff <= 0 ? 'bugün' : diff === 1 ? 'dün' : diff + ' gün önce';
 }
 
 // Kategori başına oturumlar arası süren akış: yeni oturum kaldığı yerden, tekrarsız devam eder.
@@ -90,6 +124,12 @@ export function mountLiterature(host, ctx) {
   // Esc: oturum açıkken ana sayfaya dönmek yerine oturumu bitirir (home.js defaultPrevented'a bakar).
   // Sonuç ekranında Enter: aynı türde devam (odak bir düğmedeyse düğmenin kendisi çalışır).
   const onKey = (e) => {
+    if (!session && !sumFor && menuGrid && menuGrid.isConnected && /^(Arrow(Up|Down|Left|Right)|Home|End)$/.test(e.key)
+      && !e.altKey && !e.ctrlKey && !e.metaKey && (root.contains(e.target) || e.target === document.body)
+      && !(e.target && e.target.closest && e.target.closest('input,textarea,select'))) {
+      if (menuMove(e.key)) e.preventDefault();
+      return;
+    }
     if (e.key === 'Enter' && !session && sumFor && !(e.target && e.target.closest && e.target.closest('button,a,input,textarea'))) {
       e.preventDefault();
       startSession(sumFor);
@@ -124,34 +164,131 @@ export function mountLiterature(host, ctx) {
 
   /* ---------------------------------------------------------- tür menüsü */
 
-  function renderMenu() {
+  // Tür menüsü (Derleyici, 24 Kas 2026; docs/26): geniş ekranda sayfayı dolduran bento. Üstte başlık + "Günün sözü"
+  // şeridi, ortada 2 büyük + 3 orta tür kartı (örnek satır, sayı, ilerleme, en iyi hız, "Başla"), altta "Son yazdıkların"
+  // ya da kısa ipucu. ≤900 px iki sütun, ≤600 px tek sütun (home.css .tl-litm). Ok tuşları kartlar arasında gezinir.
+  let menuGrid = null;
+  function renderMenu(focusCat) {
     clearTyper();
     session = null;
     sumFor = '';
-    const grid = h('div', { class: 'tl-lit-cats' });
-    CATEGORIES.forEach((c) => {
-      const n = itemsFor(c.id).length;
+    const recs = loadAll(ctx).litStreams || {};
+    const grid = h('div', { class: 'tl-litm-grid', role: 'group', 'aria-label': 'Edebiyat türleri (ok tuşlarıyla seç, Enter ile başla)' });
+    let total = 0;
+    const cards = [];
+    CATEGORIES.forEach((c, i) => {
+      const n = itemsOf(c.id).length;
+      total += n;
       const { items, best } = recOf(c.id);
       const pct = items ? Math.max(4, Math.min(100, Math.round((items / Math.max(1, n)) * 100))) : 0;
-      grid.append(h('button', {
-        class: 'tl-lit-cat tlh-lit-chip tlh-lit--' + c.id,
+      const ex = sampleOf(c.id);
+      const exId = 'tl-litm-ex-' + c.id;
+      const card = h('button', {
+        class: 'tl-lit-cat tl-litm-card tlh-lit-chip tlh-lit--' + c.id + (i < 2 ? ' is-big' : ''),
         type: 'button',
         dataset: { cat: c.id },
         'aria-label': c.label + ', başla (' + n + ' ' + c.unit + (items ? ', ' + items + ' metin yazdın' : '') + (best ? ', en iyi ' + best + ' WPM' : '') + ')',
+        'aria-describedby': ex ? exId : null,
         onclick: () => startSession(c.id),
       },
-      h('span', { class: 'tlh-lit-row' }, motif(), h('span', { class: 'tlh-lit-go' }, 'Başla ', h('span', { 'aria-hidden': 'true' }, '→'))),
-      h('b', { class: 'tlh-lit-name' }, c.label),
+      h('span', { class: 'tlh-lit-row' }, motif(), h('b', { class: 'tlh-lit-name' }, c.label), h('span', { class: 'tl-litm-n' }, n + ' ' + c.unit)),
       h('span', { class: 'tlh-lit-ex tl-lit-desc' }, c.desc),
+      ex ? h('span', { class: 'tl-litm-ex', id: exId },
+        ex.head ? h('b', null, ex.head) : null, ex.head ? ' — ' : null, ex.text,
+        ex.by ? h('small', null, ' — ' + ex.by) : null) : null,
       h('span', { class: 'tlh-lit-foot' },
         h('span', { class: 'tlh-lit-bar', 'aria-hidden': 'true' }, h('i', { style: 'width:' + pct + '%' })),
-        h('span', { class: 'tlh-lit-p' }, n + ' ' + c.unit + (items ? ' · ' + items + ' yazdın' : '') + (best ? ' · en iyi ' + best + ' WPM' : '')))));
+        h('span', { class: 'tl-litm-go-row' },
+          h('span', { class: 'tl-litm-stats' },
+            h('span', null, h('b', null, String(items)), ' metin yazdın'),
+            h('span', null, h('b', null, best ? best + ' WPM' : '—'), ' en iyi hız')),
+          h('span', { class: 'tlh-lit-go' }, 'Başla ', h('span', { 'aria-hidden': 'true' }, '→')))));
+      cards.push(card);
+      grid.append(card);
     });
+    menuGrid = grid;
+
+    // Günün sözü: ana ekran kartındakiyle aynı söz (arena.js dailyQuote, gün içinde sabit); düğme o türü açar.
+    let q = null;
+    try { q = dailyQuote(); } catch (e) { q = null; }
+    const qCat = CATEGORIES.find((c) => q && c.id === q.mode) || CATEGORIES[0];
+    const quote = q ? h('figure', { class: 'tl-litm-quote tlh-lit--' + qCat.id },
+      h('p', { class: 'tl-lit-cap' }, 'Günün sözü'),
+      h('blockquote', null, q.text),
+      h('figcaption', null,
+        h('span', null, q.source ? '— ' + q.source : ''),
+        h('button', { class: 'tl-btn is-ghost tl-litm-qgo', type: 'button', onclick: () => startSession(qCat.id) },
+          qCat.label + ' yaz ', h('span', { 'aria-hidden': 'true' }, '→')))) : null;
+
+    // Son yazdıkların: her türün son oturumu (summary kaydeder: zaman, hız, bitirilen son metinler), en yeni 3'ü.
+    const last = CATEGORIES.map((c) => ({ c, r: recs[c.id] || {} }))
+      .filter((x) => x.r.last && typeof x.r.last.wpm === 'number')
+      .sort((a, b) => (Number(b.r.last.t) || 0) - (Number(a.r.last.t) || 0))
+      .slice(0, 3);
+    const foot = last.length
+      ? h('section', { class: 'tl-litm-foot', 'aria-label': 'Son yazdıkların' },
+        h('p', { class: 'tl-lit-cap' }, 'Son yazdıkların'),
+        h('ul', { class: 'tl-litm-recent' }, last.map(({ c, r }) => {
+          const txt = Array.isArray(r.recent) && r.recent[0] ? r.recent[0] : (r.last.n || 0) + ' metin';
+          const when = whenText(r.last.t);
+          return h('li', null, h('button', {
+            class: 'tl-litm-rec tlh-lit--' + c.id, type: 'button', onclick: () => startSession(c.id),
+            'aria-label': c.label + ': ' + txt + ', ' + r.last.wpm + ' WPM' + (when ? ', ' + when : '') + '. Devam et',
+          },
+          h('span', { class: 'tl-litm-rec-k' }, c.label),
+          h('span', { class: 'tl-litm-rec-t' }, txt),
+          h('span', { class: 'tl-litm-rec-s' }, r.last.wpm + ' WPM' + (when ? ' · ' + when : ''))));
+        })))
+      : h('p', { class: 'tl-litm-foot tl-litm-tip' },
+        h('b', null, 'İpucu: '), 'ok tuşlarıyla tür seç, ', h('kbd', null, 'Enter'), ' ile başla. Yazarken ',
+        h('kbd', null, 'Esc'), ' oturumu bitirir ve özeti gösterir; her tür kaldığın yerden, tekrar etmeden devam eder.');
+
     root.replaceChildren(topbar(),
-      h('header', { class: 'tl-head' },
-        h('div', null, h('h1', { class: 'tl-h1' }, 'Edebiyatla Yaz'),
-          h('p', { class: 'tl-lead' }, 'Bir tür seç ve durmadan yaz: metinler önce zor olanlardan başlayarak, tekrar etmeden art arda gelir. Bitirmek için “Bitir” ya da Esc.'))),
-      grid);
+      h('section', { class: 'tl-litm' },
+        h('div', { class: 'tl-litm-top' },
+          h('header', { class: 'tl-litm-intro' },
+            h('p', { class: 'tl-eyebrow' }, 'Şiir & Atasözü · 5 tür · ' + total + ' metin'),
+            h('h1', { class: 'tl-h1' }, 'Edebiyatla Yaz'),
+            h('p', { class: 'tl-lead' }, 'Bir tür seç ve durmadan yaz: metinler zordan başlayarak, tekrar etmeden art arda gelir. Bitirmek için “Bitir” ya da Esc.')),
+          quote),
+        grid,
+        foot));
+    const want = cards.find((el) => el.dataset.cat === focusCat) || cards[0];
+    setTimeout(() => {
+      if (alive && menuGrid === grid && want && want.isConnected) {
+        try { want.focus({ preventScroll: true }); } catch (e) { /* yoksay */ }
+      }
+    }, 0);
+  }
+
+  // Ok tuşları: kartlar arasında ekrandaki konuma göre gezinir (bento, iki sütun, tek sütun aynı kural); Home/End ilk/son.
+  function menuMove(key) {
+    const cards = menuGrid ? Array.from(menuGrid.children || []) : [];
+    if (!cards.length) return false;
+    const cur = cards.indexOf(document.activeElement);
+    let to = null;
+    if (cur < 0 || key === 'Home') to = cards[0];
+    else if (key === 'End') to = cards[cards.length - 1];
+    else {
+      const box = (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+      const a = box(cards[cur]);
+      let bestScore = Infinity;
+      cards.forEach((el, i) => {
+        if (i === cur) return;
+        const b = box(el);
+        const dx = b.x - a.x, dy = b.y - a.y;
+        let sc = Infinity;
+        if (key === 'ArrowRight' && dx > 4) sc = dx + 3 * Math.abs(dy);
+        else if (key === 'ArrowLeft' && dx < -4) sc = -dx + 3 * Math.abs(dy);
+        else if (key === 'ArrowDown' && dy > 4) sc = dy + 2 * Math.abs(dx);
+        else if (key === 'ArrowUp' && dy < -4) sc = -dy + 2 * Math.abs(dx);
+        if (sc < bestScore) { bestScore = sc; to = el; }
+      });
+      if (!to) to = cards[cur + (key === 'ArrowRight' || key === 'ArrowDown' ? 1 : -1)] || null;
+    }
+    if (!to) return true;
+    try { to.focus(); } catch (e) { /* yoksay */ }
+    return true;
   }
 
   /* ---------------------------------------------------------- kesintisiz oturum */
@@ -162,6 +299,7 @@ export function mountLiterature(host, ctx) {
     clearTyper();
     sumFor = '';
     session = { cat: c.id, recent: [] };
+    const recentTexts = session.recent;
     const srcEl = h('p', { class: 'tl-lit-src', 'aria-live': 'polite' }, '');
     const recentEl = h('ol', { class: 'tl-lit-recent', 'aria-label': 'Son yazılanlar' });
     // Hakem (docs/25): kutu baştan görünür (boş ipucuyla); yoksa geniş ekranda sağ sütun boş kalıyordu (Atasözü, Tekerleme…).
@@ -181,7 +319,7 @@ export function mountLiterature(host, ctx) {
             h('div', null, h('p', { class: 'tl-eyebrow' }, 'Şiir & Atasözü · kesintisiz yazma'), h('h1', { class: 'tl-h1' }, c.label), srcEl)),
           statsHost,
           h('div', { class: 'tl-ws-acts' }, kbButton(),
-            h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => renderMenu() }, 'Tüm türler'))),
+            h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => renderMenu(c.id) }, 'Tüm türler'))),
         h('div', { class: 'tl-ws-main' },
           tHost,
           h('aside', { class: 'tl-lit-below' }, ctxEl, recentBox)),
@@ -250,7 +388,7 @@ export function mountLiterature(host, ctx) {
       onProgress: (st) => markDize(Math.max(0, ((st && st.typed) || 0) - chunkBase)),
       onFinish: (st) => {
         if (!alive) return;
-        later(() => summary(c, st));
+        later(() => summary(c, st, recentTexts));
       },
     });
     show(typer.item);
@@ -265,7 +403,7 @@ export function mountLiterature(host, ctx) {
       cell(st.errors, 'Hata'), cell(fmtTime(st.elapsedMs), 'Süre'));
   }
 
-  function summary(c, st) {
+  function summary(c, st, recentTexts) {
     clearTyper();
     session = null;
     if (!st || !(st.typed > 0)) {
@@ -284,7 +422,9 @@ export function mountLiterature(host, ctx) {
       const r = Object.assign({ runs: 0, items: 0 }, recs[c.id] || {});
       r.runs += 1;
       r.items += st.chunks || 0;
-      r.last = { wpm: st.wpm, acc: st.acc, ms: st.elapsedMs, n: st.chunks || 0 };
+      r.last = { wpm: st.wpm, acc: st.acc, ms: st.elapsedMs, n: st.chunks || 0, t: Date.now() };
+      // Tür menüsünün "Son yazdıkların" şeridi için bu oturumda bitirilen son 3 metin (yalnız metin bittiyse güncellenir).
+      if (Array.isArray(recentTexts) && recentTexts.length) r.recent = recentTexts.slice(0, 3).map((x) => String(x).slice(0, 400));
       if ((st.chunks || 0) >= 1 && st.acc >= 85 && (!r.best || st.wpm > r.best.wpm)) {
         r.best = r.last;
         isBest = true;
@@ -311,9 +451,9 @@ export function mountLiterature(host, ctx) {
           h('p', { class: 'tl-lit-saved' }, 'Kaydedildi · bu türde toplam ' + rec.items + ' metin' + (rec.best ? ' · en iyi ' + rec.best + ' WPM' : '')),
           h('div', { class: 'tl-res-actions' },
             next,
-            h('button', { class: 'tl-btn', type: 'button', onclick: () => renderMenu() }, 'Tüm türler'),
-            ctx && ctx.back ? h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => ctx.back() }, 'Merkez') : null),
-          h('p', { class: 'tl-lit-keys' }, 'Enter: devam · Esc: Merkez'))));
+            h('button', { class: 'tl-btn', type: 'button', onclick: () => renderMenu(c.id) }, 'Tüm türler'),
+            ctx && ctx.back ? h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => ctx.back() }, '← Ana Sayfa') : null),
+          h('p', { class: 'tl-lit-keys' }, 'Enter: devam · Esc: Ana Sayfa'))));
     sumFor = c.id;
     scrollTop();
     setTimeout(() => {

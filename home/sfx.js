@@ -7,8 +7,14 @@ const FILES = {
 };
 const VOLUME = { key: 0.18, chime: 0.5, fanfare: 0.55 };
 
+// Ortak ses anahtarı (tuslab-ses = 'on' | 'off', PvP ile ortak; docs/26) önce; yoksa eski tuslab-home-v1.sound.
 function readEnabled() {
-  try { const d = JSON.parse(localStorage.getItem('tuslab-home-v1') || '{}'); return d.sound !== false; } catch { return true; }
+  try {
+    const v = localStorage.getItem('tuslab-ses');
+    if (v === 'on' || v === 'off') return v === 'on';
+    const d = JSON.parse(localStorage.getItem('tuslab-home-v1') || '{}');
+    return d.sound !== false;
+  } catch { return true; }
 }
 
 let enabled = readEnabled();

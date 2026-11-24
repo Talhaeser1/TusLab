@@ -71,7 +71,7 @@ test('Şiir & Atasözü kartı: günün sözü, 5 tür çipi o türü açar, kar
   assert.match(tpl, /<section class="tlh-c tlh-c-lit" data-tlh="lit-all"/);
   assert.match(js, /if \(act === 'lit-all'\) \{ openView\('edebiyat'\); return; \}/);
   assert.match(tpl, /<blockquote data-s="quote">/);
-  assert.match(js, /out\.quote = pick\.length \?/);
+  assert.match(js, /out\.quote = dq \|\| \(pick\.length \?/);
   assert.match(lit, /ctx\.intent && typeof ctx\.intent\.cat === 'string'/);
 });
 

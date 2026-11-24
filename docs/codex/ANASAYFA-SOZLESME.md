@@ -63,6 +63,7 @@ export function setText(el, v)                              // sık güncellenen
 // home/arena.js (Yazma ve Şiir & Atasözü metin akışı)
 export const MODES, STREAM_MODES; export function isStreamMode(m), itemsFor(m), createStream(m, { rng, items }), nextChunk(m), pickText(m)
 export function loadWords() -> Promise, wordsReady() -> bool   // kelime havuzu (data/words.js) açılışta inmez; 'kelime' kipinden önce beklenir
+export function dailyQuote(date?) -> { text, source, mode } | null  // "Günün sözü": gün içinde sabit; ana ekran kartı ve tür menüsü aynı (docs/26)
 // home/ders-kilit.js (ana ekran açılışta yalnız bunu yükler; lessons.js ve data/words.js Dersler açılınca iner)
 export function lessonUnlocked(all, i), intentLessonIndex(intent, all), lessonRec(all, id)
 // home/lessons.js (İşçi E)
@@ -74,6 +75,9 @@ export function lineStarts(lines), lineAt(starts, pos)        // şiirde kıta k
 // (24 Kas: dailyLine() kaldırıldı; home/scene3d.js _to_delete/ altına taşındı — Merkez 3B kullanmıyor, docs/18-19, docs/23)
 // home/sfx.js (İşçi K)
 export const sfx = { key(), error(), win(), voice(name) }       // voice: 'welcome'|'great'|'lesson'|'record'
+// Ortak ses anahtarı (docs/26, PvP ile sözleşme): localStorage['tuslab-ses'] = 'on' | 'off' (yoksa 'on').
+// home.js açılışta önce bunu okur (yoksa tuslab-home-v1.sound değerini buraya taşır), aç/kapa'da ikisini de yazar,
+// storage olayında ve visibilitychange/pageshow'da yeniden okur. PvP'nin müzik/efekt alt ayarları ayrı kalır.
 // ctx (home.js verir): { section, intent, back(), sfx, save(obj), load() -> obj, toast(msg) }
 ```
 Ses dosyaları (orkestra üretir, ElevenLabs/Higgsfield): `assets/sfx/home/welcome.mp3`, `great.mp3`, `lesson.mp3`, `record.mp3`,
@@ -84,5 +88,6 @@ Ses dosyaları (orkestra üretir, ElevenLabs/Higgsfield): `assets/sfx/home/welco
 - (Eski) "Hız Arenası" kartı kaldırıldı: eski site (`app.js`) kullanıcıya hiç gösterilmez (CLAUDE.md). Merkez'de yalnız Yazma, Dersler, Şiir & Atasözü, PvP ve Performans var.
 - "PvP Düello" → `?pvp=lobby` bağlantısı (2026-11-23: PvP LOBİSİ açılır, maç kendiliğinden başlamaz; `?pvp=practice` yalnız test/derin bağlantı); "Çevrimiçi" → `document.dispatchEvent(new CustomEvent('tuslab:pvp-enter'))`.
 - Mevcut uygulamaya dönen kullanıcı için sağ altta küçük "⌂ Ana Sayfa" düğmesi (PvP açıkken gizli).
+- Adlandırma (docs/26): kullanıcıya görünen her yerde "← Ana Sayfa" (görünüm başlığı, sonuç düğmeleri, "Esc · Ana Sayfa" ipuçları, aria-label). Kod içi adlar ve yorumlarda "Merkez" kalabilir.
 - 2026-11-23 (PvP akış şeridi): PvP'den her çıkış (araç çubuğu/lobi "← Ana Sayfa", Esc) yeni ana sayfaya döner; `?pvp=` sayfasında temiz adrese yönlendirilir.
   Eski uygulama `#app` home.js etkinken hiç görünmez: `html.tlh-app-off` sınıfı (home.js) + `pvp/compact-height.css` sonundaki kural.

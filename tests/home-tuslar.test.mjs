@@ -103,7 +103,7 @@ test('PvP kartı küçük görseli kullanır, dosya yerinde', () => {
   assert.ok(buf.length < 60 * 1024, 'kart görseli 60 KB altında olmalı');
 });
 
-test('geçmiş: adresle açılan bölümden başka bölüme geçip "← Merkez"/Esc → Merkez (önceki bölüme değil)', () => {
+test('geçmiş: adresle açılan bölümden başka bölüme geçip "← Ana Sayfa"/Esc → ana sayfa (önceki bölüme değil)', () => {
   const ov = js.slice(js.indexOf('async function openView('), js.indexOf('function closeView('));
   assert.match(ov, /if \(switching && \(VIEW_IDS\.includes\(cur\) \|\| \(history\.state && history\.state\.tlh\)\)\)/);
   assert.match(ov, /history\.pushState\(\{ tlh: id, pushed: true \}/);

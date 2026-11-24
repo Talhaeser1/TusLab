@@ -182,3 +182,19 @@ export function pickText(mode) {
   }
   return { text: parts.join(' '), source: sources.join(', ') };
 }
+
+// "Günün sözü" (Derleyici, 24 Kas 2026): ana ekran kartı ve Şiir & Atasözü menüsü aynı gün aynı sözü gösterir.
+// Havuz: kısa (18–72 harf) atasözleri + özdeyişler (var olan içerik); gün anahtarının özetiyle seçilir (gün içinde sabit).
+let QUOTE_POOL = null;
+export function dailyQuote(date) {
+  if (!QUOTE_POOL) {
+    QUOTE_POOL = ['atasozu', 'ozdeyis'].flatMap((m) => itemsFor(m)).filter((it) => it.text.length >= 18 && it.text.length <= 72);
+  }
+  if (!QUOTE_POOL.length) return null;
+  const d = date instanceof Date ? date : new Date();
+  const key = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  let hsh = 2166136261;
+  for (let i = 0; i < key.length; i++) hsh = Math.imul(hsh ^ key.charCodeAt(i), 16777619) >>> 0;
+  const it = QUOTE_POOL[hsh % QUOTE_POOL.length];
+  return { text: it.text, source: it.source || '', mode: it.mode };
+}

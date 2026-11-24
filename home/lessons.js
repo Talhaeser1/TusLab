@@ -228,7 +228,7 @@ export function mountLessons(host, ctx) {
   }
 
   function topbar() {
-    // Kabuk kendi "← Merkez" düğmesini gösterir; bu düğme yalnız kabuksuz kullanımda görünür (egitim.css .tl-modback).
+    // Kabuk kendi "← Ana Sayfa" düğmesini gösterir; bu düğme yalnız kabuksuz kullanımda görünür (egitim.css .tl-modback).
     return h('div', { class: 'tl-top' },
       h('button', { class: 'tl-btn is-ghost tl-modback', type: 'button', onclick: () => ctx && ctx.back && ctx.back() }, '← Ana Sayfa'));
   }
@@ -466,7 +466,7 @@ export function mountLessons(host, ctx) {
       sec.append(h('div', { class: 'tl-banner' }, 'Önizleme: bu ders kilitli, sonucun kaydedilmez. Açmak için önce "' + (prev ? prev.title : 'önceki ders') + '" dersini geç.'));
     }
     sec.append(stage, h('p', { class: 'tl-ws-foot' }, lesson.desc ? h('span', null, lesson.desc) : null,
-      h('span', { class: 'tl-ws-keys' }, h('kbd', null, 'Backspace'), ' düzelt · ', h('kbd', null, 'Esc'), ' Merkez')));
+      h('span', { class: 'tl-ws-keys' }, h('kbd', null, 'Backspace'), ' düzelt · ', h('kbd', null, 'Esc'), ' Ana Sayfa')));
     boot = () => startAttempt(lesson, stage, {});
     curStats = statsHost;
     return sec;
@@ -509,7 +509,7 @@ export function mountLessons(host, ctx) {
     return h('div', { class: 'tl-weak' }, h('p', { class: 'tl-muted' }, 'Zorlandığın tuşlar'), row);
   }
 
-  const backBtn = () => (ctx && ctx.back ? h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => ctx.back() }, 'Merkez') : null);
+  const backBtn = () => (ctx && ctx.back ? h('button', { class: 'tl-btn is-ghost', type: 'button', onclick: () => ctx.back() }, '← Ana Sayfa') : null);
   // Sonuç kartı açılınca birincil düğme odaklanır: Enter onu çalıştırır, Esc Merkez'e döner (kabuk).
   const focusFirst = (el) => later(() => {
     const b = el.querySelector && el.querySelector('.tl-res-actions .tl-btn.is-primary:not(:disabled)');

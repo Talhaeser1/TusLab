@@ -136,12 +136,27 @@
   ];
   const badgeOk = (bd, d) => bd.cur(d) >= bd.goal;
 
+  /* ---------- ortak ses anahtarı (Derleyici, 24 Kas 2026; docs/26) ----------
+   * Ana site ve PvP tek ana ses durumunu paylaşır: localStorage['tuslab-ses'] = 'on' | 'off' (yoksa 'on').
+   * Açılışta önce bu anahtar okunur; yoksa eski kendi anahtarımızdaki (tuslab-home-v1.sound) değer buraya taşınır.
+   * Her aç/kapa ikisini de yazar; storage olayında ve sayfa yeniden görünür olunca yeniden okunur. */
+  const SES_KEY = 'tuslab-ses';
+  function readSes() {
+    let v = null;
+    try { v = localStorage.getItem(SES_KEY); } catch { v = null; }
+    if (v === 'on' || v === 'off') return v === 'on';
+    const on = readStore().sound !== false;
+    try { localStorage.setItem(SES_KEY, on ? 'on' : 'off'); } catch { /* kota / gizli sekme */ }
+    return on;
+  }
+  let soundOn = readSes();
+
   /* ---------- ses cephesi (modül yüklenene kadar sessiz) ---------- */
   let S = null;
   const sfx = {
     key() { S?.key(); }, error() { S?.error(); }, win() { S?.win(); }, chime() { S?.chime?.(); },
     voice(n) { S?.voice(n); }, setEnabled(on) { S?.setEnabled(on); },
-    get enabled() { return S ? S.enabled : data.sound !== false; },
+    get enabled() { return S ? S.enabled : soundOn; },
   };
 
   /* ---------- DOM ---------- */
@@ -191,7 +206,7 @@
   root.innerHTML = `
 <div class="tlh-bg" aria-hidden="true"><i></i><i></i><i></i></div>
 <header class="tlh-top">
-  <a class="tlh-logo" href="${esc(location.pathname)}" data-nav="hub" aria-current="page" aria-label="TuşLab — Merkez">
+  <a class="tlh-logo" href="${esc(location.pathname)}" data-nav="hub" aria-current="page" aria-label="TuşLab — Ana Sayfa">
     <img src="${esc(ROOT)}favicon.svg" alt="" width="34" height="34" /><span>Tuş<b>Lab</b></span>
   </a>
   <nav class="tlh-nav" aria-label="Bölümler">
@@ -271,7 +286,7 @@
 </div>
 <section class="tlh-view tlh-write" hidden aria-labelledby="tlh-write-h">
   <header class="tlh-view-top">
-    <button type="button" class="tlh-btn tlh-btn--ghost tlh-back" data-tlh="back" aria-label="Merkeze dön">← Merkez</button>
+    <button type="button" class="tlh-btn tlh-btn--ghost tlh-back" data-tlh="back" aria-label="Ana Sayfaya dön">← Ana Sayfa</button>
     <h2 id="tlh-write-h" class="tlh-view-title"><span aria-hidden="true">⌨️</span> Yazma <b>Arenası</b></h2>
     <div class="tlh-combo" aria-hidden="true"><b data-s="combo">0</b><small>KOMBO</small></div>
   </header>
@@ -293,7 +308,7 @@
 </section>
 <section class="tlh-view tlh-module" hidden aria-labelledby="tlh-view-h">
   <header class="tlh-view-top">
-    <button type="button" class="tlh-btn tlh-btn--ghost tlh-back" data-tlh="back" aria-label="Merkeze dön">← Merkez</button>
+    <button type="button" class="tlh-btn tlh-btn--ghost tlh-back" data-tlh="back" aria-label="Ana Sayfaya dön">← Ana Sayfa</button>
     <h2 id="tlh-view-h" class="tlh-view-title"></h2>
   </header>
   <div class="tlh-view-body"></div>
@@ -640,7 +655,7 @@
 
   /* ---------- Şiir & Atasözü kartı ----------
    * Tür sayıları + "Günün sözü": itemsFor() tür başına bir kez, ilk boyamadan sonra boşta çalışır (açılışı geciktirmez).
-   * Söz her açılışta rastgele bir atasözü ya da özdeyiş; karta sığsın diye kısa olanlardan seçilir. */
+   * Söz gün içinde sabit (arena.js dailyQuote: kısa atasözü ya da özdeyiş, karta sığsın diye); tür menüsündekiyle aynı. */
   const idle = (fn) => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 1200 }) : setTimeout(fn, 200));
   function litSample(items) {
     if (!items.length) return null;
@@ -656,8 +671,11 @@
       try { items = am.itemsFor(c.id) || []; } catch { items = []; }
       out[c.id] = { n: items.length, ex: c.id === 'atasozu' || c.id === 'ozdeyis' ? litSample(items) : null };
     }
+    // Derleyici (24 Kas): "Günün sözü" gün içinde sabit ve Şiir & Atasözü menüsündekiyle aynı (arena.js dailyQuote).
+    let dq = null;
+    try { dq = typeof am.dailyQuote === 'function' ? am.dailyQuote() : null; } catch { dq = null; }
     const pick = [out.atasozu.ex, out.ozdeyis.ex].filter(Boolean);
-    out.quote = pick.length ? pick[Math.floor(Math.random() * pick.length)] : null;
+    out.quote = dq || (pick.length ? pick[Math.floor(Math.random() * pick.length)] : null);
     return out;
   }
   let quoteOn = false;
@@ -1483,7 +1501,7 @@
         <div class="tlh-result-btns">
           <button type="button" class="tlh-btn tlh-btn--primary" data-tlh="next">${streamOn ? 'Yeni oturum' : 'Sonraki metin'} <kbd>Enter</kbd></button>
           ${streamOn ? '' : '<button type="button" class="tlh-btn tlh-btn--ghost" data-tlh="again">Aynısını tekrar</button>'}
-          <button type="button" class="tlh-btn tlh-btn--ghost" data-tlh="back">Merkez <kbd>Esc</kbd></button>
+          <button type="button" class="tlh-btn tlh-btn--ghost" data-tlh="back">← Ana Sayfa <kbd>Esc</kbd></button>
         </div>
       </div></div>`;
     resultEl.querySelector('[data-tlh="next"]').focus({ preventScroll: true });
@@ -1572,11 +1590,24 @@
 
   soundBtn.addEventListener('click', () => {
     const on = !sfx.enabled;
+    soundOn = on;
     sfx.setEnabled(on);
+    try { localStorage.setItem(SES_KEY, on ? 'on' : 'off'); } catch { /* kota / gizli sekme */ }
     update(d => { d.sound = on; });
     renderStats();
     if (on) sfx.chime();
   });
+  // Ortak ses: başka sekmede (PvP ya da ana site) değişince, sekme yeniden görünür olunca ve geri/ileri önbellekten dönünce.
+  const syncSes = () => {
+    const on = readSes();
+    if (on === soundOn && (!S || S.enabled === on)) return;
+    soundOn = on;
+    sfx.setEnabled(on);
+    renderStats();
+  };
+  window.addEventListener('storage', (e) => { if (e.key === SES_KEY || e.key === null) syncSes(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncSes(); });
+  window.addEventListener('pageshow', syncSes);
 
   // Klavye: Escape → Merkez (akışta önce oturumu bitirir: typing.js Esc'yi kendisi işler); sonuçta Enter → yeni metin/oturum.
   // Merkez'de herhangi bir harfe basmak Yazma'yı açar; basılan harf (ve yazıcı kurulana dek basılanlar) kaybolmaz.
@@ -1675,7 +1706,8 @@
       if (sfxP) return;
       sfxP = loadMod('sfx.js').then(m => {
         S = m.sfx;
-        S.setEnabled(data.sound !== false);
+        soundOn = readSes();
+        S.setEnabled(soundOn);
         renderStats();
       }).catch(err => { sfxP = null; try { console.warn('[home] ses modülü yüklenemedi:', err); } catch { /* yok */ } });
     };
