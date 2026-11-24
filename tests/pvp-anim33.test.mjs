@@ -89,8 +89,9 @@ test('D3: all six live hits stay at least 34px apart, including mixed ultimate p
   const {fx, stages} = damage();
   for (let i = 0; i < 12; i++) {
     fx.handle(hit(i % 2 ? {skill: 'r', phase: i % 3 + 1} : {}));
-    const floats = stages[2].children.filter(n => n.dataset.lane !== undefined);
-    assert.equal(floats.length, Math.min(i + 1, 6));
+    const floats = stages[2].children.filter(n => n.dataset.lane !== undefined && !n.className.includes('pxd-leaving'));
+    // Nişancı (docs/27): yer kalmayınca en eski sayı hızla solar (pxd-leaving); canlı sayı 1..6.
+    assert.ok(floats.length >= 1 && floats.length <= Math.min(i + 1, 6), String(floats.length));
     for (let a = 0; a < floats.length; a++) for (let b = a + 1; b < floats.length; b++) {
       const pos = n => [parseFloat(n.props['--pxd-lx']) + parseFloat(n.props['--pxd-x']),
         parseFloat(n.props['--pxd-ly']) + parseFloat(n.props['--pxd-y'])];

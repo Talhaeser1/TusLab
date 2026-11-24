@@ -7,7 +7,8 @@
  * archetype sound (fire-q / rune-e / hit / defeat …).
  */
 import {FIGHTERS,FIGHTER_IDS,isFighterId,fighterSide,fighterBody,fighterQuote} from './shared/fighters.js';
-import {showQuote} from './quote-bubble.js';
+// Nişancı (docs/27): quote-bubble.js yalnız sözü olan (padişah) dövüşçü konuşunca dinamik yüklenir; kadroda padişah yokken
+// her PvP açılışında boşa inmesin. Yol kodda kalır (ileride padişahlar yeniden eklenebilir).
 import {createVoiceQueue,VOICE_QUEUE} from './voice-queue.js';
 import {createStreakTracker,STREAK_ANNOUNCE} from './streak-sound.js';
 export const SFX_NAMES=Object.freeze([
@@ -220,7 +221,7 @@ export function createPvPAudio({storage=globalThis.localStorage, AudioContextCla
    }});
  /** Karakterin kendi repliği (q/e/r/savunma/zafer/soz). Dosya yoksa sessiz. */
  function speak(fighterId,key,{priority=3,gain=.9,ttlMs,cooldownMs=1500}={}){
-   if(!disposed){const text=fighterQuote(fighterId,key);if(text)showQuote(fighterId,key,text);} // padişah sözleri: sesli replik yok, ekranda yazı
+   if(!disposed){const text=fighterQuote(fighterId,key);if(text)void import('./quote-bubble.js').then(m=>m.showQuote(fighterId,key,text)).catch(()=>{});} // padişah sözleri: sesli replik yok, ekranda yazı
    const k=voiceKey(fighterId,key);if(!k||disposed||muted||volume<=0)return false;
    if(!assets.has(k)&&ctx&&!failedAssets.has(k)){ // henüz inmediyse: inince (süresi geçmediyse) sıraya gir
      const t=typeof performance!=='undefined'?performance.now():Date.now(),life=Math.min(ttlMs>0?ttlMs:VOICE_QUEUE.ttlMs,VOICE_QUEUE.staleMs);

@@ -19,9 +19,6 @@ Bu dosyayı yeni sohbetin ilk mesajında okut: "docs/DEVIR-PVP.md'yi oku, 1. mad
 10. Çevrimiçi oda gerçek Cloudflare sunucusuyla (BASLAT-CLOUDFLARE.bat, 8787) hiç denenmedi.
 
 (24 Kas, Usta — docs/17-pvp-kalanlar.md: 5, 7, 8 ve 12 bitti, listeden silindi. Kalanların numaraları değişmedi.)
-17. (24 Kas, Kâşif — docs/20-pvp-tus-turu.md) Çevrimiçi odada sunucu onayı beklenirken (`pvp-main.js` input, `p.pending`) basılan harfler atılıyor; hızlı yazanda sonraki kelimenin ilk harfi kaybolabilir. Bot maçında sorun yok. 8787 ile dene.
-18. (Kâşif) Yerel sunucu `scripts/serve.py`: `ThreadingHTTPServer` dinleme kuyruğu 5 → lobinin ~150 isteğinden bazıları ERR_CONNECTION_REFUSED, PvP bazen açılmıyor. `request_queue_size = 128` önerildi (sahiplik dışı). İstemci tarafında `pvp/index.js` bir kez yeniliyor.
-19. (Kâşif) Tarayıcı geri tuşu canlı maçı sorusuz bırakıyor (tasarım kararı gerek).
 
 ## Kullanıcı kararı bekleyenler
 - "Ultide max 2 kombo": şu an çarpan tavanı ×2; "en çok 2 vuruş" mu?
@@ -42,9 +39,7 @@ docs/RAPOR-PVP-MEKANIK.md, RAPOR-PVP-KALANLAR.md, RAPOR-BECERI-SATIRI.md, RAPOR-
 
 (24 Kas, Hakem — docs/25-son-kontrol.md: sonuç kartı 768×1024'te sayıların öbür karta binmesi, telefon yatayda tur arası
 başlığının kelime şeritlerine binmesi, lobide gereksiz "Bağlı değil" satırı ve ray notunun ışık sütununda okunmaması düzeltildi.)
-22. (Hakem) Raund sonu hasar sayıları üst üste biniyor ("-200" ve "-10" → "-20010" gibi okunuyor; DESTEK etiketleri de). VFX
-    yerleşimi, sahiplik/risk nedeniyle dokunulmadı.
-23. (Hakem) 768 px tablette maç üst şeridinde bot adı ve dövüşçü alt başlığı iki-üç satıra kırılıyor ("BOT · / KOLAY",
-    "SİRA · / GÖLGE / MIZRAK"); okunuyor ama sıkışık.
-24. (Hakem) Lobide dövüşçü değişince yeni portre ~1–2 sn gecikmeli geliyor; o arada ad yeni, görsel eski dövüşçü.
+(24 Kas, Nişancı — docs/27-pvp-son-duzeltmeler.md: 17 (onay beklerken tuş tamponu; 8787'de denenmedi), 18 (serve.py kuyruğu,
+önceden yapılmıştı), 19 (geri tuşu onay sorar), 22 (hasar sayısı yuvaları), 23 (601–1023 px üst şerit) ve 24 (lobi portresi)
+bitti, listeden silindi.)
 25. (Hakem) Tasarım kararı: PvP'deki dönüş düğmesi "← Ana Sayfa", ana sitede aynı yer "← Merkez" diye geçiyor.

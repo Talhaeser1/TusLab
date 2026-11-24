@@ -699,3 +699,17 @@ html #pvp-root.pvp4-reduced.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .t
 /* Usta (docs/17, DEVIR-PVP 12): overflow-wrap:anywhere adın en küçük genişliğini tek harfe indiriyor, yan yazı (karakter adı)
    yer kapınca "SAVA/ŞÇI" diye kelime ortasından kırılıyordu (800 px). break-word yalnız gerçekten sığmayan kelimeyi böler. */
 #pvp-root .fhud2 .fhud2-name{overflow-wrap:break-word}
+/* Nişancı (docs/27, DEVIR-PVP 23): 601–1023 px'te (768 tablet) üst şeritte ad ve dövüşçü alt başlığı 2–3 satıra kırılıyordu
+   ("BOT · / KOLAY", "SİRA · / GÖLGE / MIZRAK"). Bu aralıkta ad ve alt başlık tek satır + üç nokta (yer daralınca önce alt başlık
+   kısalır); 900 px altında alt başlık gizlenir. Can barı ve seri değişmez. (.98: kesirli piksel oranında 1023 px de girsin.) */
+@media (min-width:601px) and (max-width:1023.98px){
+  /* satır kaydırma yok: SEN / KALKAN rozeti yerinde kalır, ad ve alt başlık kısalır. Ad italik: sağ pay olmazsa kesirli
+     taşmada sığan ad da "BOT · KOL…" diye kısalıyordu. */
+  #pvp-root .fhud2 .fhud2-top{flex-wrap:nowrap}
+  #pvp-root .fhud2 .fhud2-who{min-width:0;flex:0 1 auto;overflow:hidden}
+  #pvp-root .fhud2 .fhud2-name{display:block;flex:0 0 auto;min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;padding-right:.18em}
+  #pvp-root .fhud2 .fhud2-char{display:block;flex:0 100 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}
+}
+@media (min-width:601px) and (max-width:899.98px){
+  #pvp-root .fhud2 .fhud2-char{display:none}
+}

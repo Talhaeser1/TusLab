@@ -70,3 +70,5 @@
 /* KESINYAP 14: R (ulti) vuruş sayısı daha büyük; KRİTİK/KOMBO etiketi sayının üstünde küçük. */
 .pxd-ultimate .pxd-num { font-size: calc(clamp(34px, 3.8vw, 58px) * var(--pxd-impact-scale, 1)); }
 .pxd-line.pxd-tag { font-size: 14px; letter-spacing: .1em; -webkit-text-stroke-width: 2px; }
+/* Nişancı (docs/27): yuvalar dolunca en eski sayı hızla solar (konumu korunur: drift animasyonu sürer). */
+.pxd-float.pxd-leaving .pxd-body { animation: none; opacity: 0; transition: opacity 140ms linear; }

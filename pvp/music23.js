@@ -17,6 +17,8 @@ export function createDynamicScore({storage=globalThis.localStorage,AudioContext
  let ctx=null,master=null,compressor=null,disposed=false,loading=null,unlocked=false,duckTimer=null;
  let volume=clip(Number(read(storage,'tuslab-pvp-music-volume','0.25')));
  let muted=read(storage,'tuslab-pvp-music-muted','false')==='true';
+ // Nişancı (docs/27): ortak ana ses (localStorage 'tuslab-ses') kapalıyken müzik çalmaz; müziğin kendi ayarı (muted) ayrı kalır, yazılmaz.
+ let masterOff=false;
  let requested='lobby',current=null,transitionTimer=null;
  const raw=new Map(),decoded=new Map(),voices=new Set(),trackOf=new Map();
  let anadoluBytes=null,anadoluMissing=false;
@@ -69,25 +71,25 @@ export function createDynamicScore({storage=globalThis.localStorage,AudioContext
  // Start the requested scene now if decoded, otherwise lazily load then start it.
  function want(scene){
   if(applyScene(scene))return true;
-  if(disposed||muted||volume<=0||decoded.has(scene))return false;
+  if(disposed||muted||masterOff||volume<=0||decoded.has(scene))return false;
   void load(scene).then(()=>{if(requested===scene&&current!==scene)applyScene(scene);});
   return false;
  }
  async function preload(){
-  if(!fetcher||disposed||muted||volume<=0)return false;
+  if(!fetcher||disposed||muted||masterOff||volume<=0)return false;
   if(loading)return loading;
   loading=Promise.all(PRIORITY_SCENES.map(load)).then(()=>raw.size+decoded.size>0);
   return loading;
  }
  async function unlock(){
-  if(disposed||muted||volume<=0||!setup())return false;
+  if(disposed||muted||masterOff||volume<=0||!setup())return false;
   try{await ctx.resume();}catch{return false;}
   unlocked=ctx.state==='running';
   if(!raw.size&&!decoded.size)await preload();
   await Promise.all([...pending.values()]);
   for(const scene of [...raw.keys()])await load(scene);
   if(!decoded.has(requested))await load(requested);
-  if(unlocked&&!muted&&volume>0&&!current)applyScene(requested);
+  if(unlocked&&!muted&&!masterOff&&volume>0&&!current)applyScene(requested);
   return unlocked;
  }
  function automate(gain,value,at){
@@ -102,7 +104,7 @@ export function createDynamicScore({storage=globalThis.localStorage,AudioContext
   voices.clear();current=null;
  }
  function applyScene(scene){
-  if(disposed||muted||volume<=0||!unlocked||!ctx||!decoded.has(scene))return false;
+  if(disposed||muted||masterOff||volume<=0||!unlocked||!ctx||!decoded.has(scene))return false;
   if(scene===current)return true;
   // Aynı Anadolu döngüsü lobi→dövüşte baştan başlamaz; çalmaya devam eder.
   const live=[...voices].find(v=>v.scene===current);
@@ -131,6 +133,12 @@ export function createDynamicScore({storage=globalThis.localStorage,AudioContext
   if(muted)stopCurrent();else want(requested);
   return muted;
  }
+ /** Ana ses kapısı: kalıcı yazmaz. off=true → müzik durur; false → müziğin kendi ayarı açıksa sahne yeniden ister. */
+ function setMasterMuted(value){
+  masterOff=Boolean(value);
+  if(masterOff)stopCurrent();else if(!muted)want(requested);
+  return masterOff;
+ }
  function setVolume(value){
   volume=clip(value);write(storage,'tuslab-pvp-music-volume',volume);
   if(volume<=0)stopCurrent();else if(!current)want(requested);
@@ -139,7 +147,7 @@ export function createDynamicScore({storage=globalThis.localStorage,AudioContext
  }
  function stop(){stopCurrent();}
  function duck(){
-  if(disposed||muted||volume<=0||!ctx||!unlocked||!current)return false;
+  if(disposed||muted||masterOff||volume<=0||!ctx||!unlocked||!current)return false;
   if(duckTimer)clearTimeout(duckTimer);
   const gain=master.gain,now=ctx.currentTime||0;
   gain.cancelScheduledValues?.(now);
@@ -158,5 +166,5 @@ export function createDynamicScore({storage=globalThis.localStorage,AudioContext
   return true;
  }
  async function dispose(){if(disposed)return;disposed=true;stopCurrent();if(transitionTimer)clearTimeout(transitionTimer);if(duckTimer)clearTimeout(duckTimer);if(ctx)try{await ctx.close();}catch{};ctx=null;}
- return {preload,unlock,setScene,setMuted,setVolume,duck,stop,dispose,getState:()=>({volume,muted,requested,current,voices:voices.size,unlocked,loaded:decoded.size,disposed})};
+ return {preload,unlock,setScene,setMuted,setMasterMuted,setVolume,duck,stop,dispose,getState:()=>({volume,muted,masterOff,requested,current,voices:voices.size,unlocked,loaded:decoded.size,disposed})};
 }

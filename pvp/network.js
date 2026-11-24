@@ -3,7 +3,7 @@ import {normalizeTyping,wordsMatch} from './shared/typing-rules.js';
 import {normalizeAssist,partnerName} from './shared/assist-rules.js';
 import {FIGHTERS,FIGHTER_IDS,isFighterId,normalizeFighter,defaultFighter} from './shared/fighters.js';
 import {STAGES,RANDOM_STAGE,DEFAULT_STAGE,normalizeStageChoice} from './shared/stages.js';
-import {dockName} from './portraits.js';
+import {dockName,PORTRAITS} from './portraits.js';
 import {ClockSynchronizer, SnapshotOrder} from './net-sync.js';
 import {initProfileUI, profilePanelHTML} from './phase16-ui.js';
 import {initSocialUI,friendPanelHTML} from './phase17-social.js';
@@ -97,6 +97,16 @@ export const fighterInfoBoxHTML=()=>`<div class="j2-info" data-fighter-info aria
 /** Lobi vitrini (dock + bilgi kartı); `networkConsoleHTML` ikisini sahnede ayrı yerlere koyar. */
 export function fighterRosterHTML(selected=defaultFighter('fire')){return fighterDockHTML(selected)+fighterInfoBoxHTML();}
 /** Seçili karakterin büyük portresi: tüm yüzler üst üste, panelin data-fighter değeri görünür olanı belirler (CSS). */
+/** Nişancı (docs/27, DEVIR-PVP 24): lobi açılınca 5 dövüşçü portresi (her biri 32–70 KB) boşta indirilip çözülür; dövüşçü
+ *  değişince yeni görsel bekletmeden çizilir. Bir kez çalışır; görüntüler bellekte tutulur (çözülmüş kalsın). */
+const lobbyPortraitCache=[];
+export function preloadLobbyPortraits({win=globalThis.window,ImageClass=globalThis.Image}={}){
+  if(lobbyPortraitCache.length||typeof ImageClass!=='function')return lobbyPortraitCache.length;
+  const run=()=>{for(const url of new Set(Object.values(PORTRAITS))){try{const img=new ImageClass();img.decoding='async';img.src=url;lobbyPortraitCache.push(img);void img.decode?.().catch(()=>{});}catch{/* yalnız ısınma */}}};
+  if(typeof win?.requestIdleCallback==='function')win.requestIdleCallback(run,{timeout:600});else (win?.setTimeout||setTimeout)(run,0);
+  lobbyPortraitCache.push(null); // tekrar kuyruğa alınmasın
+  return 1;
+}
 const fighterFacesHTML=()=>`<div class="sc-faces" aria-hidden="true">${FIGHTER_IDS.map(id=>`<i class="sc-face" data-face="${id}"></i>`).join('')}</div>`;
 /** Arena penceresi: seçili arenanın görseli (paralelkenar, 300 ms crossfade); katmanlar panelin data-stage değerine göre açılır. */
 const arenaWindowHTML=()=>`<div class="sc-win" aria-hidden="true">${[...STAGES.map(s=>s.id),RANDOM_STAGE].map(id=>`<i class="sc-win-img" data-win="${id}">${id===RANDOM_STAGE?'<b>?</b>':''}</i>`).join('')}</div>`;
@@ -337,7 +347,7 @@ export class PvPNetworkConsole {
   panel(){return this.root.querySelector('[data-lobby-panel]');}
   mount(){
     ensurePracticeStyles();ensureRoundsStyles();
-    this.open=true;this.render();
+    this.open=true;this.render();preloadLobbyPortraits();
     if(this.autoInvite){const code=this.autoInvite;this.autoInvite=null;
       if(code===LOBBY_URL_FLAG){const m=new URL(location.href).searchParams.get('mode');
         // Yalnız mod sekmesini önceden seç; maç başlatma kullanıcıda.

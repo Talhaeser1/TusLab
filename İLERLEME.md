@@ -380,3 +380,10 @@ Madde 2 (lobi), 3 (maç ekranı, SEN etiketi, kazanan hatası — ön tanı: are
 - PvP: maç üstünde lobi açılınca HUD gizlenir + "Maça dön"; süre becerisi seçimi raunddan 700 ms önce kendiliğinden kilitlenir (kural değişikliği değil; oyuncunun seçtiği kart). Kutu ailesi 18/12/10 px, seçili = altın (docs/20, 22).
 - `home/scene3d.js`, `kart-yazma.svg`, `kart-edebiyat.svg` ve 6 `pvp/page-*.css` kullanılmıyordu → `_to_delete/`.
 - Yerel sunucu bağlantı kuyruğu 128 (`scripts/serve.py`).
+
+## 24 Kas 2026 — Son kontrol sonrası kararlar (kullanıcı "soru sorma" dedi; orkestra karar verdi)
+- Tek ana ses anahtarı: `localStorage['tuslab-ses']` ('on'|'off'); ana site ve PvP aynı anahtarı okur/yazar. PvP'de "Sesi kapat" artık müzik ayarını kalıcı kapatmaz.
+- Ana sitede "← Merkez" yerine her yerde "← Ana Sayfa".
+- Raund sonu hasar sayıları yuva yerleşimiyle çakışmaz (değer/zamanlama aynı). Maç sürerken tarayıcı geri tuşu çıkış onayı açar. Çevrimiçi odada onay beklenirken basılan tuşlar tamponlanır (gerçek odada denenmedi).
+- Padişah kod kalıntıları (boş `PADISAH_IDS`, `fighterBody`, söz balonu) bilerek bırakıldı. Raporlar: docs/25, 26, 27.
+- Depo çalışma klasörüyle eşitlendi (önceki oturumların commit edilmemiş işi ayrı commit), `.gitattributes` ile satır sonları LF.

@@ -41,7 +41,8 @@ test('Esc çıkış onayı: kutu aynı tuşun içinde açılmaz (Chrome kapatma 
 test('Odak yazma kutusunda değilken basılan harf kutuya yönlenir (panel/lobi/kutu açıkken değil)', () => {
   const main = read('pvp/pvp-main.js');
   assert.match(main, /function redirectTypingKey\(e\)\{/);
-  assert.match(main, /if\(roundsUi\?\.handleKey\(event\)\)return;\s*redirectTypingKey\(event\);/);
+  // Nişancı (docs/27): araya onay beklerken tuş tamponu (capturePendingKey) girdi; yönlendirme sırası aynı.
+  assert.match(main, /if\(roundsUi\?\.handleKey\(event\)\)return;\s*(?:if\(capturePendingKey\(event\)\)return;\s*)?redirectTypingKey\(event\);/);
   const body = main.slice(main.indexOf('function redirectTypingKey(e){'), main.indexOf('// PvP captures game shortcuts'));
   assert.match(body, /e\.key===' '/);                                // boşluk düğmeyi etkinleştirmeye devam eder
   assert.match(body, /\[data-pvp16-panel\]:not\(\[hidden\]\), \[data-pvp17-panel\]:not\(\[hidden\]\), \.htp-panel:not\(\[hidden\]\)/);

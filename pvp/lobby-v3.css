@@ -691,6 +691,14 @@ html.reduced-motion #app .lb3-home .home-pvp-mode:hover,html.effects-reduced #ap
 #pvp-root .lb3.sc[data-fighter="vargr"] .sc-face[data-face="vargr"],#pvp-root .lb3.sc[data-fighter="sira"] .sc-face[data-face="sira"],
 #pvp-root .lb3.sc[data-fighter="doran"] .sc-face[data-face="doran"],#pvp-root .lb3.sc[data-fighter="nyx"] .sc-face[data-face="nyx"],
 #pvp-root .lb3.sc[data-fighter="konyali"] .sc-face[data-face="konyali"]{opacity:1;transform:none}
+/* Nişancı (docs/27, DEVIR-PVP 24): dövüşçü değişince eski portre ANINDA kaybolur (geçiş yalnız gelen portrede), böylece ad yeni,
+   görsel eski kalmaz; yeni görsel henüz çizilmediyse yerinde koyu yer tutucu görünür. Portreler lobi açılınca boşta önden
+   yüklenip çözülür (network.js preloadLobbyPortraits). */
+#pvp-root .lb3.sc .sc-faces{background:radial-gradient(60% 46% at 50% 36%,rgba(255,255,255,.07),transparent 70%)}
+#pvp-root .lb3.sc .sc-face{transition:none}
+#pvp-root .lb3.sc[data-fighter="vargr"] .sc-face[data-face="vargr"],#pvp-root .lb3.sc[data-fighter="sira"] .sc-face[data-face="sira"],
+#pvp-root .lb3.sc[data-fighter="doran"] .sc-face[data-face="doran"],#pvp-root .lb3.sc[data-fighter="nyx"] .sc-face[data-face="nyx"],
+#pvp-root .lb3.sc[data-fighter="konyali"] .sc-face[data-face="konyali"]{transition:opacity 200ms ease-out,transform 200ms ease-out}
 #pvp-root .lb3.sc .j2-info{--f-main:#c2412d;--f-accent:#f2a541;flex:1 1 0;align-self:center;display:grid;gap:clamp(8px,1.6vh,16px);align-content:center;min-width:0;min-height:0;
   padding:0;border:0;background:none;animation:sc-info-in 200ms ease-out both}
 @keyframes sc-info-in{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}

@@ -65,7 +65,7 @@ function setup(opts = {}) {
 }
 const hit = (extra = {}) => ({ type: 'DAMAGE_APPLIED', fromSeat: 1, toSeat: 2, skill: 'q', amount: 105,
   blocked: false, blockKind: null, counter: false, bonusTags: [], ...extra });
-const nums = layer => layer.children.filter(c => c.className.includes('pxd-float'));
+const nums = layer => layer.children.filter(c => c.className.includes('pxd-float') && !c.className.includes('pxd-leaving'));
 
 // ---- Paket 33: net tipografi ---------------------------------------------
 test('paket 33: no pixel canvas — text is drawn as crisp DOM text, never scaled with image-rendering', () => {
@@ -96,7 +96,9 @@ test('paket 33: lanes keep simultaneous numbers apart', () => {
   const { fx, effects } = setup();
   fx.handle(hit({ amount: 10 })); fx.handle(hit({ amount: 20 })); fx.handle(hit({ amount: 30 }));
   assert.deepEqual(nums(effects[2]).map(n => n.dataset.lane), ['0', '1', '2']);
-  assert.equal(nums(effects[2])[1].props['--pxd-lx'], `${LANES[1].x}px`);
+  // Nişancı (docs/27): yerleşim ölçüye göre; ilk sayı çapada, sonrakiler ona binmez.
+  assert.equal(nums(effects[2])[0].props['--pxd-lx'], '0px');
+  assert.notEqual(nums(effects[2])[1].props['--pxd-lx'] + nums(effects[2])[1].props['--pxd-ly'], '0px0px');
 });
 
 // ---- Factory ---------------------------------------------------------------

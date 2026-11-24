@@ -12,6 +12,9 @@ import {FIGHTERS,isFighterId,normalizeFighter} from './shared/fighters.js';
 import {createComboCounter} from './combo-counter.js';
 import {createDisplayedHp} from './attack-callout.js';
 import {createDynamicScore} from './music23.js';
+import {createPendingBuffer,pendingKeyAction} from './pending-buffer.js'; // Nişancı (docs/27): onay beklenirken basılan harfler
+import {createBackGuard} from './back-guard.js'; // Nişancı (docs/27): canlı maçta tarayıcı geri tuşu onay sorar
+import {readMasterSound,writeMasterSound,watchMasterSound} from './master-sound.js'; // Nişancı (docs/27): ortak 'tuslab-ses'
 import {createProjectileDirector} from './projectiles.js';
 import {createChoreographyDirector} from './choreography21.js';
 import {PvPNetworkConsole,networkConsoleHTML} from './network.js';
@@ -86,6 +89,15 @@ const fxDirectors=Object.create(null);
 const choreographers=Object.create(null);
 const pvpAudio=createPvPAudio();
 const pvpMusic=createDynamicScore();
+/** Nişancı (docs/27): ortak ana ses (localStorage 'tuslab-ses'). Kapalıyken efekt, ses ve müzik susar; müziğin kendi aç/kapa
+ *  ayarı ve ses seviyeleri ayrı kalır (müzik yalnız kapıdan geçemez, ayarı yazılmaz). */
+function applyMasterSound(on){
+  if(pvpAudio.getState().muted!==!on)pvpAudio.setMuted(!on);
+  pvpMusic.setMasterMuted?.(!on);
+  const button=root?.querySelector('[data-pvp-action="sound"]');
+  if(button){button.setAttribute('aria-pressed',String(!on));button.textContent=on?'🔊 Sesi kapat':'🔇 Sesi aç';}
+}
+const masterSoundWatch=watchMasterSound({onChange:applyMasterSound,initial:(()=>{const on=readMasterSound();applyMasterSound(on);return on;})()});
 // Müziği sayfa ve resimler yüklendikten sonra, tarayıcı boştayken indir (yavaş bağlantıda arena önce gelsin).
 let musicPreloadQueued=false;
 function deferMusicPreload(){
@@ -602,8 +614,9 @@ function show(open){
   // Tuş sesleri hemen; müzik (~1,8 MB) karakter resimleriyle yarışmasın diye boşta yüklenir.
   // İlk tuşta unlock() müziği zaten kendisi indirir; bu yalnız erken ısınma.
   void pvpAudio.preload();deferMusicPreload();pvpMusic.setScene('lobby');
+  // Nişancı (docs/27): PvP her açılışta ortak ana sesi yeniden okur (ana sitede aynı sayfada değişmiş olabilir; storage olayı aynı sekmede gelmez).
+  {const on=readMasterSound();masterSoundWatch.note(on);applyMasterSound(on);}
   const audioSettings=pvpAudio.getState();
-  if(audioSettings.muted&&!pvpMusic.getState().muted)pvpMusic.setMuted(true); // SESSİZ MOD: tek düğme müziği de keser
   const musicSettings=pvpMusic.getState();
   const musicLevel=root.querySelector('[data-pvp23-music]');if(musicLevel)musicLevel.value=String(Math.round(musicSettings.volume*100));
   const musicLabel=root.querySelector('[data-pvp23-music-label]');if(musicLabel)musicLabel.textContent=Math.round(musicSettings.volume*100)+'%';
@@ -639,6 +652,19 @@ function show(open){
   if(toggle){toggle.setAttribute('aria-pressed',String(reducedEffects));toggle.textContent=reducedEffects?'✧ Efektleri geri aç':'✧ Efektleri azalt';}
   textUpdate('fire');textUpdate('rune');
 }
+// Nişancı (docs/27, DEVIR-PVP 19): maç sürerken tarayıcı geri tuşu Esc ile aynı çıkış onay kutusunu açar.
+const backGuard=createBackGuard({
+  isLive:()=>store.getState().view!==PvPView.CLOSED&&['running','paused'].includes(network.match?.status),
+  onBack:()=>{
+    if(document.querySelector('dialog[open]'))return;
+    void askConfirm(root,{title:'Maçtan çık?',message:"PvP'den çıkarsan maçtan ayrılırsın.",confirmLabel:'Çık'}).then(ok=>{
+      if(ok&&store.getState().view!==PvPView.CLOSED)store.dispatch({type:'PVP_CLOSE'});
+      else{document.activeElement?.blur?.();focusTypingWhenReady();}
+    });
+  },
+});
+root?.addEventListener('tuslab:pvp-match',()=>backGuard.sync());
+store.subscribe(state=>{if(state.view===PvPView.CLOSED)backGuard.disarm();});
 store.subscribe(state=>show(state.view!==PvPView.CLOSED));
 let audioPrepared=false,musicPrepared=false;
 function prepareTypingAudio(){
@@ -701,8 +727,9 @@ root?.addEventListener('click',event=>{
     else if(document.fullscreenEnabled)void root.requestFullscreen?.().catch(fullscreenButtonSync);
   } else if(action.dataset.pvpAction==='sound'){
     const next=pvpAudio.setMuted(!pvpAudio.getState().muted);
+    // Nişancı (docs/27): ana ses ortak anahtara yazılır; müzik kapıdan susar ama kendi ayarı (♫ düğmesi) değişmez.
+    writeMasterSound(undefined,!next);masterSoundWatch.note(!next);pvpMusic.setMasterMuted?.(next);
     action.setAttribute('aria-pressed',String(next));action.textContent=next?'🔇 Sesi aç':'🔊 Sesi kapat';
-    if(pvpMusic.getState().muted!==next){pvpMusic.setMuted(next);const mb=root.querySelector('[data-pvp23-music-toggle]');if(mb){mb.setAttribute('aria-pressed',String(next));mb.textContent=next?'♫ Müziği aç':'♫ Müziği kapat';}}
     if(!next)void pvpMusic.unlock();
     if(!next)void pvpAudio.unlock().then(()=>pvpAudio.play('shield',{character:'center',gain:.22}));
   } else if(action.dataset.pvpAction==='reset') {
@@ -941,6 +968,7 @@ root?.addEventListener('tuslab:pvp-match',()=>{
   if(network.match?.matchId!==lastLiveMatchId){
     lastLiveMatchId=network.match?.matchId||null;
     for(const p of Object.values(players)){p.typed='';p.startedAt=null;p.pending=false;p.pendingIndex=null;p.queued=null;}
+    pendingKeys.clear();
   }
   for(const id of ['fire','rune']){
     const p=players[id];
@@ -948,10 +976,37 @@ root?.addEventListener('tuslab:pvp-match',()=>{
     const serverPlayer=network.match?.players?.find(x=>x.seat===seat);
     if(p.pending&&serverPlayer&&serverPlayer.wordIndex>p.pendingIndex){p.pending=false;p.pendingIndex=null;p.typed='';}
     textUpdate(id);
+    replayPendingKeys(id);
     flushQueued(id);
   }
   focusTypingWhenReady();
 });
+/** Nişancı (docs/27, DEVIR-PVP 17): sunucu onayı beklenirken (kutu kilitli) basılan tuşlar tampona alınır; onay ya da ret gelip
+ *  kutu açılınca sırayla verilir (boşluk varsa yalnız ilk kelime gönderilir, kalanı sonraki onayı bekler). Bot maçında onay
+ *  eşzamanlı geldiğinden tampon hiç dolmaz. */
+const pendingKeys=createPendingBuffer();
+function capturePendingKey(event){
+  if(!root||root.hidden||!['running','paused'].includes(network.match?.status))return false;
+  const p=players[myKey()];if(!p?.pending)return false;
+  if(!pendingKeyAction(event))return false;
+  const a=document.activeElement;
+  if(a&&a!==document.body&&!a.matches?.('[data-input]')&&a.matches?.('input,textarea,select,[contenteditable=""],[contenteditable="true"]'))return false;
+  if(root.querySelector('[data-pvp-settings][open], [data-pvp15-results]:not([hidden]), dialog[open], [data-lobby-panel]:not([hidden]), [data-pvp16-panel]:not([hidden]), [data-pvp17-panel]:not([hidden]), .htp-panel:not([hidden])'))return false;
+  if(!pendingKeys.push(event.key))return false;
+  event.preventDefault();
+  return true;
+}
+function replayPendingKeys(id){
+  if(!pendingKeys.size||id!==myKey())return;
+  if(!['running','paused'].includes(network.match?.status)){pendingKeys.clear();return;}
+  const p=players[id];if(!p||p.pending)return;
+  const input=root?.querySelector('#tt-input');
+  if(!input||input.disabled||input.dataset.input!==id)return;
+  const chunk=pendingKeys.takeChunk();if(!chunk)return;
+  input.value=String(input.value||'')+chunk;
+  input.dispatchEvent(new Event('input',{bubbles:true}));
+  try{input.focus({preventScroll:true});}catch{/* odak yalnız kolaylık */}
+}
 /** Paket 33: sıraya alınmış kelimeyi (pencere kapalıyken boşluk basıldı) pencere açılınca gönder. */
 function flushQueued(id){
   const p=players[id],m=network.match;if(!p)return;
@@ -1002,6 +1057,7 @@ root?.addEventListener('tuslab:pvp-recovered',()=>{
     p.pending=false;p.pendingIndex=null;p.typed='';p.startedAt=null;p.queued=null;
     textUpdate(p.id);
   }
+  pendingKeys.clear();
 });
 root?.addEventListener('tuslab:pvp-word-result',event=>{
   const result=event.detail||{};
@@ -1016,12 +1072,13 @@ root?.addEventListener('tuslab:pvp-word-result',event=>{
     // pencere kapandığı için reddedildiyse sıradaki pencerede yeniden gönderilir.
     const after=afterReject({code:result.code,word:own.typed});
     own.pending=false;own.pendingIndex=null;own.typed=after.typed;if(after.queued)own.queued=after.queued;
-    textUpdate(ownId);flushQueued(ownId);
+    textUpdate(ownId);flushQueued(ownId);replayPendingKeys(ownId);
     return;
   }
   const id=(result.seat??network.seat)===2?'rune':'fire';
   const p=players[id];p.pending=false;p.pendingIndex=null;p.typed='';p.startedAt=performance.now();
   textUpdate(id);
+  replayPendingKeys(id);
   focusTypingWhenReady();
 });
 /** Kâşif (docs/20): canlı maçta odak yazma kutusunda değilken (Profil/Arkadaşlar/ayar kapandıktan sonra araç çubuğu
@@ -1047,6 +1104,7 @@ document.addEventListener('keydown',event=>{
   // Arena hazırlığı: 1–5 skill, 6–9 eşya, Enter kilitle, Esc seçmeden geç.
   if(arenaUi?.handleKey(event))return;
   if(roundsUi?.handleKey(event))return;
+  if(capturePendingKey(event))return;
   redirectTypingKey(event);
   if(event.key==='Escape'){
     const settings=root?.querySelector('[data-pvp-settings][open]');

@@ -64,8 +64,8 @@ export const PALETTES = Object.freeze({
 export const FONT_SIZE = Object.freeze({ normal: 34, skill: 42, ultimate: 46, label: 18, labelHot: 18, tag: 18, combo: 18 });
 
 /**
- * Çakışmasız yerleşim: bir tarafta aynı anda en çok 6 şerit. Yeni sayı ilk BOŞ şeride oturur, böylece
- * art arda gelen vuruşlar üst üste binmez. Hepsi doluysa en eski canlı sayının şeridi kullanılır.
+ * Eski sabit şeritler (geriye uyumluluk ve testler için dışa aktarılıyor). Nişancı (docs/27): yerleşim artık
+ * `placeNumber` ile ölçüye göre yapılır; sabit şeritler geniş sayılarda ("-200" yanında "-10") üst üste biniyordu.
  */
 export const LANES = Object.freeze([
   Object.freeze({ x: 0, y: 0 }),
@@ -81,6 +81,86 @@ export function pickLane(busy = []) {
   return busy.length ? busy[0] : 0;
 }
 
+/** Yükselme animasyonunun toplam boyu (fx-damage.css --pxd-rise ile aynı) ve kutular arası boşluk. */
+export const RISE_PX = 60;
+export const SLOT_GAP = 10;
+const DRIFT_PAD = 8; // yatay kayma payı (iki komşu zıt yöne kayabilir; tahmindeki fazla genişlik de pay sayılır)
+
+/**
+ * Bir sayının yaklaşık kutusu (CSS pikseli). Ölçüm yerine tahmin: toplu temasta ~25 sayı aynı karede
+ * doğuyor, her birinde zorunlu yerleşim kareyi uzatıyordu (İş 12). Rakamlar tabular, kalın; 0.58em + dış hat (1440 px'te ölçülen "-200": 158 px, tahmin 166 px).
+ */
+export function estimateBox(lines, viewportWidth = 1280, { ultimate = false, impact = 1 } = {}) {
+  const vw = Number(viewportWidth) > 0 ? Number(viewportWidth) : 1280;
+  const numFs = (ultimate ? Math.min(58, Math.max(34, vw * 0.038)) : Math.min(46, Math.max(28, vw * 0.03))) * impact;
+  let w = 0, h = 0;
+  for (const line of lines || []) {
+    const cls = String(line.cls || '');
+    const text = String(line.text ?? '');
+    let fs, em;
+    if (cls.includes('pxd-tag')) { fs = 14; em = 0.78; }
+    else if (cls.includes('pxd-label')) { fs = Math.min(18, Math.max(15, vw * 0.015)); em = 0.74; }
+    else { fs = numFs; em = 0.58; }
+    w = Math.max(w, text.length * fs * em + 6);
+    h += fs + 4;
+  }
+  return { w: Math.round(w || 40), h: Math.round(h || 30) };
+}
+
+/**
+ * Nişancı (docs/27): çakışmasız yuva seçimi. Saf; test edilir.
+ * box: {w,h} yeni sayı · base: {x,y} isteğin kendi kayması (ulti evresi vb.)
+ * others: canlı sayılar [{cx, cy, w, h, rise}] — cx/cy MERKEZ (çapa noktasına göre), rise: o ana kadar
+ *   yükseldiği px. Yeni sayı daha geç doğduğu için yükselirken eskiye en çok `rise` kadar yaklaşır; bu yüzden
+ *   eskinin kutusu yukarı doğru `rise` kadar uzatılmış sayılır → ömür boyu çakışma olmaz.
+ * bounds: {left,right,up,down} çapadan izinli uzaklıklar (merkez için).
+ * Dönüş: {dx, dy} (çapaya göre ek kayma) ya da yer yoksa null.
+ */
+export function placeNumber(box, others = [], { base = { x: 0, y: 0 }, bounds = { left: 300, right: 300, up: 140, down: 40 }, gap = SLOT_GAP } = {}) {
+  const bx = Number(base?.x) || 0, by = Number(base?.y) || 0;
+  // scale: doğuştaki büyüme (pxd-pop 1.4→1, 120 ms); tahmin zaten gerçek genişlikten ~%12 geniş, 1.25 yeterli.
+  const ks = Number(box.scale) || 1;
+  const hw = box.w * ks / 2 + DRIFT_PAD / 2, hh = box.h * ks / 2;
+  const rects = others.map(o => {
+    const k = Number(o.scale) || 1;
+    return {
+      l: o.cx - o.w * k / 2 - DRIFT_PAD / 2, r: o.cx + o.w * k / 2 + DRIFT_PAD / 2,
+      t: o.cy - o.h * k / 2 - Math.max(0, o.rise || 0) - 6, b: o.cy + o.h * k / 2,
+    };
+  });
+  // Çapanın kendisi (isteğin kendi kaymasıyla) her zaman geçerli: büyük kutu dar sahnede de en az bir yer bulur.
+  const L = Math.max(bounds.left, hw - bx), R = Math.max(bounds.right, hw + bx);
+  const U = Math.max(bounds.up, hh - by), D = Math.max(bounds.down, hh + by);
+  const fits = (x, y) => x - hw >= -L - 0.5 && x + hw <= R + 0.5 && y - hh >= -U - 0.5 && y + hh <= D + 0.5;
+  const hits = (x, y) => rects.filter(q => x - hw < q.r + gap && x + hw > q.l - gap && y - hh < q.b + gap && y + hh > q.t - gap);
+  // Yatay kaçış dikeyden ucuz: aynı karede gelenler tek satırda yan yana dizilir, satır dolarsa bir üst satır.
+  const cost = (dx, dy) => Math.abs(dx) + Math.abs(dy) * 2 + (dy > 0 ? 80 : 0);
+  const seen = new Set();
+  const queue = [{ dx: 0, dy: 0, c: 0 }];
+  for (let guard = 0; queue.length && guard < 80; guard++) {
+    queue.sort((a, b) => a.c - b.c);
+    const { dx, dy } = queue.shift();
+    const key = `${Math.round(dx / 4)},${Math.round(dy / 4)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const x = bx + dx, y = by + dy;
+    if (!fits(x, y)) continue;
+    const blockers = hits(x, y);
+    if (!blockers.length) return { dx: Math.round(dx), dy: Math.round(dy) };
+    for (const q of blockers) {
+      const next = [
+        { dx: q.r + gap + hw - bx, dy },
+        { dx: q.l - gap - hw - bx, dy },
+        { dx, dy: q.t - gap - hh - by },
+        { dx: 0, dy: q.t - gap - hh - by },
+        { dx, dy: q.b + gap + hh - by },
+      ];
+      for (const n of next) queue.push({ ...n, c: cost(n.dx, n.dy) });
+    }
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Tunables
 // ---------------------------------------------------------------------------
@@ -89,6 +169,11 @@ export const MAX_LIVE_PER_SIDE = 6;
 export const COMBO_WINDOW_MS = 1200;
 export const HEAVY_DAMAGE = 150;
 const REDUCED_DURATION_MS = 360;
+/** Yuvalar dolunca en eski sayının hızlı solma süresi (fx-damage.css .pxd-leaving). */
+export const LEAVE_MS = 140;
+/** Doğuş büyümesi (pxd-pop 1.4→1, 120 ms, hızlı inen eğri): aynı karede doğan komşular büyürken de birleşmesin
+ *  diye yeni ve 160 ms'den genç sayıların kutusu ×1.2 sayılır. */
+const POP_SCALE = 1.2, POP_MS = 160;
 const DURATIONS = { normal: 820, skill: 900, ultimate: 900, label: 900, counter: 900 };
 const SIZE = FONT_SIZE;
 
@@ -171,46 +256,97 @@ export function createDamageNumbers({
     } catch { /* yalnız yerleşim iyileştirmesi */ }
   }
 
-  /** Remove one live entry and cancel its timer. */
-  function dropEntry(entry) {
+  /** Remove one live entry and cancel its timer. fast: kısa solma ile çıkar (yuvalar dolunca en eski). */
+  const leaving = new Set();
+  function dropEntry(entry, fast = false) {
     if (entry.timer != null) scheduler.clearTimeout(entry.timer);
     entry.timer = null;
-    entry.el.remove?.();
+    if (!fast || entry.reduced) { entry.el.remove?.(); return; }
+    entry.el.classList?.add?.('pxd-leaving');
+    if (!entry.el.classList && typeof entry.el.className === 'string') entry.el.className += ' pxd-leaving';
+    leaving.add(entry);
+    entry.timer = scheduler.setTimeout(() => { entry.timer = null; leaving.delete(entry); entry.el.remove?.(); }, LEAVE_MS);
+  }
+
+  /** Katmanın çapa noktasından (50% / 34%) izinli uzaklıklar; ölçüm 1 sn önbellekte (toplu temasta tek okuma). */
+  const boundsCache = new Map();
+  function boundsFor(layer) {
+    const t = now();
+    const hit = boundsCache.get(layer);
+    if (hit && t - hit.at < 1000) return hit.b;
+    let b = { left: 340, right: 340, up: 160, down: 160 };
+    try {
+      const r = layer.getBoundingClientRect?.();
+      if (r && r.width > 0 && r.height > 0) {
+        const vw = doc.documentElement?.clientWidth || globalThis.innerWidth || r.left + r.width;
+        const cx = r.left + r.width / 2;
+        b = {
+          left: Math.max(60, Math.min(r.width / 2, cx - 10)) - 4,
+          right: Math.max(60, Math.min(r.width / 2, vw - 10 - cx)) - 4,
+          // Üstte yükselme payı kalsın (katman taşanı keser); altta dövüşçünün gövdesini çok örtmesin.
+          up: Math.max(60, r.height * 0.34 - RISE_PX - 4),
+          down: Math.max(30, Math.min(160, r.height * 0.32)),
+        };
+      }
+    } catch { /* varsayılan sınırlar */ }
+    boundsCache.set(layer, { at: t, b });
+    return b;
+  }
+
+  /** Canlı bir sayının şu ana kadarki yükselişi (px): CSS'teki 120 ms gecikmeli ease-out drift ile aynı eğri. */
+  function riseOf(entry, t) {
+    if (entry.reduced) return 0;
+    const p = Math.min(1, Math.max(0, (t - entry.born - 120) / Math.max(1, entry.duration - 120)));
+    return RISE_PX * (1 - (1 - p) * (1 - p));
   }
 
   /**
    * Spawn one floating number on `seat`.
    * spec: {lines:[{text, palette, px, cls}], kind, duration, heavy, x, y, ariaText}
+   * Nişancı (docs/27): yer `placeNumber` ile seçilir — aynı karede gelenler yan yana, satır dolunca bir üst satır;
+   * hiç yer yoksa en eski sayı hızla solar ve yeri boşalır. Zamanlama ve değerler değişmez; yalnız konum.
    */
   function spawn(seat, spec) {
     const layer = layerFor(seat);
     if (!layer || !doc?.createElement) return false;
     const list = live.get(seat);
     // Recycle the oldest numbers so a side never shows more than the cap.
-    while (list.length >= MAX_LIVE_PER_SIDE) dropEntry(list.shift());
+    while (list.length >= MAX_LIVE_PER_SIDE) dropEntry(list.shift(), true);
 
     const isRed = reduced();
     const duration = isRed ? REDUCED_DURATION_MS : spec.heavy && spec.amount ? 1100 : spec.duration;
-    const lane = pickLane(list.map(e => e.lane));
-    const slot = LANES[lane];
+    const impact = Math.min(1.6, 1 + (spec.amount || 0) / 400 + (spec.heavy ? .18 : 0));
     const el = doc.createElement('div');
     el.className = ['pxd-float', `pxd-${spec.kind}`, `pxd-seat-${seat}`,
       spec.heavy ? 'pxd-heavy' : '', isRed ? 'pxd-reduced' : 'pxd-animate'].filter(Boolean).join(' ');
     el.setAttribute?.('aria-hidden', 'true');
     if (el.dataset) el.dataset.text = spec.ariaText;
     // Per-number randomness lives in CSS custom properties (transform only).
-    // Küçük rastgele kayma: şeritten taşmasın diye ±10 px.
+    // Küçük rastgele kayma: yuvadan taşmasın diye ±10 px.
     const drift = isRed ? 0 : Math.round((random() * 2 - 1) * 10);
     const x = spec.x ?? Math.round((random() * 2 - 1) * 6);
-    let y = spec.y ?? 0;
-    // Ultimate phase offsets and random drift must not collapse two occupied slots.
-    while (list.some(e => Math.abs(e.x - (slot.x + x)) < 54 && Math.abs(e.y - (slot.y + y)) < 48)) y -= 48;
-    el.style.setProperty?.('--pxd-impact-scale', String(Math.min(1.6, 1 + (spec.amount || 0) / 400 + (spec.heavy ? .18 : 0))));
+    const y = spec.y ?? 0;
+    const vw = doc.documentElement?.clientWidth || globalThis.innerWidth || 1280;
+    const box = estimateBox(spec.lines, vw, { ultimate: spec.kind === 'ultimate', impact });
+    const bounds = boundsFor(layer);
+    const t = now();
+    let place = null;
+    for (;;) {
+      // Solmakta olan (ömrünün %80'ini geçmiş) sayılar yer tutmaz; azaltılmış kipte hepsi tutar.
+      const others = list.filter(e => e.reduced || t - e.born < e.duration * 0.8)
+        .map(e => ({ cx: e.x, cy: e.y, w: e.w, h: e.h, rise: riseOf(e, t), scale: !e.reduced && t - e.born < POP_MS ? POP_SCALE : 1 }));
+      place = placeNumber(isRed ? box : { ...box, scale: POP_SCALE }, others, { base: { x, y }, bounds });
+      if (place || !list.length) break;
+      dropEntry(list.shift(), true);
+    }
+    if (!place) place = { dx: 0, dy: 0 };
+    const slot = list.length;
+    el.style.setProperty?.('--pxd-impact-scale', String(impact));
     el.style.setProperty?.('--pxd-x', `${x}px`);
     el.style.setProperty?.('--pxd-y', `${y}px`);
-    el.style.setProperty?.('--pxd-lx', `${slot.x}px`);
-    el.style.setProperty?.('--pxd-ly', `${slot.y}px`);
-    if (el.dataset) el.dataset.lane = String(lane);
+    el.style.setProperty?.('--pxd-lx', `${place.dx}px`);
+    el.style.setProperty?.('--pxd-ly', `${place.dy}px`);
+    if (el.dataset) el.dataset.lane = String(slot);
     el.style.setProperty?.('--pxd-drift', `${drift}px`);
     el.style.setProperty?.('--pxd-dur', `${duration}ms`);
 
@@ -221,7 +357,8 @@ export function createDamageNumbers({
     layer.appendChild(el);
     clampIntoView(el);
 
-    const entry = { el, timer: null, lane, x: slot.x + x, y: slot.y + y };
+    const entry = { el, timer: null, lane: slot, x: place.dx + x, y: place.dy + y, w: box.w, h: box.h,
+      born: t, duration, reduced: isRed };
     entry.timer = scheduler.setTimeout(() => {
       entry.timer = null;
       el.remove?.();
@@ -365,6 +502,7 @@ export function createDamageNumbers({
     for (const list of live.values()) {
       while (list.length) dropEntry(list.shift());
     }
+    for (const entry of [...leaving]) { leaving.delete(entry); dropEntry(entry); }
     for (const seat of [...combos.keys()]) hideCombo(seat);
   }
 
