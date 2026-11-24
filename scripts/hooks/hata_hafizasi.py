@@ -28,7 +28,7 @@ def main():
         return 0
     metin = veri.get("prompt") or ""
     # Ajan raporları ve sistem bildirimleri de bu olayla gelir; onlar kullanıcının hata bildirimi değildir.
-    if re.search(r"Another Claude session sent a message|\[Subagent hand-back\]|<task-notification>|SYSTEM NOTIFICATION", metin):
+    if re.search(r"Another Claude session sent a message|\[Subagent hand-back\]|<task-notification>|SYSTEM NOTIFICATION|<side-sessions-event>|<system-reminder>|^\s*<[a-z-]+-event>|ci-monitor-event", metin):
         return 0
     if not metin or metin.lstrip().startswith("/") or not KALIP.search(metin):
         return 0
