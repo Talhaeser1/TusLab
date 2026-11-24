@@ -167,6 +167,9 @@
 .tl-edu .tl-lit-recent { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 4px; }
 .tl-edu .tl-lit-recent li { color: var(--tl-ok); opacity: .7; font-size: .92rem; overflow-wrap: anywhere; }
 .tl-edu .tl-lit-recent li + li { opacity: .45; }
+.tl-edu .tl-lit-recent li.tl-lit-empty { color: var(--tl-mute); opacity: 1; font-size: 13px; }
+/* Dar ekranda kutu yazıcının altına iner; boşken orada yer kaplamasın. */
+@media (max-width: 1099px) { .tl-edu .tl-lit-recentbox.is-empty { display: none; } }
 
 /* ---- telefon ---- */
 @media (max-width: 600px) {
@@ -215,6 +218,8 @@
 }
 .tl-edu .tl-typer-stats.is-stream { grid-template-columns: none; grid-auto-columns: minmax(0, 1fr); }
 .tl-edu .tl-typer-stats .tl-typer-stop { grid-column: auto; margin-left: 4px; min-height: 0; padding: 4px 12px; border-radius: 12px; font-size: 14px; }
+/* Hakem (docs/25): 768 px'te başlık satırındaki sayaç şeridi daralıyor, "Esc" düğmenin dışına taşıyordu (Şiir & Atasözü). */
+@media (max-width: 900px) { .tl-edu .tl-ws-head .tl-typer-stats .tl-typer-stop kbd { display: none; } }
 .tl-edu .tl-stat { padding: 3px 8px; border: 0; border-radius: 0; background: none; text-align: center; min-width: 0; }
 .tl-edu .tl-stat + .tl-stat { border-left: 1px solid var(--tl-line); }
 .tl-edu .tl-stat b { font-size: clamp(1.1rem, .7rem + 1.2vh, 1.5rem); line-height: 1.15; color: var(--acc, var(--tl-cyan)); }
@@ -304,6 +309,11 @@
 .tl-edu .tl-jump small { color: var(--tl-mute); font-size: 12px; }
 .tl-edu .tl-jump.is-done b { background: var(--acc); color: #0b0e22; }
 .tl-edu .tl-jump:hover:not(:disabled) { border-color: var(--acc); }
+/* Hakem (docs/25): masaüstünde gizli yatay kaydırma son üniteyi kesiyordu (1440'ta "Ustalık 0/" yarım); satır kırılır. */
+@media (min-width: 1000px) {
+  .tl-edu .tl-map-jump { flex-wrap: wrap; gap: 6px; overflow-x: visible; }
+  .tl-edu .tl-jump { padding-right: 10px; }
+}
 
 .tl-edu .tl-unit { margin: 0; padding: 18px 20px 20px; scroll-margin-top: 64px; }
 .tl-edu .tl-unit-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }

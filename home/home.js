@@ -811,6 +811,12 @@
   const timeOf = (t) => { const d = new Date(t); return two(d.getHours()) + ':' + two(d.getMinutes()); };
   const modeOf = (x) => (x && MODE_NAME[x.m] ? x.m : 'diger');
   const modeLabel = (id) => MODE_NAME[id] || 'Diğer';
+  /** Zaman ekseni etiketleri (Hakem, docs/25): hepsi aynı gündeyse saat; değilse tarih, art arda aynı tarih tekrar yazılmaz. */
+  const xLabels = (ts) => {
+    let ds = ts.map(t => (t ? shortDate(t) : ''));
+    if (ts.length > 1 && ts.every(t => t) && ds.every(d => d === ds[0])) ds = ts.map(timeOf);
+    return ds.map((d, j) => (j && d === ds[j - 1] ? '' : d));
+  };
   const isoDate = (k) => { const [y, mo, da] = String(k).split('-').map(Number); return y && mo && da ? da + ' ' + MONTH_SHORT[mo - 1] : ''; };
 
   /** Büyük grafik: hız (sol eksen, WPM, alan + çizgi + ortalama) ve doğruluk (sağ eksen, %) aynı zaman ekseninde.
@@ -857,7 +863,7 @@
           ${n === 1 ? '<p class="tlh-pc-one">Bir yazış daha: eğilim çizilsin.</p>' : ''}
         </div>
         <div class="tlh-pc-y is-acc" aria-hidden="true">${at.map(t => `<span style="top:${YA(t)}%">%${t}</span>`).join('')}</div>
-        <div class="tlh-pc-x" aria-hidden="true">${xi.map(i => `<span style="left:${X(i)}%">${esc(num(list[i].t) ? shortDate(list[i].t) : '')}</span>`).join('')}</div>
+        <div class="tlh-pc-x" aria-hidden="true">${xLabels(xi.map(i => num(list[i].t))).map((l, j) => `<span style="left:${X(xi[j])}%">${esc(l)}</span>`).join('')}</div>
       </div>
       <p class="tlh-ch-lg tlh-pc-lg"><span class="is-w">son hız <b>${w[n - 1]}</b> WPM</span><span class="is-acc">doğruluk${accs.length ? ` <b>%${Math.round(accs[accs.length - 1])}</b>` : ''}</span>${n > 1 ? `<span class="is-avg">ort. <b>${avg}</b> WPM</span>` : ''}</p>`;
   }

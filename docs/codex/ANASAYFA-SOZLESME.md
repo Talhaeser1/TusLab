@@ -27,7 +27,7 @@ Eğitim ekranları da yalnız bu değişkenleri kullanır.
 | Dosya | Sahip |
 |---|---|
 | home/data/words.js, home/data/texts.js, home/data/lessons.js, docs/EGITIM-ARASTIRMA.md | İşçi V (veri) |
-| home/home.js, home/home.css, home/scene3d.js, home/sfx.js | İşçi K (kabuk) |
+| home/home.js, home/home.css, home/sfx.js | İşçi K (kabuk) |
 | home/typing.js, home/lessons.js, home/literature.js, home/egitim.css | İşçi E (eğitim) |
 
 ## Veri biçimi (İşçi V üretir, diğerleri yalnız okur)
@@ -70,9 +70,8 @@ export function mountLessons(host, ctx) -> { destroy() }      // ctx.intent = { 
 export { lessonUnlocked, intentLessonIndex }                    // ders-kilit.js'ten yeniden dışa
 // home/literature.js (İşçi E)
 export function mountLiterature(host, ctx) -> { destroy() }   // ctx.intent = { cat:'atasozu'|'deyim'|'siir'|'tekerleme'|'ozdeyis' } → o türün akışı hemen
-export function dailyLine() -> { text, source }        // eski "Günün Dizesi" yardımcısı (Merkez şu an kullanmıyor)
-// home/scene3d.js (İşçi K)
-export function mountScene(host) -> { destroy(), pulse(kind) }   // kind: 'key'|'win'
+export function lineStarts(lines), lineAt(starts, pos)        // şiirde kıta kutusu: dize başları ve imlecin dizesi
+// (24 Kas: dailyLine() kaldırıldı; home/scene3d.js _to_delete/ altına taşındı — Merkez 3B kullanmıyor, docs/18-19, docs/23)
 // home/sfx.js (İşçi K)
 export const sfx = { key(), error(), win(), voice(name) }       // voice: 'welcome'|'great'|'lesson'|'record'
 // ctx (home.js verir): { section, intent, back(), sfx, save(obj), load() -> obj, toast(msg) }
@@ -82,7 +81,7 @@ Ses dosyaları (orkestra üretir, ElevenLabs/Higgsfield): `assets/sfx/home/welco
 
 ## Var olan uygulamayla bağlantı (home.js)
 - `?pvp=` sorgusu varsa ana sayfa hiç açılmaz. `#pvp-root` görünür olunca veya `tuslab:pvp-enter` olayında gizlenir.
-- "Hız Arenası" → ana sayfa gizlenir, mevcut uygulama görünür (gerekirse `data-action="nav" data-mode="arena"` düğmesine tıklanır).
+- (Eski) "Hız Arenası" kartı kaldırıldı: eski site (`app.js`) kullanıcıya hiç gösterilmez (CLAUDE.md). Merkez'de yalnız Yazma, Dersler, Şiir & Atasözü, PvP ve Performans var.
 - "PvP Düello" → `?pvp=lobby` bağlantısı (2026-11-23: PvP LOBİSİ açılır, maç kendiliğinden başlamaz; `?pvp=practice` yalnız test/derin bağlantı); "Çevrimiçi" → `document.dispatchEvent(new CustomEvent('tuslab:pvp-enter'))`.
 - Mevcut uygulamaya dönen kullanıcı için sağ altta küçük "⌂ Ana Sayfa" düğmesi (PvP açıkken gizli).
 - 2026-11-23 (PvP akış şeridi): PvP'den her çıkış (araç çubuğu/lobi "← Ana Sayfa", Esc) yeni ana sayfaya döner; `?pvp=` sayfasında temiz adrese yönlendirilir.

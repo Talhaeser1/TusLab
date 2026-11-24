@@ -960,6 +960,8 @@
 @media (orientation:landscape) and (max-height:500px) and (min-width:600px){
   #pvp-root#pvp-root .rui-inter.rui-band.is-dock{bottom:4px;max-height:calc(100dvh - 144px)}
   #pvp-root#pvp-root.rui-inter-open .fhud2-rail{visibility:hidden}
+  /* Hakem (docs/25): bandın başlığı ("RAUND N BİTTİ", "Raund N başlıyor") kelime şeritlerinin üstüne biniyordu. */
+  #pvp-root#pvp-root.rui-inter-open .mi-strip{visibility:hidden}
   #pvp-root#pvp-root .rui-inter.rui-band.is-dock .rui-skill-picker .rui-skill-cards .aui-card-icon{width:46px;height:46px}
 }
 

@@ -904,6 +904,8 @@ export class PvPNetworkConsole {
     if(badge){badge.textContent=this.status;badge.dataset.online=this.ws?.readyState===1&&Boolean(this.myId)?'true':'false';}
     const put=(selector,value)=>{const el=panel.querySelector(selector);if(el)el.textContent=value;};
     put('[data-lobby-state]',this.status);
+    // Hakem (docs/25): bot antrenmanı için gelen oyuncuya "Bağlı değil" gösterme (telefon yatayda portrenin üstüne biniyordu).
+    const lobbyState=panel.querySelector('[data-lobby-state]');if(lobbyState)lobbyState.hidden=this.status==='Bağlı değil';
     put('[data-lobby-code]',this.code||'—');
     put('[data-lobby-count]',this.players.filter(p=>p.online).length+' / 2');
     const input=panel.querySelector('[data-lobby-name]');if(input&&document.activeElement!==input&&input.value!==this.name)input.value=this.name;

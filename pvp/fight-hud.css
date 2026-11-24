@@ -635,7 +635,7 @@ html #pvp-root.pvp4-reduced.fhud-on[data-layout="fullscreen"] .pvp2-shell>.tt .t
 .fhud2 .fhud2-sk[data-state="pending"] .hx-prog{stroke:#6dff9c;stroke-dasharray:8 5!important}
 .fhud2 .fhud2-sk[data-state="pending"] .fhud2-glyph,.fhud2 .fhud2-sk[data-state="pending"] .fhud2-sksub{color:#8dffaa}
 .fhud2 .fhud2-sk.is-drop .fhud2-sksub{color:#ffb3c0}
-.fhud2 .fhud2-rail-note{max-width:340px;height:30px;line-height:15px;overflow:hidden}
+.fhud2 .fhud2-rail-note{max-width:340px;height:30px;line-height:15px;overflow:hidden;text-shadow:0 1px 3px #000,0 0 2px #000;background:rgba(6,4,18,.62);border-radius:6px;padding:0 6px} /* Hakem: sahnedeki ışık sütununun üstünde de okunur */
 /* rakip rayında not görünmez ama yer tutar → iki yanın kartları aynı taban çizgisinde */
 .fhud2 .fhud2-rail.is-opp .fhud2-rail-note{display:block;visibility:hidden}
 @media (max-width:1400px){

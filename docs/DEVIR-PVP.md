@@ -39,3 +39,12 @@ docs/RAPOR-PVP-MEKANIK.md, RAPOR-PVP-KALANLAR.md, RAPOR-BECERI-SATIRI.md, RAPOR-
 (24 Kas, Telefoncu — docs/24-pvp-telefon-turu.md: telefon turu. Yetenekler alt sayfası yığılma hatası, 740×360 lobi ve sonuç düzeni, ekran klavyesi düzeni (`pvp/phone-viewport.js`), yazma paneline dokununca odak, dokunmatikte 44 px düğmeler, teslim satırı taşması, 601–820 px "Arkadaşlar" taşması ve telefonda otomatik kalite başlangıç kademesi düzeltildi.)
 20. (Telefoncu) Gerçek telefonda (iOS Safari, Android Chrome) ekran klavyesiyle maç hiç denenmedi; düzen sahte `visualViewport` ile doğrulandı. Raund sonunda klavye kapanıyor, oyuncu panele yeniden dokunuyor (iOS otomatik odağa izin vermez).
 21. (Telefoncu) `index.html` viewport etiketinde `viewport-fit=cover` yok → `env(safe-area-inset-*)` hep 0 (içerik çentikte kesilmez ama kenardan kenara da değil). index.html kararı kullanıcıda.
+
+(24 Kas, Hakem — docs/25-son-kontrol.md: sonuç kartı 768×1024'te sayıların öbür karta binmesi, telefon yatayda tur arası
+başlığının kelime şeritlerine binmesi, lobide gereksiz "Bağlı değil" satırı ve ray notunun ışık sütununda okunmaması düzeltildi.)
+22. (Hakem) Raund sonu hasar sayıları üst üste biniyor ("-200" ve "-10" → "-20010" gibi okunuyor; DESTEK etiketleri de). VFX
+    yerleşimi, sahiplik/risk nedeniyle dokunulmadı.
+23. (Hakem) 768 px tablette maç üst şeridinde bot adı ve dövüşçü alt başlığı iki-üç satıra kırılıyor ("BOT · / KOLAY",
+    "SİRA · / GÖLGE / MIZRAK"); okunuyor ama sıkışık.
+24. (Hakem) Lobide dövüşçü değişince yeni portre ~1–2 sn gecikmeli geliyor; o arada ad yeni, görsel eski dövüşçü.
+25. (Hakem) Tasarım kararı: PvP'deki dönüş düğmesi "← Ana Sayfa", ana sitede aynı yer "← Merkez" diye geçiyor.

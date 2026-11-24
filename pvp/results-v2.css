@@ -62,7 +62,7 @@
    Sığmayınca kartlar kutunun ÜSTÜNE taşıp başlığı/skor satırını örtüyordu; kaybeden kartı filter ile soluyordu, sayılar dar sütunda sarıyordu.
    v3: her blok kendi boyunda (flex:none), dikey sırayla dizilir; portre boyu tek bütçeli değişken (--r3-ph); iki oyuncu EŞİT yapılı,
    aynı satırda, kesik köşeli levha (sol turuncu / sağ camgöbeği ışık, kazanan altın kenar). Giriş ≤400 ms, yalnız transform/opacity. */
-#pvp-root .pvp15-scene{--r3-gold:#e9c46a;--r3-ph:clamp(118px,30vh,350px);--r3-gap:clamp(6px,1.25vh,16px);--r3-cut:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)}
+#pvp-root .pvp15-scene{--r3-gold:#e9c46a;--r3-ph:clamp(118px,min(30vh,22vw),350px);--r3-gap:clamp(6px,1.25vh,16px);--r3-cut:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)}
 /* örtü: başlık bölgesi koyu (kontrast), ortada görsel seçilir (kartlar zaten opak levha), alt koyu */
 #pvp-root .pvp15-scene::before{background:linear-gradient(180deg,#05071deb 0,#05071de0 22%,#05071d99 42%,#05071d8c 62%,#05071dd9 82%,#05071df2 100%)}
 #pvp-root .pvp15-scene .pvp15-card{justify-content:safe center;gap:var(--r3-gap);overflow-x:hidden;overflow-y:auto;scrollbar-width:thin;padding:clamp(10px,2.2vh,32px) clamp(12px,3vw,48px)}
@@ -111,7 +111,7 @@
 #pvp-root .pvp15-scene .pvp15-player-name small{font-size:12px;font-weight:800;letter-spacing:.12em;color:#ece6ff}
 #pvp-root .pvp15-scene .pvp15-figures{grid-column:2;grid-row:2;display:grid;grid-template-columns:repeat(3,max-content);justify-content:start;gap:0 clamp(14px,2vw,30px);margin:0;padding-top:4px;border-top:1px solid #ffffff1f}
 #pvp-root .pvp15-scene .pvp15-figures>div{display:grid;gap:1px;text-align:inherit}
-#pvp-root .pvp15-scene .pvp15-figures strong{font-size:clamp(20px,3.6vh,36px);line-height:1.05;white-space:nowrap;font-variant-numeric:tabular-nums;color:#fff}
+#pvp-root .pvp15-scene .pvp15-figures strong{font-size:clamp(20px,min(3.6vh,2.6vw),36px);line-height:1.05;white-space:nowrap;font-variant-numeric:tabular-nums;color:#fff}
 #pvp-root .pvp15-scene .pvp15-winner .pvp15-figures strong{color:#fff1cf}
 #pvp-root .pvp15-scene .pvp15-figures small{font-size:12px;letter-spacing:.1em;white-space:nowrap;color:#e2dcf6}
 #pvp-root .pvp15-scene .pvp15-detail{grid-column:2;grid-row:3;display:flex;flex-direction:column;flex-wrap:nowrap;align-items:flex-start;gap:2px;font-size:13px;line-height:1.3;color:#e9e4fb;font-variant-numeric:tabular-nums}
@@ -142,6 +142,12 @@
 @media(prefers-reduced-motion:reduce){#pvp-root .pvp15-scene .pvp15-card>*{animation:none!important}}
 #pvp-root.pvp4-reduced .pvp15-scene .pvp15-card>*{animation:none!important}
 /* telefon dikey: kartlar alt alta, skor satırı iki satır, ayrıntı satır içi */
+/* Hakem (docs/25): 761–1000 px dikey tablette (768×1024) iki kart yan yana dar kalıyor; sayı satırı (WPM · DOĞRULUK · HASAR)
+   kartın dışına taşıp öbür kartın üstüne biniyordu. Portre üstte 22vw ile, sayı yazısı 2.6vw ile sınırlı; burada aralık daralır. */
+@media(min-width:761px) and (max-width:1000px){
+  #pvp-root .pvp15-scene .pvp15-figures{gap:0 10px}
+  #pvp-root .pvp15-scene .pvp15-figures small{letter-spacing:.02em}
+}
 @media(max-width:760px){
   #pvp-root .pvp15-scene{--r3-ph:clamp(84px,12vh,120px);--r3-gap:6px}
   #pvp-root .pvp15-scene .pvp15-card{padding:10px 12px}

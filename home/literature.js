@@ -164,7 +164,9 @@ export function mountLiterature(host, ctx) {
     session = { cat: c.id, recent: [] };
     const srcEl = h('p', { class: 'tl-lit-src', 'aria-live': 'polite' }, '');
     const recentEl = h('ol', { class: 'tl-lit-recent', 'aria-label': 'Son yazılanlar' });
-    const recentBox = h('section', { class: 'tl-lit-box tl-lit-recentbox', hidden: true }, h('p', { class: 'tl-lit-cap' }, 'Son yazdıkların'), recentEl);
+    // Hakem (docs/25): kutu baştan görünür (boş ipucuyla); yoksa geniş ekranda sağ sütun boş kalıyordu (Atasözü, Tekerleme…).
+    recentEl.append(h('li', { class: 'tl-lit-empty' }, 'Bitirdiğin metinler burada birikir.'));
+    const recentBox = h('section', { class: 'tl-lit-box tl-lit-recentbox is-empty' }, h('p', { class: 'tl-lit-cap' }, 'Son yazdıkların'), recentEl);
     // Şiirde kıta kutusu (dize dize, yazılan dize vurgulu); deyimde kalıp + anlam kutusu.
     const ctxEl = h('section', { class: 'tl-lit-box tl-lit-ctx', hidden: true });
     const tHost = h('div', { class: 'tl-typer-host' });
@@ -242,7 +244,7 @@ export function mountLiterature(host, ctx) {
           session.recent.unshift(done.text);
           if (session.recent.length > 3) session.recent.length = 3;
           recentEl.replaceChildren(...session.recent.map((t) => h('li', null, t)));
-          recentBox.hidden = false;
+          recentBox.classList.remove('is-empty');
         }
       },
       onProgress: (st) => markDize(Math.max(0, ((st && st.typed) || 0) - chunkBase)),
